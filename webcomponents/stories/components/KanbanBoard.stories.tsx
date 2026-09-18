@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { KanbanBoard } from "../../src/components/KanbanBoard";
-import { board, emptyBoard, unnamedStepTicket } from "../fixtures/operator";
+import { DEFAULT_FILTER_STATE, filterBoard } from "../../src/shared/kanban-filters";
+import { board, busyBoard, emptyBoard, unnamedStepTicket } from "../fixtures/operator";
 
 const meta = {
   title: "Components/KanbanBoard",
@@ -33,4 +34,11 @@ export const UnnamedStep: Story = {
 /** Columns collapse to one at the 900px breakpoint. */
 export const Narrow: Story = {
   globals: { viewport: { value: "narrow" } },
+};
+
+/** What the board renders once a filter narrows it: gamesvc tickets only. */
+export const Filtered: Story = {
+  args: {
+    board: filterBoard(busyBoard, { ...DEFAULT_FILTER_STATE, projects: ["gamesvc"] }),
+  },
 };

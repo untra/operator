@@ -17,6 +17,18 @@ use operator::auth::scope::{Access, ROUTE_RULES};
 const UNDOCUMENTED_MOUNTED_ROUTES: &[(&str, &str)] =
     &[("GET", "/api/v1/mcp/sse"), ("POST", "/api/v1/mcp/message")];
 
+// `/api/v1/profiles/{profile_id}/{*path}` is deliberately absent from both
+// lists. It is a dispatcher, not an endpoint: it rewrites the URI and
+// re-dispatches into the same router these rules already cover, so the request
+// is authorized against the rule for the route it actually resolves to. A
+// `ROUTE_RULES` entry for the wildcard would never be consulted, and an
+// unconsulted rule is a lie about the surface.
+//
+// What that indirection *could* do is stop enforcing, so it is covered
+// behaviourally instead - see `tests/premium_http_contract.rs`:
+// `a_configuration_qualified_route_still_requires_authentication` and
+// `a_configuration_qualified_route_enforces_entitlement`.
+
 /// The complete set of routes reachable without a credential.
 const EXPECTED_PUBLIC: &[(&str, &str)] = &[
     // Kubernetes probes - no workspace metadata.

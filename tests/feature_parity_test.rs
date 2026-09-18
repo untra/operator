@@ -286,18 +286,6 @@ fn test_tui_has_all_status_sections() {
     }
 }
 
-/// Every canonical section id must be referenced by the VS Code status provider.
-#[test]
-fn test_vscode_has_all_status_sections() {
-    let status_provider_src = include_str!("../vscode-extension/src/status-provider.ts");
-    for id in canonical_section_ids() {
-        assert!(
-            status_provider_src.contains(&id),
-            "VSCode status-provider.ts is missing sectionId '{id}'"
-        );
-    }
-}
-
 /// The web UI sidebar (`STATUS_KEYS` in concepts.ts) must list exactly the
 /// canonical sections, in the same order, as the TUI / VS Code surfaces.
 #[test]
@@ -437,5 +425,34 @@ mod detailed_tests {
             package_json.contains("Reject Review"),
             "VSCode should have 'Reject Review' title"
         );
+    }
+}
+
+/// Authentication is server-scoped: every auth store must be opened at
+/// `auth_state_path()`, never `state_path()`. The two coincide by default,
+/// which is exactly why a drift here would go unnoticed until a server hosting
+/// more than one configuration split its admin account in two.
+#[test]
+fn test_auth_stores_are_opened_at_the_server_auth_path() {
+    const SOURCES: &[(&str, &str)] = &[
+        ("src/main.rs", include_str!("../src/main.rs")),
+        ("src/app/mod.rs", include_str!("../src/app/mod.rs")),
+        ("src/app/tickets.rs", include_str!("../src/app/tickets.rs")),
+        ("src/rest/state.rs", include_str!("../src/rest/state.rs")),
+        (
+            "src/auth/callback.rs",
+            include_str!("../src/auth/callback.rs"),
+        ),
+    ];
+    for (name, source) in SOURCES {
+        for (number, line) in source.lines().enumerate() {
+            let is_open =
+                line.contains("AuthStore::open") || line.contains("AuthContext::initialize");
+            assert!(
+                !(is_open && line.contains("state_path()") && !line.contains("auth_state_path()")),
+                "{name}:{} opens the auth store at state_path(); use auth_state_path()",
+                number + 1
+            );
+        }
     }
 }

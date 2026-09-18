@@ -17,6 +17,7 @@ import { RightPanelProvider, useRightPanel } from "./right-panel";
 import type { SectionDto } from "./api-client";
 import { OperatorApi, setCsrfToken } from "./api-client";
 import { useHost } from "./host";
+import { ProfileSelector } from "./profiles-context";
 
 // The "Status" group mirrors the canonical section order shared with the TUI and
 // VS Code extension (the SectionId enum in src/ui/status_panel.rs) and reflects
@@ -117,6 +118,7 @@ export function Layout() {
           }
           groups={
             <>
+              <ProfileSelector />
               <ConceptNavGroup label="Status" keys={STATUS_KEYS} />
               <ConceptNavGroup label="Pages" keys={PAGE_KEYS} />
             </>

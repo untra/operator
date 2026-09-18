@@ -10,7 +10,8 @@ use axum::{
 };
 use chrono::Utc;
 
-use crate::queue::{Queue, Ticket};
+use crate::config::Config;
+use crate::queue::{Queue, Ticket, TicketStatus};
 use crate::rest::dto::{
     KanbanBoardResponse, KanbanSyncResponse, KanbanTicketCard, QueueByType, QueueControlResponse,
     QueueStatusResponse,
@@ -26,19 +27,32 @@ fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
         summary: ticket.summary.clone(),
         ticket_type: ticket.ticket_type.clone(),
         project: ticket.project.clone(),
-        status: ticket.status.clone(),
+        status: TicketStatus::from_frontmatter(&ticket.status),
         step: ticket.step.clone(),
         step_display_name: ticket.current_step_display_name().into(),
-        priority: ticket.priority.clone(),
+        priority: ticket.priority_level(),
         timestamp: ticket.timestamp.clone(),
         filename: ticket.filename.clone(),
     }
 }
 
+/// Order one active column the way the launcher orders the queue: issuetype
+/// rank from `queue.priority_order`, then the ticket's own priority, then FIFO.
+fn sort_active_column(config: &Config, column: &mut [KanbanTicketCard]) {
+    column.sort_by(|a, b| {
+        config
+            .priority_index(&a.ticket_type)
+            .cmp(&config.priority_index(&b.ticket_type))
+            .then_with(|| a.priority.cmp(&b.priority))
+            .then_with(|| a.timestamp.cmp(&b.timestamp))
+    });
+}
+
 /// Get kanban board data with tickets grouped by status column
 ///
 /// Returns tickets organized into four columns: queue, running, awaiting, done.
-/// Tickets are sorted by priority within each column, then by timestamp (FIFO).
+/// Active columns follow `queue.priority_order`, then the ticket's `priority:`
+/// field, then timestamp (FIFO). The done column is newest first.
 #[utoipa::path(
     operation_id = "queue_kanban",
     get,
@@ -50,7 +64,8 @@ fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
 )]
 pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardResponse>, ApiError> {
     // Create a queue from the config
-    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let config = state.config();
+    let queue = Queue::new(&config).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Load tickets from each directory
     let queued_tickets = queue
@@ -72,19 +87,20 @@ pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardRes
     // Queue directory tickets go to "queue" column (unless status says otherwise)
     for ticket in &queued_tickets {
         let card = ticket_to_card(ticket);
-        match ticket.status.as_str() {
-            "awaiting" => awaiting_col.push(card),
+        match TicketStatus::parse(&ticket.status) {
+            Some(TicketStatus::Awaiting) => awaiting_col.push(card),
             _ => queue_col.push(card),
         }
     }
 
-    // In-progress directory tickets: check their status field
+    // In-progress directory tickets: check their status field. An unrecognised
+    // status stays in the running column rather than jumping back to queue.
     for ticket in &in_progress_tickets {
         let card = ticket_to_card(ticket);
-        match ticket.status.as_str() {
-            "awaiting" | "waiting" | "blocked" => awaiting_col.push(card),
-            "queued" => queue_col.push(card),
-            _ => running_col.push(card), // running, active, etc.
+        match TicketStatus::parse(&ticket.status) {
+            Some(TicketStatus::Awaiting) => awaiting_col.push(card),
+            Some(TicketStatus::Queued) => queue_col.push(card),
+            _ => running_col.push(card),
         }
     }
 
@@ -93,34 +109,9 @@ pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardRes
         done_col.push(ticket_to_card(ticket));
     }
 
-    // Sort each column by priority order (INV > FIX > FEAT > SPIKE), then by timestamp
-    let priority_order = |t: &KanbanTicketCard| -> u8 {
-        match t.ticket_type.as_str() {
-            "INV" => 0,
-            "FIX" => 1,
-            "FEAT" => 2,
-            "SPIKE" => 3,
-            _ => 4,
-        }
-    };
-
-    queue_col.sort_by(|a, b| {
-        priority_order(a)
-            .cmp(&priority_order(b))
-            .then_with(|| a.timestamp.cmp(&b.timestamp))
-    });
-
-    running_col.sort_by(|a, b| {
-        priority_order(a)
-            .cmp(&priority_order(b))
-            .then_with(|| a.timestamp.cmp(&b.timestamp))
-    });
-
-    awaiting_col.sort_by(|a, b| {
-        priority_order(a)
-            .cmp(&priority_order(b))
-            .then_with(|| a.timestamp.cmp(&b.timestamp))
-    });
+    sort_active_column(&config, &mut queue_col);
+    sort_active_column(&config, &mut running_col);
+    sort_active_column(&config, &mut awaiting_col);
 
     // Done column: most recently completed first (reverse timestamp order)
     done_col.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -152,7 +143,8 @@ pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardRes
 )]
 pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusResponse>, ApiError> {
     // Create a queue from the config
-    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let config = state.config();
+    let queue = Queue::new(&config).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Load tickets from each directory
     let queued_tickets = queue
@@ -170,53 +162,35 @@ pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusRes
     let mut in_progress_count = 0usize;
     let mut awaiting_count = 0usize;
 
-    // Count by type
-    let mut inv_count = 0usize;
-    let mut fix_count = 0usize;
-    let mut feat_count = 0usize;
-    let mut spike_count = 0usize;
-
-    // Helper to count by type
-    let count_type =
-        |ticket: &Ticket, inv: &mut usize, fix: &mut usize, feat: &mut usize, spike: &mut usize| {
-            match ticket.ticket_type.as_str() {
-                "INV" => *inv += 1,
-                "FIX" => *fix += 1,
-                "FEAT" => *feat += 1,
-                "SPIKE" => *spike += 1,
-                _ => {}
-            }
-        };
+    // Configured types are always present so the shape is stable; anything a
+    // collection defines is added as it is encountered.
+    let mut by_type: std::collections::BTreeMap<String, usize> = config
+        .queue
+        .priority_order
+        .iter()
+        .map(|t| (t.clone(), 0))
+        .collect();
+    let mut count_type = |ticket: &Ticket| {
+        *by_type.entry(ticket.ticket_type.clone()).or_insert(0) += 1;
+    };
 
     // Process queued tickets
     for ticket in &queued_tickets {
-        match ticket.status.as_str() {
-            "awaiting" => awaiting_count += 1,
+        match TicketStatus::parse(&ticket.status) {
+            Some(TicketStatus::Awaiting) => awaiting_count += 1,
             _ => queued_count += 1,
         }
-        count_type(
-            ticket,
-            &mut inv_count,
-            &mut fix_count,
-            &mut feat_count,
-            &mut spike_count,
-        );
+        count_type(ticket);
     }
 
     // Process in-progress tickets
     for ticket in &in_progress_tickets {
-        match ticket.status.as_str() {
-            "awaiting" | "waiting" | "blocked" => awaiting_count += 1,
-            "queued" => queued_count += 1,
+        match TicketStatus::parse(&ticket.status) {
+            Some(TicketStatus::Awaiting) => awaiting_count += 1,
+            Some(TicketStatus::Queued) => queued_count += 1,
             _ => in_progress_count += 1,
         }
-        count_type(
-            ticket,
-            &mut inv_count,
-            &mut fix_count,
-            &mut feat_count,
-            &mut spike_count,
-        );
+        count_type(ticket);
     }
 
     // Completed count
@@ -227,12 +201,7 @@ pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusRes
         in_progress: in_progress_count,
         awaiting: awaiting_count,
         completed: completed_count,
-        by_type: QueueByType {
-            inv: inv_count,
-            fix: fix_count,
-            feat: feat_count,
-            spike: spike_count,
-        },
+        by_type: QueueByType(by_type),
     }))
 }
 
@@ -368,6 +337,47 @@ mod tests {
         ApiState::new(config, PathBuf::from("/tmp/test-kanban"))
     }
 
+    /// Points the handler's `Queue` at `dir`; `make_state` alone does not,
+    /// because the config keeps its default relative tickets path.
+    fn make_state_in(dir: &std::path::Path) -> ApiState {
+        let mut config = Config::default();
+        config.paths.tickets = dir.to_string_lossy().into_owned();
+        ApiState::new(config, dir.to_path_buf())
+    }
+
+    fn state_with_order(dir: &std::path::Path, order: &[&str]) -> ApiState {
+        let mut config = Config::default();
+        config.paths.tickets = dir.to_string_lossy().into_owned();
+        config.queue.priority_order = order.iter().map(|t| (*t).to_string()).collect();
+        ApiState::new(config, dir.to_path_buf())
+    }
+
+    /// Writes `<tickets>/<column>/<timestamp>-<type>-operator-<slug>.md`.
+    fn write_ticket(
+        root: &std::path::Path,
+        column: &str,
+        timestamp: &str,
+        ticket_type: &str,
+        id: &str,
+        priority: &str,
+        status: &str,
+    ) {
+        let dir = root.join(column);
+        std::fs::create_dir_all(&dir).unwrap();
+        let slug = id.to_lowercase();
+        std::fs::write(
+            dir.join(format!("{timestamp}-{ticket_type}-operator-{slug}.md")),
+            format!(
+                "---\nid: {id}\nstatus: {status}\npriority: {priority}\nstep: plan\n---\n\n# {id}\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    fn ids(column: &[KanbanTicketCard]) -> Vec<&str> {
+        column.iter().map(|c| c.id.as_str()).collect()
+    }
+
     #[tokio::test]
     async fn test_kanban_empty() {
         let state = make_state();
@@ -377,6 +387,182 @@ mod tests {
         let response = result.unwrap();
         // Empty directories should return empty columns
         assert!(response.queue.is_empty() || !response.queue.is_empty());
+    }
+
+    /// `TASK` is third in the default `queue.priority_order`, so it must not
+    /// sort below `FEAT` on the board.
+    #[tokio::test]
+    async fn test_kanban_orders_task_above_feat() {
+        let temp = tempfile::tempdir().unwrap();
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1100",
+            "FEAT",
+            "FEAT-1",
+            "P2-medium",
+            "queued",
+        );
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1200",
+            "TASK",
+            "TASK-1",
+            "P2-medium",
+            "queued",
+        );
+
+        let board = kanban(State(make_state_in(temp.path()))).await.unwrap();
+        assert_eq!(ids(&board.queue), vec!["TASK-1", "FEAT-1"]);
+    }
+
+    /// The ticket's own `priority:` breaks ties within a type, ahead of FIFO.
+    #[tokio::test]
+    async fn test_kanban_p0_sorts_above_p3_of_same_type() {
+        let temp = tempfile::tempdir().unwrap();
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1100",
+            "FEAT",
+            "FEAT-LOW",
+            "P3-low",
+            "queued",
+        );
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1200",
+            "FEAT",
+            "FEAT-HOT",
+            "P0-critical",
+            "queued",
+        );
+
+        let board = kanban(State(make_state_in(temp.path()))).await.unwrap();
+        assert_eq!(ids(&board.queue), vec!["FEAT-HOT", "FEAT-LOW"]);
+    }
+
+    /// Collection-defined types are absent from `priority_order`, so they sort
+    /// last - but must still order among themselves by priority, not tie.
+    #[tokio::test]
+    async fn test_kanban_unknown_issuetype_sorts_last_and_breaks_ties_by_priority() {
+        let temp = tempfile::tempdir().unwrap();
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1000",
+            "CHORE",
+            "CHORE-LOW",
+            "P3-low",
+            "queued",
+        );
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1100",
+            "CHORE",
+            "CHORE-HOT",
+            "P0-critical",
+            "queued",
+        );
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1200",
+            "FEAT",
+            "FEAT-1",
+            "P3-low",
+            "queued",
+        );
+
+        let board = kanban(State(make_state_in(temp.path()))).await.unwrap();
+        assert_eq!(ids(&board.queue), vec!["FEAT-1", "CHORE-HOT", "CHORE-LOW"]);
+    }
+
+    #[tokio::test]
+    async fn test_kanban_priority_order_follows_config() {
+        let temp = tempfile::tempdir().unwrap();
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1100",
+            "FEAT",
+            "FEAT-1",
+            "P2-medium",
+            "queued",
+        );
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1200",
+            "SPIKE",
+            "SPIKE-1",
+            "P2-medium",
+            "queued",
+        );
+
+        let state = state_with_order(temp.path(), &["SPIKE", "FEAT"]);
+        let board = kanban(State(state)).await.unwrap();
+        assert_eq!(ids(&board.queue), vec!["SPIKE-1", "FEAT-1"]);
+    }
+
+    /// The done column is recency-ordered, not priority-ordered.
+    #[tokio::test]
+    async fn test_kanban_done_column_is_newest_first() {
+        let temp = tempfile::tempdir().unwrap();
+        write_ticket(
+            temp.path(),
+            "completed",
+            "20240101-1100",
+            "INV",
+            "INV-OLD",
+            "P0-critical",
+            "completed",
+        );
+        write_ticket(
+            temp.path(),
+            "completed",
+            "20240101-1200",
+            "FEAT",
+            "FEAT-NEW",
+            "P3-low",
+            "completed",
+        );
+
+        let board = kanban(State(make_state_in(temp.path()))).await.unwrap();
+        assert_eq!(ids(&board.done), vec!["FEAT-NEW", "INV-OLD"]);
+    }
+
+    /// Every issuetype is counted, not just the four that used to be hardcoded.
+    #[tokio::test]
+    async fn test_queue_status_counts_task_and_custom_types() {
+        let temp = tempfile::tempdir().unwrap();
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1100",
+            "TASK",
+            "TASK-1",
+            "P2-medium",
+            "queued",
+        );
+        write_ticket(
+            temp.path(),
+            "queue",
+            "20240101-1200",
+            "CHORE",
+            "CHORE-1",
+            "P2-medium",
+            "queued",
+        );
+
+        let response = status(State(make_state_in(temp.path()))).await.unwrap();
+        assert_eq!(response.by_type.0.get("TASK"), Some(&1));
+        assert_eq!(response.by_type.0.get("CHORE"), Some(&1));
+        // Configured types are always present, even at zero.
+        assert_eq!(response.by_type.0.get("FEAT"), Some(&0));
     }
 
     #[test]
@@ -404,7 +590,27 @@ step: plan
         assert_eq!(card.id, "FEAT-1234");
         assert_eq!(card.ticket_type, "FEAT");
         assert_eq!(card.project, "operator");
-        assert_eq!(card.status, "queued");
-        assert_eq!(card.priority, "P2-medium");
+        assert_eq!(card.status, TicketStatus::Queued);
+        assert_eq!(card.priority, crate::queue::TicketPriority::P2Medium);
+    }
+
+    /// A status the schema does not know keeps the ticket in its directory's
+    /// column rather than snapping back to the queue.
+    #[tokio::test]
+    async fn test_kanban_buckets_unknown_in_progress_status_as_running() {
+        let temp = tempfile::tempdir().unwrap();
+        write_ticket(
+            temp.path(),
+            "in-progress",
+            "20240101-1100",
+            "FEAT",
+            "FEAT-1",
+            "P2-medium",
+            "gibberish",
+        );
+
+        let board = kanban(State(make_state_in(temp.path()))).await.unwrap();
+        assert_eq!(ids(&board.running), vec!["FEAT-1"]);
+        assert!(board.queue.is_empty());
     }
 }

@@ -34,6 +34,7 @@ mod git_onboarding;
 mod kanban;
 mod kanban_onboarding;
 mod keyboard;
+mod license_onboarding;
 mod pr_workflow;
 mod review;
 mod session;
@@ -149,15 +150,23 @@ impl App {
                 detected_tools,
                 projects_by_tool,
             );
+            setup.configuration_name =
+                if config.profile.name == crate::profiles::LEGACY_PROFILE_NAME {
+                    String::new()
+                } else {
+                    config.profile.name.clone()
+                };
             // Set after construction so `SetupScreen::new`'s signature stays
             // stable for its other callers and tests. A store that cannot be
             // opened is treated as "not configured".
             setup.admin_password_configured =
-                crate::auth::store::AuthStore::open(&config.state_path())
+                crate::auth::store::AuthStore::open(&config.auth_state_path())
                     .and_then(|store| store.bootstrap_state())
                     .is_ok_and(|state| {
                         state != crate::rest::dto::auth::BootstrapState::Uninitialized
                     });
+
+            setup.license = Some(crate::licensing::status(&config));
 
             // Projects will be saved to config during initialize_tickets()
             (Some(setup), discovered_projects)
@@ -252,8 +261,9 @@ impl App {
         #[cfg(unix)]
         let relay_hub = match RelayHub::start(hub_socket_path()).await {
             Ok(hub) => {
-                // Export socket path so child processes (agents) can find the hub
-                std::env::set_var("RELAY_HUB_SOCKET", hub.socket_path());
+                // Recorded, not exported: the launchers read it and put it in
+                // each agent's own environment (see crate::relay).
+                crate::relay::set_active_hub_socket(hub.socket_path().to_path_buf());
                 tracing::info!(socket = %hub.socket_path().display(), "Relay hub started");
                 Some(hub)
             }

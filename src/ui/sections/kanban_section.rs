@@ -68,6 +68,11 @@ impl StatusSection for KanbanSection {
             .collect();
 
         for provider in KanbanProviderType::ALL {
+            // The built-in board is never offered for configuration: it has no
+            // credentials and is always on. It appears above as a connected row.
+            if provider.is_builtin() {
+                continue;
+            }
             let already_connected = snapshot
                 .kanban_providers
                 .iter()
@@ -140,6 +145,8 @@ mod tests {
             acp_stdio_advertised: true,
             acp_active_sessions: 0,
             embed_ui_available: true,
+            license: crate::licensing::LicenseResponse::free(uuid::Uuid::nil()),
+            remote_targets: Vec::new(),
         }
     }
 
@@ -217,6 +224,39 @@ mod tests {
                 provider: "openspec".into()
             }
         );
+    }
+
+    /// Offering "Configure Operator" would be a dead end - there is nothing to
+    /// connect.
+    #[test]
+    fn test_kanban_children_never_offer_to_configure_the_builtin_board() {
+        let section = KanbanSection;
+        let children = section.children(&base_snapshot());
+        assert!(!children.iter().any(|r| {
+            matches!(
+                &r.actions.primary,
+                StatusAction::ConfigureKanbanProvider { provider } if provider == "operator"
+            )
+        }));
+    }
+
+    /// At runtime the snapshot always carries the built-in board, so it renders
+    /// as connected and the section is never "no provider connected".
+    #[test]
+    fn test_kanban_section_is_green_with_only_the_builtin_board() {
+        let section = KanbanSection;
+        let mut snap = base_snapshot();
+        snap.kanban_providers.push(KanbanProviderInfo {
+            provider_type: "operator".into(),
+            domain: ".tickets".into(),
+        });
+        assert_eq!(section.health(&snap), SectionHealth::Green);
+        assert_eq!(section.description(&snap), "operator");
+
+        let children = section.children(&snap);
+        assert_eq!(children[0].label, "operator");
+        assert_eq!(children[0].description, ".tickets");
+        assert_eq!(children[0].actions.primary, StatusAction::None);
     }
 
     #[test]

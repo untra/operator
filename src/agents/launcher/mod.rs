@@ -263,6 +263,8 @@ impl Launcher {
         ticket: &Ticket,
         options: LaunchOptions,
     ) -> Result<String> {
+        crate::licensing::require_target(&self.config, &options.target)?;
+        self.require_step_entitlement(ticket, &options)?;
         let git = crate::git::identity::resolve_config(
             &self.config,
             ticket,
@@ -406,6 +408,7 @@ impl Launcher {
         working_dir_str: &str,
         options: &mut LaunchOptions,
     ) -> Result<()> {
+        crate::licensing::require_target(&self.config, &options.target)?;
         if let crate::config::TargetKind::Coder(coder_cfg) = &options.target.kind {
             let remote_url =
                 crate::git::GitCli::get_remote_url(std::path::Path::new(working_dir_str))
@@ -440,6 +443,7 @@ impl Launcher {
         initial_prompt: &str,
         options: &LaunchOptions,
     ) -> Result<(String, String)> {
+        crate::licensing::require_target(&self.config, &options.target)?;
         // Pre-allocate agent ID so we can inject it into the environment
         let agent_id = Uuid::new_v4().to_string();
 
@@ -462,6 +466,7 @@ impl Launcher {
                 });
 
         let operator_env = prompt::OperatorEnvVars {
+            profile_id: self.config.profile.id,
             git_context: crate::git::identity::resolve_config(
                 &self.config,
                 ticket,
@@ -675,6 +680,37 @@ impl Launcher {
         .map_err(|e| anyhow::anyhow!("{e}"))?;
         opts.session_suffix = Some(variant_key.to_string());
         Ok(opts)
+    }
+
+    fn require_step_entitlement(&self, ticket: &Ticket, options: &LaunchOptions) -> Result<()> {
+        let Some(step) = ticket.current_step_schema() else {
+            return Ok(());
+        };
+        let delegators: Vec<&str> = match step.step_type {
+            crate::templates::schema::StepTypeTag::MultiModel => step
+                .multi_model_config
+                .as_ref()
+                .map(|config| config.delegators.iter().map(String::as_str).collect())
+                .unwrap_or_default(),
+            crate::templates::schema::StepTypeTag::Matrixed => step
+                .matrixed_config
+                .as_ref()
+                .map(|config| config.delegators.iter().map(String::as_str).collect())
+                .unwrap_or_default(),
+            crate::templates::schema::StepTypeTag::MultiPrompt => step
+                .multi_prompt_config
+                .as_ref()
+                .and_then(|config| config.agent.as_deref())
+                .or_else(|| crate::templates::step_type::effective_agent(&step))
+                .into_iter()
+                .collect(),
+            _ => Vec::new(),
+        };
+        for delegator in delegators {
+            let resolved = self.sub_agent_options(options, delegator, delegator)?;
+            crate::licensing::require_target(&self.config, &resolved.target)?;
+        }
+        Ok(())
     }
 
     /// Render a prompt template with the ticket's handlebars context.
@@ -963,6 +999,7 @@ impl Launcher {
         ticket: &Ticket,
         options: LaunchOptions,
     ) -> Result<PreparedLaunch> {
+        crate::licensing::require_target(&self.config, &options.target)?;
         // Clone ticket so we can update worktree info
         let mut ticket = ticket.clone();
 
@@ -1022,6 +1059,10 @@ impl Launcher {
 
         // Build operator environment variables HashMap for PreparedLaunch
         let mut env_vars = std::collections::HashMap::new();
+        env_vars.insert(
+            "OPERATOR_PROFILE_ID".to_string(),
+            self.config.profile.id.to_string(),
+        );
         env_vars.insert("OPERATOR_AGENT_ID".to_string(), agent_id.clone());
         env_vars.insert("OPERATOR_TICKET_ID".to_string(), ticket.id.clone());
         env_vars.insert("OPERATOR_PROJECT".to_string(), ticket.project.clone());
@@ -1246,6 +1287,7 @@ impl Launcher {
         ticket: &Ticket,
         options: RelaunchOptions,
     ) -> Result<PreparedLaunch> {
+        crate::licensing::require_target(&self.config, &options.launch_options.target)?;
         // Clone ticket so we can update worktree info if needed
         let mut ticket = ticket.clone();
 
@@ -1320,6 +1362,10 @@ impl Launcher {
 
         // Build operator environment variables HashMap for PreparedLaunch
         let mut env_vars = std::collections::HashMap::new();
+        env_vars.insert(
+            "OPERATOR_PROFILE_ID".to_string(),
+            self.config.profile.id.to_string(),
+        );
         env_vars.insert("OPERATOR_AGENT_ID".to_string(), agent_id.clone());
         env_vars.insert("OPERATOR_TICKET_ID".to_string(), ticket.id.clone());
         env_vars.insert("OPERATOR_PROJECT".to_string(), ticket.project.clone());
@@ -1556,6 +1602,7 @@ impl Launcher {
     /// Used when a tmux session died but the ticket is still in progress.
     /// Can optionally resume from an existing Claude session ID.
     pub async fn relaunch(&self, ticket: &Ticket, options: RelaunchOptions) -> Result<String> {
+        crate::licensing::require_target(&self.config, &options.launch_options.target)?;
         let resolved = crate::git::identity::resolve_config(
             &self.config,
             ticket,
@@ -1667,6 +1714,7 @@ impl Launcher {
                 });
 
         let operator_env = prompt::OperatorEnvVars {
+            profile_id: self.config.profile.id,
             git_context: crate::git::runtime::current(),
             agent_id: agent_id.clone(),
             ticket_id: ticket.id.clone(),

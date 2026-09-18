@@ -126,6 +126,22 @@ export const CONCEPTS: Record<string, Concept> = {
     docsUrl: `${DOCS_BASE}/getting-started/workflows/`,
     summary: "Export formats a ticket + issue type can be rendered into for other tools.",
   },
+  "remote-targets": {
+    key: "remote-targets",
+    icon: "server-environment",
+    label: "Remote Targets",
+    route: "/remote-targets",
+    docsUrl: `${DOCS_BASE}/getting-started/remote-targets/`,
+    summary: "SSH hosts and Coder workspaces agents can run on. Requires Premium.",
+  },
+  license: {
+    key: "license",
+    icon: "key",
+    label: "License",
+    route: "/settings/license",
+    docsUrl: `${DOCS_BASE}/getting-started/premium/`,
+    summary: "The Premium license for this configuration, and what it covers.",
+  },
 };
 
 /** Sidebar order for the status sections (matches the TUI / VS Code ordering). */
@@ -140,6 +156,8 @@ export const STATUS_KEYS = [
   "delegators",
   "projects",
   "workflows",
+  "remote-targets",
+  "license",
 ] as const;
 
 /** Sidebar order for the web-only pages. */

@@ -24,6 +24,7 @@ pub mod dto;
 pub mod error;
 pub mod middleware;
 pub mod openapi;
+mod profile_router;
 pub mod routes;
 pub mod server;
 pub mod state;
@@ -95,6 +96,28 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::revoke_access_key))
 }
 
+/// Configuration registry, licence and remote-target routes.
+///
+/// Split out of [`documented_router`] for the same reason as [`auth_router`]:
+/// this is the entitlement-relevant subset, where every mutation either changes
+/// what the installation is licensed for or what it can execute on.
+fn premium_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        // Configuration registry.
+        .routes(routes!(routes::profiles::list, routes::profiles::create))
+        .routes(routes!(routes::profiles::get_one, routes::profiles::rename))
+        // Licence.
+        .routes(routes!(
+            routes::license::get,
+            routes::license::install,
+            routes::license::remove
+        ))
+        // Remote targets.
+        .routes(routes!(routes::targets::list, routes::targets::create))
+        .routes(routes!(routes::targets::update, routes::targets::remove))
+        .routes(routes!(routes::targets::probe))
+}
+
 fn first_run_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(routes::setup::status))
@@ -121,6 +144,7 @@ fn first_run_router() -> OpenApiRouter<ApiState> {
 fn documented_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(auth_router())
+        .merge(premium_router())
         // Health endpoints
         .routes(routes!(routes::health::health))
         .routes(routes!(routes::health::status))
@@ -302,6 +326,13 @@ fn cors_layer(config: &crate::config::Config) -> CorsLayer {
 }
 
 pub fn build_router(state: ApiState) -> Router {
+    let profiles = crate::profiles::ServerProfiles::open(state)
+        .expect("configuration registry must be available");
+    let default = profiles.default_state();
+    profile_router::mount(build_profile_router(default), profiles)
+}
+
+pub(crate) fn build_profile_router(state: ApiState) -> Router {
     let config = state.config();
     let cors = cors_layer(&config);
 
@@ -320,13 +351,7 @@ pub fn build_router(state: ApiState) -> Router {
     }
 
     // Swagger UI and its spec are merged in here, and the SPA fallback is
-    // registered here, so that the auth layer below covers both.
-    //
-    // Ordering is load-bearing: `Router::fallback` registered *after* `.layer`
-    // is not wrapped by that layer. With the fallback added last, an unknown
-    // `/api/...` path bypassed authorization entirely and was answered with the
-    // SPA shell instead of a 401 - which also meant a route mounted without a
-    // `ROUTE_RULES` entry would silently serve HTML rather than fail closed.
+    // registered here, so that the auth layer below covers both. Order matters: `Router::fallback` registered *after* `.layer`
     let router =
         router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi_spec()));
 
@@ -351,7 +376,8 @@ pub fn build_router(state: ApiState) -> Router {
 /// Start the REST API server (standalone mode with session file and logging)
 pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     let tickets_path = state.tickets_path.clone();
-    let state_path = state.config().state_path();
+    let state_path = state.config().auth_state_path();
+    let profile_id = state.config().profile.id;
     let host_ip = state.config().rest_api.host_ip();
     let app = build_router(state.clone());
     let addr = SocketAddr::new(host_ip, port);
@@ -360,7 +386,7 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
 
     // Write session file for client discovery
-    write_session_file(&tickets_path, &state_path, port)?;
+    write_session_file(&tickets_path, &state_path, port, profile_id)?;
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
@@ -380,6 +406,7 @@ fn write_session_file(
     tickets_path: &std::path::Path,
     state_path: &std::path::Path,
     port: u16,
+    profile_id: uuid::Uuid,
 ) -> Result<()> {
     let operator_dir = tickets_path.join("operator");
     std::fs::create_dir_all(&operator_dir)?;
@@ -387,6 +414,7 @@ fn write_session_file(
     let session_file = operator_dir.join("api-session.json");
     let session = ApiSessionInfo {
         port,
+        profile_id,
         pid: std::process::id(),
         started_at: chrono::Utc::now().to_rfc3339(),
         version: env!("CARGO_PKG_VERSION").to_string(),

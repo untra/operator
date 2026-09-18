@@ -116,7 +116,7 @@ impl ApiState {
     /// 2. If empty, initialize default templates from embedded files
     /// 3. Fallback to embedded builtins if filesystem loading fails
     pub fn new(config: Config, tickets_path: PathBuf) -> Self {
-        let state_path = config.state_path();
+        let state_path = config.auth_state_path();
         let bind_addr = config.rest_api.host_ip();
         let auth = AuthContext::initialize(state_path, bind_addr)
             .expect("auth store must be available; without it nothing can authenticate");

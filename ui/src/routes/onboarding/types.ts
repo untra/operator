@@ -10,6 +10,9 @@ import type {
 } from "../../api-client";
 
 export type WizardDraft = {
+  configurationName: string;
+  executionMode: "local" | "remote";
+  premium: boolean;
   preset: CollectionPreset;
   taskFields: string[];
   wrapper: SessionWrapperType;

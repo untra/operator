@@ -449,9 +449,20 @@ jobs:
           sed 's/^version = ".*"/version = "'"$V"'"/' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
           cargo update --workspace
 
-      # Build release with embedded UI
+      # Build release with embedded UI.
+      #
+      # Add `OPERATOR_RELEASE: "1"` below once OPERATOR_LICENSE_PUBLIC_KEYS and
+      # OPERATOR_LICENSE_ISSUER exist as repository secrets. build.rs then
+      # refuses to produce an artifact without them, because a build with no
+      # verification keys rejects every licence - a silent, total Premium
+      # outage. Until then the keys are passed through when set and the build
+      # succeeds either way.
       - name: Build release
         run: cargo build --locked --release --features embed-ui --target ${{ matrix.target }}
+        env:
+          OPERATOR_LICENSE_PUBLIC_KEYS: ${{ secrets.OPERATOR_LICENSE_PUBLIC_KEYS }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+          OPERATOR_PURCHASE_URL: ${{ vars.OPERATOR_PURCHASE_URL }}
 
       - name: Rename binary
         shell: bash

@@ -37,19 +37,31 @@ Write superpowers plans to `superpowers/plans/` and design specs to `superpowers
 
 ### Mandatory Before Committing
 
-All changes MUST pass these checks before committing. Run them with `make check`, which mirrors the CI `lint-test` job exactly:
+All changes MUST pass these checks before committing. Run them with `make check`,
+which is `fmt-check` + `lint` + `test` - each verb striped across every module:
 
 ```bash
 make check
-# equivalent to the exact CI commands:
-cargo fmt --all -- --check                                   # Format check
-cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (warnings are errors)
-cargo test --locked                                          # Run all tests
-make relay                                                   # crates/relay (not a workspace member)
-make fmt-ts                                                  # oxfmt --check, every JS/TS subproject
-make lint-ts                                                 # oxlint, every JS/TS subproject
-make lint-shell                                              # shellcheck -S warning
+# fmt-check: report-only formatting, per module
+make fmt-check-rust    # cargo fmt --check: root, crates/relay, opr8r, zed-extension
+make fmt-check-ts      # oxfmt --check, every JS/TS subproject
+make fmt-check-tf      # terraform fmt -check -diff (coder-module)
+# lint: warnings are errors everywhere
+make lint-rust         # clippy --locked --all-targets --all-features, all 4 crates
+make lint-ts           # oxlint --type-aware, every JS/TS subproject
+make lint-shell        # shellcheck -S warning
+make lint-helm         # helm lint charts/operator
+make lint-tf           # terraform validate + rendered coder_script check
+# test
+make test-rust         # cargo test --locked --all-features, all 3 crates
+make test-ts           # webcomponents + coder-module suites
 ```
+
+`make fmt` is the same striping in rewrite mode (`cargo fmt`, `bun run fmt`,
+`terraform fmt`); only `fmt-check` gates. `make relay` / `make opr8r` /
+`make vscode-extension` run every gate for one module when only it changed.
+Display-bound suites stay off `make test`: `make vscode-extension` (Electron)
+and `make storybook` (browser + axe) are run on their own.
 
 Formatting and linting are enforced for every subproject, not just the main
 crate. Rust uses `cargo fmt`/`clippy` (root, `crates/relay`, `opr8r`,
@@ -65,8 +77,8 @@ excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
 > deprecation that only surfaces under `--all-targets`), which is how a clippy
 > failure can pass locally yet break CI. Always use the full command above.
 
-Install the pre-push hook once per clone so the fast lint gate (fmt + clippy,
-no tests) runs automatically before every push; the full `make check` remains
+Install the pre-push hook once per clone so the fast gate (`fmt-check` +
+root `clippy`, no tests) runs automatically before every push; the full `make check` remains
 the expectation before opening a PR:
 
 ```bash
@@ -127,13 +139,12 @@ make check
 ## Quick Reference
 
 ```bash
-make check                     # Full CI-parity gate (Rust + relay + JS/TS + shell)
-bun run fmt                    # Format every JS/TS subproject in place
-bun run lint                   # oxlint across every JS/TS subproject
-make install-hooks             # Install the lint-only pre-push hook (once per clone)
-cargo fmt                      # Format code
-cargo clippy --locked --all-targets --all-features -- -D warnings  # Lint (CI parity)
-cargo test                     # Run all tests
+make check                     # Full gate: fmt-check + lint + test, every module
+make fmt                       # Rewrite formatting in every module
+make lint                      # Every linter: clippy, oxlint, shellcheck, helm, terraform
+make test                      # Rust + fast JS/TS suites
+make vscode-extension          # Compile + lint the extension (incl. the webview bundle)
+make install-hooks             # Install the fast pre-push hook (once per clone)
 cargo test <name>              # Run specific test
 cargo run                      # Run TUI
 cargo run -- queue             # CLI: show queue

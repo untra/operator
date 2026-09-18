@@ -48,6 +48,8 @@ pub enum EnvVarCategory {
     LlmTools,
     /// Logging configuration
     Logging,
+    /// Premium licence verification, supplied at build time
+    Licensing,
 }
 
 impl EnvVarCategory {
@@ -64,6 +66,7 @@ impl EnvVarCategory {
             EnvVarCategory::Tmux => "Tmux",
             EnvVarCategory::LlmTools => "LLM Tools",
             EnvVarCategory::Logging => "Logging",
+            EnvVarCategory::Licensing => "Licensing (build-time)",
         }
     }
 
@@ -80,6 +83,7 @@ impl EnvVarCategory {
             EnvVarCategory::Tmux,
             EnvVarCategory::LlmTools,
             EnvVarCategory::Logging,
+            EnvVarCategory::Licensing,
         ]
     }
 }
@@ -352,6 +356,35 @@ pub static ENV_VARS: &[EnvVar] = &[
         default: Some("true"),
         example: Some("false"),
     },
+    // === Licensing (build-time) ===
+    // Read by `option_env!` in src/licensing.rs, so they are baked into the
+    // binary at compile time and cannot be set at runtime. A build with no
+    // verification keys rejects every licence, which is the correct default for
+    // a source build.
+    EnvVar {
+        name: "OPERATOR_LICENSE_PUBLIC_KEYS",
+        description: "JSON map of key id to base64 Ed25519 public key used to verify Premium licences. Compile-time only",
+        category: EnvVarCategory::Licensing,
+        required: false,
+        default: Some("{}"),
+        example: Some(r#"{"2026-01":"MCowBQYDK2VwAyEA..."}"#),
+    },
+    EnvVar {
+        name: "OPERATOR_LICENSE_ISSUER",
+        description: "Expected `iss` claim on a Premium licence. Compile-time only",
+        category: EnvVarCategory::Licensing,
+        required: false,
+        default: Some("operator-licensing"),
+        example: Some("operator-licensing"),
+    },
+    EnvVar {
+        name: "OPERATOR_PURCHASE_URL",
+        description: "External destination shown by the Premium paywall. Compile-time only",
+        category: EnvVarCategory::Licensing,
+        required: false,
+        default: None,
+        example: Some("https://operator.untra.io/premium"),
+    },
     // Note: RELAY_HUB_SOCKET and RELAY_AGENT_NAME are intentionally excluded from this
     // registry because they follow the cross-project claude-relay naming convention
     // (no OPERATOR_ prefix) for wire compatibility with existing TS relay channels.
@@ -436,8 +469,8 @@ mod tests {
     #[test]
     fn test_all_categories_in_order() {
         let all = EnvVarCategory::all();
-        assert_eq!(all.len(), 10);
+        assert_eq!(all.len(), 11);
         assert_eq!(all[0], EnvVarCategory::Authentication);
-        assert_eq!(all[9], EnvVarCategory::Logging);
+        assert_eq!(all[10], EnvVarCategory::Licensing);
     }
 }

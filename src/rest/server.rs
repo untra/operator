@@ -17,6 +17,8 @@ use crate::rest::{build_router, ApiState};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiSessionInfo {
     pub port: u16,
+    #[serde(default)]
+    pub profile_id: uuid::Uuid,
     pub pid: u32,
     pub started_at: String,
     pub version: String,
@@ -31,6 +33,7 @@ fn write_session_file(
     tickets_path: &Path,
     state_path: &Path,
     port: u16,
+    profile_id: uuid::Uuid,
 ) -> std::io::Result<PathBuf> {
     let operator_dir = tickets_path.join("operator");
     std::fs::create_dir_all(&operator_dir)?;
@@ -38,6 +41,7 @@ fn write_session_file(
     let session_file = operator_dir.join("api-session.json");
     let session = ApiSessionInfo {
         port,
+        profile_id,
         pid: std::process::id(),
         started_at: chrono::Utc::now().to_rfc3339(),
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -223,7 +227,7 @@ impl RestApiServer {
         // `/api/v1/health` now requires a credential, so the probe presents the
         // local-unlock token from *this* project's state directory.
         let mut request = client.get(&url);
-        if let Some(token) = crate::auth::local::read(&self.config.state_path()) {
+        if let Some(token) = crate::auth::local::read(&self.config.auth_state_path()) {
             request = request.bearer_auth(token);
         }
 
@@ -270,7 +274,8 @@ impl RestApiServer {
         let host_ip = self.config.rest_api.host_ip();
         let status = Arc::clone(&self.status);
         let tickets_path = self.tickets_path.clone();
-        let state_path = self.config.state_path();
+        let state_path = self.config.auth_state_path();
+        let profile_id = self.config.profile.id;
         let api_state_handle = Arc::clone(&self.api_state);
 
         *status.lock().unwrap() = RestApiStatus::Starting;
@@ -285,7 +290,8 @@ impl RestApiServer {
                     tracing::info!("REST API listening on http://{}", addr);
 
                     // Write session file for client discovery
-                    if let Err(e) = write_session_file(&tickets_path, &state_path, port) {
+                    if let Err(e) = write_session_file(&tickets_path, &state_path, port, profile_id)
+                    {
                         tracing::warn!(error = %e, "Failed to write API session file");
                     }
 
@@ -545,7 +551,8 @@ mod tests {
         let port = 7008u16;
 
         let state_dir = temp_dir.path().join("custom-state");
-        let result = write_session_file(temp_dir.path(), &state_dir, port);
+        let profile_id = uuid::Uuid::new_v4();
+        let result = write_session_file(temp_dir.path(), &state_dir, port, profile_id);
         assert!(result.is_ok());
 
         let session_file = temp_dir.path().join("operator").join("api-session.json");
@@ -555,6 +562,7 @@ mod tests {
         let session: ApiSessionInfo = serde_json::from_str(&content).unwrap();
 
         assert_eq!(session.port, port);
+        assert_eq!(session.profile_id, profile_id);
         assert!(!session.version.is_empty());
         assert!(session.pid > 0);
         assert_eq!(
@@ -571,7 +579,7 @@ mod tests {
         let operator_dir = temp_dir.path().join("operator");
         assert!(!operator_dir.exists());
 
-        let result = write_session_file(temp_dir.path(), &operator_dir, 7008);
+        let result = write_session_file(temp_dir.path(), &operator_dir, 7008, uuid::Uuid::nil());
         assert!(result.is_ok());
 
         // Should have created the operator directory

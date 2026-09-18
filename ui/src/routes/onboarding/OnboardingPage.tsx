@@ -1,15 +1,112 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import type { SetupStep } from "@operator/bindings/SetupStep";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { SetupStatusResponse } from "../../api-client";
 import { ApiError, OperatorApi } from "../../api-client";
 import { useHost } from "../../host";
 import { STEP_COMPONENTS, visibleSteps } from "./steps";
+import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { WizardDraft } from "./types";
+import { useProfiles } from "../../profiles-context";
 import styles from "./OnboardingPage.module.css";
 
+const WIZARD_DRAFT_VERSION = 1;
+const WIZARD_DRAFT_PREFIX = "operator.onboarding-draft";
+
+function emptyDraft(configurationName: string, acceptanceCriteria = ""): WizardDraft {
+  return {
+    configurationName,
+    executionMode: "local",
+    premium: false,
+    preset: "devops_kanban",
+    taskFields: ["priority", "points", "user_story"],
+    wrapper: "tmux",
+    executionTarget: { kind: "local" },
+    coderParameters: [],
+    useWorktrees: false,
+    acceptanceCriteria,
+    modelServers: [],
+    hostedCollectionIds: [],
+  };
+}
+
+function draftStorageKey(profileId: string): string {
+  return `${WIZARD_DRAFT_PREFIX}.${profileId}`;
+}
+
 export function OnboardingPage() {
+  const { selected } = useProfiles();
+  const [params] = useSearchParams();
+  return !selected || params.get("new") === "1" ? <NewConfiguration /> : <OnboardingWizard />;
+}
+
+function NewConfiguration() {
+  const { create, selected } = useProfiles();
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const onCancel = () => {
+    void navigate(selected?.initialized ? "/" : "/onboarding");
+  };
+  return (
+    <main className={styles.page}>
+      <aside className={styles.sidebar}>
+        <div className={styles.brand}>Operator</div>
+        <p>1. Name configuration</p>
+        <p>2. Operator Premium</p>
+        <p>3. Execution mode</p>
+      </aside>
+      <section className={styles.content}>
+        <header>
+          <p>Step 1</p>
+          <h1>Welcome to Operator</h1>
+          <p>Name this configuration.</p>
+        </header>
+        <form
+          className={styles.body}
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            setError(null);
+            void create(name)
+              .then(() => navigate("/onboarding?step=license", { replace: true }))
+              .catch((cause: unknown) => {
+                setError(cause instanceof Error ? cause.message : "Could not create configuration");
+                setBusy(false);
+              });
+          }}
+        >
+          <label className={styles.form}>
+            Configuration name
+            <input
+              required
+              pattern="[a-z0-9_-]+"
+              maxLength={64}
+              value={name}
+              disabled={busy}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <span>Use lowercase letters, numbers, hyphens, and underscores.</span>
+          </label>
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" disabled={busy}>
+            {busy ? "Creating…" : "Continue"}
+          </button>
+          {selected && (
+            <button type="button" disabled={busy} onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function OnboardingWizard() {
   const host = useHost();
+  const { selected, refresh } = useProfiles();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const [api] = useState(() => new OperatorApi(host));
   const [status, setStatus] = useState<SetupStatusResponse | null>(null);
@@ -20,18 +117,10 @@ export function OnboardingPage() {
   const [collections, setCollections] = useState<Awaited<ReturnType<typeof api.setupCollections>>>(
     [],
   );
-  const [draft, setDraft] = useState<WizardDraft>({
-    preset: "devops_kanban",
-    taskFields: ["priority", "points", "user_story"],
-    wrapper: "tmux",
-    executionTarget: { kind: "local" },
-    coderParameters: [],
-    useWorktrees: false,
-    acceptanceCriteria: "",
-    modelServers: [],
-    hostedCollectionIds: [],
-  });
-  const [currentSlug, setCurrentSlug] = useState<SetupStep>("welcome");
+  const [draft, setDraft] = useState<WizardDraft>(() => emptyDraft(selected?.name ?? ""));
+  const [currentSlug, setCurrentSlug] = useState<SetupStep>(
+    params.get("step") === "license" ? "license" : "welcome",
+  );
   const [exports, setExports] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -57,17 +146,31 @@ export function OnboardingPage() {
         setSteps(nextSteps);
         setIntegrations(nextIntegrations);
         setCollections(nextCollections);
-        setDraft({
-          preset: "devops_kanban",
-          taskFields: ["priority", "points", "user_story"],
-          wrapper: "tmux",
-          executionTarget: { kind: "local" },
-          coderParameters: [],
-          useWorktrees: false,
-          acceptanceCriteria: nextStatus.default_acceptance_criteria,
-          modelServers: [],
-          hostedCollectionIds: [],
-        });
+        const initial = emptyDraft(selected?.name ?? "", nextStatus.default_acceptance_criteria);
+        if (selected) {
+          try {
+            const saved = JSON.parse(
+              sessionStorage.getItem(draftStorageKey(selected.id)) ?? "null",
+            ) as {
+              version?: number;
+              draft?: Partial<WizardDraft>;
+              currentSlug?: SetupStep;
+            } | null;
+            if (saved?.version === WIZARD_DRAFT_VERSION && saved.draft) {
+              setDraft({ ...initial, ...saved.draft });
+              if (saved.currentSlug) {
+                setCurrentSlug(saved.currentSlug);
+              }
+            } else {
+              setDraft(initial);
+            }
+          } catch {
+            sessionStorage.removeItem(draftStorageKey(selected.id));
+            setDraft(initial);
+          }
+        } else {
+          setDraft(initial);
+        }
         return undefined;
       })
       .catch(
@@ -77,7 +180,17 @@ export function OnboardingPage() {
     return () => {
       active = false;
     };
-  }, [api, navigate]);
+  }, [api, navigate, selected]);
+
+  useEffect(() => {
+    if (!selected || !status || status.initialized) {
+      return;
+    }
+    sessionStorage.setItem(
+      draftStorageKey(selected.id),
+      JSON.stringify({ version: WIZARD_DRAFT_VERSION, draft, currentSlug }),
+    );
+  }, [currentSlug, draft, selected, status]);
 
   const walk = useMemo(
     () =>
@@ -100,9 +213,39 @@ export function OnboardingPage() {
     [setExports],
   );
 
-  function next() {
+  async function next() {
     if (!current) {
       return;
+    }
+    if (current.slug === "welcome") {
+      if (!/^[a-z0-9_-]{1,64}$/.test(draft.configurationName)) {
+        setError("Use 1-64 lowercase letters, numbers, hyphens, or underscores.");
+        return;
+      }
+      if (selected && selected.name !== draft.configurationName) {
+        setBusy(true);
+        try {
+          await api.renameProfile(selected.id, draft.configurationName);
+          await refresh();
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : "Could not rename configuration");
+          return;
+        } finally {
+          setBusy(false);
+        }
+      }
+    }
+    if (current.slug === "execution-mode" && draft.executionMode === "remote") {
+      try {
+        const license = await api.license();
+        if (!license.premium) {
+          setError("A valid Premium license is required for remote targets.");
+          return;
+        }
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not verify license");
+        return;
+      }
     }
     if (current.slug === "hosted-collections" && draft.hostedCollectionIds.length === 0) {
       setError("Select at least one collection.");
@@ -160,6 +303,10 @@ export function OnboardingPage() {
           return { id, checksum: collection.checksum };
         }),
       });
+      if (selected) {
+        sessionStorage.removeItem(draftStorageKey(selected.id));
+      }
+      await refresh();
       void navigate("/", { replace: true });
     } catch (cause) {
       setError(
@@ -173,6 +320,10 @@ export function OnboardingPage() {
       setBusy(false);
     }
   }
+
+  const onNext = () => {
+    void next();
+  };
 
   if (!status || !current || !Step) {
     return <main className={styles.loading}>{error ?? "Loading workspace setup…"}</main>;
@@ -240,7 +391,7 @@ export function OnboardingPage() {
               {busy ? "Initializing…" : "Initialize workspace"}
             </button>
           ) : (
-            <button type="button" className={styles.primary} onClick={next}>
+            <button type="button" className={styles.primary} disabled={busy} onClick={onNext}>
               Continue
             </button>
           )}

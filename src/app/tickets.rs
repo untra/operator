@@ -45,6 +45,17 @@ impl App {
     /// Initialize the tickets directory with default templates and save config
     pub(super) fn initialize_tickets(&mut self) -> Result<()> {
         let options = self.setup_options();
+        if let Some(screen) = self.setup_screen.as_ref() {
+            if self.config.profile_registry.is_some() {
+                crate::profiles::rename_registered(&mut self.config, &screen.configuration_name)?;
+            } else {
+                crate::profiles::validate_name(&screen.configuration_name)?;
+                self.config
+                    .profile
+                    .name
+                    .clone_from(&screen.configuration_name);
+            }
+        }
         let result = crate::setup::initialize_workspace(&mut self.config, &options)?;
         let discovered_full = result.discovered;
         let discovered_projects = self.config.projects.clone();
@@ -55,7 +66,7 @@ impl App {
             .as_ref()
             .and_then(|s| s.admin_password.as_deref())
         {
-            let store = AuthStore::open(&self.config.state_path())?;
+            let store = AuthStore::open(&self.config.auth_state_path())?;
             persist_admin_password(&store, Some(password))?;
         }
 
@@ -145,6 +156,8 @@ impl App {
                 }
             }
         }
+
+        crate::startup::mark_workspace_initialized(&self.config)?;
 
         Ok(())
     }

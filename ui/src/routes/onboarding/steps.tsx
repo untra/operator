@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepComponent, StepProps } from "./types";
-import { Choice, ChoiceGroup } from "@operator/webcomponents";
+import { Choice, ChoiceGroup, PremiumPaywall } from "@operator/webcomponents";
+import { LicensePanel } from "../../components/LicensePanel";
+import type { LicenseResponse } from "../../api-client";
 import styles from "./OnboardingPage.module.css";
 
 const TASK_FIELDS = ["priority", "points", "user_story"] as const;
@@ -31,10 +33,23 @@ function ExportBlock({ value }: { value: string }) {
   );
 }
 
-const Welcome: StepComponent = ({ status }) => (
+const Welcome: StepComponent = ({ status, draft, setDraft }) => (
   <Intro>
     <h2>Welcome to Operator</h2>
     <p>We’ll configure this workspace for both the terminal and browser.</p>
+    <label className={styles.form}>
+      Configuration name
+      <input
+        required
+        pattern="[a-z0-9_-]+"
+        maxLength={64}
+        value={draft.configurationName}
+        onChange={(event) =>
+          setDraft((current) => ({ ...current, configurationName: event.target.value }))
+        }
+      />
+      <span>Use lowercase letters, numbers, hyphens, and underscores.</span>
+    </label>
     <dl>
       <dt>Configuration</dt>
       <dd>{status.config_path}</dd>
@@ -48,6 +63,93 @@ const Welcome: StepComponent = ({ status }) => (
     ))}
   </Intro>
 );
+
+const License: StepComponent = ({ api, setDraft }) => {
+  const onChange = useCallback(
+    (license: LicenseResponse) => setDraft((current) => ({ ...current, premium: license.premium })),
+    [setDraft],
+  );
+  return <LicensePanel api={api} onChange={onChange} />;
+};
+
+const ExecutionMode: StepComponent = ({ api, draft, setDraft }) => {
+  const [license, setLicense] = useState<LicenseResponse | null>(null);
+  const [showLicense, setShowLicense] = useState(false);
+  const changed = useCallback(
+    (value: LicenseResponse) => {
+      setLicense(value);
+      setDraft((current) => ({ ...current, premium: value.premium }));
+    },
+    [setDraft],
+  );
+  useEffect(() => {
+    let active = true;
+    api
+      .license()
+      .then((value) => {
+        if (active) {
+          changed(value);
+        }
+        return undefined;
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [api, changed]);
+
+  const selectLocal = useCallback(() => {
+    setDraft((current) => ({
+      ...current,
+      executionMode: "local",
+      executionTarget: { kind: "local" },
+    }));
+  }, [setDraft]);
+
+  const selectRemote = useCallback(() => {
+    if (!license?.premium) {
+      setShowLicense(true);
+      return;
+    }
+    setDraft((current) => ({
+      ...current,
+      executionMode: "remote",
+      useWorktrees: false,
+      executionTarget:
+        current.executionTarget.kind === "coder"
+          ? current.executionTarget
+          : { kind: "coder", name: "coder-agents", template: "", parameters: {} },
+    }));
+  }, [license?.premium, setDraft]);
+
+  const addLicense = useCallback(() => setShowLicense(true), []);
+
+  return (
+    <Intro>
+      <h2>Where will agents run?</h2>
+      <p>Both choices support multiple agents. Remote targets require Premium.</p>
+      <ChoiceGroup>
+        <Choice value="local" selected={draft.executionMode === "local"} onSelect={selectLocal}>
+          <strong>This machine</strong>
+          <span>Run agents and local containers beside Operator.</span>
+        </Choice>
+        <Choice value="remote" selected={draft.executionMode === "remote"} onSelect={selectRemote}>
+          <strong>Remote targets · Premium</strong>
+          <span>Launch remotely and report work back to this Operator server.</span>
+        </Choice>
+      </ChoiceGroup>
+      {!license?.premium && (
+        <PremiumPaywall
+          inline
+          feature="Remote targets"
+          purchaseUrl={license?.purchase_url}
+          onAddLicense={addLicense}
+        />
+      )}
+      {showLicense && <LicensePanel api={api} onChange={changed} />}
+    </Intro>
+  );
+};
 
 function KanbanInfo({ api, addExport }: StepProps) {
   const [providers, setProviders] = useState<Awaited<ReturnType<typeof api.kanbanProviders>>>([]);
@@ -77,6 +179,10 @@ function KanbanInfo({ api, addExport }: StepProps) {
     (slug: string) => setProvider(KANBAN_KINDS.find((kind) => kind === slug) ?? ""),
     [setProvider],
   );
+
+  // The catalog carries one more provider than `KANBAN_KINDS`: the built-in board
+  const builtInBoard = providers.find((item) => !KANBAN_KINDS.some((kind) => kind === item.slug));
+  const connectable = providers.filter((item) => KANBAN_KINDS.some((kind) => kind === item.slug));
 
   const credentials = () => ({
     provider: provider as KanbanProviderKind,
@@ -236,9 +342,26 @@ function KanbanInfo({ api, addExport }: StepProps) {
   return (
     <Intro>
       <h2>Kanban</h2>
-      <p>Connect a board now, or continue and connect one later.</p>
+      <p>
+        Connect an external Kanban provider to sync its issues, or continue and connect one later.
+      </p>
       <ChoiceGroup>
-        {providers.map((item) => (
+        {builtInBoard && (
+          <Choice
+            key={builtInBoard.slug}
+            value={builtInBoard.slug}
+            selected
+            locked
+            wide
+            onSelect={selectProvider}
+          >
+            <strong>{builtInBoard.display_name}</strong>
+            <span>
+              Built in and already active - your tickets in <code>.tickets/</code> are the board.
+            </span>
+          </Choice>
+        )}
+        {connectable.map((item) => (
           <Choice
             key={item.slug}
             selected={provider === item.slug}
@@ -901,6 +1024,8 @@ const Confirm: StepComponent = ({ status, draft, exports }) => (
 
 export const STEP_COMPONENTS = {
   welcome: Welcome,
+  license: License,
+  "execution-mode": ExecutionMode,
   "kanban-info": KanbanInfo,
   "model-server": ModelServer,
   "git-provider": GitProvider,
@@ -930,6 +1055,8 @@ export function visibleSteps(steps: SetupStep[], draft: StepProps["draft"]): Set
   const wrapperSteps = new Set<SetupStep>(Object.values(wrapperStep));
   return steps.filter(
     (step) =>
+      step !== "admin-password" &&
+      (step !== "execution-target" || draft.executionMode === "remote") &&
       (step !== "hosted-collections" || draft.preset === "custom") &&
       (!wrapperSteps.has(step) || step === wrapperStep[draft.wrapper]),
   );

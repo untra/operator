@@ -22,7 +22,9 @@ export type OperatorUiRoute =
   | "kanban"
   | "queue"
   | "config"
-  | "workflows";
+  | "workflows"
+  | "remote-targets"
+  | "license";
 
 const ROUTE_HASH: Record<OperatorUiRoute, string> = {
   dashboard: "#/",
@@ -32,6 +34,8 @@ const ROUTE_HASH: Record<OperatorUiRoute, string> = {
   queue: "#/queue",
   config: "#/config",
   workflows: "#/workflows",
+  "remote-targets": "#/remote-targets",
+  license: "#/settings/license",
 };
 
 /**

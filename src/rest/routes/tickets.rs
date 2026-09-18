@@ -11,13 +11,14 @@ use axum::{
 };
 
 use crate::queue::creator::TicketCreator;
-use crate::queue::{Queue, Ticket};
+use crate::queue::{Queue, Ticket, TicketColumn, TicketStatus};
 use crate::rest::dto::{
     CreateAlertRequest, CreateAlertResponse, CreateTicketRequest, CreateTicketResponse,
     TicketDetailResponse, UpdateTicketStatusRequest, UpdateTicketStatusResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
+use crate::services::ticket_transitions;
 use crate::templates::TemplateType;
 
 /// Find a ticket across all directories (queue, in-progress, completed)
@@ -96,7 +97,8 @@ pub async fn get_one(
 /// Update a ticket's status
 ///
 /// Moves a ticket between queue directories based on the target status.
-/// Valid transitions: queued, running, awaiting, done.
+/// Accepts queued, running, awaiting and completed; `done` is an accepted
+/// alias for `completed`, which is what gets written to frontmatter.
 #[utoipa::path(
     operation_id = "tickets_update_status",
     put,
@@ -117,58 +119,53 @@ pub async fn update_status(
     Path(ticket_id): Path<String>,
     Json(request): Json<UpdateTicketStatusRequest>,
 ) -> Result<Json<UpdateTicketStatusResponse>, ApiError> {
-    let valid_statuses = ["queued", "running", "awaiting", "done"];
-    if !valid_statuses.contains(&request.status.as_str()) {
-        return Err(ApiError::BadRequest(format!(
-            "Invalid status '{}'. Must be one of: {}",
-            request.status,
-            valid_statuses.join(", ")
-        )));
-    }
+    // Parsed here rather than on the request DTO so an unknown value stays a
+    // 400 from us instead of a 422 from the JSON extractor.
+    let target = TicketStatus::parse(&request.status).ok_or_else(|| {
+        ApiError::BadRequest(format!(
+            "Invalid status '{}'. Must be one of: queued, running, awaiting, completed",
+            request.status
+        ))
+    })?;
 
     let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
 
-    let previous_status = ticket.status.clone();
-    let target_status = request.status.as_str();
+    let previous_status = TicketStatus::from_frontmatter(&ticket.status);
 
-    // Determine target directory
-    let tickets_path = state.config().tickets_path();
-    let dst_dir = match target_status {
-        "queued" => tickets_path.join("queue"),
-        "running" | "awaiting" => tickets_path.join("in-progress"),
-        "done" => tickets_path.join("completed"),
-        _ => unreachable!(),
+    let column = match target {
+        TicketStatus::Queued => TicketColumn::Queue,
+        TicketStatus::Running | TicketStatus::Awaiting => TicketColumn::InProgress,
+        TicketStatus::Completed => TicketColumn::Completed,
     };
 
-    let src = std::path::PathBuf::from(&ticket.filepath);
-    let dst = dst_dir.join(&ticket.filename);
+    // The shared write path: it also mirrors the move to the board this ticket
+    // was synced from. A direct rename here would strand it upstream.
+    ticket_transitions::move_ticket(&state, &ticket, column)
+        .await
+        .map_err(ApiError::InternalError)?;
 
-    // Ensure target directory exists
-    std::fs::create_dir_all(&dst_dir)
-        .map_err(|e| ApiError::InternalError(format!("Failed to create directory: {e}")))?;
+    let dst = state
+        .config()
+        .tickets_path()
+        .join(column.dir_name())
+        .join(&ticket.filename);
 
-    // Move the file if source and destination differ
-    if src != dst {
-        std::fs::rename(&src, &dst)
-            .map_err(|e| ApiError::InternalError(format!("Failed to move ticket: {e}")))?;
-    }
-
-    // Update the status field in the ticket file
-    if previous_status != target_status {
+    // Compared against the raw field so a legacy `done` is normalised too.
+    if ticket.status != target.as_str() {
         let mut moved_ticket = Ticket::from_file(&dst)
             .map_err(|e| ApiError::InternalError(format!("Failed to reload ticket: {e}")))?;
         moved_ticket
-            .update_field("status", target_status)
+            .update_field("status", target.as_str())
             .map_err(|e| ApiError::InternalError(format!("Failed to update status field: {e}")))?;
     }
 
     Ok(Json(UpdateTicketStatusResponse {
         id: ticket.id,
         previous_status,
-        status: target_status.to_string(),
-        message: format!("Ticket moved to '{target_status}'"),
+        status: target,
+        message: format!("Ticket moved to '{target}'"),
     }))
 }
 
@@ -312,11 +309,61 @@ mod tests {
 
     #[test]
     fn test_valid_statuses() {
-        let valid = ["queued", "running", "awaiting", "done"];
-        for s in &valid {
-            assert!(valid.contains(s));
+        for raw in ["queued", "running", "awaiting", "completed", "done"] {
+            assert!(TicketStatus::parse(raw).is_some(), "{raw} should parse");
         }
-        assert!(!valid.contains(&"invalid"));
+        assert!(TicketStatus::parse("invalid").is_none());
+    }
+
+    /// The API still accepts `done`, but the metadata schema only knows
+    /// `completed` - that is what has to land in the file.
+    #[tokio::test]
+    async fn test_update_status_done_writes_completed_frontmatter() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = make_state_in(temp.path());
+        let created = create(
+            State(state.clone()),
+            Json(CreateTicketRequest {
+                template: "feat".to_string(),
+                project: Some("gamesvc".to_string()),
+                summary: Some("Ship it".to_string()),
+                values: std::collections::HashMap::new(),
+            }),
+        )
+        .await
+        .expect("create should succeed")
+        .0;
+
+        let moved = update_status(
+            State(state.clone()),
+            Path(created.id.clone()),
+            Json(UpdateTicketStatusRequest {
+                status: "done".to_string(),
+            }),
+        )
+        .await
+        .expect("done should be accepted");
+        assert_eq!(moved.0.status, TicketStatus::Completed);
+
+        let landed = temp.path().join("completed").join(&created.filename);
+        let body = std::fs::read_to_string(&landed).unwrap();
+        assert!(body.contains("status: completed"), "got:\n{body}");
+        assert!(!body.contains("status: done"));
+    }
+
+    #[tokio::test]
+    async fn test_update_status_rejects_unknown_status() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = make_state_in(temp.path());
+        let result = update_status(
+            State(state),
+            Path("FEAT-001".to_string()),
+            Json(UpdateTicketStatusRequest {
+                status: "shipped".to_string(),
+            }),
+        )
+        .await;
+        assert!(matches!(result, Err(ApiError::BadRequest(_))));
     }
 
     #[tokio::test]
@@ -334,6 +381,86 @@ mod tests {
         };
         let result = update_status(State(state), Path("FEAT-001".to_string()), Json(request)).await;
         assert!(result.is_err());
+    }
+
+    /// Every column move must relocate the file, including the two the three
+    /// named transitions do not cover: skipping in-progress, and reopening a
+    /// completed ticket.
+    #[tokio::test]
+    async fn test_update_status_moves_the_ticket_between_every_column() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = make_state_in(temp.path());
+        let created = create(
+            State(state.clone()),
+            Json(CreateTicketRequest {
+                template: "feat".to_string(),
+                project: Some("gamesvc".to_string()),
+                summary: Some("Add pagination".to_string()),
+                values: std::collections::HashMap::new(),
+            }),
+        )
+        .await
+        .expect("create should succeed")
+        .0;
+
+        // `done` is the request word; `completed` is the stored one.
+        for (status, expected, dir) in [
+            ("done", TicketStatus::Completed, "completed"),
+            ("queued", TicketStatus::Queued, "queue"),
+            ("running", TicketStatus::Running, "in-progress"),
+            ("done", TicketStatus::Completed, "completed"),
+        ] {
+            let moved = update_status(
+                State(state.clone()),
+                Path(created.id.clone()),
+                Json(UpdateTicketStatusRequest {
+                    status: status.to_string(),
+                }),
+            )
+            .await
+            .unwrap_or_else(|e| panic!("move to {status} failed: {e:?}"));
+            assert_eq!(moved.0.status, expected);
+
+            let landed = temp.path().join(dir).join(&created.filename);
+            assert!(landed.exists(), "{status} should land the ticket in {dir}/");
+            let body = std::fs::read_to_string(&landed).unwrap();
+            assert!(
+                body.contains(&format!("status: {expected}")),
+                "status field not rewritten for {status}"
+            );
+        }
+    }
+
+    /// Moving a ticket to the column it already occupies must not lose the file.
+    #[tokio::test]
+    async fn test_update_status_to_the_same_column_is_a_no_op() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = make_state_in(temp.path());
+        let created = create(
+            State(state.clone()),
+            Json(CreateTicketRequest {
+                template: "feat".to_string(),
+                project: Some("gamesvc".to_string()),
+                summary: Some("Stay put".to_string()),
+                values: std::collections::HashMap::new(),
+            }),
+        )
+        .await
+        .expect("create should succeed")
+        .0;
+
+        let moved = update_status(
+            State(state.clone()),
+            Path(created.id.clone()),
+            Json(UpdateTicketStatusRequest {
+                status: "queued".to_string(),
+            }),
+        )
+        .await
+        .expect("no-op move should succeed");
+        assert_eq!(moved.0.status, TicketStatus::Queued);
+
+        assert!(temp.path().join("queue").join(&created.filename).exists());
     }
 
     #[tokio::test]

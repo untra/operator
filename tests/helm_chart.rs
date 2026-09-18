@@ -210,8 +210,7 @@ fn test_rendered_image_tag_matches_chart_app_version() {
     );
 }
 
-/// Kept honest against the helper above: a chart path that does not exist must
-/// not silently pass as "helm unavailable".
+/// A chart path that does not exist must not silently pass as "helm unavailable".
 #[test]
 fn test_chart_directory_exists() {
     assert!(

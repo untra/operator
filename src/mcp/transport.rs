@@ -21,7 +21,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::StreamExt as _;
 
 use crate::mcp::handler::{handle_jsonrpc, JsonRpcRequest};
-use crate::mcp::public_base_url;
+use crate::mcp::profile_api_base;
 use crate::rest::middleware::auth::Authenticated;
 use crate::rest::state::{ApiState, McpSession};
 
@@ -65,8 +65,8 @@ pub async fn sse_handler(
 
     // Generated from the configured public URL, not the request `Host` header,
     // which a caller controls and which is plain `http` behind TLS termination.
-    let base = public_base_url(&state, &host);
-    let message_url = format!("{base}/api/v1/mcp/message?sessionId={session_id}");
+    let base = profile_api_base(&state, &host);
+    let message_url = format!("{base}/mcp/message?sessionId={session_id}");
 
     let session_id_cleanup = session_id.clone();
     let sessions_cleanup = Arc::clone(&state.mcp_sessions);

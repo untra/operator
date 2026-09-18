@@ -11,8 +11,8 @@ use crate::rest::dto::{integration_catalog, IntegrationCatalogEntryDto};
 /// GET `/api/v1/integrations`
 ///
 /// Returns the catalog of advertised integrations across every vertical, each
-/// with its docs link and official support status (`proto` | `alpha` | `beta` |
-/// `ga`).
+/// with its docs link, Premium availability, and support status (`alpha` | `beta` |
+/// `ga`). Prototype entries are not advertised.
 #[utoipa::path(
     get,
     path = "/api/v1/integrations",

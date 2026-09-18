@@ -195,9 +195,7 @@ fn default_true() -> bool {
     true
 }
 
-/// Validate the target registry and every reference into it. Hard errors keep
-/// startup honest (an unknown target must never silently fall back to local);
-/// deprecated-combination cases warn instead so legacy configs keep working.
+/// Validate the target registry and every reference into it. Hard errors bail startup
 pub fn validate_targets(config: &super::Config) -> anyhow::Result<()> {
     let mut seen = std::collections::HashSet::new();
     for target in &config.targets {

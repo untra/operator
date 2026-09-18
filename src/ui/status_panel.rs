@@ -17,7 +17,8 @@ use crate::rest::RestApiStatus;
 
 use super::sections::{
     ConfigSection, ConnectionsSection, DelegatorSection, GitSection, IssueTypeSection,
-    KanbanSection, LlmSection, ManagedProjectsSection, ModelServerSection, WorkflowsSection,
+    KanbanSection, LicenseSection, LlmSection, ManagedProjectsSection, ModelServerSection,
+    RemoteTargetsSection, WorkflowsSection,
 };
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,10 @@ pub enum SectionId {
     ManagedProjects,
     #[serde(rename = "workflows")]
     Workflows,
+    #[serde(rename = "remote-targets")]
+    RemoteTargets,
+    #[serde(rename = "license")]
+    License,
 }
 
 /// Health state of a section - controls the header color.
@@ -101,6 +106,8 @@ impl SectionId {
             SectionId::Delegators => "delegators",
             SectionId::ManagedProjects => "projects",
             SectionId::Workflows => "workflows",
+            SectionId::RemoteTargets => "remote-targets",
+            SectionId::License => "license",
         }
     }
 }
@@ -643,6 +650,19 @@ pub struct StatusSnapshot {
     pub acp_active_sessions: usize,
     /// Whether the embedded SPA (ui/) was compiled into the binary via the `embed-ui` feature.
     pub embed_ui_available: bool,
+    /// Premium licence state for this configuration.
+    pub license: crate::licensing::LicenseResponse,
+    /// Remote execution targets declared for this configuration.
+    pub remote_targets: Vec<RemoteTargetInfo>,
+}
+
+/// One remote execution target, as the status panel renders it.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct RemoteTargetInfo {
+    pub name: String,
+    pub kind: &'static str,
+    pub detail: String,
 }
 
 impl StatusSnapshot {
@@ -680,6 +700,12 @@ impl StatusSnapshot {
         // catalog the Kanban section renders against.
         use crate::api::providers::kanban::KanbanProviderType;
         let mut kanban_providers: Vec<KanbanProviderInfo> = Vec::new();
+        // The built-in board leads and is always present: it is the destination
+        // every other provider syncs into, and it has no config to enumerate.
+        kanban_providers.push(KanbanProviderInfo {
+            provider_type: KanbanProviderType::Operator.slug().to_string(),
+            domain: tickets_dir.clone(),
+        });
         for domain in config.kanban.jira.keys() {
             kanban_providers.push(KanbanProviderInfo {
                 provider_type: KanbanProviderType::Jira.slug().to_string(),
@@ -837,6 +863,8 @@ impl StatusSnapshot {
             acp_stdio_advertised: acp_status.is_advertised(),
             acp_active_sessions: acp_status.active_sessions(),
             embed_ui_available: cfg!(feature = "embed-ui"),
+            license: crate::licensing::status(config),
+            remote_targets: remote_target_infos(config),
         }
     }
 
@@ -955,6 +983,8 @@ pub fn all_sections() -> Vec<Box<dyn StatusSection>> {
         Box::new(DelegatorSection),
         Box::new(ManagedProjectsSection),
         Box::new(WorkflowsSection),
+        Box::new(RemoteTargetsSection),
+        Box::new(LicenseSection),
     ]
 }
 
@@ -1427,8 +1457,34 @@ fn web_ui_route_for(section: SectionId) -> Option<&'static str> {
         SectionId::Kanban => Some("/config"),
         SectionId::IssueTypes => Some("/issuetypes"),
         SectionId::ManagedProjects => Some("/config"),
+        SectionId::RemoteTargets => Some("/remote-targets"),
+        SectionId::License => Some("/settings/license"),
         _ => None,
     }
+}
+
+/// The remote targets declared for this configuration, in config order.
+///
+/// Only ssh/coder: local and docker are built in and are not what the Remote
+/// Targets section is about.
+fn remote_target_infos(config: &Config) -> Vec<RemoteTargetInfo> {
+    config
+        .targets
+        .iter()
+        .filter_map(|target| match &target.kind {
+            crate::config::TargetKind::Ssh(ssh) => Some(RemoteTargetInfo {
+                name: target.name.clone(),
+                kind: "SSH",
+                detail: format!("{}:{}", ssh.ssh_alias, ssh.workdir),
+            }),
+            crate::config::TargetKind::Coder(coder) => Some(RemoteTargetInfo {
+                name: target.name.clone(),
+                kind: "Coder",
+                detail: coder.template.clone(),
+            }),
+            _ => None,
+        })
+        .collect()
 }
 
 // Tests
@@ -1456,6 +1512,8 @@ mod tests {
                 "delegators",
                 "projects",
                 "workflows",
+                "remote-targets",
+                "license",
             ]
         );
     }
@@ -1598,8 +1656,14 @@ mod tests {
             .find(|d| d.id == "kanban")
             .expect("kanban section present");
 
-        // Every supported provider is offered when none are connected.
-        assert_eq!(kanban.children.len(), 4);
+        // The built-in board leads as a connected row, then every external
+        // provider is offered.
+        assert_eq!(kanban.children.len(), 5);
+        assert_eq!(kanban.children[0].label, "operator");
+        assert!(
+            !kanban.children[0].id.starts_with("configure-"),
+            "the built-in board is not something to configure"
+        );
 
         for (id, expected_url) in [
             ("configure-jira", "id.atlassian.com"),
@@ -1678,6 +1742,8 @@ mod tests {
             acp_stdio_advertised: true,
             acp_active_sessions: 0,
             embed_ui_available: true,
+            license: crate::licensing::LicenseResponse::free(uuid::Uuid::nil()),
+            remote_targets: Vec::new(),
         }
     }
 

@@ -6,7 +6,7 @@ mod ticket;
 mod watcher;
 
 pub use creator::TicketCreator;
-pub use ticket::{LlmTask, StepAdvanceResult, Ticket};
+pub use ticket::{LlmTask, StepAdvanceResult, Ticket, TicketPriority, TicketStatus};
 pub use watcher::QueueWatcher;
 
 use anyhow::{Context, Result};
@@ -15,6 +15,27 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::config::Config;
+
+/// One of operator's three ticket states, and the directory that holds it.
+///
+/// The board column a ticket appears in is a property of which directory it
+/// lives in, so this is also the unit an external board transition is keyed on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TicketColumn {
+    Queue,
+    InProgress,
+    Completed,
+}
+
+impl TicketColumn {
+    pub fn dir_name(&self) -> &'static str {
+        match self {
+            TicketColumn::Queue => "queue",
+            TicketColumn::InProgress => "in-progress",
+            TicketColumn::Completed => "completed",
+        }
+    }
+}
 
 pub struct Queue {
     config: Config,
@@ -37,7 +58,8 @@ impl Queue {
         })
     }
 
-    /// List all tickets in queue, sorted by priority then FIFO
+    /// List all tickets in queue: issuetype rank, then the ticket's own
+    /// priority, then FIFO. The web board sorts on the same three keys.
     pub fn list_by_priority(&self) -> Result<Vec<Ticket>> {
         let mut tickets = self.list_queue()?;
 
@@ -47,6 +69,7 @@ impl Queue {
 
             priority_a
                 .cmp(&priority_b)
+                .then_with(|| a.priority_level().cmp(&b.priority_level()))
                 .then_with(|| a.timestamp.cmp(&b.timestamp))
         });
 
@@ -130,34 +153,67 @@ impl Queue {
         Ticket::from_file(&path)
     }
 
+    /// Directory a ticket lives in for one of operator's three states.
+    fn column_path(&self, column: TicketColumn) -> &std::path::Path {
+        match column {
+            TicketColumn::Queue => &self.queue_path,
+            TicketColumn::InProgress => &self.in_progress_path,
+            TicketColumn::Completed => &self.completed_path,
+        }
+    }
+
+    /// Where this ticket's file actually is right now.
+    ///
+    /// `Ticket::filepath` is authoritative when it still resolves, but a ticket
+    /// value can outlive the path it was read from (it may have been moved
+    /// since, or synthesized). Falling back to a filename lookup across the
+    /// three columns matches how tickets are located everywhere else.
+    fn locate(&self, ticket: &Ticket) -> Option<PathBuf> {
+        let recorded = PathBuf::from(&ticket.filepath);
+        if recorded.is_file() {
+            return Some(recorded);
+        }
+        [
+            TicketColumn::Queue,
+            TicketColumn::InProgress,
+            TicketColumn::Completed,
+        ]
+        .into_iter()
+        .map(|c| self.column_path(c).join(&ticket.filename))
+        .find(|p| p.is_file())
+    }
+
+    /// Move a ticket into `column` from wherever it currently lives.
+    ///
+    /// Moving a ticket to the column it is already in is a no-op.
+    pub fn move_ticket(&self, ticket: &Ticket, column: TicketColumn) -> Result<()> {
+        let dst = self.column_path(column).join(&ticket.filename);
+        let src = self
+            .locate(ticket)
+            .ok_or_else(|| anyhow::anyhow!("Ticket file not found for '{}'", ticket.filename))?;
+        if src == dst {
+            return Ok(());
+        }
+        fs::create_dir_all(self.column_path(column))
+            .with_context(|| format!("Failed to create {} directory", column.dir_name()))?;
+        fs::rename(&src, &dst)
+            .with_context(|| format!("Failed to move ticket to {}", column.dir_name()))?;
+        Ok(())
+    }
+
     /// Move ticket from queue to in-progress
     pub fn claim_ticket(&self, ticket: &Ticket) -> Result<()> {
-        let src = self.queue_path.join(&ticket.filename);
-        let dst = self.in_progress_path.join(&ticket.filename);
-
-        fs::rename(&src, &dst).context("Failed to move ticket to in-progress")?;
-
-        Ok(())
+        self.move_ticket(ticket, TicketColumn::InProgress)
     }
 
     /// Move ticket from in-progress to completed
     pub fn complete_ticket(&self, ticket: &Ticket) -> Result<()> {
-        let src = self.in_progress_path.join(&ticket.filename);
-        let dst = self.completed_path.join(&ticket.filename);
-
-        fs::rename(&src, &dst).context("Failed to move ticket to completed")?;
-
-        Ok(())
+        self.move_ticket(ticket, TicketColumn::Completed)
     }
 
     /// Move ticket from in-progress back to queue
     pub fn return_to_queue(&self, ticket: &Ticket) -> Result<()> {
-        let src = self.in_progress_path.join(&ticket.filename);
-        let dst = self.queue_path.join(&ticket.filename);
-
-        fs::rename(&src, &dst).context("Failed to move ticket back to queue")?;
-
-        Ok(())
+        self.move_ticket(ticket, TicketColumn::Queue)
     }
 
     /// Create a new investigation ticket from an external alert
@@ -382,6 +438,31 @@ mod tests {
         assert_eq!(tickets[2].ticket_type, "TASK");
         assert_eq!(tickets[3].ticket_type, "FEAT");
         assert_eq!(tickets[4].ticket_type, "SPIKE");
+    }
+
+    /// Within one issuetype the ticket's own `priority:` outranks FIFO, so the
+    /// launcher and the web board pick the same next ticket.
+    #[test]
+    fn test_list_by_priority_breaks_type_ties_by_ticket_priority() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let queue_dir = temp_dir.path().join("queue");
+
+        let write = |timestamp: &str, project: &str, priority: &str| {
+            fs::write(
+                queue_dir.join(format!("{timestamp}-FEAT-{project}-summary.md")),
+                format!("---\npriority: {priority}\n---\n# FEAT: Test Summary\n"),
+            )
+            .unwrap();
+        };
+        write("20241231-1000", "older", "P3-low");
+        write("20241231-1200", "newer", "P0-critical");
+
+        let queue = Queue::new(&config).unwrap();
+        let tickets = queue.list_by_priority().unwrap();
+
+        assert_eq!(tickets[0].project, "newer");
+        assert_eq!(tickets[1].project, "older");
     }
 
     #[test]

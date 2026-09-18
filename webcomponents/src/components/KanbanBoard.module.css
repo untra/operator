@@ -52,11 +52,21 @@
   transition: background 0.15s;
 }
 
-.cardClickable:hover { background: var(--surface); }
-.card[data-priority='p0'] { border-left-color: var(--danger); }
-.card[data-priority='p1'] { border-left-color: var(--warning); }
-.card[data-priority='p2'] { border-left-color: var(--color-green-l1); }
-.card[data-priority='p3'] { border-left-color: var(--border); }
+.cardClickable:hover {
+  background: var(--surface);
+}
+.card[data-priority="p0"] {
+  border-left-color: var(--danger);
+}
+.card[data-priority="p1"] {
+  border-left-color: var(--warning);
+}
+.card[data-priority="p2"] {
+  border-left-color: var(--color-green-l1);
+}
+.card[data-priority="p3"] {
+  border-left-color: var(--border);
+}
 
 .cardHeader {
   display: flex;
@@ -102,5 +112,7 @@
 }
 
 @media (max-width: 900px) {
-  .columns { grid-template-columns: 1fr; }
+  .columns {
+    grid-template-columns: 1fr;
+  }
 }

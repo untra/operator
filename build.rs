@@ -1,6 +1,8 @@
 use std::path::Path;
 
 fn main() {
+    check_license_keys();
+
     if std::env::var("CARGO_FEATURE_EMBED_UI").is_err() {
         return;
     }
@@ -47,4 +49,28 @@ fn walk_dir_size(dir: &Path) -> u64 {
         }
     }
     total
+}
+
+/// A release build must carry the Premium verification keys.
+///
+/// `src/licensing.rs` reads them with `option_env!`, so they are baked in at
+/// compile time. Without them every licence is rejected as "unknown license
+/// signing key" - the right default for a source build, and a silent, total
+/// Premium outage if it ever reaches a release artifact.
+fn check_license_keys() {
+    println!("cargo:rerun-if-env-changed=OPERATOR_RELEASE");
+    println!("cargo:rerun-if-env-changed=OPERATOR_LICENSE_PUBLIC_KEYS");
+    println!("cargo:rerun-if-env-changed=OPERATOR_LICENSE_ISSUER");
+    println!("cargo:rerun-if-env-changed=OPERATOR_PURCHASE_URL");
+
+    if std::env::var("OPERATOR_RELEASE").as_deref() != Ok("1") {
+        return;
+    }
+    let keys = std::env::var("OPERATOR_LICENSE_PUBLIC_KEYS").unwrap_or_default();
+    let keys = keys.trim();
+    assert!(
+        !(keys.is_empty() || keys == "{}"),
+        "OPERATOR_RELEASE=1 but OPERATOR_LICENSE_PUBLIC_KEYS is unset or empty - \
+         this build would reject every Premium licence"
+    );
 }

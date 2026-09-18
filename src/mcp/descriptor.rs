@@ -71,9 +71,11 @@ pub async fn descriptor(
     State(state): State<ApiState>,
     Host(host): Host,
 ) -> Json<McpDescriptorResponse> {
-    let base = format!("http://{host}");
+    let base = super::public_base_url(&state, &host);
+    let profile_api = super::profile_api_base(&state, &host);
+    let config = state.config();
 
-    let stdio = if state.config().mcp.stdio_advertised {
+    let stdio = if config.mcp.stdio_advertised {
         let command = std::env::current_exe()
             .ok()
             .and_then(|p| p.to_str().map(str::to_string))
@@ -82,11 +84,16 @@ pub async fn descriptor(
             .ok()
             .and_then(|p| p.to_str().map(str::to_string))
             .unwrap_or_default();
-        Some(StdioCommand {
-            command,
-            args: vec!["mcp".to_string()],
-            cwd,
-        })
+        let args = if config.profile.id.is_nil() {
+            vec!["mcp".to_string()]
+        } else {
+            vec![
+                "--profile".to_string(),
+                config.profile.name.clone(),
+                "mcp".to_string(),
+            ]
+        };
+        Some(StdioCommand { command, args, cwd })
     } else {
         None
     };
@@ -95,7 +102,7 @@ pub async fn descriptor(
         server_name: "operator".to_string(),
         server_id: "operator-mcp".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        transport_url: format!("{base}/api/v1/mcp/sse"),
+        transport_url: format!("{profile_api}/mcp/sse"),
         label: "Operator MCP Server".to_string(),
         openapi_url: Some(format!("{base}/api-docs/openapi.json")),
         stdio,
@@ -139,6 +146,27 @@ mod tests {
         assert_eq!(
             resp.openapi_url,
             Some("http://localhost:9999/api-docs/openapi.json".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn descriptor_scopes_transports_to_the_configuration() {
+        let mut config = Config::default();
+        config.profile.id = uuid::Uuid::new_v4();
+        config.profile.name = "team-one".to_string();
+        config.mcp.stdio_advertised = true;
+        let profile_id = config.profile.id;
+        let state = ApiState::new(config, PathBuf::from("/tmp/test"));
+
+        let response = descriptor(State(state), Host("localhost:7008".to_string())).await;
+
+        assert_eq!(
+            response.transport_url,
+            format!("http://localhost:7008/api/v1/profiles/{profile_id}/mcp/sse")
+        );
+        assert_eq!(
+            response.stdio.as_ref().unwrap().args.as_slice(),
+            ["--profile", "team-one", "mcp"]
         );
     }
 

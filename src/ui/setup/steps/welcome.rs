@@ -41,6 +41,9 @@ impl SetupScreen {
                 Constraint::Length(1), // Spacer
                 Constraint::Length(2), // Description
                 Constraint::Length(1), // Spacer
+                Constraint::Length(1), // Configuration name label
+                Constraint::Length(3), // Configuration name
+                Constraint::Length(1), // Validation error
                 Constraint::Length(6), // Detected LLM Tools
                 Constraint::Length(1), // Spacer
                 Constraint::Min(6),    // Discovered projects by tool
@@ -64,6 +67,37 @@ impl SetupScreen {
         let desc = Paragraph::new(vec![Line::from("A TUI for orchestrating LLM Code agents.")])
             .alignment(Alignment::Center);
         frame.render_widget(desc, chunks[2]);
+
+        frame.render_widget(
+            Paragraph::new("Configuration name · lowercase letters, numbers, - and _")
+                .style(Style::default().fg(Color::Yellow)),
+            chunks[4],
+        );
+        let name_border = if self.configuration_name_error.is_some() {
+            Color::Red
+        } else {
+            Color::Cyan
+        };
+        frame.render_widget(
+            Paragraph::new(self.configuration_name.as_str()).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(name_border)),
+            ),
+            chunks[5],
+        );
+        if let Some(error) = &self.configuration_name_error {
+            frame.render_widget(
+                Paragraph::new(error.as_str()).style(Style::default().fg(Color::Red)),
+                chunks[6],
+            );
+        }
+        let name_inner = Block::default().borders(Borders::ALL).inner(chunks[5]);
+        let name_width = u16::try_from(self.configuration_name.len()).unwrap_or(u16::MAX);
+        frame.set_cursor_position((
+            name_inner.x + name_width.min(name_inner.width),
+            name_inner.y,
+        ));
 
         // Detected LLM Tools
         let mut tools_text = vec![Line::from(Span::styled(
@@ -103,7 +137,7 @@ impl SetupScreen {
             };
             tools_text.push(line);
         }
-        frame.render_widget(Paragraph::new(tools_text), chunks[4]);
+        frame.render_widget(Paragraph::new(tools_text), chunks[7]);
 
         // Discovered projects by tool
         let mut projects_text = vec![Line::from(Span::styled(
@@ -133,7 +167,7 @@ impl SetupScreen {
                 Style::default().fg(Color::DarkGray),
             )));
         }
-        frame.render_widget(Paragraph::new(projects_text), chunks[6]);
+        frame.render_widget(Paragraph::new(projects_text), chunks[9]);
 
         // Path info
         let path_info = Paragraph::new(Line::from(vec![
@@ -141,7 +175,7 @@ impl SetupScreen {
             Span::styled(&self.tickets_path, Style::default().fg(Color::White)),
         ]))
         .alignment(Alignment::Center);
-        frame.render_widget(path_info, chunks[8]);
+        frame.render_widget(path_info, chunks[11]);
 
         // Footer
         let footer = Paragraph::new(Line::from(vec![
@@ -151,6 +185,6 @@ impl SetupScreen {
             Span::raw(" cancel"),
         ]))
         .alignment(Alignment::Center);
-        frame.render_widget(footer, chunks[9]);
+        frame.render_widget(footer, chunks[12]);
     }
 }

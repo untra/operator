@@ -27,6 +27,10 @@ pub struct Args {
     #[arg(long)]
     pub api_url: Option<String>,
 
+    /// Operator configuration UUID. Defaults to OPERATOR_PROFILE_ID.
+    #[arg(long)]
+    pub profile_id: Option<String>,
+
     /// Session ID for LLM session tracking (passed to claude --session-id)
     #[arg(long)]
     pub session_id: Option<String>,
@@ -220,6 +224,7 @@ mod tests {
             ticket_id: Some("FEAT-1".to_string()),
             step: Some("plan".to_string()),
             api_url: None,
+            profile_id: None,
             session_id: None,
             no_auto_proceed: false,
             verbose: false,

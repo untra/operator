@@ -14,7 +14,7 @@ import type { OutputChannel } from "vscode";
 import { TicketTreeProvider } from "../../src/ticket-provider";
 import { OperatorApiClient } from "../../src/api-client";
 import { IssueTypeService } from "../../src/issuetype-service";
-import type { KanbanBoardResponse } from "../../src/generated";
+import type { KanbanBoardResponse, KanbanTicketCard } from "../../src/generated";
 
 function mockOutputChannel(): OutputChannel {
   const channel = {
@@ -42,9 +42,9 @@ function board(partial: Partial<KanbanBoardResponse>): KanbanBoardResponse {
   };
 }
 
-const QUEUE_CARD = {
+const QUEUE_CARD: KanbanTicketCard = {
   id: "FEAT-9100",
-  step_display_name: null as string | null,
+  step_display_name: null,
   summary: "API-backed tree test",
   ticket_type: "FEAT",
   project: "operator",

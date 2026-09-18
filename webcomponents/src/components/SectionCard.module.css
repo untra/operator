@@ -6,7 +6,7 @@
   border-radius: var(--radius-lg);
 }
 
-.card[data-locked='true'] {
+.card[data-locked="true"] {
   background: var(--surface-alt);
 }
 
@@ -31,10 +31,18 @@
   border-radius: 50%;
 }
 
-.dot[data-health='green'] { background: var(--color-green-l1); }
-.dot[data-health='yellow'] { background: var(--warning); }
-.dot[data-health='red'] { background: var(--danger); }
-.dot[data-health='gray'] { background: var(--text-muted); }
+.dot[data-health="green"] {
+  background: var(--color-green-l1);
+}
+.dot[data-health="yellow"] {
+  background: var(--warning);
+}
+.dot[data-health="red"] {
+  background: var(--danger);
+}
+.dot[data-health="gray"] {
+  background: var(--text-muted);
+}
 
 .label {
   font-size: 0.95rem;
@@ -57,7 +65,9 @@
   font-size: 0.75rem;
 }
 
-.prereqLink { color: var(--accent-text); }
+.prereqLink {
+  color: var(--accent-text);
+}
 
 .rows {
   display: flex;
@@ -75,8 +85,12 @@
   font-size: 0.825rem;
 }
 
-.rowLabel { font-weight: 500; }
-.rowDesc { color: var(--text-muted); }
+.rowLabel {
+  font-weight: 500;
+}
+.rowDesc {
+  color: var(--text-muted);
+}
 
 .rowActions {
   display: flex;

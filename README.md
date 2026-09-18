@@ -5,11 +5,11 @@
 
 **_This Project is currently in ALPHA, is free to use, and officially promises nothing yet!_**
 
-* **Session** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/)
+* **Session Management** [![tmux](https://img.shields.io/badge/tmux-1BB91F?logo=tmux&logoColor=white)](https://operator.untra.io/getting-started/sessions/tmux/) [![cmux](https://img.shields.io/badge/cmux-333333)](https://operator.untra.io/getting-started/sessions/cmux/) [![Zellij](https://img.shields.io/badge/Zellij-E8590C)](https://operator.untra.io/getting-started/sessions/zellij/) [![VS Code Terminals](https://img.shields.io/badge/VS_Code_Terminals-007ACC)](https://operator.untra.io/getting-started/sessions/vscode-terminals/)
 
-* **Editor** [![VS Code](https://img.shields.io/badge/VS_Code-007ACC)](https://operator.untra.io/getting-started/sessions/vscode/) [![Zed](https://img.shields.io/badge/Zed-084CCF?logo=zedindustries&logoColor=white)](https://operator.untra.io/getting-started/sessions/zed/)
+* **IDE** [![VS Code](https://img.shields.io/badge/VS_Code-007ACC)](https://operator.untra.io/getting-started/ides/vscode/) [![Zed](https://img.shields.io/badge/Zed-084CCF?logo=zedindustries&logoColor=white)](https://operator.untra.io/getting-started/ides/zed/)
 
-* **Kanban Provider** [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) [![GitHub Projects](https://img.shields.io/badge/GitHub_Projects-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/kanban/github/)
+* **Kanban Provider** [![Operator](https://img.shields.io/badge/Operator-C8613F)](https://operator.untra.io/getting-started/kanban/operator/) [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) [![GitHub Projects](https://img.shields.io/badge/GitHub_Projects-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/kanban/github/)
 
 * **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/)
 
@@ -18,7 +18,9 @@
 
 * **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/) [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?logo=gitlab&logoColor=white)](https://operator.untra.io/getting-started/git/gitlab/)
 
-* **Platform** [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://operator.untra.io/getting-started/platforms/docker/) [![Coder](https://img.shields.io/badge/Coder-7C71FF?logo=coder&logoColor=white)](https://operator.untra.io/getting-started/platforms/coder/) [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://operator.untra.io/getting-started/platforms/kubernetes/) 
+* **Platform** [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://operator.untra.io/getting-started/platforms/docker/) [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://operator.untra.io/getting-started/platforms/kubernetes/)
+
+* **Remote Targets** (Premium) [![Coder](https://img.shields.io/badge/Coder-7C71FF?logo=coder&logoColor=white)](https://operator.untra.io/getting-started/remote-targets/coder/)
 
 * **Workflow Export Format** [![Claude Workflow](https://img.shields.io/badge/Claude_Workflow-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/workflows/claude/) [![AGNT Workflow](https://img.shields.io/badge/AGNT_Workflow-6E56CF)](https://operator.untra.io/getting-started/workflows/agnt/)
 
@@ -30,7 +32,7 @@ An orchestration tool for [**AI-assisted**](https://operator.untra.io/getting-st
 
 **Operator** is for you if:
 
-- you do work assigned from tickets on a kanban board, such as [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/), [_Linear_](https://operator.untra.io/getting-started/kanban/linear/), or [_GitHub Projects_](https://operator.untra.io/getting-started/kanban/github/)
+- you do work assigned from tickets on a kanban board - [_Operator's own_](https://operator.untra.io/getting-started/kanban/operator/), or synced in from [_Jira Cloud_](https://operator.untra.io/getting-started/kanban/jira/), [_Linear_](https://operator.untra.io/getting-started/kanban/linear/), or [_GitHub Projects_](https://operator.untra.io/getting-started/kanban/github/)
 - you use LLM assisted coding agent tools to accomplish work, such as [_Claude Code_](https://operator.untra.io/getting-started/agents/claude/), [_OpenAI Codex_](https://operator.untra.io/getting-started/agents/codex/), or [_Google Gemini CLI_](https://operator.untra.io/getting-started/agents/gemini-cli/)
 - you reach many models through a provider like [_OpenRouter_](https://operator.untra.io/getting-started/model-servers/openrouter/) or a local [_Ollama_](https://operator.untra.io/getting-started/model-servers/ollama/) server
 - your work is version controlled with a git repository provider like [_GitHub_](https://operator.untra.io/getting-started/git/github/) or [_GitLab_](https://operator.untra.io/getting-started/git/gitlab/)
@@ -304,4 +306,3 @@ operator launch --llm-tool codex --model qwen2.5-coder --model-server ollama-loc
 **Protocol compatibility.** Codex speaks the OpenAI API - pairing with ollama requires no bridge. Claude and Gemini use their own vendor protocols and require a translating proxy (e.g. `claude-code-router`, `litellm-proxy`) between the CLI and ollama; declare the bridge URL as your `model_server.base_url`.
 
 Current release ships the infrastructure - ollama detection and automatic env-var injection on spawn land in the next release. See `docs/getting-started/model-servers/` for the full walkthrough.
-

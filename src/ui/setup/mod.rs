@@ -21,6 +21,10 @@ pub(crate) const LOCAL_TARGET_OPTION_INDEX: usize = 0;
 pub(crate) const CODER_TARGET_OPTION_INDEX: usize = 1;
 const EXECUTION_TARGET_OPTION_COUNT: usize = 2;
 
+pub(crate) const LOCAL_EXECUTION_OPTION_INDEX: usize = 0;
+pub(crate) const REMOTE_EXECUTION_OPTION_INDEX: usize = 1;
+const EXECUTION_MODE_OPTION_COUNT: usize = 2;
+
 /// Setup screen shown when .tickets/ directory doesn't exist
 pub struct SetupScreen {
     /// Whether the screen is visible
@@ -29,6 +33,8 @@ pub struct SetupScreen {
     pub step: SetupStep,
     /// Current selection for confirmation: true = Initialize, false = Cancel
     pub confirm_selected: bool,
+    pub configuration_name: String,
+    pub(crate) configuration_name_error: Option<String>,
     /// Path where tickets directory will be created
     pub(crate) tickets_path: String,
     /// Detected LLM tools (from `LlmToolsConfig`)
@@ -102,6 +108,19 @@ pub struct SetupScreen {
     pub selected_wrapper: SessionWrapperType,
     /// List state for wrapper selection
     pub(crate) wrapper_state: ListState,
+    // ─── Licence State ──────────────────────────────────────────────────────
+    /// Verified licence status for this configuration; the app refreshes it.
+    pub license: Option<crate::licensing::LicenseResponse>,
+    /// Licence key entry field.
+    pub(crate) license_input: MaskedInput,
+    /// Set when the user submitted a key; the app performs the install.
+    pub(crate) license_install_requested: bool,
+    /// Inline outcome of the last install attempt.
+    pub(crate) license_error: Option<String>,
+    // ─── Execution Mode State ───────────────────────────────────────────────
+    pub(crate) execution_mode_state: ListState,
+    /// Whether agents run on remote targets; gates the execution-target step.
+    pub remote_execution: bool,
     // ─── Execution Target State ─────────────────────────────────────────────
     pub(crate) execution_target_state: ListState,
     pub(crate) coder_target_name: String,
@@ -157,6 +176,9 @@ impl SetupScreen {
         let mut execution_target_state = ListState::default();
         execution_target_state.select(Some(LOCAL_TARGET_OPTION_INDEX));
 
+        let mut execution_mode_state = ListState::default();
+        execution_mode_state.select(Some(LOCAL_EXECUTION_OPTION_INDEX));
+
         let mut hosted_state = ListState::default();
         hosted_state.select(Some(0));
 
@@ -164,6 +186,11 @@ impl SetupScreen {
             visible: true,
             step: SetupStep::Welcome,
             confirm_selected: true, // Default to Initialize
+            // Empty, not "legacy": the field's validation should be visible
+            // rather than pre-satisfied. `App` overwrites this with the real
+            // name when the configuration already has one.
+            configuration_name: String::new(),
+            configuration_name_error: None,
             tickets_path,
             detected_tools,
             projects_by_tool,
@@ -215,6 +242,12 @@ impl SetupScreen {
             // Session wrapper state
             selected_wrapper: SessionWrapperType::Tmux,
             wrapper_state,
+            license: None,
+            license_input: MaskedInput::default(),
+            license_install_requested: false,
+            license_error: None,
+            execution_mode_state,
+            remote_execution: false,
             execution_target_state,
             coder_target_name: crate::config::DEFAULT_CODER_TARGET_NAME.to_string(),
             coder_template: String::new(),
@@ -475,6 +508,16 @@ impl SetupScreen {
                 let i = self.wrapper_state.selected().map_or(0, |i| (i + 1) % len);
                 self.wrapper_state.select(Some(i));
             }
+            SetupStep::ExecutionMode => {
+                let i = self
+                    .execution_mode_state
+                    .selected()
+                    .map_or(LOCAL_EXECUTION_OPTION_INDEX, |i| {
+                        (i + 1) % EXECUTION_MODE_OPTION_COUNT
+                    });
+                self.execution_mode_state.select(Some(i));
+                self.license_error = None;
+            }
             SetupStep::ExecutionTarget => {
                 let i = self
                     .execution_target_state
@@ -572,6 +615,16 @@ impl SetupScreen {
                         .selected()
                         .map_or(0, |i| if i == 0 { len - 1 } else { i - 1 });
                 self.wrapper_state.select(Some(i));
+            }
+            SetupStep::ExecutionMode => {
+                let i = self
+                    .execution_mode_state
+                    .selected()
+                    .map_or(REMOTE_EXECUTION_OPTION_INDEX, |i| {
+                        usize::from(i == LOCAL_EXECUTION_OPTION_INDEX)
+                    });
+                self.execution_mode_state.select(Some(i));
+                self.license_error = None;
             }
             SetupStep::ExecutionTarget => {
                 let i = self
@@ -811,6 +864,76 @@ impl SetupScreen {
             .map(|e| e.slug.to_string())
     }
 
+    /// Whether this configuration currently holds a valid Premium licence.
+    pub(crate) fn premium_entitled(&self) -> bool {
+        self.license.as_ref().is_some_and(|l| l.premium)
+    }
+
+    /// Consume a pending licence key submitted on the licence step.
+    pub(crate) fn take_license_install_request(&mut self) -> Option<String> {
+        if std::mem::take(&mut self.license_install_requested) {
+            return Some(self.license_input.value().to_string());
+        }
+        None
+    }
+
+    /// Record the outcome of an install attempt made by the app.
+    pub(crate) fn set_license_outcome(
+        &mut self,
+        result: Result<crate::licensing::LicenseResponse, String>,
+    ) {
+        match result {
+            Ok(license) => {
+                self.license = Some(license);
+                self.license_error = None;
+                self.license_input.clear();
+            }
+            // A rejected key returns to the licence screen: the error belongs
+            // where the field that produced it is.
+            Err(error) => {
+                self.license_error = Some(error);
+                self.step = SetupStep::License;
+            }
+        }
+    }
+
+    /// Editing keys for the licence key field.
+    pub(crate) fn handle_license_key(&mut self, code: ratatui::crossterm::event::KeyCode) {
+        use ratatui::crossterm::event::KeyCode;
+        self.license_error = None;
+        match code {
+            KeyCode::Char(c) => self.license_input.handle_char(c),
+            KeyCode::Backspace => self.license_input.handle_backspace(),
+            KeyCode::Delete => self.license_input.handle_delete(),
+            KeyCode::Left => self.license_input.cursor_left(),
+            KeyCode::Right => self.license_input.cursor_right(),
+            KeyCode::Home => self.license_input.cursor_home(),
+            KeyCode::End => self.license_input.cursor_end(),
+            _ => {}
+        }
+    }
+
+    pub(crate) fn handle_configuration_name_key(
+        &mut self,
+        code: ratatui::crossterm::event::KeyCode,
+    ) {
+        use ratatui::crossterm::event::KeyCode;
+
+        self.configuration_name_error = None;
+        match code {
+            KeyCode::Char(c)
+                if self.configuration_name.len() < crate::profiles::MAX_PROFILE_NAME_LENGTH
+                    && (c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_')) =>
+            {
+                self.configuration_name.push(c);
+            }
+            KeyCode::Backspace => {
+                self.configuration_name.pop();
+            }
+            _ => {}
+        }
+    }
+
     /// Consume a pending request to connect a git provider.
     pub fn take_git_connect_request(&mut self) -> Option<String> {
         self.git_connect_requested.take()
@@ -829,6 +952,10 @@ impl SetupScreen {
     pub fn confirm(&mut self) -> SetupResult {
         match self.step {
             SetupStep::Welcome => {
+                if let Err(error) = crate::profiles::validate_name(&self.configuration_name) {
+                    self.configuration_name_error = Some(error.to_string());
+                    return SetupResult::Continue;
+                }
                 // Kanban setup runs first so the collection step can offer
                 // "import from a configured provider" options. Detect providers
                 // from environment variables on the way into the kanban step.
@@ -836,6 +963,26 @@ impl SetupScreen {
                     self.detected_kanban_providers =
                         crate::api::providers::kanban::detect_kanban_env_vars();
                     self.kanban_detection_complete = true;
+                }
+                self.step = SetupStep::License;
+                SetupResult::Continue
+            }
+            SetupStep::License => {
+                if !self.license_input.is_empty() {
+                    self.license_install_requested = true;
+                }
+                self.step = SetupStep::ExecutionMode;
+                SetupResult::Continue
+            }
+            SetupStep::ExecutionMode => {
+                self.remote_execution =
+                    self.execution_mode_state.selected() == Some(REMOTE_EXECUTION_OPTION_INDEX);
+                if self.remote_execution && !self.premium_entitled() {
+                    self.license_error = Some(
+                        "Remote targets require a valid Premium licence for this configuration"
+                            .to_string(),
+                    );
+                    return SetupResult::Continue;
                 }
                 self.step = SetupStep::KanbanInfo;
                 SetupResult::Continue
@@ -923,7 +1070,11 @@ impl SetupScreen {
                         self.selected_wrapper = options[i].to_wrapper_type();
                     }
                 }
-                self.step = SetupStep::ExecutionTarget;
+                self.step = if self.remote_execution {
+                    SetupStep::ExecutionTarget
+                } else {
+                    SetupStep::WorktreePreference
+                };
                 SetupResult::Continue
             }
             SetupStep::ExecutionTarget => {
@@ -1032,8 +1183,17 @@ impl SetupScreen {
     pub fn go_back(&mut self) -> SetupResult {
         match self.step {
             SetupStep::Welcome => SetupResult::Cancel,
-            SetupStep::KanbanInfo => {
+            SetupStep::License => {
                 self.step = SetupStep::Welcome;
+                SetupResult::Continue
+            }
+            SetupStep::ExecutionMode => {
+                self.license_error = None;
+                self.step = SetupStep::License;
+                SetupResult::Continue
+            }
+            SetupStep::KanbanInfo => {
+                self.step = SetupStep::ExecutionMode;
                 SetupResult::Continue
             }
             SetupStep::ModelServer => {
@@ -1066,7 +1226,11 @@ impl SetupScreen {
                 SetupResult::Continue
             }
             SetupStep::WorktreePreference => {
-                self.step = SetupStep::ExecutionTarget;
+                self.step = if self.remote_execution {
+                    SetupStep::ExecutionTarget
+                } else {
+                    SetupStep::SessionWrapperChoice
+                };
                 SetupResult::Continue
             }
             SetupStep::ExecutionTarget => {
@@ -1138,6 +1302,8 @@ impl SetupScreen {
 
         match self.step {
             SetupStep::Welcome => self.render_welcome_step(frame),
+            SetupStep::License => self.render_license_step(frame),
+            SetupStep::ExecutionMode => self.render_execution_mode_step(frame),
             SetupStep::CollectionSource => self.render_collection_source_step(frame),
             SetupStep::HostedCollectionFetch => self.render_hosted_collection_step(frame),
             SetupStep::TaskFieldConfig => self.render_task_field_config_step(frame),

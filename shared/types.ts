@@ -264,7 +264,7 @@ agent_session_id: string | null,
  */
 summary: string | null, created_at: string, updated_at: string, };
 
-export type Config = { 
+export type Config = { profile: ProfileIdentity, 
 /**
  * List of projects operator can assign work to
  */
@@ -367,10 +367,9 @@ export type PanelNamesConfig = { status: string, queue: string, in_progress: str
 
 export type LaunchConfig = { confirm_autonomous: boolean, confirm_paired: boolean, launch_delay_ms: bigint, 
 /**
- * Default named execution target. Per-launch and per-delegator choices
- * take precedence.
+ * Default named execution target. Per-launch and per-delegator choices take precedence.
  */
-target: string | null,
+target: string | null, 
 /**
  * Docker execution configuration
  */
@@ -434,7 +433,15 @@ cors_origins: Array<string>,
 /**
  * Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host.
  */
-public_url: string | null, };
+public_url: string | null, 
+/**
+ * Maximum time to wait for active agents before shutdown cleanup begins.
+ */
+shutdown_drain_seconds: number, 
+/**
+ * Maximum time reserved for final callbacks and persistent cleanup.
+ */
+shutdown_cleanup_seconds: number, };
 
 export type LlmToolsConfig = { 
 /**
@@ -819,6 +826,427 @@ rate_limit_check_interval_secs: bigint,
  */
 rate_limit_warning_threshold: number, };
 
+export type AcpConfig = { 
+/**
+ * Whether the dashboard advertises the `operator acp` stdio entrypoint
+ * (and editor-config snippet actions). Set to false on machines that
+ * shouldn't be used as ACP agents.
+ */
+stdio_advertised: boolean, 
+/**
+ * Name of the delegator (from `[[delegators]]`) to use for ACP prompts.
+ * If unset or not found, falls back to the operator's default delegator
+ * resolution.
+ */
+default_delegator: string | null, 
+/**
+ * Maximum number of concurrent ACP sessions. New `session/new` requests
+ * beyond this limit are rejected with a JSON-RPC error.
+ */
+max_concurrent_sessions: number, };
+
+export type McpConfig = { 
+/**
+ * Whether to mount MCP HTTP/SSE endpoints on the REST API server.
+ * Toggling requires an API restart (no hot-swap of the axum router).
+ */
+http_enabled: boolean, 
+/**
+ * Whether the descriptor endpoint advertises the `operator mcp` stdio
+ * command. Set to false on multi-tenant/remote deployments where clients
+ * shouldn't spawn local subprocesses.
+ */
+stdio_advertised: boolean, 
+/**
+ * Whether to expose ticket-mutating tools (claim, complete, return-to-queue,
+ * create) over MCP. Defaults to `false` because any MCP client can call them.
+ */
+expose_ticket_write_tools: boolean, 
+/**
+ * External MCP servers to inject into spawned agent sessions.
+ * Each entry produces a separate `--mcp-config` file alongside the
+ * relay config when launching Claude Code agents.
+ */
+external_servers: Array<ExternalMcpServer>, };
+
+export type RelayConfig = { 
+/**
+ * When true, automatically inject the relay MCP server for all delegators.
+ * When false (default), relay injection is opt-in per delegator.
+ */
+auto_inject_mcp: boolean, };
+
+export type VersionCheckConfig = { 
+/**
+ * Enable automatic version checking on startup
+ */
+enabled: boolean, 
+/**
+ * URL to fetch latest version from (optional, can be removed)
+ */
+url: string | null, 
+/**
+ * Timeout in seconds for version check HTTP request
+ */
+timeout_secs: bigint, };
+
+export type SessionsConfig = { 
+/**
+ * Which session wrapper to use
+ */
+wrapper: SessionWrapperType, 
+/**
+ * Tmux-specific configuration
+ */
+tmux: SessionsTmuxConfig, 
+/**
+ * VS Code-specific configuration
+ */
+vscode: SessionsVSCodeConfig, 
+/**
+ * cmux-specific configuration
+ */
+cmux: SessionsCmuxConfig, 
+/**
+ * Zellij-specific configuration
+ */
+zellij: SessionsZellijConfig, };
+
+export type SessionWrapperType = "tmux" | "vscode" | "cmux" | "zellij";
+
+export type SessionsTmuxConfig = { 
+/**
+ * Whether custom tmux config has been generated
+ */
+config_generated: boolean, 
+/**
+ * Socket name for session isolation
+ */
+socket_name: string, };
+
+export type SessionsVSCodeConfig = { 
+/**
+ * Port for extension webhook server
+ */
+webhook_port: number, 
+/**
+ * Connection timeout in milliseconds
+ */
+connect_timeout_ms: bigint, };
+
+export type SessionsCmuxConfig = { 
+/**
+ * Path to the cmux binary
+ */
+binary_path: string, 
+/**
+ * Require running inside cmux (`CMUX_WORKSPACE_ID` env var present)
+ */
+require_in_cmux: boolean, 
+/**
+ * Where to place new agent sessions: "auto", "workspace", or "window"
+ */
+placement: CmuxPlacementPolicy, };
+
+export type CmuxPlacementPolicy = "auto" | "workspace" | "window";
+
+export type SessionsZellijConfig = { 
+/**
+ * Require running inside Zellij (ZELLIJ env var present)
+ */
+require_in_zellij: boolean, };
+
+export type ExternalMcpServer = { 
+/**
+ * Server name used as the key in the `mcpServers` JSON object
+ * (e.g., "kanbots"). Must be unique across all external servers.
+ */
+name: string, 
+/**
+ * Command to execute. Supports `${VAR}` interpolation.
+ */
+command: string, 
+/**
+ * Command arguments. Each element supports `${VAR}` interpolation.
+ */
+args: Array<string>, 
+/**
+ * Environment variables passed to the MCP server process.
+ * Values support `${VAR}` interpolation.
+ */
+env: { [key in string]: string }, 
+/**
+ * Whether this server is enabled. Allows disabling without removing config.
+ */
+enabled: boolean, 
+/**
+ * Path to a JSON sidecar discovery file. Relative paths resolve from
+ * the project directory. The sidecar must contain `{ "mcpServer": { ... } }`.
+ * When the file exists, its `mcpServer` spec is used verbatim (overriding
+ * `command`/`args`/`env`). When absent and `command` is empty, the server
+ * is silently skipped.
+ */
+discover_from: string | null, };
+
+export type GitConfig = { 
+/**
+ * Default commit identity for delegated work.
+ */
+identity?: GitIdentityConfig | null, gitea: GiteaConfig, forgejo: ForgejoConfig, 
+/**
+ * Active provider (auto-detected from remote URL if not specified)
+ */
+provider: GitProviderConfig | null, 
+/**
+ * GitHub-specific configuration
+ */
+github: GitHubConfig, 
+/**
+ * GitLab-specific configuration
+ */
+gitlab: GitLabConfig, 
+/**
+ * Branch naming format (e.g., "{type}/{ticket_id}-{slug}")
+ */
+branch_format: string, 
+/**
+ * Whether to use git worktrees for per-ticket isolation (default: false)
+ * When false, tickets work directly in the project directory with branches
+ */
+use_worktrees: boolean, };
+
+export type GitHubConfig = { 
+/**
+ * Whether GitHub integration is enabled
+ */
+enabled: boolean, 
+/**
+ * Environment variable containing the GitHub token (default: `GITHUB_TOKEN`)
+ */
+token_env: string, };
+
+export type GitLabConfig = { 
+/**
+ * Whether GitLab integration is enabled
+ */
+enabled: boolean, 
+/**
+ * Environment variable containing the GitLab token (default: `GITLAB_TOKEN`)
+ */
+token_env: string, 
+/**
+ * GitLab host (default: gitlab.com, can be self-hosted)
+ */
+host: string | null, };
+
+export type GiteaConfig = { enabled: boolean, token_env: string, 
+/**
+ * HTTPS host or base URL; defaults to gitea.com.
+ */
+host: string | null, wip_prefix: string, };
+
+export type ForgejoConfig = { enabled: boolean, token_env: string, 
+/**
+ * HTTPS host or base URL; defaults to codeberg.org.
+ */
+host: string | null, wip_prefix: string, };
+
+export type KanbanConfig = { 
+/**
+ * Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net")
+ */
+jira: { [key in string]: JiraConfig }, 
+/**
+ * Linear instances keyed by workspace slug
+ */
+linear: { [key in string]: LinearConfig }, 
+/**
+ * GitHub Projects v2 instances keyed by owner login (user or org)
+ *
+ * NOTE: This is the *kanban* GitHub integration (Projects v2), distinct
+ * from `GitHubConfig` which is the *git provider* used for PRs and
+ * branches. The two use different env vars and different scopes - see
+ * `docs/getting-started/kanban/github.md` for the full disambiguation.
+ */
+github: { [key in string]: GithubProjectsConfig }, 
+/**
+ * `OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias).
+ * Experimental, pull-only: each active change under `<root_path>/changes/`
+ * acts as a kanban "project" whose issues are the tasks.md task groups.
+ */
+openspec: { [key in string]: OpenspecConfig }, };
+
+export type ModelServer = { 
+/**
+ * Unique name (e.g., "ollama-local", "vllm-gpu1")
+ */
+name: string, 
+/**
+ * Kind: "ollama", "openrouter", "openai-compat", "anthropic-api", "openai-api", "google-api", "lmstudio"
+ */
+kind: string, 
+/**
+ * Base URL of the inference endpoint (e.g., `http://localhost:11434`).
+ * `None` for implicit vendor servers means use the SDK default.
+ */
+base_url: string | null, 
+/**
+ * Name of an env var providing the API key (e.g., `OLLAMA_API_KEY`)
+ */
+api_key_env: string | null, 
+/**
+ * Additional environment variables set when spawning agents that use this server
+ */
+extra_env: { [key in string]: string }, 
+/**
+ * Optional display name for UI
+ */
+display_name: string | null, };
+
+export type RemoteHost = { 
+/**
+ * Unique name referenced by `DelegatorLaunchConfig.host` (e.g., "gpu-vm")
+ */
+name: string, 
+/**
+ * SSH destination, resolved via the user's `~/.ssh/config`
+ */
+ssh_alias: string, 
+/**
+ * Absolute path to the project root on the remote host
+ */
+workdir: string, 
+/**
+ * Optional display name for UI
+ */
+display_name: string | null, 
+/**
+ * SSH config fragment passed with `-F` (used by provisioned coder aliases)
+ */
+ssh_config_path?: string | null, };
+
+export type OsNotificationConfig = { 
+/**
+ * Whether OS notifications are enabled
+ */
+enabled: boolean, 
+/**
+ * Play sound with notifications
+ */
+sound: boolean, 
+/**
+ * Events to send (empty = all events)
+ * Possible values: agent.started, agent.completed, agent.failed,
+ * `agent.awaiting_input`, `agent.session_lost`, pr.created, pr.merged,
+ * pr.closed, `pr.ready_to_merge`, `pr.changes_requested`,
+ * ticket.returned, investigation.created
+ */
+events: Array<string>, };
+
+export type WebhookConfig = { 
+/**
+ * Optional name for this webhook (for logging)
+ */
+name: string | null, 
+/**
+ * Whether this webhook is enabled
+ */
+enabled: boolean, 
+/**
+ * Webhook URL
+ */
+url: string, 
+/**
+ * Authentication type: "bearer" or "basic"
+ */
+auth_type: string | null, 
+/**
+ * Environment variable containing the bearer token
+ */
+token_env: string | null, 
+/**
+ * Username for basic auth
+ */
+username: string | null, 
+/**
+ * Environment variable containing the password for basic auth
+ */
+password_env: string | null, 
+/**
+ * Events to send (empty = all events)
+ */
+events: Array<string> | null, };
+
+export type TargetDef = { 
+/**
+ * Unique name, referenced by `DelegatorLaunchConfig.target`.
+ * `local` and `docker` are reserved for synthesized targets.
+ */
+name: string, 
+/**
+ * Human-readable name for UI surfaces
+ */
+display_name?: string | null, } & ({ "kind": "local" } | { "kind": "docker" } & DockerConfig | { "kind": "coder" } & CoderConfig | { "kind": "ssh" } & SshTarget);
+
+export type TargetKind = { "kind": "local" } | { "kind": "docker" } & DockerConfig | { "kind": "coder" } & CoderConfig | { "kind": "ssh" } & SshTarget;
+
+export type SshTarget = { 
+/**
+ * Host alias resolved via the user's `~/.ssh/config` (or `ssh_config_path`)
+ */
+ssh_alias: string, 
+/**
+ * Absolute project root on the remote machine
+ */
+workdir: string, 
+/**
+ * SSH config fragment passed with `-F` (used by provisioned coder aliases)
+ */
+ssh_config_path?: string | null, };
+
+export type CoderConfig = { 
+/**
+ * Coder template child workspaces are created from (an allowlist -
+ * never per-ticket input)
+ */
+template: string, 
+/**
+ * Env var NAME holding the Coder deployment URL
+ */
+url_env: string, 
+/**
+ * Env var NAME holding the Coder session token. The variable is stripped
+ * from every agent's spawn environment on all target kinds.
+ */
+token_env: string, 
+/**
+ * Workspace name prefix for deterministic per-ticket naming
+ */
+name_prefix: string, 
+/**
+ * Project root inside the workspace (None = /home/coder/{project})
+ */
+workdir?: string | null, 
+/**
+ * Stop the workspace when the ticket completes (never delete)
+ */
+stop_on_complete: boolean, 
+/**
+ * Bound on workspace create + agent-ready wait
+ */
+create_timeout_secs: bigint, 
+/**
+ * Control-plane-reachable `OPERATOR_API_URL` override for detached
+ * multi-step (empty/None = reverse tunnel default)
+ */
+callback_url?: string | null, 
+/**
+ * Passthrough `--parameter` template parameters for `coder create`
+ */
+parameters?: { [key in string]: string }, };
+
+export type ProfileIdentity = { id: string, name: string, };
+
 export type State = { paused: boolean, agents: Array<AgentState>, completed: Array<CompletedTicket>, 
 /**
  * Per-project LLM usage statistics
@@ -904,7 +1332,6 @@ llm_tool: string | null,
 llm_model: string | null, 
 /**
  * Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]`
- * (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match)
  */
 launch_mode: string | null, 
 /**
@@ -929,11 +1356,79 @@ remote_host: string | null,
  */
 step_launch_context: StepLaunchContext | null, 
 /**
- * Name of the resolved execution target this agent launched on
+ * Name of the resolved execution target this agent launched on.
  */
-target_name: string | null, };
+target_name: string | null, 
+/**
+ * Shutdown recovery strategy.
+ */
+shutdown_recovery?: ShutdownRecovery | null, };
 
 export type CompletedTicket = { ticket_id: string, ticket_type: string, project: string, summary: string, completed_at: string, pr_url: string | null, output_tickets: Array<string>, };
+
+export type MultiAgentGroup = { 
+/**
+ * Unique group identifier
+ */
+group_id: string, 
+/**
+ * Ticket this group belongs to
+ */
+ticket_id: string, 
+/**
+ * Step name being executed
+ */
+step_name: string, 
+/**
+ * Step type (`multi_model`, `multi_prompt`, `matrixed`)
+ */
+step_type: string, 
+/**
+ * Agent IDs in this group (populated as sub-agents launch)
+ */
+agent_ids: Array<string>, 
+/**
+ * Current execution phase
+ */
+phase: MultiAgentPhase, 
+/**
+ * Collected outputs from completed sub-agents, keyed by `variant_key`
+ * (delegator name for `multi_model`, index for `multi_prompt`,
+ * `{delegator}:{prompt_idx}` for `matrixed`).
+ */
+individual_outputs: { [key in string]: JsonValue }, 
+/**
+ * Final aggregated output (set when phase = Complete)
+ */
+aggregated_output: JsonValue | null, 
+/**
+ * Total sub-agents expected (`agent_ids.len() + pending_launches.len()`).
+ */
+expected_total: number, 
+/**
+ * Sub-agents that still need launching (waiting for a free slot).
+ */
+pending_launches: Array<PendingSubAgent>, 
+/**
+ * Maps launched `agent_id` to the `variant_key` used as the output key.
+ */
+agent_variant_keys: { [key in string]: string }, };
+
+export type MultiAgentPhase = "fan_out" | "voting" | "complete" | "failed";
+
+export type PendingSubAgent = { 
+/**
+ * Delegator (from `config.delegators`) this sub-agent should use.
+ */
+delegator_name: string, 
+/**
+ * Fully-rendered prompt text for this sub-agent.
+ */
+prompt: string, 
+/**
+ * Key under which this sub-agent's output is recorded (see `individual_outputs`).
+ */
+variant_key: string, };
 
 export type IssueTypeResponse = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, source: string, 
 /**
@@ -1091,6 +1586,16 @@ health: string,
  */
 actions: Array<RowActionDto>, };
 
+export type RowActionDto = { 
+/**
+ * Display label for the action button/link.
+ */
+label: string, 
+/**
+ * Browser URL the action opens.
+ */
+url: string, };
+
 export type SupportStatus = "proto" | "alpha" | "beta" | "ga";
 
 export type IntegrationCatalogEntryDto = { 
@@ -1121,7 +1626,11 @@ readme_badge: boolean,
 /**
  * Official support / maturity status.
  */
-status: SupportStatus, };
+status: SupportStatus, premium: boolean, 
+/**
+ * Implemented session controllers for an IDE; absent for other categories.
+ */
+session_wrappers: Array<string> | null, };
 
 export type KanbanProviderCatalogEntry = { 
 /**
@@ -1427,6 +1936,8 @@ host?: string | null,
  * `local`/`docker`, or a `[[hosts]]` name). Supersedes `docker`/`host`.
  */
 target?: string | null, };
+
+export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in string]: JsonValue } | null;
 
 export type LlmTask = { 
 /**
@@ -1751,3 +2262,4 @@ worktreePath?: string,
  * Git branch name
  */
 branch?: string, };
+

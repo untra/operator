@@ -32,12 +32,17 @@ pub struct IntegrationCatalogEntryDto {
     pub readme_badge: bool,
     /// Official support / maturity status.
     pub status: SupportStatus,
+    pub premium: bool,
+    /// Implemented session controllers for an IDE; absent for other categories.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_wrappers: Option<Vec<String>>,
 }
 
 /// Project the catalog source-of-truth into wire DTOs.
 pub fn integration_catalog() -> Vec<IntegrationCatalogEntryDto> {
     all_integrations()
         .into_iter()
+        .filter(crate::integrations::catalog::CatalogEntry::is_public)
         .map(|e| IntegrationCatalogEntryDto {
             vertical: e.vertical.slug().to_string(),
             vertical_label: e.vertical.label().to_string(),
@@ -46,6 +51,16 @@ pub fn integration_catalog() -> Vec<IntegrationCatalogEntryDto> {
             docs_url: e.docs_url(),
             readme_badge: e.readme_badge,
             status: e.status,
+            premium: e.premium,
+            session_wrappers: (e.vertical == crate::integrations::Vertical::Editor)
+                .then(|| crate::integrations::catalog::ide_session_wrappers(e.slug))
+                .flatten()
+                .map(|wrappers| {
+                    wrappers
+                        .iter()
+                        .map(|wrapper| wrapper.display_name().to_string())
+                        .collect()
+                }),
         })
         .collect()
 }
@@ -57,7 +72,10 @@ mod tests {
     #[test]
     fn test_integration_catalog_projects_all_entries() {
         let dtos = integration_catalog();
-        assert_eq!(dtos.len(), all_integrations().len());
+        assert_eq!(
+            dtos.len(),
+            all_integrations().iter().filter(|e| e.is_public()).count()
+        );
         let jira = dtos.iter().find(|d| d.slug == "jira").unwrap();
         assert_eq!(jira.vertical, "kanban");
         assert_eq!(jira.status, SupportStatus::Beta);
@@ -68,10 +86,11 @@ mod tests {
     }
 
     #[test]
-    fn test_proto_entry_has_no_docs_url() {
+    fn test_proto_entries_are_not_public() {
         let dtos = integration_catalog();
-        let lmstudio = dtos.iter().find(|d| d.slug == "lmstudio").unwrap();
-        assert!(lmstudio.docs_url.is_none());
-        assert!(!lmstudio.readme_badge);
+        assert!(dtos.iter().all(|d| d.status != SupportStatus::Proto));
+        assert!(dtos
+            .iter()
+            .any(|d| d.vertical == "remote-targets" && d.premium));
     }
 }

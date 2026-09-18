@@ -512,6 +512,7 @@ use crate::agents::tmux::TmuxClient;
 
 fn make_test_operator_env() -> OperatorEnvVars {
     OperatorEnvVars {
+        profile_id: Uuid::nil(),
         git_context: None,
         agent_id: Uuid::new_v4().to_string(),
         ticket_id: "TEST-001".to_string(),

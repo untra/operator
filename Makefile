@@ -1,38 +1,72 @@
 # Operator developer tasks.
 #
-# `make check` mirrors the CI `lint-test` job exactly so a clean local run means
-# a clean CI run. `make install-hooks` wires the committed pre-push hook, which
-# runs the fast lint gate (fmt + clippy, no tests) before every push.
+# The three verbs stripe across every module: `make fmt` rewrites, `make
+# fmt-check`, `make lint` and `make test` gate. `make check` runs all three
+# gates and is the pre-PR bar. `make install-hooks` wires the committed pre-push
+# hook, which runs the fast gate (root fmt-check + clippy, no tests).
 
-.PHONY: check fmt clippy test build run install-hooks bindings webcomponents storybook ui docs \
-	fmt-ts lint-ts lint-shell relay
+.PHONY: check fmt fmt-check lint test clippy build run install-hooks bindings \
+	webcomponents storybook ui docs vscode-extension relay opr8r \
+	fmt-rust fmt-ts fmt-tf fmt-check-rust fmt-check-ts fmt-check-tf \
+	lint-rust lint-ts lint-shell lint-helm lint-tf test-rust test-ts
 
-# Full CI-parity gate. Keep these commands byte-identical to
-# .github/workflows/build.yaml so local and CI never disagree.
-check: fmt clippy test relay fmt-ts lint-ts lint-shell
+# CI installs terraform; local dev machines may only have OpenTofu.
+TF := $(shell command -v terraform >/dev/null 2>&1 && echo terraform || echo tofu)
 
-fmt:
+# Full gate. The commands below are the same ones CI runs, so a clean local run
+# means a clean CI run.
+check: fmt-check lint test
+
+# Rewrite formatting in every module. `fmt-check` is the same pass in report
+# mode, and is what `check` and the pre-push hook run.
+fmt: fmt-rust fmt-ts fmt-tf
+
+fmt-check: fmt-check-rust fmt-check-ts fmt-check-tf
+
+# crates/relay, opr8r and zed-extension have their own Cargo.lock and are not
+# workspace members, so `--all` never reaches them.
+fmt-rust:
+	cargo fmt --all
+	cd crates/relay && cargo fmt
+	cd opr8r && cargo fmt
+	cd zed-extension && cargo fmt
+
+fmt-check-rust:
 	cargo fmt --all -- --check
-
-clippy:
-	cargo clippy --locked --all-targets --all-features -- -D warnings
-
-test:
-	cargo test --locked
-
-# crates/relay has its own Cargo.lock and is not a workspace member, so the
-# targets above never reach it.
-relay:
 	cd crates/relay && cargo fmt -- --check
-	cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings
-	cd crates/relay && cargo test --locked --all-features
+	cd opr8r && cargo fmt -- --check
+	cd zed-extension && cargo fmt -- --check
 
-# oxfmt/oxlint are installed once at the repo root and cover every hand-written
-# JS/TS subproject. `bun run fmt` (no :check) rewrites instead of reporting.
+# oxfmt is installed once at the repo root and covers every hand-written JS/TS
+# subproject.
 fmt-ts:
+	bun install --frozen-lockfile
+	bun run fmt
+
+fmt-check-ts:
 	bun install --frozen-lockfile
 	bun run fmt:check
 
+fmt-tf:
+	cd coder-module && $(TF) fmt
+
+fmt-check-tf:
+	cd coder-module && $(TF) fmt -check -diff
+
+lint: lint-rust lint-ts lint-shell lint-helm lint-tf
+
+# Root workspace only: the fast gate the pre-push hook pairs with fmt-check.
+clippy:
+	cargo clippy --locked --all-targets --all-features -- -D warnings
+
+# zed-extension compiles to wasm, so its lints only resolve under that target.
+lint-rust: clippy
+	cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd opr8r && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd zed-extension && cargo clippy --locked --target wasm32-wasip1 -- -D warnings
+
+# The type-aware lints resolve each subproject's node_modules and copy-types
+# output, so install those first (`make ui`, `make vscode-extension`).
 lint-ts:
 	bun run lint:ui
 	bun run lint:webcomponents
@@ -42,6 +76,39 @@ lint-ts:
 
 lint-shell:
 	shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*
+
+lint-helm:
+	helm lint charts/operator
+
+# The rendered coder_script is what actually runs in a workspace, so a bash
+# syntax error there is a broken module.
+lint-tf:
+	cd coder-module && $(TF) init -input=false && $(TF) validate
+	scripts/ci/check-coder-module.sh
+
+test: test-rust test-ts
+
+test-rust:
+	cargo test --locked --all-features
+	cd crates/relay && cargo test --locked --all-features
+	cd opr8r && cargo test --locked --all-features
+
+# Display-bound suites (vscode-extension, storybook) stay on their own targets.
+test-ts:
+	bun install --frozen-lockfile
+	cd webcomponents && bun install --frozen-lockfile && bun run test
+	cd coder-module && bun test
+
+# Every gate for one module, for when only that module changed.
+relay:
+	cd crates/relay && cargo fmt -- --check
+	cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd crates/relay && cargo test --locked --all-features
+
+opr8r:
+	cd opr8r && cargo fmt -- --check
+	cd opr8r && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd opr8r && cargo test --locked --all-features
 
 # Optimized release binary at target/release/operator.
 build:
@@ -73,6 +140,17 @@ storybook: webcomponents
 ui: webcomponents
 	cd ui && bun install --frozen-lockfile && bun run build
 
+# The VS Code extension. Mirrors the compile steps of the CI
+# `test-vscode-extension` job; `compile:webview` type-checks the webview bundle,
+# which no other target reaches. Depends on `bindings` because copy-types copies
+# them into vscode-extension/src/generated.
+vscode-extension: bindings
+	cd vscode-extension && npm ci
+	cd vscode-extension && npm run compile
+	cd vscode-extension && npm run compile:webview
+	cd vscode-extension && npm run lint
+	cd vscode-extension && npm run fmt:check
+
 # Full docs pipeline: bindings, generated reference docs and the hosted
 # collection bundle, the shared components bundle, then Jekyll. Mirrors the
 # ordering in .github/workflows/docs.yml.
@@ -89,4 +167,4 @@ docs: webcomponents
 # One-time per clone: route git hooks at the committed .githooks/ directory.
 install-hooks:
 	git config core.hooksPath .githooks
-	@echo "pre-push hook installed (runs 'make fmt clippy')"
+	@echo "pre-push hook installed (runs 'make fmt-check clippy')"

@@ -3,6 +3,7 @@ import type { Config } from "../../src/generated/Config";
 
 /** Sensible defaults matching Rust Config::default() */
 const DEFAULT_CONFIG: Config = {
+  profile: { id: "00000000-0000-0000-0000-000000000000", name: "legacy" },
   projects: [],
   agents: {
     max_parallel: 2,

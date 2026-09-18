@@ -14,6 +14,7 @@ use crate::templates::{schema::TemplateSchema, TemplateType};
 /// for branding (status line, pane title, UI deep-links).
 #[derive(Debug, Clone, Default)]
 pub struct OperatorEnvVars {
+    pub profile_id: uuid::Uuid,
     pub git_context: Option<crate::config::GitExecutionConfig>,
     pub agent_id: String,
     pub ticket_id: String,
@@ -33,7 +34,8 @@ impl OperatorEnvVars {
     /// depends on disk-based discovery.
     pub fn to_export_block(&self) -> String {
         let mut block = format!(
-            "export OPERATOR_AGENT_ID={}\nexport OPERATOR_TICKET_ID={}\nexport OPERATOR_PROJECT={}\nexport OPERATOR_STEP={}\nexport OPERATOR_UI_URL={}\nexport OPERATOR_UI_PORT={}\nexport OPERATOR_API_URL=http://127.0.0.1:{}\n",
+            "export OPERATOR_PROFILE_ID={}\nexport OPERATOR_AGENT_ID={}\nexport OPERATOR_TICKET_ID={}\nexport OPERATOR_PROJECT={}\nexport OPERATOR_STEP={}\nexport OPERATOR_UI_URL={}\nexport OPERATOR_UI_PORT={}\nexport OPERATOR_API_URL=http://127.0.0.1:{}\n",
+            shell_escape(&self.profile_id.to_string()),
             shell_escape(&self.agent_id),
             shell_escape(&self.ticket_id),
             shell_escape(&self.project),
@@ -560,7 +562,9 @@ mod tests {
 
     #[test]
     fn test_operator_env_vars_to_export_block() {
+        let profile_id = Uuid::new_v4();
         let env = OperatorEnvVars {
+            profile_id,
             git_context: None,
             agent_id: "abc-123".to_string(),
             ticket_id: "FEAT-042".to_string(),
@@ -571,6 +575,9 @@ mod tests {
             callback_token: String::new(),
         };
         let block = env.to_export_block();
+        // opr8r reads this to route its callback at the right configuration,
+        // and on a remote launch the block travels inside the generated script.
+        assert!(block.contains(&format!("export OPERATOR_PROFILE_ID='{profile_id}'")));
         assert!(block.contains("export OPERATOR_AGENT_ID='abc-123'"));
         assert!(block.contains("export OPERATOR_TICKET_ID='FEAT-042'"));
         assert!(block.contains("export OPERATOR_PROJECT='gamesvc'"));
@@ -582,6 +589,7 @@ mod tests {
     #[test]
     fn test_operator_env_vars_to_pane_title_line() {
         let env = OperatorEnvVars {
+            profile_id: Uuid::nil(),
             git_context: None,
             agent_id: "abc-123".to_string(),
             ticket_id: "FEAT-042".to_string(),
@@ -605,6 +613,7 @@ mod tests {
         let config = make_test_config_with_tickets_path(temp_dir.path());
 
         let env = OperatorEnvVars {
+            profile_id: Uuid::nil(),
             git_context: None,
             agent_id: "test-agent-id".to_string(),
             ticket_id: "FEAT-001".to_string(),
@@ -729,6 +738,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let config = make_test_config_with_tickets_path(temp.path());
         let env = OperatorEnvVars {
+            profile_id: Uuid::nil(),
             git_context: Some(crate::config::GitExecutionConfig {
                 identity: Some(crate::config::GitIdentityConfig {
                     name: "Ticket Agent".into(),

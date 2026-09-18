@@ -10,6 +10,8 @@ mod config;
 mod editors;
 mod git;
 mod issuetypes;
+mod licensing;
+mod profiles;
 // Vertical catalog + capability inventory: consumed by the lib's REST/docs
 // layers and the external parity tests; several items read as unused in the bin.
 #[allow(dead_code, unused_imports)]
@@ -128,6 +130,10 @@ pub struct Cli {
     /// Config file path
     #[arg(short, long)]
     config: Option<String>,
+
+    /// Named configuration hosted by this Operator server
+    #[arg(long, conflicts_with = "config")]
+    profile: Option<String>,
 
     /// Enable debug logging
     #[arg(short, long)]
@@ -372,7 +378,14 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Load configuration first (needed for logging setup)
-    let config = Config::load(cli.config.as_deref())?;
+    let mut config = if let Some(name) = &cli.profile {
+        profiles::select(name)?
+    } else {
+        Config::load(cli.config.as_deref())?
+    };
+    if !matches!(cli.command, Some(Commands::Docs { .. })) && cli.profile.is_none() {
+        profiles::register_legacy(&mut config)?;
+    }
 
     // Determine if we're running in TUI mode (no subcommand)
     let is_tui_mode = cli.command.is_none();
@@ -796,7 +809,6 @@ async fn cmd_import(
     provider: Option<String>,
     reference: Option<String>,
 ) -> Result<()> {
-    use api::providers::kanban::KanbanProviderType;
     use services::kanban_sync::KanbanSyncService;
 
     let service = KanbanSyncService::new(config);
@@ -811,10 +823,8 @@ async fn cmd_import(
         Some(p) => p.to_lowercase(),
     };
 
-    if KanbanProviderType::from_slug(&provider).is_none() {
-        anyhow::bail!(
-            "Unknown kanban provider: {provider}. Use 'jira', 'linear', 'github', or 'openspec'."
-        );
+    if let Err(message) = api::providers::kanban::validate_sync_source(&provider) {
+        anyhow::bail!(message);
     }
 
     let collections: Vec<(String, String)> = if let Some(reference) = reference {
@@ -919,7 +929,7 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
                 None => read_password_from_stdin("New admin password: ")?,
             };
 
-            let store = AuthStore::open(&config.state_path())?;
+            let store = AuthStore::open(&config.auth_state_path())?;
             store.set_admin_password(&password)?;
             // Everything issued under the old password is now suspect: the
             // reason for a reset is usually that something leaked.
@@ -935,7 +945,7 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
         }
 
         AuthAction::Status { limit } => {
-            let store = AuthStore::open(&config.state_path())?;
+            let store = AuthStore::open(&config.auth_state_path())?;
             println!("Bootstrap state: {:?}", store.bootstrap_state()?);
 
             let keys = store.list_access_keys()?;
@@ -1162,11 +1172,8 @@ fn cmd_setup(
 
     // Validate kanban provider if specified
     if let Some(ref provider) = kanban_provider {
-        if api::providers::kanban::KanbanProviderType::from_slug(&provider.to_lowercase()).is_none()
-        {
-            anyhow::bail!(
-                "Unknown kanban provider: {provider}. Use 'jira', 'linear', 'github', or 'openspec'."
-            );
+        if let Err(message) = api::providers::kanban::validate_sync_source(provider) {
+            anyhow::bail!(message);
         }
     }
 

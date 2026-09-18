@@ -20,3 +20,5 @@ export { IssueTypeSection } from "./issuetype-section";
 export { DelegatorSection } from "./delegator-section";
 export { ModelServerSection } from "./modelserver-section";
 export { ManagedProjectsSection } from "./managed-projects-section";
+export { RemoteTargetsSection } from "./remote-targets-section";
+export { LicenseSection } from "./license-section";

@@ -8,8 +8,7 @@ import { TicketDetailPanel } from "./TicketDetailPanel";
 /**
  * Three-column kanban board mirroring the operator TUI's ticket columns:
  * TODO QUEUE / IN PROGRESS / DONE. The API's `awaiting` tickets are folded
- * into IN PROGRESS (with a distinct paused indicator), matching the TUI which
- * keeps awaiting tickets in the in-progress panel.
+ * into IN PROGRESS (with a distinct paused indicator), matching the TUI.
  *
  * Cards in the TODO and IN PROGRESS columns are clickable: they open the
  * right-hand detail sidepanel with that ticket's detail, launch form, and

@@ -33,4 +33,8 @@ readme_badge: boolean,
 /**
  * Official support / maturity status.
  */
-status: SupportStatus, };
+status: SupportStatus, premium: boolean, 
+/**
+ * Implemented session controllers for an IDE; absent for other categories.
+ */
+session_wrappers: Array<string> | null, };

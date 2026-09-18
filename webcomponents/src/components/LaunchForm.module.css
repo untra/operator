@@ -60,5 +60,10 @@
   transition: background 0.15s;
 }
 
-.launchBtn:hover:not(:disabled) { background: var(--action-bg-hover); }
-.launchBtn:disabled { cursor: progress; opacity: 0.6; }
+.launchBtn:hover:not(:disabled) {
+  background: var(--action-bg-hover);
+}
+.launchBtn:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}

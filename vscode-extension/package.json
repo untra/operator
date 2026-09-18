@@ -295,6 +295,14 @@
         "title": "Operator: Open Workflows in Operator UI"
       },
       {
+        "command": "operator.openRemoteTargets",
+        "title": "Operator: Open Remote Targets in Operator UI"
+      },
+      {
+        "command": "operator.openLicense",
+        "title": "Operator: Open License in Operator UI"
+      },
+      {
         "command": "operator.syncKanbanCollection",
         "title": "Operator: Sync Collection"
       },

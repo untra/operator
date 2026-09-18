@@ -2,6 +2,7 @@
 title: "Cursor"
 description: "Cursor IDE integration via the operator-terminals VS Code extension and Cursor's native MCP support."
 layout: doc
+published: false
 ---
 
 <span class="badge supported">Supported</span>

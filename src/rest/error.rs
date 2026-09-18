@@ -42,6 +42,7 @@ pub enum ApiError {
     /// A cookie-authenticated mutation arrived without a valid CSRF token or
     /// with a mismatched `Origin`.
     CsrfFailed(String),
+    NotEntitled(crate::licensing::NotEntitled),
 }
 
 /// Error response body
@@ -49,6 +50,10 @@ pub enum ApiError {
 pub struct ErrorResponse {
     pub error: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub feature: Option<crate::licensing::PremiumFeature>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_tier: Option<String>,
 }
 
 impl ApiError {
@@ -67,17 +72,28 @@ impl ApiError {
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, "unauthorized", msg),
             ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, "forbidden", msg),
             ApiError::CsrfFailed(msg) => (StatusCode::FORBIDDEN, "csrf_failed", msg),
+            ApiError::NotEntitled(error) => (
+                StatusCode::PAYMENT_REQUIRED,
+                "not_entitled",
+                error.to_string(),
+            ),
         }
     }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        let feature = match &self {
+            Self::NotEntitled(error) => Some(error.feature),
+            _ => None,
+        };
         let (status, error, message) = self.parts();
 
         let body = Json(ErrorResponse {
             error: error.to_string(),
             message,
+            feature,
+            required_tier: feature.map(|_| crate::licensing::PREMIUM_TIER.to_owned()),
         });
 
         // Only a 401 carries a challenge. A 403 means the credential was
@@ -110,7 +126,16 @@ impl From<serde_json::Error> for ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(err: anyhow::Error) -> Self {
-        ApiError::InternalError(err.to_string())
+        match err.downcast_ref::<crate::licensing::NotEntitled>() {
+            Some(error) => Self::NotEntitled(error.clone()),
+            None => Self::InternalError(err.to_string()),
+        }
+    }
+}
+
+impl From<crate::licensing::NotEntitled> for ApiError {
+    fn from(error: crate::licensing::NotEntitled) -> Self {
+        Self::NotEntitled(error)
     }
 }
 
@@ -118,6 +143,28 @@ impl From<anyhow::Error> for ApiError {
 mod tests {
     use super::*;
     use http_body_util::BodyExt;
+
+    #[tokio::test]
+    async fn entitlement_denial_has_distinct_status_and_feature() {
+        let error = crate::licensing::NotEntitled {
+            feature: crate::licensing::PremiumFeature::RemoteTargets,
+        };
+        let response =
+            ApiError::from(anyhow::Error::new(error).context("launch rejected")).into_response();
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        assert!(response.headers().get(header::WWW_AUTHENTICATE).is_none());
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body.error, "not_entitled");
+        assert_eq!(
+            body.feature,
+            Some(crate::licensing::PremiumFeature::RemoteTargets)
+        );
+        assert_eq!(
+            body.required_tier.as_deref(),
+            Some(crate::licensing::PREMIUM_TIER)
+        );
+    }
 
     #[tokio::test]
     async fn test_not_found_response() {

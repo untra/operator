@@ -20,6 +20,7 @@ import {
   LIVEZ_PATH,
   OperatorApiClient,
   discoverApiUrl,
+  profileApiPath,
   toJson,
 } from "../../src/api-client";
 import { clearCredentialProvider, setCredentialProvider } from "../../src/auth/credentials";
@@ -54,6 +55,37 @@ interface LaunchRequestBody {
 interface RejectRequestBody {
   reason: string;
 }
+
+suite("Profile-scoped routing", () => {
+  test("routes a request at the configuration the daemon serves", () => {
+    assert.strictEqual(
+      profileApiPath("/api/v1/tickets", "abc-123"),
+      "/api/v1/profiles/abc-123/tickets",
+    );
+  });
+
+  test("leaves server-level routes unscoped", () => {
+    // These are served by the server itself, not by any one configuration;
+    // scoping them would 404 against the tenant dispatcher.
+    for (const serverPath of [
+      "/api/v1/auth/session",
+      "/api/v1/health",
+      "/api/v1/integrations",
+      "/api/v1/profiles",
+    ]) {
+      assert.strictEqual(profileApiPath(serverPath, "abc-123"), serverPath);
+    }
+  });
+
+  test("leaves every path alone when the daemon reported no configuration", () => {
+    // An older daemon writes no profile_id; its routes are the unscoped ones.
+    assert.strictEqual(profileApiPath("/api/v1/tickets", undefined), "/api/v1/tickets");
+  });
+
+  test("leaves the public liveness probe alone", () => {
+    assert.strictEqual(profileApiPath(LIVEZ_PATH, "abc-123"), LIVEZ_PATH);
+  });
+});
 
 suite("API Client Test Suite", () => {
   let fetchStub: sinon.SinonStub;

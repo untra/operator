@@ -384,7 +384,7 @@ fn generate_config_flags(
         }
 
         // Inject relay MCP server based on effective relay setting
-        let hub_available = std::env::var("RELAY_HUB_SOCKET").is_ok();
+        let hub_available = crate::relay::active_hub_socket().is_some();
         if resolve_relay_injection(operator_relay, hub_available, config.relay.auto_inject_mcp) {
             if let Some(config_path) = relay_mcp_config_flag(&session_dir) {
                 cli_flags.push("--mcp-config".to_string());

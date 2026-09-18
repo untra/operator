@@ -87,6 +87,39 @@ export const board: KanbanBoardResponse = {
   last_updated: "2026-09-14T16:30:00Z",
 };
 
+/** Enough cards across projects, types and priorities to exercise filtering. */
+export const busyBoard: KanbanBoardResponse = {
+  queue: [
+    queuedTicket,
+    unnamedStepTicket,
+    {
+      ...queuedTicket,
+      id: "FEAT-1043",
+      summary: "Paginate the leaderboard endpoint",
+      project: "gamesvc",
+      priority: "P0-critical",
+      timestamp: "20260914-0935",
+      filename: "FEAT-1043.md",
+    },
+  ],
+  running: [
+    runningTicket,
+    {
+      ...runningTicket,
+      id: "FIX-319",
+      summary: "Retry webhook delivery on 5xx",
+      project: "platform",
+      priority: "P3-low",
+      timestamp: "20260914-0950",
+      filename: "FIX-319.md",
+    },
+  ],
+  awaiting: [awaitingTicket],
+  done: [completedTicket],
+  total_count: 7,
+  last_updated: "2026-09-14T16:30:00Z",
+};
+
 export const emptyBoard: KanbanBoardResponse = {
   queue: [],
   running: [],
@@ -108,7 +141,7 @@ export const queueStatus: QueueStatusResponse = {
   in_progress: 1,
   awaiting: 1,
   completed: 1,
-  by_type: { inv: 1, fix: 1, feat: 1, spike: 1 },
+  by_type: { INV: 1, FIX: 1, TASK: 0, FEAT: 1, SPIKE: 1 },
 };
 
 const createStep = (

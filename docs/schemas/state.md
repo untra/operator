@@ -64,13 +64,14 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `completed_steps` | `array` | No | Completed steps for this ticket |
 | `llm_tool` | `string` \| `null` | No | LLM tool used (e.g., "claude", "gemini", "codex") |
 | `llm_model` | `string` \| `null` | No | LLM model alias (e.g., "opus", "sonnet", "gpt-4o") |
-| `launch_mode` | `string` \| `null` | No | Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]` (derived from the resolved execution target; parse with `agents::parse_launch_mode`, never substring-match) |
+| `launch_mode` | `string` \| `null` | No | Launch mode: `default|yolo|docker[-yolo]|coder[-yolo]|ssh[-yolo]` |
 | `review_state` | `string` \| `null` | No | Review state for `awaiting_input` agents Values: "`pending_plan`", "`pending_visual`", "`pending_proof`", "`pending_pr_creation`", "`pending_pr_merge`" |
 | `dev_server_pid` | `integer` \| `null` | No | Server process ID for visual review cleanup (if applicable) |
 | `worktree_path` | `string` \| `null` | No | Path to the git worktree for this ticket (per-ticket isolation) |
 | `remote_host` | `string` \| `null` | No | Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local) |
 | `step_launch_context` | object | No | Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model. |
-| `target_name` | `string` \| `null` | No | Name of the resolved execution target this agent launched on |
+| `target_name` | `string` \| `null` | No | Name of the resolved execution target this agent launched on. |
+| `shutdown_recovery` | object | No | Shutdown recovery strategy. |
 
 ### GitExecutionConfig
 
@@ -126,6 +127,8 @@ The persisted context is the baseline for a ticket's whole chain; per-step
 | `opr8r` | `string` | Yes | opr8r invocation for the launch environment ("opr8r" inside a container where the image ships it on PATH, an absolute path locally). Steps exec inside the same environment, so the value holds chain-wide. |
 | `operator_relay` | `boolean` \| `null` | No | Relay MCP injection override from the delegator launch config |
 | `extra_flags` | `array` | No | Extra CLI flags from the delegator launch config |
+
+### ShutdownRecovery
 
 ### CompletedTicket
 

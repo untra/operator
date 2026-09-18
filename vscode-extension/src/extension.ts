@@ -1158,6 +1158,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("operator.openWorkflows", () =>
       openOperatorUi(ctx.getCurrentTicketsDir(), "workflows"),
     ),
+    vscode.commands.registerCommand("operator.openRemoteTargets", () =>
+      openOperatorUi(ctx.getCurrentTicketsDir(), "remote-targets"),
+    ),
+    vscode.commands.registerCommand("operator.openLicense", () =>
+      openOperatorUi(ctx.getCurrentTicketsDir(), "license"),
+    ),
     vscode.commands.registerCommand("operator.syncKanbanCollection", (item: StatusItem) =>
       syncKanbanCollectionCommand(ctx, item),
     ),

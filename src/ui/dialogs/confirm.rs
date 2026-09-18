@@ -405,12 +405,7 @@ impl ConfirmDialog {
 
         // Priority (only if schema has priority field)
         if show_priority {
-            let priority_color = match ticket.priority.as_str() {
-                "P0-critical" => Color::Red,
-                "P1-high" => Color::Yellow,
-                "P2-medium" => Color::White,
-                _ => Color::Gray,
-            };
+            let priority_color = crate::ui::color_for_priority(ticket.priority_level());
             let priority_line = Line::from(vec![
                 Span::styled("Priority: ", Style::default().fg(Color::Gray)),
                 Span::styled(&ticket.priority, Style::default().fg(priority_color)),

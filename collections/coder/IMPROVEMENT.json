@@ -1,0 +1,120 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "IMPROVEMENT",
+  "name": "Improvement",
+  "description": "Enhancement to existing behavior synced from the Linear Improvement label",
+  "mode": "autonomous",
+  "glyph": "^",
+  "color": "blue",
+  "project_required": true,
+  "agent_prompt": "Review this project and prepare to create an agent for improving existing functionality. The agent should read tickets from .tickets/, scope the smallest change that delivers the improvement, implement it following existing patterns, run tests and linting, and create PRs. Output ONLY the agent system prompt.",
+  "prompt": "You are improving existing functionality in the {{ project }} project.\n\nThis ticket may have been synced from Linear; the ticket body carries the source description and a link back to the Linear issue.\n\n## Motivation\n{{ motivation }}\n\nPrefer the smallest change that delivers the improvement. Do not expand scope.",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "priority",
+      "description": "Ticket priority level",
+      "type": "enum",
+      "required": false,
+      "default": "P2-medium",
+      "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
+      "display_order": 1
+    },
+    {
+      "name": "branch",
+      "description": "Git branch name",
+      "type": "string",
+      "required": true,
+      "auto": "branch",
+      "display_order": 2,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Name or summary of this improvement",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Brief description of the improvement",
+      "max_length": 120,
+      "display_order": 3
+    },
+    {
+      "name": "motivation",
+      "description": "What is inadequate today, and what does better look like?",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "placeholder": "Current shortcoming and the expected improvement",
+      "display_order": 4
+    },
+    {
+      "name": "estimate",
+      "description": "Estimate points (from Linear)",
+      "type": "integer",
+      "required": false,
+      "display_order": 5
+    },
+    {
+      "name": "customer",
+      "description": "Requesting customer (from Linear)",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "placeholder": "Customer name if applicable",
+      "display_order": 6
+    }
+  ],
+  "steps": [
+    {
+      "name": "plan",
+      "display_name": "Planning",
+      "outputs": ["plan"],
+      "prompt": "You are improving existing functionality. First, read the ticket and locate the current behavior in the codebase:\n1. Find the code that implements today's behavior\n2. Understand why it is inadequate ({{ motivation }})\n3. Identify the smallest change that delivers the improvement\n\nCreate a focused plan in `.tickets/plans/{{ id }}.md` with:\n- The current behavior and where it lives\n- The proposed change, scoped minimally - no scope creep\n- How existing tests must change, and what new coverage is needed\n- Any behavior changes callers/users will notice",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "review_type": "plan",
+      "artifact_patterns": [".tickets/plans/{{ id }}.md"],
+      "on_reject": {
+        "goto_step": "plan",
+        "prompt": "Plan rejected: {{ rejection_reason }}\n\nRevise the plan based on feedback."
+      },
+      "next_step": "code"
+    },
+    {
+      "name": "code",
+      "display_name": "Coding",
+      "outputs": ["code"],
+      "prompt": "Implement the improvement per the plan in `.tickets/plans/{{ id }}.md`.\n\nGuidelines:\n- Change only what the plan scoped; resist adjacent cleanups\n- Follow existing code patterns and conventions\n- Preserve existing behavior outside the improvement\n- Run formatters after making changes",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "test"
+    },
+    {
+      "name": "test",
+      "display_name": "Testing",
+      "outputs": ["test", "code"],
+      "prompt": "Verify the improvement and guard against regressions.\n\n1. Update tests that asserted the old behavior\n2. Add tests demonstrating the improved behavior\n3. Run the project's full test suite\n4. Run the project's linter and formatter\n\nFix any failures before proceeding.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "next_step": "deploy"
+    },
+    {
+      "name": "deploy",
+      "display_name": "Deploying",
+      "outputs": ["pr"],
+      "prompt": "Create a pull request for the improvement:\n\n1. Commit all changes with a descriptive message\n2. Push the branch\n3. Create a PR with:\n   - Clear title: `improve({{ project }}): {{ summary }}`\n   - Before/after description of the behavior\n   - Link to ticket: {{ id }}\n   - Test instructions\n\nIf the ticket links a Linear issue, reference it in the PR body so Linear links the PR.\n\nImprovement complete. Move ticket to completed after PR is merged.",
+      "allowed_tools": ["Bash", "Read"],
+      "review_type": "pr",
+      "on_reject": {
+        "goto_step": "code",
+        "prompt": "Deploy rejected: {{ rejection_reason }}\n\nAddress feedback and revise the implementation."
+      }
+    }
+  ]
+}

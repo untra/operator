@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kubernetes | Operator! Documentation</title>
+  <meta name="description" content="Run Operator in Kubernetes from the official OCI Helm chart, with persistent workspace state and an authenticated API.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Kubernetes | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Kubernetes" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Run Operator in Kubernetes from the official OCI Helm chart, with persistent workspace state and an authenticated API." />
+<meta name="twitter:description" property="og:description" content="Run Operator in Kubernetes from the official OCI Helm chart, with persistent workspace state and an authenticated API." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/platforms/kubernetes/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/platforms/kubernetes/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Kubernetes" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Run Operator in Kubernetes from the official OCI Helm chart, with persistent workspace state and an authenticated API.","headline":"Kubernetes","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/platforms/kubernetes/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode-terminals/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Terminals</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/ides/" class="nav-parent-link ">IDEs</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/ides/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/ides/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/transports/" class="nav-parent-link ">Execution Transports</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/transports/local/" >Local</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/transports/ssh/" >SSH</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agent-relays/" class="nav-parent-link ">Agent Relays</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agent-relays/claude-relay/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude Relay</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/premium/" >Operator Premium</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/remote-targets/" class="nav-parent-link ">Remote Targets</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/remote-targets/ssh/" >SSH Hosts</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/remote-targets/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/operator/" ><span class="nav-icon"><img src="/assets/icons/operator.svg" alt="" width="16" height="16"></span>Operator</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/platforms/kubernetes.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.13</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-09-18</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Kubernetes</h1>
+  
+
+  <p><span class="badge alpha">Alpha</span></p>
+
+<p>Run <a href="https://operator.untra.io">Operator</a> in a cluster from the official Helm chart.
+The chart deploys a single-replica StatefulSet with a persistent workspace volume, a ClusterIP Service.</p>
+
+<p><strong>Chart:</strong> <code class="language-plaintext highlighter-rouge">oci://ghcr.io/untra/charts/operator</code> - <strong>Image:</strong> <a href="https://hub.docker.com/r/untra/operator"><code class="language-plaintext highlighter-rouge">untra/operator</code></a></p>
+
+<h2 id="what-the-chart-does-not-contain">What the chart does not contain</h2>
+
+<p>Stated up front, because it is the first thing worth knowing about running an agent orchestrator in the cluster:</p>
+
+<ul>
+  <li><strong>No Docker socket</strong> is mounted.</li>
+  <li><strong>No Kubernetes controller.</strong> Operator does not watch, create, or reconcile cluster resources.</li>
+  <li><strong>No Role, RoleBinding, or ClusterRole</strong> is created.</li>
+  <li>The ServiceAccount sets <code class="language-plaintext highlighter-rouge">automountServiceAccountToken: false</code>, so the pod has no Kubernetes API credential at all.</li>
+</ul>
+
+<p>Operator in a kubernetes cluster is an application with a volume and a port. It cannot reach the Kubernetes API, because it has no token and no client to use one with.</p>
+
+<h2 id="install">Install</h2>
+
+<p>The chart’s <code class="language-plaintext highlighter-rouge">appVersion</code> is the image tag. It is pinned to an exact release - the chart never deploys <code class="language-plaintext highlighter-rouge">latest</code>.</p>
+
+<h3 id="bootstrap-the-admin-account">Bootstrap the admin account</h3>
+
+<p>Operator’s API is <a href="/security/authentication/">always authenticated</a>. Before installing, create the namespace and bootstrap Secret holding a temporary password:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create namespace operator
+kubectl <span class="nt">-n</span> operator create secret generic operator-bootstrap <span class="se">\</span>
+  <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">password</span><span class="o">=</span><span class="s2">"</span><span class="si">$(</span>openssl rand <span class="nt">-base64</span> 24<span class="si">)</span><span class="s2">"</span>
+</code></pre></div></div>
+
+<p>Then reference it:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm <span class="nb">install </span>operator oci://ghcr.io/untra/charts/operator <span class="se">\</span>
+  <span class="nt">--namespace</span> operator <span class="se">\</span>
+  <span class="nt">--set</span> <span class="nv">publicUrl</span><span class="o">=</span>https://operator.example.com <span class="se">\</span>
+  <span class="nt">--set</span> bootstrap.existingSecret<span class="o">=</span>operator-bootstrap
+</code></pre></div></div>
+
+<p>The Secret is mounted read-only and is read <strong>only while the authentication database is uninitialized</strong>.
+Once you have set the admin password at <code class="language-plaintext highlighter-rouge">/setup</code>, it is ignored. Delete it afterward:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> operator delete secret operator-bootstrap
+</code></pre></div></div>
+
+<blockquote>
+  <p><strong>Kubernetes Secrets are not encrypted in etcd by default.</strong> Anyone who can
+read etcd, restore an etcd backup, or <code class="language-plaintext highlighter-rouge">get</code> Secrets in this namespace can read
+the bootstrap password. Enable
+<a href="https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/">encryption at rest</a>
+for Secrets and restrict <code class="language-plaintext highlighter-rouge">get</code>/<code class="language-plaintext highlighter-rouge">list</code> on them before using this pattern. See
+<a href="/security/#secrets-are-not-encrypted-by-default">Security</a>.</p>
+</blockquote>
+
+<h2 id="dns-and-tls">DNS and TLS</h2>
+
+<p>The chart does not manage certificates. Create the TLS Secret independently, or let cert-manager create it, then point the Ingress at it.</p>
+
+<p>With cert-manager:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">ingress</span><span class="pi">:</span>
+  <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">className</span><span class="pi">:</span> <span class="s">nginx</span>
+  <span class="na">host</span><span class="pi">:</span> <span class="s">operator.example.com</span>
+  <span class="na">annotations</span><span class="pi">:</span>
+    <span class="na">cert-manager.io/cluster-issuer</span><span class="pi">:</span> <span class="s">letsencrypt-prod</span>
+  <span class="na">tls</span><span class="pi">:</span>
+    <span class="na">secretName</span><span class="pi">:</span> <span class="s">operator-tls</span>
+</code></pre></div></div>
+
+<p>Without cert-manager, create the Secret from your own certificate:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> operator create secret tls operator-tls <span class="se">\</span>
+  <span class="nt">--cert</span><span class="o">=</span>fullchain.pem <span class="nt">--key</span><span class="o">=</span>privkey.pem
+</code></pre></div></div>
+
+<p>Ingress is <strong>disabled by default</strong>, and no Gateway API resource is provided.
+Until you enable it, Operator is reachable only in-cluster.</p>
+
+<p>Set <code class="language-plaintext highlighter-rouge">publicUrl</code> to the externally reachable URL whenever you expose Operator. This is required.</p>
+
+<blockquote>
+  <p><strong>Setting <code class="language-plaintext highlighter-rouge">publicUrl</code> also hardens outbound request validation.</strong> A non-empty
+value switches model-server destination checks to the hardened policy, which
+rejects loopback and private ranges (<code class="language-plaintext highlighter-rouge">10.0.0.0/8</code>, <code class="language-plaintext highlighter-rouge">172.16.0.0/12</code>,
+<code class="language-plaintext highlighter-rouge">192.168.0.0/16</code>). If you point Operator at a self-hosted LLM inside the
+cluster or on the LAN, configuring that model server will fail once
+<code class="language-plaintext highlighter-rouge">publicUrl</code> is set, with an error that does not mention <code class="language-plaintext highlighter-rouge">publicUrl</code>. Only the
+model-server probe and save paths are affected; Git, kanban, webhook, and
+collection traffic is not.</p>
+</blockquote>
+
+<h2 id="persistence">Persistence</h2>
+
+<p>The StatefulSet claims a <strong>ReadWriteOnce</strong> volume, <code class="language-plaintext highlighter-rouge">20Gi</code> by default, from the
+cluster’s default StorageClass:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">persistence</span><span class="pi">:</span>
+  <span class="na">size</span><span class="pi">:</span> <span class="s">50Gi</span>
+  <span class="na">storageClass</span><span class="pi">:</span> <span class="s">fast-ssd</span>
+</code></pre></div></div>
+
+<p>The volume is mounted at <code class="language-plaintext highlighter-rouge">/op</code> and holds the workspace, repositories, <code class="language-plaintext highlighter-rouge">.tickets/</code>, and the authentication database. It is the only durable state - <code class="language-plaintext highlighter-rouge">$HOME</code> and <code class="language-plaintext highlighter-rouge">/tmp</code> are emptyDir mounts and are discarded on every restart.</p>
+
+<p>Two things land here that are easy to overlook, both under <code class="language-plaintext highlighter-rouge">.tickets/operator/</code>: <code class="language-plaintext highlighter-rouge">ssh/</code> holds the per-workspace SSH config fragments for <a href="#coder-targets">Coder targets</a>, and <code class="language-plaintext highlighter-rouge">bin/</code> caches the <code class="language-plaintext highlighter-rouge">coder</code> CLI when Operator downloads one. Keeping them on the volume is why a pod restart does not re-download the CLI.</p>
+
+<p><strong>Horizontal scaling is not supported.</strong> Operator is a single-writer process
+over a ReadWriteOnce volume with a local queue and a local SQLite database.
+<code class="language-plaintext highlighter-rouge">replicas</code> is fixed at 1; raising it would mean two processes racing over one
+volume, and the chart does not offer the option.</p>
+
+<h2 id="networkpolicy">NetworkPolicy</h2>
+
+<p>Optional and disabled by default. Enabling it is how you bound Operator’s
+egress - the code-level destination validation described in
+<a href="/security/#server-side-request-forgery">Security</a> is one control, and this is
+the other.</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">networkPolicy</span><span class="pi">:</span>
+  <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">ingress</span><span class="pi">:</span>
+    <span class="na">from</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">namespaceSelector</span><span class="pi">:</span>
+          <span class="na">matchLabels</span><span class="pi">:</span>
+            <span class="na">kubernetes.io/metadata.name</span><span class="pi">:</span> <span class="s">ingress-nginx</span>
+  <span class="na">egress</span><span class="pi">:</span>
+    <span class="na">allowDNS</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">to</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">ipBlock</span><span class="pi">:</span>
+          <span class="na">cidr</span><span class="pi">:</span> <span class="s">0.0.0.0/0</span>
+          <span class="na">except</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="s">169.254.169.254/32</span>   <span class="c1"># cloud metadata</span>
+            <span class="pi">-</span> <span class="s">10.0.0.0/8</span>
+            <span class="pi">-</span> <span class="s">172.16.0.0/12</span>
+            <span class="pi">-</span> <span class="s">192.168.0.0/16</span>
+</code></pre></div></div>
+
+<p>Operator needs egress to the model provider, kanban provider, and Git host. It does not need egress to the rest of the cluster - unless you use <a href="#coder-targets">Coder targets</a>, which need to reach the Coder deployment.</p>
+
+<p>Note default: with <code class="language-plaintext highlighter-rouge">enabled: true</code> and an empty <code class="language-plaintext highlighter-rouge">egress.to</code>, the rendered policy permits DNS. An empty list is deny-all, not allow-all.</p>
+
+<h2 id="custom-agent-images">Custom agent images</h2>
+
+<p>The base image ships <code class="language-plaintext highlighter-rouge">git</code>, <code class="language-plaintext highlighter-rouge">tmux</code>, <code class="language-plaintext highlighter-rouge">openssh-client</code>, <code class="language-plaintext highlighter-rouge">curl</code>, and <code class="language-plaintext highlighter-rouge">ca-certificates</code>, but <strong>no agent CLI</strong> - no <code class="language-plaintext highlighter-rouge">claude</code>, <code class="language-plaintext highlighter-rouge">codex</code>, or <code class="language-plaintext highlighter-rouge">gemini</code>, and no credentials for them.</p>
+
+<div class="language-dockerfile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">FROM</span><span class="s"> untra/operator:0.2.13</span>
+<span class="k">USER</span><span class="s"> root</span>
+<span class="k">RUN </span>apt-get update <span class="o">&amp;&amp;</span> apt-get <span class="nb">install</span> <span class="nt">-y</span> <span class="nt">--no-install-recommends</span> nodejs npm <span class="se">\
+</span> <span class="o">&amp;&amp;</span> npm <span class="nb">install</span> <span class="nt">-g</span> @anthropic-ai/claude-code <span class="se">\
+</span> <span class="o">&amp;&amp;</span> <span class="nb">rm</span> <span class="nt">-rf</span> /var/lib/apt/lists/<span class="k">*</span>
+<span class="k">USER</span><span class="s"> 10001</span>
+</code></pre></div></div>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">image</span><span class="pi">:</span>
+  <span class="na">repository</span><span class="pi">:</span> <span class="s">registry.example.com/operator-claude</span>
+  <span class="na">tag</span><span class="pi">:</span> <span class="s2">"</span><span class="s">0.2.13"</span>
+</code></pre></div></div>
+
+<p>Provide the agent’s credentials as environment variables from a Secret:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">extraEnvFrom</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">secretRef</span><span class="pi">:</span>
+      <span class="na">name</span><span class="pi">:</span> <span class="s">operator-agent-credentials</span>
+</code></pre></div></div>
+
+<p>Note that an agent process runs as the same user as Operator and can read
+these. That is inherent to the current execution model - see
+<a href="/security/#the-agent-process-is-inside-the-trust-boundary">the trust boundary discussion</a>.</p>
+
+<h2 id="coder-targets">Coder targets</h2>
+
+<p>Operator can run agents in per-ticket <a href="/getting-started/platforms/coder/#operator-targeting-coder">Coder</a>
+workspaces instead of in its own pod. From a Kubernetes deployment that needs three things.</p>
+
+<p><strong>1. Credentials, by name.</strong> Operator reads the deployment URL and a user session token from environment variables. Put them in a Secret and reference it - the chart has no dedicated values for this:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">extraEnvFrom</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">secretRef</span><span class="pi">:</span>
+      <span class="na">name</span><span class="pi">:</span> <span class="s">operator-coder</span>
+</code></pre></div></div>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> operator create secret generic operator-coder   <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">CODER_URL</span><span class="o">=</span>https://coder.example.com   <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">CODER_SESSION_TOKEN</span><span class="o">=</span>&lt;token&gt;
+</code></pre></div></div>
+
+<p>Give Operator its own Coder service account. A session token can create, delete, and SSH into every workspace its user owns.</p>
+
+<p><strong>2. Egress to Coder.</strong> If <code class="language-plaintext highlighter-rouge">networkPolicy.enabled</code> is true, add the Coder namespace explicitly:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">networkPolicy</span><span class="pi">:</span>
+  <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">egress</span><span class="pi">:</span>
+    <span class="na">allowDNS</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">to</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">namespaceSelector</span><span class="pi">:</span>
+          <span class="na">matchLabels</span><span class="pi">:</span>
+            <span class="na">kubernetes.io/metadata.name</span><span class="pi">:</span> <span class="s">coder</span>
+</code></pre></div></div>
+
+<p>Coder’s own ingress NetworkPolicy has to admit Operator’s namespace too.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> operator <span class="nb">exec </span>operator-0 <span class="nt">--</span>   curl <span class="nt">-sSf</span> https://coder.example.com/api/v2/buildinfo
+</code></pre></div></div>
+
+<p><strong>3. Configure the target in Operator.</strong> On a new installation, finish the getting-started wizard in the web UI, choose <strong>Coder</strong> as the execution target, and enter the child-workspace template. The wizard writes the project configuration to <code class="language-plaintext highlighter-rouge">/op/.tickets/operator/config.toml</code>; the chart does not own or project an Operator configuration file.</p>
+
+<p>The image already ships <code class="language-plaintext highlighter-rouge">openssh-client</code>, and Operator downloads the <code class="language-plaintext highlighter-rouge">coder</code> CLI from the deployment on first use, caching it on the persistent volume at <code class="language-plaintext highlighter-rouge">.tickets/operator/bin/coder</code>.</p>
+
+<p>No custom image, initContainer, ConfigMap, or relaxing of <code class="language-plaintext highlighter-rouge">readOnlyRootFilesystem</code> is required - the configuration, cache, and SSH fragments all live under <code class="language-plaintext highlighter-rouge">/op</code>.</p>
+
+<h3 id="private-certificate-authorities">Private certificate authorities</h3>
+
+<p>When Coder or a Git forge uses an internal CA, create a ConfigMap containing a
+bundle with both public and internal roots, then mount it and configure the
+clients that use it:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">extraEnv</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">SSL_CERT_FILE</span>
+    <span class="na">value</span><span class="pi">:</span> <span class="s">/etc/operator-ca/ca-bundle.crt</span>
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">GIT_SSL_CAINFO</span>
+    <span class="na">value</span><span class="pi">:</span> <span class="s">/etc/operator-ca/ca-bundle.crt</span>
+<span class="na">extraVolumes</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">operator-ca</span>
+    <span class="na">configMap</span><span class="pi">:</span>
+      <span class="na">name</span><span class="pi">:</span> <span class="s">operator-ca</span>
+<span class="na">extraVolumeMounts</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">operator-ca</span>
+    <span class="na">mountPath</span><span class="pi">:</span> <span class="s">/etc/operator-ca</span>
+    <span class="na">readOnly</span><span class="pi">:</span> <span class="kc">true</span>
+</code></pre></div></div>
+
+<p>Mounting a certificate does not modify the image’s system trust store. Verify
+Operator, <code class="language-plaintext highlighter-rouge">coder</code>, <code class="language-plaintext highlighter-rouge">curl</code>, and Git separately because they can use different TLS
+implementations and environment variables.</p>
+
+<p>For Git over SSH, mount a Secret containing the private key and a pinned
+<code class="language-plaintext highlighter-rouge">known_hosts</code> file at a path readable by UID/GID 10001. Set <code class="language-plaintext highlighter-rouge">GIT_SSH_COMMAND</code>
+to reference both paths with <code class="language-plaintext highlighter-rouge">StrictHostKeyChecking=yes</code>; do not disable host-key
+verification.</p>
+
+<h2 id="security-context">Security context</h2>
+
+<p>Applied by default; you should not need to change any of it:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">podSecurityContext</span><span class="pi">:</span>
+  <span class="na">runAsNonRoot</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">runAsUser</span><span class="pi">:</span> <span class="m">10001</span>
+  <span class="na">runAsGroup</span><span class="pi">:</span> <span class="m">10001</span>
+  <span class="na">fsGroup</span><span class="pi">:</span> <span class="m">10001</span>
+  <span class="na">seccompProfile</span><span class="pi">:</span>
+    <span class="na">type</span><span class="pi">:</span> <span class="s">RuntimeDefault</span>
+<span class="na">containerSecurityContext</span><span class="pi">:</span>
+  <span class="na">allowPrivilegeEscalation</span><span class="pi">:</span> <span class="kc">false</span>
+  <span class="na">readOnlyRootFilesystem</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">capabilities</span><span class="pi">:</span>
+    <span class="na">drop</span><span class="pi">:</span> <span class="pi">[</span><span class="s2">"</span><span class="s">ALL"</span><span class="pi">]</span>
+</code></pre></div></div>
+
+<p>The root filesystem is read-only. Writable paths are the persistent volume at <code class="language-plaintext highlighter-rouge">/op</code>, plus emptyDir mounts for the home directory and <code class="language-plaintext highlighter-rouge">/tmp</code>, which tmux and the agent runtime need.</p>
+
+<h2 id="upgrades">Upgrades</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm upgrade operator oci://ghcr.io/untra/charts/operator <span class="nt">--reuse-values</span>
+</code></pre></div></div>
+
+<p>The StatefulSet uses <code class="language-plaintext highlighter-rouge">RollingUpdate</code>, but with one replica on a ReadWriteOnce volume the old pod must terminate before the new one attaches.</p>
+
+<p>On SIGTERM, Operator becomes unready and stops accepting new launches. It waits
+up to <code class="language-plaintext highlighter-rouge">shutdownDrainSeconds</code> for active agents, then preserves remote Coder/SSH
+work for reconciliation after restart and interrupts remaining local sessions.
+<code class="language-plaintext highlighter-rouge">shutdownCleanupSeconds</code> reserves time for state persistence and server cleanup.
+The chart defaults the Kubernetes grace period to 90 seconds; it must be greater
+than the sum of both shutdown intervals. A custom <code class="language-plaintext highlighter-rouge">lifecycle</code> hook consumes the
+same grace period.</p>
+
+<p>SIGTERM is the supported drain trigger; there is no HTTP drain endpoint. During
+the drain window <code class="language-plaintext highlighter-rouge">/readyz</code> returns 503 while <code class="language-plaintext highlighter-rouge">/livez</code> keeps succeeding, so the
+kubelet stops routing new traffic without restarting the pod. Launch requests
+are refused with 503, but in-flight agent completion callbacks and status reads
+keep working: a step that finishes mid-drain is still recorded, it simply does
+not start the next one.</p>
+
+<p>On restart, agents that were interrupted locally come back as failed with an
+explicit shutdown-interruption reason and are available for retry. Remote Coder
+and SSH work is left running - Operator never stops a remote workspace just
+because it is shutting down - and comes back marked as awaiting reconciliation.
+Operator does not probe the remote host to resolve that state: a relaunch of the
+same ticket is refused with 409 until you decide whether the remote work
+survived. Remote computation can outlive Operator while its callback path is
+down, so reconciliation surfaces that gap rather than guessing at it.</p>
+
+<p>The authentication database migrates forward automatically on start.</p>
+
+<h2 id="backup-and-restore">Backup and restore</h2>
+
+<p>Back up the persistent volume. It holds everything: workspace, tickets, state, and <code class="language-plaintext highlighter-rouge">auth.sqlite3</code>.</p>
+
+<p>Treat the backup as sensitive - it contains the authentication database, which holds the token signing key.</p>
+
+<p>To restore, pre-create the PersistentVolumeClaim the StatefulSet expects, backed by the snapshot, before installing the chart. A StatefulSet adopts an existing claim whose name matches its <code class="language-plaintext highlighter-rouge">volumeClaimTemplate</code>, which is <code class="language-plaintext highlighter-rouge">workspace-&lt;release&gt;-0</code>:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">apiVersion</span><span class="pi">:</span> <span class="s">v1</span>
+<span class="na">kind</span><span class="pi">:</span> <span class="s">PersistentVolumeClaim</span>
+<span class="na">metadata</span><span class="pi">:</span>
+  <span class="na">name</span><span class="pi">:</span> <span class="s">workspace-operator-0</span>
+  <span class="na">namespace</span><span class="pi">:</span> <span class="s">operator</span>
+<span class="na">spec</span><span class="pi">:</span>
+  <span class="na">accessModes</span><span class="pi">:</span> <span class="pi">[</span><span class="s2">"</span><span class="s">ReadWriteOnce"</span><span class="pi">]</span>
+  <span class="na">resources</span><span class="pi">:</span>
+    <span class="na">requests</span><span class="pi">:</span>
+      <span class="na">storage</span><span class="pi">:</span> <span class="s">20Gi</span>
+  <span class="na">dataSource</span><span class="pi">:</span>
+    <span class="na">name</span><span class="pi">:</span> <span class="s">operator-snapshot</span>
+    <span class="na">kind</span><span class="pi">:</span> <span class="s">VolumeSnapshot</span>
+    <span class="na">apiGroup</span><span class="pi">:</span> <span class="s">snapshot.storage.k8s.io</span>
+</code></pre></div></div>
+
+<p>Apply that, then <code class="language-plaintext highlighter-rouge">helm install</code> as normal. The requested size and StorageClass
+must match the chart’s <code class="language-plaintext highlighter-rouge">persistence</code> values, or the StatefulSet will reject the existing claim.</p>
+
+<p>Restoring an <strong>old</strong> authentication database resurrects credentials revoked
+after the snapshot. If the database is lost or stale, prefer re-bootstrapping:
+delete <code class="language-plaintext highlighter-rouge">auth.sqlite3</code>, supply a fresh bootstrap Secret, and re-issue integration
+access keys. That generates a new signing key and invalidates everything issued
+previously, which is the safe direction. See <a href="/security/#backup-and-recovery">Backup and recovery</a>.</p>
+
+<p>If you are locked out but the volume is intact, recover locally:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> operator <span class="nb">exec</span> <span class="nt">-it</span> statefulset/operator <span class="nt">--</span> operator auth reset-admin-password
+</code></pre></div></div>
+
+<p>There is no HTTP password-reset route by design.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="the-pod-starts-but-every-request-returns-401">The pod starts but every request returns 401</h3>
+
+<p>Expected before bootstrap. Visit <code class="language-plaintext highlighter-rouge">/setup</code> to set the admin password, or confirm
+the bootstrap Secret is mounted if you expected it to be consumed.</p>
+
+<h3 id="probes-fail-while-the-api-works">Probes fail while the API works</h3>
+
+<p>The chart uses <strong>HTTP probes</strong> against <code class="language-plaintext highlighter-rouge">/livez</code> (liveness) and <code class="language-plaintext highlighter-rouge">/readyz</code>
+(readiness). Both are public and carry no workspace metadata. <code class="language-plaintext highlighter-rouge">/livez</code> answers as
+soon as the server is serving; <code class="language-plaintext highlighter-rouge">/readyz</code> additionally checks that the
+authentication database on the persistent volume is reachable, returning <code class="language-plaintext highlighter-rouge">503</code>
+with <code class="language-plaintext highlighter-rouge">auth store unavailable</code> when it is not - so a pod stuck <code class="language-plaintext highlighter-rouge">NotReady</code> with a
+healthy <code class="language-plaintext highlighter-rouge">/livez</code> points at the volume, not the process.</p>
+
+<p>Do not repoint either probe at <code class="language-plaintext highlighter-rouge">/api/v1/health</code>: that endpoint reports workspace
+identity and requires authentication, so an HTTP probe against it fails with <code class="language-plaintext highlighter-rouge">401</code>
+even on a perfectly healthy pod.</p>
+
+<h3 id="oauth-or-mcp-urls-point-at-the-wrong-host">OAuth or MCP URLs point at the wrong host</h3>
+
+<p><code class="language-plaintext highlighter-rouge">publicUrl</code> is unset or wrong. Operator generates the OAuth device-flow verification URIs and the MCP SSE transport URL from <code class="language-plaintext highlighter-rouge">publicUrl</code> rather than trusting the <code class="language-plaintext highlighter-rouge">Host</code> header.</p>
+
+<h3 id="agents-fail-to-launch">Agents fail to launch</h3>
+
+<p>The base image intentionally omits the agent CLI. Confirm the derived image provides an authenticated <code class="language-plaintext highlighter-rouge">claude</code>, <code class="language-plaintext highlighter-rouge">codex</code>, or <code class="language-plaintext highlighter-rouge">gemini</code> on <code class="language-plaintext highlighter-rouge">PATH</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> operator <span class="nb">exec </span>statefulset/operator <span class="nt">--</span> sh <span class="nt">-c</span> <span class="s1">'command -v claude'</span>
+</code></pre></div></div>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

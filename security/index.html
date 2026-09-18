@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security | Operator! Documentation</title>
+  <meta name="description" content="Threat model and security architecture for Operator: trust boundaries, route classification, credential handling, and residual risks.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Security | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Security" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Threat model and security architecture for Operator: trust boundaries, route classification, credential handling, and residual risks." />
+<meta name="twitter:description" property="og:description" content="Threat model and security architecture for Operator: trust boundaries, route classification, credential handling, and residual risks." />
+<link rel="canonical" href="https://operator.untra.io/security/" />
+<meta property="og:url" content="https://operator.untra.io/security/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Security" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Threat model and security architecture for Operator: trust boundaries, route classification, credential handling, and residual risks.","headline":"Security","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/security/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode-terminals/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Terminals</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/ides/" class="nav-parent-link ">IDEs</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/ides/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/ides/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/transports/" class="nav-parent-link ">Execution Transports</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/transports/local/" >Local</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/transports/ssh/" >SSH</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agent-relays/" class="nav-parent-link ">Agent Relays</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agent-relays/claude-relay/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude Relay</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/premium/" >Operator Premium</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/remote-targets/" class="nav-parent-link ">Remote Targets</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/remote-targets/ssh/" >SSH Hosts</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/remote-targets/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/operator/" ><span class="nav-icon"><img src="/assets/icons/operator.svg" alt="" width="16" height="16"></span>Operator</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link active"><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/security/index.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.13</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-09-18</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Security</h1>
+  
+
+  <p>Operator launches AI coding agents against your source code, holds credentials for kanban and model providers, and exposes a REST API, a web dashboard, and an MCP server.</p>
+
+<p>This page is the threat model for that surface: what Operator trusts, what it does not, and what remains your responsibility to control.</p>
+
+<p>For the authentication mechanism itself - accounts, tokens, scopes, and recovery - see <a href="/security/authentication/">Authentication</a>.</p>
+
+<h2 id="trust-boundaries">Trust boundaries</h2>
+
+<p>Operator sits inside four nested boundaries. Each one is enforced by a different mechanism, and each has a different failure mode.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Boundary</th>
+      <th>Enforced by</th>
+      <th>What crossing it means</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Host ↔ container</td>
+      <td>Container runtime, non-root UID/GID 10001, read-only root filesystem, dropped capabilities</td>
+      <td>A compromised process inside the container cannot write the host filesystem or escalate to root</td>
+    </tr>
+    <tr>
+      <td>Cluster ↔ pod</td>
+      <td>NetworkPolicy, no mounted ServiceAccount token, no RBAC</td>
+      <td>Operator cannot call the Kubernetes API, because it has no credential to call it with</td>
+    </tr>
+    <tr>
+      <td>Network ↔ Operator</td>
+      <td>Authentication, typed scopes, CORS, Host validation</td>
+      <td>Every request carries a principal and a scope, or it is rejected</td>
+    </tr>
+    <tr>
+      <td>Operator ↔ agent process</td>
+      <td><strong>Nothing.</strong> See below.</td>
+      <td>An agent process runs as the same user, with the same filesystem access, as Operator itself</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="the-agent-process-is-inside-the-trust-boundary">The agent process is inside the trust boundary</h3>
+
+<p>Operator and the agent processes it spawns share <strong>one Unix identity and one filesystem</strong>. The non-root user protects the host and the cluster from a
+compromised agent. It does not protect <em>Operator’s own state</em> from that agent.</p>
+
+<p>An agent process can read and write:</p>
+
+<ul>
+  <li>the workspace and every repository in it,</li>
+  <li><code class="language-plaintext highlighter-rouge">.tickets/</code> in full, including the queue, ticket bodies, and <code class="language-plaintext highlighter-rouge">state.json</code>,</li>
+  <li><code class="language-plaintext highlighter-rouge">config.toml</code>,</li>
+  <li>the authentication database and the local session token,</li>
+  <li>any environment variable Operator passed it, including provider API keys.</li>
+</ul>
+
+<p>Local execution shares the Operator OS user. SSH and Coder targets can isolate the agent filesystem when their remote environments do not mount Operator state.</p>
+
+<p>The practical consequence: <strong>treat the agent tool you configure, and the model provider behind it, as trusted components.</strong></p>
+
+<p>Operator’s authentication protects the boundary between the network and Operator. It does not sandbox the agent.</p>
+
+<h2 id="route-classification">Route classification</h2>
+
+<p>Every HTTP route falls into exactly one of five classes. The mapping is held in a single table in the source and is verified by a test that walks the generated OpenAPI specification, so a new route cannot be added without being classified.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Class</th>
+      <th>Requirement</th>
+      <th>Examples</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Probe</td>
+      <td>Public</td>
+      <td><code class="language-plaintext highlighter-rouge">/livez</code>, <code class="language-plaintext highlighter-rouge">/readyz</code></td>
+    </tr>
+    <tr>
+      <td>Bootstrap / login</td>
+      <td>Public, rate-limited</td>
+      <td>Bootstrap status and submission, login, OAuth device-code and token endpoints</td>
+    </tr>
+    <tr>
+      <td>Read</td>
+      <td><code class="language-plaintext highlighter-rouge">read</code> scope</td>
+      <td>Queue, agents, tickets, projects, issue types, collections, health, status</td>
+    </tr>
+    <tr>
+      <td>Write</td>
+      <td><code class="language-plaintext highlighter-rouge">write</code> scope</td>
+      <td>Ticket creation and status changes, issue type and step edits, collection activation, kanban sync</td>
+    </tr>
+    <tr>
+      <td>Execute</td>
+      <td><code class="language-plaintext highlighter-rouge">execute</code> scope</td>
+      <td>Ticket launch, step completion, model-provider probes, MCP tool calls, session focus</td>
+    </tr>
+    <tr>
+      <td>Admin</td>
+      <td><code class="language-plaintext highlighter-rouge">admin</code> scope</td>
+      <td>Configuration read and write, delegator and model-server management, session and access-key administration</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Two deliberate choices in that table:</p>
+
+<p><strong>Configuration is <code class="language-plaintext highlighter-rouge">admin</code>, not <code class="language-plaintext highlighter-rouge">write</code>.</strong> The REST API exposes a deliberately narrow operational projection rather than the full internal configuration but changing launch behavior and resource limits still requires administrative
+authority. 
+Model servers, delegators, and execution targets have focused endpoints with their own response types.</p>
+
+<p><strong>Health and status are not public.</strong> They report the workspace directory name and a directory identifier. That is workspace identity, and it is exactly the sort of detail a public probe should not disclose - hence the separate, metadata-free <code class="language-plaintext highlighter-rouge">/livez</code> and <code class="language-plaintext highlighter-rouge">/readyz</code> endpoints for Kubernetes.</p>
+
+<h3 id="the-dashboard-bundle-is-public">The dashboard bundle is public</h3>
+
+<p>Operator’s web dashboard is a single-page application using fragment-based
+routing. Route names such as <code class="language-plaintext highlighter-rouge">#/config</code> live in the URL <em>fragment</em>, which
+browsers never transmit to the server. The server therefore cannot distinguish
+a request for the login screen from a request for any other screen: it serves
+one HTML document and one JavaScript bundle for all of them.</p>
+
+<p>Consequently the dashboard bundle is served publicly, and authorization is
+enforced entirely at the API layer. An unauthenticated visitor can load the
+shell; every data request returns <code class="language-plaintext highlighter-rouge">401</code>, and the client redirects to the login
+screen.</p>
+
+<p><strong>Residual risk:</strong> the set of route names and the structure of the UI are
+public. No workspace data, configuration, or credentials are in the bundle -
+all of it arrives over authenticated API calls - but the shape of the
+application is discoverable. This is accepted deliberately; the alternative is
+a separately served login document, which is a larger change for a small
+reduction in disclosure.</p>
+
+<h2 id="credential-handling">Credential handling</h2>
+
+<h3 id="credentials-operator-holds">Credentials Operator holds</h3>
+
+<p>Operator stores <strong>no third-party secret values</strong> in <code class="language-plaintext highlighter-rouge">config.toml</code>. Configuration
+holds the <em>name</em> of an environment variable, and the value is read from the
+process environment. A configuration export therefore contains integration
+topology, not credentials.</p>
+
+<h3 id="credentials-operator-issues">Credentials Operator issues</h3>
+
+<p>The authentication database at <code class="language-plaintext highlighter-rouge">.tickets/operator/auth.sqlite3</code> is created owner-readable only and holds password verification data, token-signing material, sessions, and hashes of refresh tokens and access keys. It is identity-critical state and must be protected like a credential store.</p>
+
+<p>Plaintext passwords, temporary bootstrap passwords, device codes, refresh tokens, and access keys are never written to disk or logs.</p>
+
+<h3 id="credentials-operator-passes-to-agents">Credentials Operator passes to agents</h3>
+
+<p>Launching an agent injects environment variables into the agent’s process, including a short-lived callback credential and whatever provider keys the configured tool needs. Per the trust-boundary discussion above, the agent can read all of them.</p>
+
+<h2 id="server-side-request-forgery">Server-side request forgery</h2>
+
+<p>Several Operator features fetch a URL that the caller or the configuration
+controls:</p>
+
+<ul>
+  <li>model-server reachability and model-listing probes, which attach the provider’s API key to the request,</li>
+  <li>outbound notification webhooks,</li>
+  <li>hosted-collection fetches, where the fetched manifest itself supplies subsequent relative URLs,</li>
+  <li>kanban provider hosts, where the host is a configuration key.</li>
+</ul>
+
+<p>Untreated, the model-server probe is the sharpest of these: an authenticated
+caller sets a base URL, triggers a probe, and Operator makes the request <em>with a
+provider API key attached</em>. Redirects compound it - a permitted host can
+redirect to a forbidden one.</p>
+
+<p>Four controls apply together, and none is sufficient alone:</p>
+
+<ol>
+  <li><strong>Authentication and scopes</strong> - probing requires <code class="language-plaintext highlighter-rouge">execute</code>; changing a
+model-server URL requires <code class="language-plaintext highlighter-rouge">admin</code>. An anonymous caller cannot reach either.</li>
+  <li><strong>Destination validation</strong> - loopback, link-local, multicast, and cloud-metadata addresses are rejected unless explicitly allowed, and schemes and CIDR ranges are validated against configuration.</li>
+  <li><strong>Redirect re-validation</strong> - every redirect hop is re-checked against the
+same policy, not just the initial URL.</li>
+  <li><strong>NetworkPolicy</strong> - in Kubernetes, egress is restricted at the network
+layer, so a validation bug does not become cluster-internal access.</li>
+</ol>
+
+<p>Control 2 is code, control 4 is cluster configuration, and <strong>you must configure control 4 yourself</strong>; the chart ships the template but leaves it disabled by default.</p>
+
+<h2 id="kubernetes-exposure">Kubernetes exposure</h2>
+
+<p>The chart is deliberately minimal about what it can touch:</p>
+
+<ul>
+  <li><strong>No Docker socket</strong> is mounted.</li>
+  <li><strong>No Kubernetes controller</strong> ships in the image, and no Kubernetes client tooling is installed.</li>
+  <li><strong>No Role, RoleBinding, or ClusterRole</strong> is created.</li>
+  <li>The ServiceAccount has <code class="language-plaintext highlighter-rouge">automountServiceAccountToken: false</code>, so no API token is present in the pod at all.</li>
+</ul>
+
+<p>Operator running in your cluster cannot enumerate, create, or delete cluster resources, because it has neither the credential nor the tooling to try.</p>
+
+<p>Ingress is disabled by default. Enabling it publishes an authenticated service, which is the intended posture - but it is your TLS certificate, your DNS name, and your decision.</p>
+
+<h3 id="secrets-are-not-encrypted-by-default">Secrets are not encrypted by default</h3>
+
+<p>Kubernetes Secrets are stored <strong>unencrypted</strong> in etcd unless you have enabled encryption at rest.
+Anyone who can read etcd, take an etcd backup, or <code class="language-plaintext highlighter-rouge">get</code> Secrets in the namespace can read the bootstrap password you supply.</p>
+
+<p>Before putting a bootstrap Secret in a cluster:</p>
+
+<ul>
+  <li>enable <a href="https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/">encryption at rest</a> for Secret resources.</li>
+  <li>restrict <code class="language-plaintext highlighter-rouge">get</code>/<code class="language-plaintext highlighter-rouge">list</code> on Secrets in the namespace to the smallest possible set of principals.</li>
+  <li>delete the bootstrap Secret once the admin password has been set.</li>
+</ul>
+
+<p>See the <a href="/getting-started/platforms/kubernetes/">Kubernetes guide</a> for the mechanics.</p>
+
+<h2 id="backup-and-recovery">Backup and recovery</h2>
+
+<p><code class="language-plaintext highlighter-rouge">auth.sqlite3</code> is <strong>identity-critical state</strong>. It holds credential and signing state, so:</p>
+
+<ul>
+  <li>Backing it up preserves every issued token’s validity. Treat a backup with
+the same care as the live database.</li>
+  <li>Losing it is not catastrophic but is disruptive: recovery means re-bootstrapping, which generates a new signing key and invalidates every
+session, refresh token, and access key. Integrations must be re-issued keys.</li>
+  <li>Restoring an <em>old</em> copy resurrects credentials that were revoked after the backup was taken. Prefer re-bootstrapping over restoring a stale database.</li>
+</ul>
+
+<p>The persistent volume also holds the workspace, the ticket queue, and
+<code class="language-plaintext highlighter-rouge">state.json</code>. A backup that captures the volume captures all of it, including
+the authentication database - so the volume snapshot inherits the same
+sensitivity.</p>
+
+<p>Forgotten-password recovery is <strong>local only</strong>: <code class="language-plaintext highlighter-rouge">operator auth reset-admin-password</code> operates directly on the database.
+The HTTP reset route requires the current username and password; it cannot recover a forgotten credential.</p>
+
+<h2 id="residual-risks">Residual risks</h2>
+
+<p>Recorded deliberately, in rough order of significance.</p>
+
+<ol>
+  <li><strong>Local agents share Operator filesystem access.</strong> SSH and Coder targets can place agents on separate filesystems, provided the target does not mount Operator state. Same-user processes can still read private Git runtime files: per-launch credentials prevent accidental identity mixing, not hostile same-user access.</li>
+  <li><strong>The dashboard bundle is public</strong>, so UI structure and route names are discoverable. No data or credentials are exposed.</li>
+  <li><strong>A compromised authentication database yields the signing key</strong>, allowing
+token forgery until the key is rotated by re-bootstrapping. File permissions and volume access control are the only barriers.</li>
+  <li><strong>The admin account is a single point of authority.</strong> There is one human
+account by design; there is no separation of duties and no second approver.</li>
+  <li><strong>Integration access keys are bearer credentials.</strong> Anyone holding one has
+its scopes until it expires or is revoked. Keys have mandatory expiry and last-use tracking so an unused key is visible, but there is no proof of possession.</li>
+  <li><strong>Egress is unrestricted unless you restrict it.</strong> The destination
+validation above blocks the well-known dangerous targets, but Operator is designed to call third-party APIs; NetworkPolicy is what bounds that.</li>
+</ol>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

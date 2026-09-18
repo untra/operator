@@ -1,0 +1,95 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "RLOOP",
+  "name": "Ralph Loop Coordinator",
+  "description": "Coordinate repeated single-story Ralph iterations until the PRD is complete.",
+  "mode": "paired",
+  "glyph": "R",
+  "color": "magenta",
+  "project_required": true,
+  "agent": "ralph-coordinator",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Loop summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Complete the PRD story loop",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "prd_path",
+      "description": "Path to prd.json",
+      "type": "string",
+      "required": true,
+      "default": ".tickets/workflows/{{ id }}/prd.json",
+      "placeholder": ".tickets/workflows/PRD-1234/prd.json",
+      "display_order": 2
+    },
+    {
+      "name": "max_iterations",
+      "description": "Advisory cap on story iterations before stopping for review (Ralph default 10). The exported workflow's review loop is bounded independently.",
+      "type": "integer",
+      "required": false,
+      "default": "10",
+      "display_order": 3
+    }
+  ],
+  "steps": [
+    {
+      "name": "preflight",
+      "display_name": "Loop Preflight",
+      "outputs": ["plan"],
+      "prompt": "Preflight the Ralph loop.\n\nVerify `{{ prd_path }}` exists, find its sibling `progress.txt`, inspect git status, read quality commands, and count unfinished stories. Write a short loop plan to `.tickets/workflows/{{ id }}/loop.md`.\n\nIf state is missing, repair it or stop with exact instructions.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write", "Bash"],
+      "artifact_patterns": [".tickets/workflows/{{ id }}/loop.md"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "preflight",
+        "prompt": "Loop preflight was rejected: {{ rejection_reason }}\n\nFix the loop state and update the plan."
+      },
+      "next_step": "iterate"
+    },
+    {
+      "name": "iterate",
+      "display_name": "Run One Story",
+      "outputs": ["ticket", "code"],
+      "prompt": "Run exactly one Ralph story iteration.\n\nSelect the next story with `passes: false` from `{{ prd_path }}`. Prefer creating or launching a STORY ticket that references this loop and story id. If operating directly, follow the STORY issue type discipline: implement one story, verify it, update progress, and mark only that story as passing.\n\nStop after one story iteration.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "artifact_patterns": ["{{ prd_path }}"],
+      "next_step": "check"
+    },
+    {
+      "name": "check",
+      "display_name": "Completion Check",
+      "outputs": ["review"],
+      "prompt": "Check Ralph loop completion.\n\nRead `{{ prd_path }}` and determine whether every story has `passes: true`. If all stories pass, summarize completion and proceed. If unfinished stories remain and `max_iterations` is not exhausted, request another iteration by rejecting this step with clear next-story instructions. If blocked, document the blocker and stop for human input.",
+      "allowed_tools": ["Read", "Grep", "Write"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "iterate",
+        "prompt": "The PRD is not complete yet or the previous story needs correction: {{ rejection_reason }}\n\nRun one more STORY iteration, then return to completion check."
+      },
+      "next_step": "complete"
+    },
+    {
+      "name": "complete",
+      "display_name": "Complete Loop",
+      "outputs": ["report"],
+      "prompt": "Write the final Ralph loop report to `.tickets/workflows/{{ id }}/summary.md`.\n\nInclude completed stories, commits or changed files, validation evidence, lessons learned, and any deferred follow-up work. Do not create new broad work unless explicitly asked.",
+      "allowed_tools": ["Read", "Write", "Grep", "Bash"],
+      "artifact_patterns": [".tickets/workflows/{{ id }}/summary.md"]
+    }
+  ]
+}

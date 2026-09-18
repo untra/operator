@@ -1,0 +1,116 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "STORY",
+  "name": "Ralph Story",
+  "description": "Execute one Ralph story in a fresh context, then persist progress for the next iteration.",
+  "mode": "autonomous",
+  "glyph": "S",
+  "color": "green",
+  "project_required": true,
+  "agent": "ralph-coder",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "priority",
+      "description": "Priority level",
+      "type": "enum",
+      "required": false,
+      "default": "P2-medium",
+      "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
+      "display_order": 1
+    },
+    {
+      "name": "summary",
+      "description": "Story title",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "One story from prd.json",
+      "max_length": 120,
+      "display_order": 2
+    },
+    {
+      "name": "workflow_id",
+      "description": "PRD/RLOOP workflow id whose prd.json owns this story",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "PRD-1234 or RLOOP-1234",
+      "display_order": 3
+    },
+    {
+      "name": "story_id",
+      "description": "Story id inside prd.json",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "placeholder": "story-001",
+      "display_order": 4
+    },
+    {
+      "name": "notes",
+      "description": "Additional constraints or human guidance",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "display_order": 5
+    }
+  ],
+  "steps": [
+    {
+      "name": "select",
+      "display_name": "Select Story",
+      "outputs": ["ticket", "plan"],
+      "prompt": "Read `.tickets/workflows/{{ workflow_id }}/prd.json` and `.tickets/workflows/{{ workflow_id }}/progress.txt`.\n\nIf `story_id` is set, select that story. Otherwise select the first highest-priority story where `passes` is false and dependencies are satisfied. Write the selected story details and planned files to `.tickets/workflows/{{ workflow_id }}/stories/{{ id }}.md`.\n\nDo not start broad work. This ticket is responsible for exactly one story.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "artifact_patterns": [".tickets/workflows/{{ workflow_id }}/stories/{{ id }}.md"],
+      "next_step": "implement"
+    },
+    {
+      "name": "implement",
+      "display_name": "Implement Story",
+      "outputs": ["code"],
+      "prompt": "Implement only the selected story recorded in `.tickets/workflows/{{ workflow_id }}/stories/{{ id }}.md`.\n\nUse fresh context discipline: read the PRD, progress file, selected story, and relevant repo files. Avoid opportunistic adjacent work. If the story is blocked or too large, stop and document the blocker instead of widening scope.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "verify"
+    },
+    {
+      "name": "verify",
+      "display_name": "Verify Story",
+      "outputs": ["test"],
+      "prompt": "Verify the story is actually complete.\n\nRun the quality commands from `.tickets/workflows/{{ workflow_id }}/prd.json` and `.tickets/workflows/{{ workflow_id }}/progress.txt` when present. Add or update tests where the story changes behavior. Record evidence in `.tickets/workflows/{{ workflow_id }}/stories/{{ id }}.md`.\n\nFix failures before proceeding.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "implement",
+        "prompt": "Story verification was rejected: {{ rejection_reason }}\n\nReturn to the implementation, fix the issue, and rerun the quality checks."
+      },
+      "next_step": "learn"
+    },
+    {
+      "name": "learn",
+      "display_name": "Persist Learnings",
+      "outputs": ["documentation"],
+      "prompt": "Persist memory for the next fresh context.\n\nUpdate `.tickets/workflows/{{ workflow_id }}/progress.txt` with what changed, quality evidence, important files, surprises, and any reusable repo knowledge. If the repo has `AGENTS.md`, `CLAUDE.md`, or similar guidance files and you learned stable reusable instructions, update them conservatively.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep"],
+      "artifact_patterns": [".tickets/workflows/{{ workflow_id }}/progress.txt"],
+      "next_step": "commit"
+    },
+    {
+      "name": "commit",
+      "display_name": "Mark Passing",
+      "outputs": ["code", "documentation"],
+      "prompt": "Finalize this one-story iteration.\n\nUpdate `.tickets/workflows/{{ workflow_id }}/prd.json` so the selected story has `passes: true`, a concise result note, and validation evidence. Commit focused changes if this repo uses commits for agent progress. Do not mark unrelated stories complete.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "artifact_patterns": [".tickets/workflows/{{ workflow_id }}/prd.json"]
+    }
+  ]
+}

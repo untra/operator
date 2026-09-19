@@ -1,41 +1,66 @@
 ---
-title: LLM Tools
-description: "Configure Claude Code and other LLM tools for AI-powered agent integration with Operator!."
+title: "LLM Tools"
 layout: doc
 ---
 
-<span class="operator-brand">Operator!</span> integrates with LLM tools like Claude Code to power AI-assisted development.
+<!-- AUTO-GENERATED FROM src/llm/tools/tool_config.schema.json - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+# LLM Tools
+
+Operator supports multiple LLM CLI tools through a plugin-like configuration system. Each tool is defined by a JSON configuration file that tells Operator how to detect, invoke, and manage the tool.
+
+An LLM tool is the **agentic CLI** (the process Operator launches). It is not the model provider: a delegator pairs a tool with a model server. `health_ok` means the binary is present on **this host**, not that an API key works.
 
 ## Supported Tools
 
-### Claude Code
+| Tool | Binary | Catalog slug | Models |
+|------|--------|--------------|--------|
+| Claude Code | `claude` | `claude` | opus, sonnet, haiku |
+| Google Gemini | `gemini` | `gemini-cli` | pro, flash, ultra |
+| OpenAI Codex | `codex` | `codex` | gpt-4o, o1, o3 |
+| Grok | `grok` | `grok` | grok-4 |
 
-The primary LLM tool supported by Operator. 
+## Adding a New Tool
 
-### OpenAI Codex
-
-### Google Gemini
-
-## Custom Tool Configs
-
-Beyond the builtin tools (claude, gemini, codex), any LLM CLI can be added at runtime by dropping a JSON config into the user tool-config directory - no rebuild required:
+To add support for a new LLM CLI tool, drop a JSON configuration file into your
+user tool-config directory - no rebuild required:
 
 - Linux: `~/.config/operator/tools/<tool_name>.json`
 - macOS: `~/Library/Application Support/operator/tools/<tool_name>.json`
 
-Configs are loaded fresh on every startup. A user config whose `tool_name`
-matches a builtin **fully replaces** that builtin (no field-by-field merge).
-Malformed files are skipped with a logged warning. Runtime-loaded tools work
-everywhere the builtins do, including remote (SSH) launches, where the tool's
-presence on the remote host is verified by a `command -v` preflight.
+```json
+{
+  "tool_name": "your-tool",
+  "display_name": "Your Tool Name",
+  "version_command": "your-tool --version",
+  "capabilities": {
+    "supports_sessions": true,
+    "supports_headless": false
+  },
+  "model_aliases": ["model1", "model2"],
+  "arg_mapping": {
+    "model": "--model",
+    "session_id": "--session",
+    "prompt": "-p"
+  },
+  "command_template": "your-tool {{model_flag}}--session {{session_id}} \"$(cat {{prompt_file}})\"",
+  "yolo_flags": ["--auto-approve"]
+}
+```
+
+Configs are loaded fresh on every startup. A user config whose `tool_name` matches a builtin (claude, gemini, codex) **fully replaces** that builtin - it
+is not merged field-by-field. Malformed files are skipped with a logged warning. Runtime-loaded tools work everywhere the builtins do, including
+remote (SSH) launches, where the tool's presence on the remote host is verified by a `command -v` preflight.
 
 > **Security note:** `command_template` is arbitrary shell executed at launch.
-> <span class="operator-brand">Operator!</span> only loads tool configs from the
-> user-global config directory - never from repository-local paths - so a
-> cloned repo cannot inject a tool config.
+> Operator only ever loads tool configs from the user-global config directory -
+> never from repository-local paths - so a cloned repo cannot inject a tool
+> config.
 
-The full config format is documented in the schema reference on this site
-(source of truth: `src/llm/tools/tool_config.schema.json`).
+New *builtin* tools (shipped with Operator) are added as embedded JSONs in
+`src/llm/tools/`, registered in `BUILTIN_TOOL_CONFIGS`, and given a row in
+`shipped_llm_tools()` (catalog slug, binary, implicit model server, marker).
 
 ## Detection Modes
 
@@ -48,11 +73,10 @@ optional `detection` object overrides this:
 }
 ```
 
-- `mode: "which"` (default) - gate detection on the binary being in PATH
-- `mode: "always"` - skip the PATH lookup and use `tool_name` verbatim as the
-  invocation path; for tools not installed locally, e.g. only present on a
-  remote SSH host
-- `health_command` - health check run at every startup
+| Field | Values | Description |
+|-------|--------|-------------|
+| `mode` | `which` (default), `always` | `always` skips the PATH lookup and uses `tool_name` verbatim as the invocation path - for tools not installed locally (e.g. run over SSH) |
+| `health_command` | any command | Health check run at every startup; failure marks the tool unhealthy (`health_ok: false`) |
 
 Health is **earned, never assumed**, and re-verified on every startup:
 
@@ -61,66 +85,144 @@ Health is **earned, never assumed**, and re-verified on every startup:
 | `which` | Healthy - the PATH lookup proves the binary is present | Healthy if still on PATH **and** the command passes |
 | `always` | **Unhealthy** - nothing is locally verifiable | Healthy if the command passes |
 
-An unhealthy tool stays listed among the detected tools, but launching a local agent with it fails until it is healthy again.
+An unhealthy tool stays listed in the detected tools (so you can see it and why),
+but launching a local agent with it fails until it is healthy again. Remote (SSH)
+launches are unaffected - they are gated by their own `command -v` preflight on
+the remote host. An `always`-mode tool should therefore define a `health_command`
+that proves reachability, e.g. `ssh gpu-vm command -v agy`.
 
-Remote (SSH) launches are unaffected - they are gated by their own `command -v` preflight on the remote host. An `always`-mode tool should therefore define a `health_command` that proves reachability.
+## Configuration Schema
 
-## Integration Points
+### Required Fields
 
-### Launching Agents
+| Field | Type | Description |
+|-------|------|-------------|
+| `tool_name` | string | Binary/command name (must match executable in PATH) |
+| `version_command` | string | Command to check if tool is installed |
+| `capabilities` | object | Feature flags for the tool |
+| `model_aliases` | array | List of supported model names |
+| `arg_mapping` | object | Maps logical args to CLI flags |
+| `command_template` | string | Template for building commands |
 
-<span class="operator-brand">Operator!</span> launches Claude Code with project context:
+### Optional Fields
 
-```bash
-# macOS launch command
-open -a "Claude" --args --project "/path/to/project"
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `display_name` | string | tool_name | Human-readable name for UI |
+| `yolo_flags` | array | [] | Flags for auto-accept/YOLO mode |
+| `detection` | object | which-gated | Detection mode + soft health check (see Detection Modes) |
+| `idle_detection` | object | - | Idle/activity regex patterns + completion hook config |
+| `permission_modes` | array | - | Supported permission modes (Claude-specific) |
+
+### Capabilities Object
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `supports_sessions` | boolean | required | Session continuity via ID |
+| `supports_headless` | boolean | false | Non-interactive mode support |
+| `supports_config_override` | boolean | false | Runtime config overrides |
+| `supports_permission_mode` | boolean | false | Permission modes (Claude) |
+| `supports_json_schema` | boolean | false | Structured output via JSON schema |
+
+### Argument Mapping
+
+| Key | Description | Example |
+|-----|-------------|---------|
+| `model` | Model selection flag | `--model`, `-m` |
+| `session_id` | Session continuity flag | `--session-id`, `--resume` |
+| `prompt` | Prompt/instruction flag | `-p`, `--prompt` |
+| `quiet` | Non-interactive output flag | `-q`, `--output-format json` |
+| `permission_mode` | Permission mode flag (Claude) | `--permission-mode` |
+| `json_schema` | JSON schema flag | `--json-schema` |
+
+### Command Template Placeholders
+
+| Placeholder | Description |
+|-------------|-------------|
+| `{{model}}` | The selected model name |
+| `{{model_flag}}` | Full model flag with value (e.g., `--model opus `) |
+| `{{session_id}}` | Session UUID for continuity |
+| `{{prompt_file}}` | Path to the prompt file |
+| `{{config_flags}}` | Generated permission/config flags |
+
+## YOLO Mode Flags
+
+YOLO (auto-accept) mode enables fully autonomous execution by bypassing confirmation prompts. Each tool defines its own flags:
+
+| Tool | YOLO Flags | Effect |
+|------|------------|--------|
+| Claude | `--dangerously-skip-permissions` | Skips all permission prompts |
+| Gemini | `--auto-approve`, `-y` | Auto-approves all actions |
+| Codex | `--full-auto` | Enables full automation |
+
+## Example: Full Configuration
+
+Here's a complete example for Claude Code:
+
+```json
+{
+  "tool_name": "claude",
+  "display_name": "Claude Code",
+  "version_command": "claude --version",
+  "capabilities": {
+    "supports_sessions": true,
+    "supports_headless": false,
+    "supports_config_override": true,
+    "supports_permission_mode": true,
+    "supports_json_schema": true
+  },
+  "model_aliases": ["opus", "sonnet", "haiku"],
+  "arg_mapping": {
+    "prompt": "-p",
+    "model": "--model",
+    "session_id": "--session-id",
+    "permission_mode": "--permission-mode",
+    "json_schema": "--json-schema"
+  },
+  "permission_modes": ["default", "plan", "acceptEdits", "delegate"],
+  "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
+  "yolo_flags": ["--dangerously-skip-permissions"]
+}
 ```
 
-### Initial Prompts
+## Visual Indicators
 
-Tickets provide context to agents through:
+In the TUI, running agents show a tool indicator:
 
-1. **Ticket content** - The markdown ticket file
-2. **Project CLAUDE.md** - Project-specific instructions
-3. **Clipboard injection** - Initial prompt via paste simulation
+| Indicator | Tool | Color |
+|-----------|------|-------|
+| **A** | Claude/Anthropic | Rust (#C15F3C) |
+| **G** | Gemini | Purple (#6F42C1) |
+| **O** | Codex/OpenAI | Green |
 
-### Monitoring
+## Detection Process
 
-<span class="operator-brand">Operator!</span> tracks agent status:
+On every startup, Operator:
 
-- **Running** - Agent is actively working
-- **Awaiting Input** - Agent needs human response
-- **Completed** - Work is finished
-- **Failed** - An error occurred
+1. Loads the embedded builtin tool configurations, then user configurations from `<config dir>/operator/tools/*.json`
+2. For each tool, runs `which <tool_name>` to check if installed (skipped when `detection.mode` is `always`)
+3. If found, runs the `version_command` to get the version (failure degrades to `"unknown"`; a `min_version` mismatch warns but does not block)
+4. Computes health from the verified presence plus the `health_command`, if configured (see Detection Modes); an unhealthy tool stays listed but cannot launch locally
+5. Builds a list of available providers (tool + model combinations)
+6. The first detected tool becomes the default provider
 
-## Configuration
+Already-detected tools keep their cached `path`/`version` across restarts (no
+version re-probing); config-sourced fields like the command template and model
+aliases are re-derived from the loaded configs each startup. Health is never
+carried over from a previous run - presence and the `health_command` are
+re-checked every startup, so an uninstalled binary or a newly failing health
+command demotes the tool on the next launch of Operator.
 
-Configure LLM tool settings in your <span class="operator-brand">Operator!</span> config:
+## Troubleshooting
 
-```toml
-[llm]
-tool = "claude-code"
-max_concurrent = 4
+### Tool Not Detected
 
-[llm.claude]
-path = "/Applications/Claude.app"
-```
+1. Ensure the binary is in your PATH: `which <tool_name>`
+2. Verify the version command works: `<tool_name> --version`
+3. Check Operator logs for detection errors
 
-## Known Limitations
+### Command Fails
 
-### JSON Schema for Structured Output (Temporarily Disabled)
-
-The `jsonSchema` and `jsonSchemaFile` step properties are currently disabled. These properties configure the `--json-schema` flag for Claude Code to enable structured output validation.
-
-**Issue**: Even when writing schemas to files (rather than passing inline JSON), the command line length can exceed OS limits when combined with other flags.
-
-**Workaround**: Until this is resolved, use Claude Code's native structured output capabilities without the `--json-schema` flag, or validate outputs manually in subsequent steps.
-
-**Tracking**: See `JSON_SCHEMA_ENABLED` constant in `src/agents/launcher/llm_command.rs`.
-
-## Best Practices
-
-1. **Clear tickets** - Write detailed ticket descriptions
-2. **Project context** - Maintain good CLAUDE.md files
-3. **Monitor paired work** - Stay engaged with INV/SPIKE agents
-4. **Review autonomous work** - Check completed FEAT/FIX work
+1. Test the command manually with the template filled in
+2. Verify all argument mappings are correct for your tool version
+3. Check if the tool requires additional environment variables

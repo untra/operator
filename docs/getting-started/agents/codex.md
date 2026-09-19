@@ -1,58 +1,60 @@
 ---
 title: "Codex"
-description: "Configure OpenAI Codex as your AI coding agent."
+description: "Use OpenAI Codex as an Operator LLM tool."
 layout: doc
 ---
 
-[Codex](https://developers.openai.com/codex/) is the [OpenAI](https://openai.com/) code-specialized CLI agent, available through the OpenAI API.
+[Codex](https://developers.openai.com/codex/) is OpenAI's agentic CLI. In Operator it is an **LLM tool** (binary `codex`). OpenAI the API is a separate [model provider](/getting-started/model-servers/openai/). Codex speaks the OpenAI protocol, so it can also target [Ollama](/getting-started/model-servers/ollama/) or [OpenRouter](/getting-started/model-servers/openrouter/) when a delegator names that `model_server`.
 
 ## Status
 
-Codex integration is currently **experimental**. Features may be limited compared to other agents.
+Beta. Catalog slug `codex`.
 
-## Installation
-
-Install the OpenAI CLI:
+## Install
 
 ```bash
 npm i -g @openai/codex
 ```
 
-### Plans and Pricing
+Operator detects it with `which codex` and `codex --version`. `health_ok` means the binary is on **this host's** PATH.
 
-View [OpenAI Codex pricing page](https://developers.openai.com/codex/pricing/)
-
-## Configuration
-
-See the full [Codex agent configuration reference](/configuration/#agents-codex).
-
-Add Codex to your Operator configuration:
-
-```toml
-# ~/.config/operator/config.toml
-
-[agents.codex]
-enabled = true
-api_key_env = "OPENAI_API_KEY"
-model = "gpt-4"
-```
-
-## Authentication
-
-Set your OpenAI API key:
+## Authenticate
 
 ```bash
-export OPENAI_API_KEY="your-api-key"
+export OPENAI_API_KEY="sk-..."
 ```
 
-Or add it to your shell profile for persistence.
+Remote launches need that key in the environment Operator can inject. A local Codex login does not travel to an SSH target.
 
-## Multi-agent relay
+## Launch
 
-Operator injects relay env vars (`RELAY_HUB_SOCKET`, `RELAY_AGENT_NAME`) into Codex sessions at launch so agents can discover each other by ticket ID. Full MCP tool support for Codex relay is planned for a future release.
+Operator does not use `[agents.codex]` config. Pair the tool in a delegator:
 
-See [Relay](/relay/) for details.
+```toml
+[[delegators]]
+name = "codex-gpt"
+llm_tool = "codex"
+model = "gpt-4o"
+# model_server omitted → implicit openai-api
+```
 
-## API Usage
+To run Codex against a local Ollama host:
 
-Codex uses the OpenAI API which has usage-based pricing. Monitor your usage at [platform.openai.com](https://platform.openai.com/).
+```toml
+[[model_servers]]
+name = "ollama-local"
+kind = "ollama"
+base_url = "http://localhost:11434"
+
+[[delegators]]
+name = "codex-local-qwen"
+llm_tool = "codex"
+model = "qwen2.5-coder"
+model_server = "ollama-local"
+```
+
+Project discovery looks for `CODEX.md` at the repo root.
+
+## Relay
+
+Operator injects relay env vars into Codex sessions. Full MCP tool support for Codex relay is still limited. See [Relay](/relay/).

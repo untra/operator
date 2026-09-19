@@ -6,11 +6,11 @@ layout: doc
 
 [**OpenAI**](https://openai.com/) is a first-party model provider - it produces
 the GPT family and serves them from its own API. It is the zero-config default
-for the `codex` llm tool, and a first-class [model provider](./): once connected,
+for the `codex` llm tool, and a first-class [model provider](/getting-started/model-servers/): once connected,
 operator lists its available models live for delegators to pick from.
 
 > **Model provider ≠ llm tool.** OpenAI (the provider) serves the models;
-> [Codex](../agents/codex/) (the llm tool) is the CLI. A delegator pairs a tool
+> [Codex](/getting-started/agents/codex/) (the llm tool) is the CLI. A delegator pairs a tool
 > with a provider's model.
 
 ## Connect

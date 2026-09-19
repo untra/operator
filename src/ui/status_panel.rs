@@ -768,8 +768,7 @@ impl StatusSnapshot {
                 user_declared: true,
             })
             .collect();
-        for tool in ["claude", "codex", "gemini"] {
-            let implicit = crate::config::implicit_model_server_for_tool(tool);
+        for implicit in crate::config::implicit_model_servers() {
             if !model_servers.iter().any(|s| s.name == implicit.name) {
                 model_servers.push(ModelServerInfo {
                     name: implicit.name,

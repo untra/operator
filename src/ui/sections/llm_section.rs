@@ -27,14 +27,21 @@ impl StatusSection for LlmSection {
     }
 
     fn description(&self, snapshot: &StatusSnapshot) -> String {
-        match (&snapshot.default_llm_tool, &snapshot.default_llm_model) {
+        let healthy = snapshot.llm_tools.iter().filter(|t| t.health_ok).count();
+        let total = snapshot.llm_tools.len();
+        let default = match (&snapshot.default_llm_tool, &snapshot.default_llm_model) {
             (Some(tool), Some(model)) => format!("Default: {tool}:{model}"),
             (Some(tool), None) => format!("Default: {tool}"),
             _ => snapshot
                 .llm_tools
                 .first()
                 .map(|t| t.name.clone())
-                .unwrap_or_else(|| "No tools detected".into()),
+                .unwrap_or_else(|| "No tools on this host".into()),
+        };
+        if total == 0 {
+            default
+        } else {
+            format!("{default} · {healthy}/{total} launchable")
         }
     }
 
@@ -51,7 +58,7 @@ impl StatusSection for LlmSection {
                 description: if tool.health_ok {
                     tool.version.clone()
                 } else {
-                    format!("{} (health check failed)", tool.version)
+                    format!("{} (not launchable on this host)", tool.version)
                 },
                 icon: StatusIcon::Tool,
                 brand_icon: None,

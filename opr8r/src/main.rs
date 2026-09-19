@@ -4,6 +4,7 @@ mod cli;
 mod operator_relay;
 mod output_parser;
 mod runner;
+mod tools;
 mod transition;
 
 use api::{ApiClient, StepCompleteRequest};
@@ -55,17 +56,33 @@ fn build_step_complete_request(
 async fn main() -> ExitCode {
     let args = Args::parse_args();
 
-    // Dispatch relay subcommand before any step-wrapper logic
-    if args.subcommand == Some(Cmd::Relay) {
-        #[cfg(unix)]
-        return operator_relay::run().await;
-        #[cfg(not(unix))]
-        {
-            eprintln!(
-                "[opr8r relay] relay is not supported on this platform (requires Unix sockets)"
-            );
-            return ExitCode::from(1);
+    // Dispatch subcommands before any step-wrapper logic
+    match &args.subcommand {
+        Some(Cmd::Relay) => {
+            #[cfg(unix)]
+            return operator_relay::run().await;
+            #[cfg(not(unix))]
+            {
+                eprintln!(
+                    "[opr8r relay] relay is not supported on this platform (requires Unix sockets)"
+                );
+                return ExitCode::from(1);
+            }
         }
+        Some(Cmd::Tools { json }) => {
+            if !json {
+                eprintln!("[opr8r tools] --json is required");
+                return ExitCode::from(EXIT_CONFIG_ERROR);
+            }
+            return match tools::run_json(&mut std::io::stdin(), &mut std::io::stdout()) {
+                Ok(()) => ExitCode::from(EXIT_SUCCESS),
+                Err(e) => {
+                    eprintln!("[opr8r tools] {e}");
+                    ExitCode::from(EXIT_CONFIG_ERROR)
+                }
+            };
+        }
+        None => {}
     }
 
     // Step-wrapper mode: validate required fields

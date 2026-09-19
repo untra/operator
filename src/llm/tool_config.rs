@@ -164,6 +164,7 @@ const BUILTIN_TOOL_CONFIGS: &[(&str, &str)] = &[
     ("claude", include_str!("tools/claude.json")),
     ("gemini", include_str!("tools/gemini.json")),
     ("codex", include_str!("tools/codex.json")),
+    ("grok", include_str!("tools/grok.json")),
 ];
 
 /// The user tool-config directory: `<platform config dir>/operator/tools`
@@ -276,12 +277,13 @@ mod tests {
     #[test]
     fn test_load_all_tool_configs() {
         let configs = load_all_tool_configs_with(None);
-        assert_eq!(configs.len(), 3);
+        assert_eq!(configs.len(), BUILTIN_TOOL_CONFIGS.len());
 
         let names: Vec<_> = configs.iter().map(|c| c.tool_name.as_str()).collect();
         assert!(names.contains(&"claude"));
         assert!(names.contains(&"gemini"));
         assert!(names.contains(&"codex"));
+        assert!(names.contains(&"grok"));
     }
 
     #[test]
@@ -290,7 +292,7 @@ mod tests {
         std::fs::write(dir.path().join("agy.json"), tool_json("agy", "Agy")).unwrap();
 
         let configs = load_all_tool_configs_with(Some(dir.path()));
-        assert_eq!(configs.len(), 4);
+        assert_eq!(configs.len(), BUILTIN_TOOL_CONFIGS.len() + 1);
         let agy = configs.iter().find(|c| c.tool_name == "agy").unwrap();
         assert_eq!(agy.display_name(), "Agy");
     }
@@ -305,7 +307,7 @@ mod tests {
         .unwrap();
 
         let configs = load_all_tool_configs_with(Some(dir.path()));
-        assert_eq!(configs.len(), 3);
+        assert_eq!(configs.len(), BUILTIN_TOOL_CONFIGS.len());
         let claude = configs.iter().find(|c| c.tool_name == "claude").unwrap();
         // Full replacement: user's file wins entirely, not a field merge
         assert_eq!(claude.display_name(), "My Claude");
@@ -319,7 +321,7 @@ mod tests {
         std::fs::write(dir.path().join("agy.json"), tool_json("agy", "Agy")).unwrap();
 
         let configs = load_all_tool_configs_with(Some(dir.path()));
-        assert_eq!(configs.len(), 4);
+        assert_eq!(configs.len(), BUILTIN_TOOL_CONFIGS.len() + 1);
         assert!(configs.iter().any(|c| c.tool_name == "agy"));
     }
 
@@ -328,7 +330,7 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let missing = dir.path().join("does-not-exist");
         let configs = load_all_tool_configs_with(Some(&missing));
-        assert_eq!(configs.len(), 3);
+        assert_eq!(configs.len(), BUILTIN_TOOL_CONFIGS.len());
     }
 
     #[test]
@@ -337,7 +339,7 @@ mod tests {
         std::fs::write(dir.path().join("README.md"), "# tools").unwrap();
 
         let configs = load_all_tool_configs_with(Some(dir.path()));
-        assert_eq!(configs.len(), 3);
+        assert_eq!(configs.len(), BUILTIN_TOOL_CONFIGS.len());
     }
 
     #[test]

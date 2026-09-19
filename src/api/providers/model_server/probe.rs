@@ -203,6 +203,7 @@ fn is_text_model(kind: ModelServerKind, raw: &Value, id: &str) -> bool {
         ModelServerKind::OpenRouter => openrouter_outputs_text(raw),
         ModelServerKind::OpenAiApi => openai_id_is_text(id),
         ModelServerKind::AnthropicApi
+        | ModelServerKind::XaiApi
         | ModelServerKind::Ollama
         | ModelServerKind::OpenAiCompat
         | ModelServerKind::LmStudio => true,

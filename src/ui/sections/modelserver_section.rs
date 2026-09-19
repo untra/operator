@@ -21,7 +21,9 @@ impl StatusSection for ModelServerSection {
 
     fn health(&self, snapshot: &StatusSnapshot) -> SectionHealth {
         if snapshot.model_servers.iter().any(|s| s.user_declared) {
-            SectionHealth::Green
+            // Declared is not connected. Live probe lives on the web Model
+            // Providers view; the TUI must not paint Green for "exists in config".
+            SectionHealth::Yellow
         } else {
             SectionHealth::Gray
         }
@@ -36,7 +38,7 @@ impl StatusSection for ModelServerSection {
         if declared == 0 {
             "builtins only".into()
         } else {
-            format!("{declared} declared")
+            format!("{declared} declared · not probed")
         }
     }
 
@@ -97,7 +99,7 @@ impl StatusSection for ModelServerSection {
                     is_header: false,
                     actions: action,
                     health: if s.user_declared {
-                        SectionHealth::Green
+                        SectionHealth::Yellow
                     } else {
                         SectionHealth::Gray
                     },
@@ -106,11 +108,7 @@ impl StatusSection for ModelServerSection {
             .collect();
 
         // Catalog "Add <kind>" rows for the addable (non-builtin) kinds, derived
-        // from ModelServerKind::ALL so the options can't drift from the other
-        // surfaces. The vendor builtins always exist, so they aren't offered here.
-        // Multiple servers of the same kind are allowed, so these are always shown.
-        // Rows are grouped under a category header (the *Model Provider* vertical)
-        // so the catalog reads the same way as the README/docs/web surfaces.
+        // from ModelServerKind::ALL so the options can't drift from the other surfaces.
         let mut last_category: Option<ModelProviderClass> = None;
         for kind in ModelServerKind::ALL {
             if kind.is_builtin() {
@@ -248,8 +246,8 @@ mod tests {
             declared("vllm-gpu", "openai-compat", "http://gpu:8000"),
         ]);
         let section = ModelServerSection;
-        assert_eq!(section.description(&snapshot), "2 declared");
-        assert!(matches!(section.health(&snapshot), SectionHealth::Green));
+        assert_eq!(section.description(&snapshot), "2 declared · not probed");
+        assert!(matches!(section.health(&snapshot), SectionHealth::Yellow));
     }
 
     #[test]

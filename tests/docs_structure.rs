@@ -6,8 +6,9 @@
 //! must be reachable from the sidebar with its catalog icon, and the nav may
 //! not advertise integrations the catalog doesn't know. The suite also guards
 //! general docs hygiene: every nav URL resolves, every published page is
-//! reachable, internal links resolve, and no page duplicates the layout's
-//! front-matter title with a body H1.
+//! reachable, internal `/path/` links resolve, markdown links are not
+//! filesystem-relative (`../`, `./`, `.md`), and no page duplicates the
+//! layout's front-matter title with a body H1.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -435,6 +436,59 @@ fn test_docs_pages_reachable() {
             "docs/{page} ({url}) is published but unreachable from navigation.yml - \
              add a nav entry or extend NAV_ORPHAN_ALLOWLIST"
         );
+    }
+}
+
+/// Markdown `](href)` destinations on a line, excluding fenced code (caller skips).
+fn markdown_link_hrefs(line: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut rest = line;
+    while let Some(i) = rest.find("](") {
+        let after = &rest[i + 2..];
+        let Some(end) = after.find(')') else { break };
+        out.push(&after[..end]);
+        rest = &after[end..];
+    }
+    out
+}
+
+#[test]
+fn test_jekyll_links_are_not_parent_relative() {
+    for page in published_pages() {
+        let content = std::fs::read_to_string(repo_path(&format!("docs/{page}")))
+            .expect("page should be readable");
+        let mut in_fence = false;
+        for (lineno, line) in content.lines().enumerate() {
+            if line.trim_start().starts_with("```") {
+                in_fence = !in_fence;
+                continue;
+            }
+            if in_fence {
+                continue;
+            }
+            for href in markdown_link_hrefs(line) {
+                let path = href.split(['#', '?']).next().unwrap_or(href);
+                assert!(
+                    !path.contains(".."),
+                    "docs/{page}:{} links to '{href}' with '..'. Use a site-root Jekyll path \
+                     (e.g. /getting-started/agents/grok/).",
+                    lineno + 1
+                );
+                assert!(
+                    path != "." && !path.starts_with("./"),
+                    "docs/{page}:{} links to '{href}'. './' is the current pretty-permalink \
+                     directory, not the section index. Use /getting-started/.../ or a same-page #anchor.",
+                    lineno + 1
+                );
+                assert!(
+                    !std::path::Path::new(path)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("md")),
+                    "docs/{page}:{} links to '{href}'. Jekyll serves pages as /path/, not .md files.",
+                    lineno + 1
+                );
+            }
+        }
     }
 }
 

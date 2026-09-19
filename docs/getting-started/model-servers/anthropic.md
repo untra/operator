@@ -7,11 +7,11 @@ layout: doc
 [**Anthropic**](https://www.anthropic.com/) is a first-party model provider - it
 produces the Claude family of models and serves them from its own API. It is the
 zero-config default for the `claude` llm tool, and a first-class
-[model provider](./) in its own right: once connected, operator lists its
+[model provider](/getting-started/model-servers/) in its own right: once connected, operator lists its
 available models live so delegators can pick one.
 
 > **Model provider ≠ llm tool.** Anthropic (the provider) serves the models;
-> [Claude Code](../agents/claude/) (the llm tool) is the CLI that drives a coding
+> [Claude Code](/getting-started/agents/claude/) (the llm tool) is the CLI that drives a coding
 > session. A delegator pairs a tool with a provider's model.
 
 ## Connect

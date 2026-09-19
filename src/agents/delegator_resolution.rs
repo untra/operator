@@ -29,6 +29,10 @@ pub enum ResolutionError {
     UnknownProvider(String),
     #[error("Unknown model_server '{0}'")]
     UnknownModelServer(String),
+    #[error(
+        "Unknown llm_tool '{0}' (no implicit model server; set model_server on the delegator or use a shipped tool)"
+    )]
+    UnknownLlmTool(String),
     /// The delegator declaratively references a remote, named agent on another
     /// platform (AGNT, `OpenAI`, ...). Operator has no runtime client for those
     /// platforms, so such a delegator is export-only and cannot be resolved into a
@@ -61,7 +65,8 @@ pub(crate) fn resolve_model_server_for_delegator(
             .find(|s| s.name == name)
             .cloned()
             .ok_or_else(|| ResolutionError::UnknownModelServer(name.to_string())),
-        None => Ok(implicit_model_server_for_tool(&d.llm_tool)),
+        None => implicit_model_server_for_tool(&d.llm_tool)
+            .ok_or_else(|| ResolutionError::UnknownLlmTool(d.llm_tool.clone())),
     }
 }
 
@@ -115,13 +120,13 @@ fn adhoc_model_server_env(
             .find(|s| s.name == name)
             .cloned()
             .or_else(|| {
-                ["claude", "codex", "gemini"]
-                    .iter()
-                    .map(|t| implicit_model_server_for_tool(t))
+                crate::config::implicit_model_servers()
+                    .into_iter()
                     .find(|s| s.name == name)
             })
             .ok_or_else(|| ResolutionError::UnknownModelServer(name.to_string()))?,
-        None => implicit_model_server_for_tool(tool),
+        None => implicit_model_server_for_tool(tool)
+            .ok_or_else(|| ResolutionError::UnknownLlmTool(tool.to_string()))?,
     };
     Ok(crate::api::providers::model_server::env_for_server(&server))
 }
@@ -498,6 +503,17 @@ mod tests {
         d.model_server = Some("nonexistent".to_string());
         let err = resolve_model_server_for_delegator(&config, &d).unwrap_err();
         assert!(matches!(err, ResolutionError::UnknownModelServer(_)));
+    }
+
+    #[test]
+    fn test_resolve_model_server_unknown_tool_without_named_server_errors() {
+        let config = Config::default();
+        let d = make_delegator("agy-default", "agy", "default");
+        let err = resolve_model_server_for_delegator(&config, &d).unwrap_err();
+        assert!(
+            matches!(err, ResolutionError::UnknownLlmTool(ref tool) if tool == "agy"),
+            "got {err:?}"
+        );
     }
 
     fn make_remote_config(host_name: &str) -> Config {

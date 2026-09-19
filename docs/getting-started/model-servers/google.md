@@ -7,11 +7,11 @@ layout: doc
 [**Google**](https://ai.google.dev/) is a first-party model provider - it
 produces the Gemini family and serves them from its own API. It is the
 zero-config default for the `gemini` llm tool, and a first-class
-[model provider](./): once connected, operator lists its available models live
+[model provider](/getting-started/model-servers/): once connected, operator lists its available models live
 for delegators.
 
 > **Model provider ≠ llm tool.** Google (the provider) serves the models;
-> [Gemini CLI](../agents/gemini-cli/) (the llm tool) is the CLI. A delegator
+> [Gemini CLI](/getting-started/agents/gemini-cli/) (the llm tool) is the CLI. A delegator
 > pairs a tool with a provider's model.
 
 ## Connect

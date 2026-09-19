@@ -6,8 +6,8 @@ layout: doc
 
 A **model server** is a named host that serves models via an inference API. It's orthogonal to the LLM tool that runs your coding agent:
 
-- **LLM tools** (claude, codex, gemini) are the agentic CLIs that drive the coding session - they use tools, edit files, resume sessions.
-- **Model servers** are where the model weights live - Anthropic's API, OpenAI's API, Google's API, or a many-model provider like [OpenRouter](/getting-started/model-servers/openrouter/), a local [Ollama](/getting-started/model-servers/ollama/) server, lmstudio, or vllm.
+- **LLM tools** (claude, codex, gemini, grok) are the agentic CLIs that drive the coding session - they use tools, edit files, resume sessions.
+- **Model servers** are where the model weights live - Anthropic's API, OpenAI's API, Google's API, [xAI](/getting-started/model-servers/xai/), or a many-model provider like [OpenRouter](/getting-started/model-servers/openrouter/), a local [Ollama](/getting-started/model-servers/ollama/) server, lmstudio, or vllm.
 
 A delegator pairs an LLM tool with a model (and, optionally, a model server).
 
@@ -16,10 +16,8 @@ A delegator pairs an LLM tool with a model (and, optionally, a model server).
 - **First-party** - a single vendor's own API: [Anthropic](/getting-started/model-servers/anthropic/)
   (`anthropic-api`), [OpenAI](/getting-started/model-servers/openai/) (`openai-api`),
   [Google](/getting-started/model-servers/google/)
-  (`google-api`). These double as the zero-config defaults for the
-  claude/codex/gemini tools, so you rarely declare them - but they're first-class:
-  operator lists each one's live models from its `/models` endpoint when the
-  corresponding key env is set.
+  (`google-api`), [xAI](/getting-started/model-servers/xai/) (`xai-api`). These double as the zero-config defaults for the
+  claude/codex/gemini/grok tools, so you rarely declare them - but they're first-class: operator lists models from its `/models` endpoint when the corresponding key env is set.
 - **Gateways** - a host or aggregator that fronts *many* models behind one
   endpoint: [OpenRouter](/getting-started/model-servers/openrouter/) (`openrouter`),
   a local [Ollama](/getting-started/model-servers/ollama/)
@@ -36,6 +34,7 @@ A delegator pairs an LLM tool with a model (and, optionally, a model server).
 │ claude  (detected)  │   │ anthropic-api (impl.)│
 │ codex   (detected)  │   │ openai-api    (impl.)│
 │ gemini  (detected)  │   │ google-api    (impl.)│
+│ grok    (detected)  │   │ xai-api       (impl.)│
 │                     │   │ ollama-local  (user) │
 └─────────────────────┘   └──────────────────────┘
             ▲                        ▲
@@ -53,6 +52,7 @@ You don't need to declare a model server for the vendor-default path. Every dete
 | `claude` | `anthropic-api`        |
 | `codex`  | `openai-api`           |
 | `gemini` | `google-api`           |
+| `grok`   | `xai-api`              |
 
 Delegators that omit `model_server` resolve to these builtins automatically. Existing configs keep working unchanged.
 
@@ -63,6 +63,7 @@ Delegators that omit `model_server` resolve to these builtins automatically. Exi
 | `anthropic-api` | Anthropic Console / a compatible proxy (bridge for local models)         |
 | `openai-api`    | OpenAI / a compatible proxy                                              |
 | `google-api`    | Google Gemini API                                                        |
+| `xai-api`       | [xAI](/getting-started/model-servers/xai/) Grok API                       |
 | `ollama`        | Local ollama server (`ollama serve`, default `http://localhost:11434`)   |
 | `openrouter`    | [OpenRouter](/getting-started/model-servers/openrouter/) hosted gateway to 300+ models (`https://openrouter.ai/api/v1`) |
 | `openai-compat` | Any OpenAI-API-compatible server (vllm, lmstudio, together.ai, groq, …)  |
@@ -110,6 +111,7 @@ operator launch \
 | llm_tool | ollama-compatible? | Notes                                                                                  |
 |----------|--------------------|----------------------------------------------------------------------------------------|
 | `codex`  | Yes, directly      | Codex speaks OpenAI API; ollama exposes `/v1` out of the box.                          |
+| `grok`   | Yes, directly      | Grok speaks OpenAI-shaped APIs (xAI, ollama, OpenRouter).                              |
 | `claude` | Only via bridge    | Claude CLI speaks Anthropic protocol. Run `claude-code-router` (or similar) at a port and point `base_url` at that bridge with `kind = "anthropic-api"`. |
 | `gemini` | Only via bridge    | Same story as claude; use `litellm-proxy` or similar.                                  |
 

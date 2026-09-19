@@ -37,9 +37,23 @@ pub struct TargetsResponse {
 
 #[derive(Serialize, ToSchema, TS)]
 #[ts(export)]
+pub struct TargetToolProbe {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    pub health_ok: bool,
+}
+
+#[derive(Serialize, ToSchema, TS)]
+#[ts(export)]
 pub struct TargetProbeResponse {
     pub reachable: bool,
     pub message: String,
+    /// LLM CLIs reported by `opr8r tools --json` on the target. Empty if unreachable/unknown.
+    #[serde(default)]
+    pub tools: Vec<TargetToolProbe>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools_error: Option<String>,
 }
 
 fn response(config: &Config, target: TargetDef) -> TargetResponse {
@@ -283,6 +297,11 @@ pub async fn probe(
                 .is_ok_and(|result| result.is_ok_and(|status| status.success()))
         }
     };
+    let (tools, tools_error) = if reachable {
+        inventory_for_target(&target)
+    } else {
+        (Vec::new(), None)
+    };
     Ok(Json(TargetProbeResponse {
         reachable,
         message: if reachable {
@@ -291,7 +310,40 @@ pub async fn probe(
             "Connection failed; check the target configuration and credentials"
         }
         .into(),
+        tools,
+        tools_error,
     }))
+}
+
+fn inventory_for_target(target: &TargetDef) -> (Vec<TargetToolProbe>, Option<String>) {
+    let result = match &target.kind {
+        TargetKind::Local => crate::llm::probe_local(),
+        TargetKind::Ssh(ssh) => {
+            let mut command = std::process::Command::new("ssh");
+            command.args(["-o", "BatchMode=yes", "-o", SSH_CONNECT_TIMEOUT]);
+            if let Some(path) = &ssh.ssh_config_path {
+                command.args(["-F", path]);
+            }
+            command.arg(&ssh.ssh_alias);
+            crate::llm::probe_over_ssh(&mut command)
+        }
+        TargetKind::Docker(_) | TargetKind::Coder(_) => {
+            return (Vec::new(), None);
+        }
+    };
+    match result {
+        Ok(rows) => (
+            rows.into_iter()
+                .map(|row| TargetToolProbe {
+                    name: row.name,
+                    version: row.version,
+                    health_ok: row.health_ok,
+                })
+                .collect(),
+            None,
+        ),
+        Err(error) => (Vec::new(), Some(error)),
+    }
 }
 
 #[cfg(test)]

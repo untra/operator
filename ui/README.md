@@ -1,6 +1,6 @@
 # operator/ui
 
-The embedded web UI for Operator - a [Vite](https://vite.dev) + React 19 single-page app that talks to the operator REST API (`/api/v1/*`). It is one of Operator's **four rendering surfaces** (alongside the Ratatui TUI, the Jekyll docs site, and the VS Code webview); see the root `CLAUDE.md` "Design & UI Consistency" section for how they stay consistent.
+The embedded web UI for Operator - a [Vite](https://vite.dev) + React 19 single-page app that talks to the operator REST API (`/api/v1/*`). It is one of Operator's **four rendering surfaces** (alongside the Ratatui TUI, the Jekyll docs site, and the VS Code webview); see the root `AGENTS.md` "Design & UI Consistency" section for how they stay consistent.
 
 At runtime this SPA is compiled and **baked into the Rust binary** - there is no separate web server to deploy. The TUI opens it in a browser (or the VS Code extension hosts it in a
 webview).
@@ -58,7 +58,7 @@ Brand colors come from the single shared source of truth,
 [`src/index.css`](src/index.css). On top of that palette `index.css` layers app-only
 **semantic tokens** (`--surface`, `--border`, `--text`, `--danger`, `--warning`, `--success`,
 radii, fonts) with light/dark variants. Components use **CSS Modules** (`*.module.css`) and
-reference semantic tokens - never raw hex (per `CLAUDE.md`).
+reference semantic tokens - never raw hex (per `AGENTS.md`).
 
 ## Icons
 

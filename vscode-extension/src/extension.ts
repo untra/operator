@@ -930,9 +930,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Initialize issue type service (constructor is safe - no network calls)
   const issueTypeService = new IssueTypeService(outputChannel);
-
-  // Register tree view providers IMMEDIATELY so VS Code never shows
-  // "no data provider registered" - they start empty and populate async.
   const statusProvider = new StatusTreeProvider(context);
   const inProgressProvider = new TicketTreeProvider("in-progress", issueTypeService);
   const queueProvider = new TicketTreeProvider("queue", issueTypeService);
@@ -955,9 +952,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Handle deep-links from the Operator web UI / control plane:
   //   vscode://untra.operator-terminals/focus-session?name=<terminal>
-  // focuses the agent's terminal tab by name. The web UI's launch panel emits
-  // this link after launching a ticket when the operator control wrapper is VS
-  // Code, so the user can jump straight to the running agent's terminal.
+  // focuses the agent's terminal tab by name. The web UI's launch panel emits this link after launching a ticket
+  // when the operator control wrapper is VS Code, so the user can jump straight to the running agent's terminal.
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri(uri: vscode.Uri) {

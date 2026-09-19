@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+use crate::integrations::support_catalog::VerticalSupport;
 use crate::integrations::{all_integrations, SupportStatus};
 
 /// One advertised integration: its vertical, identity, docs link, and support
@@ -36,6 +37,9 @@ pub struct IntegrationCatalogEntryDto {
     /// Implemented session controllers for an IDE; absent for other categories.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_wrappers: Option<Vec<String>>,
+    /// Vertical-specific structural support (not the advertising `status` ramp).
+    #[ts(type = "unknown")]
+    pub support: serde_json::Value,
 }
 
 /// Project the catalog source-of-truth into wire DTOs.
@@ -61,8 +65,67 @@ pub fn integration_catalog() -> Vec<IntegrationCatalogEntryDto> {
                         .map(|wrapper| wrapper.display_name().to_string())
                         .collect()
                 }),
+            support: support_json(e.support),
         })
         .collect()
+}
+
+fn support_json(support: VerticalSupport) -> serde_json::Value {
+    match support {
+        VerticalSupport::LlmTool(s) => serde_json::json!({
+            "kind": "llm-tool",
+            "health": s.health.slug(),
+            "auth": s.auth.slug(),
+            "native_protocols": s.native_protocols.iter().map(|p| p.slug()).collect::<Vec<_>>(),
+            "sessions": s.sessions,
+            "headless": s.headless,
+            "yolo": s.yolo,
+            "remote_inventory": s.remote_inventory.slug(),
+            "relay": s.relay.slug(),
+            "permissions": s.permissions.slug(),
+        }),
+        VerticalSupport::Model(s) => serde_json::json!({
+            "kind": "model",
+            "protocol": s.protocol.slug(),
+            "class": s.class.slug(),
+            "probe": s.probe,
+            "connectable_from_defaults": s.connectable_from_defaults,
+            "key_injectable": s.key_injectable.slug(),
+            "implicit_for": s.implicit_for,
+        }),
+        VerticalSupport::Kanban(s) => serde_json::json!({
+            "kind": "kanban",
+            "sync_in": s.sync_in,
+            "write_back": s.write_back,
+        }),
+        VerticalSupport::Git(s) => serde_json::json!({
+            "kind": "git",
+            "pr_cli": s.pr_cli,
+            "remote_preflight": s.remote_preflight,
+        }),
+        VerticalSupport::Session(s) => serde_json::json!({
+            "kind": "session",
+            "attach": s.attach,
+            "send_keys": s.send_keys,
+            "idle_detect": s.idle_detect,
+        }),
+        VerticalSupport::Transport(s) | VerticalSupport::RemoteTargets(s) => serde_json::json!({
+            "kind": "remote",
+            "probe": s.probe,
+            "tool_inventory": s.tool_inventory,
+            "credential_injection": s.credential_injection,
+        }),
+        VerticalSupport::Editor(s)
+        | VerticalSupport::Platform(s)
+        | VerticalSupport::Integration(s)
+        | VerticalSupport::Workflows(s)
+        | VerticalSupport::Notification(s)
+        | VerticalSupport::AgentRelay(s) => serde_json::json!({
+            "kind": "sparse",
+            "coverage": s.coverage.slug(),
+            "notes": s.notes,
+        }),
+    }
 }
 
 #[cfg(test)]
@@ -92,5 +155,24 @@ mod tests {
         assert!(dtos
             .iter()
             .any(|d| d.vertical == "remote-targets" && d.premium));
+    }
+
+    #[test]
+    fn test_claude_support_json_is_llm_tool() {
+        let dtos = integration_catalog();
+        let claude = dtos
+            .iter()
+            .find(|d| d.vertical == "llm-tool" && d.slug == "claude")
+            .unwrap();
+        assert_eq!(claude.support["kind"], "llm-tool");
+        assert_eq!(claude.support["health"], "path-version");
+        assert_eq!(claude.support["headless"], false);
+        let ollama = dtos
+            .iter()
+            .find(|d| d.vertical == "model" && d.slug == "ollama")
+            .unwrap();
+        assert_eq!(ollama.support["kind"], "model");
+        assert_eq!(ollama.support["protocol"], "openai");
+        assert_eq!(ollama.support["class"], "gateway");
     }
 }

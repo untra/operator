@@ -32,6 +32,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Anthropic | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Anthropic](https://operator.untra.io/getting-started/model-servers/anthropic/) |
 | OpenAI | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [OpenAI](https://operator.untra.io/getting-started/model-servers/openai/) |
 | Google | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Google](https://operator.untra.io/getting-started/model-servers/google/) |
+| xAI | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [xAI](https://operator.untra.io/getting-started/model-servers/xai/) |
 | Ollama | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Ollama](https://operator.untra.io/getting-started/model-servers/ollama/) |
 | OpenRouter | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [OpenRouter](https://operator.untra.io/getting-started/model-servers/openrouter/) |
 
@@ -66,6 +67,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Claude | ![GA](https://img.shields.io/badge/GA-1BB91F) | Included | [Claude](https://operator.untra.io/getting-started/agents/claude/) |
 | Codex | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Codex](https://operator.untra.io/getting-started/agents/codex/) |
 | Gemini CLI | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Gemini CLI](https://operator.untra.io/getting-started/agents/gemini-cli/) |
+| Grok | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Grok](https://operator.untra.io/getting-started/agents/grok/) |
 
 ## Platform
 
@@ -113,3 +115,40 @@ Operator integrates with many providers and tools across several **verticals**. 
 |---|---|---|---|
 | Coder | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Coder](https://operator.untra.io/getting-started/remote-targets/coder/) |
 | SSH Hosts | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [SSH Hosts](https://operator.untra.io/getting-started/remote-targets/ssh/) |
+
+## LLM tool capabilities
+
+Advertising status (GA/Beta/Alpha) is not the same as a live connection probe. LLM tool **health** is `path-version`: the binary is on PATH. That is weaker than a model provider's `/models` probe, which proves an API key is accepted.
+
+| Tool | Health | Auth | Native protocol | Sessions | Headless | YOLO | Relay |
+|---|---|---|---|---|---|---|---|
+| Claude | path-version | oauth-and-key | anthropic | yes | no | yes | supported |
+| Codex | path-version | api-key | openai | yes | yes | yes | partial |
+| Gemini CLI | path-version | api-key | google | yes | yes | yes | none |
+| Grok | path-version | oauth-and-key | openai | yes | yes | yes | none |
+
+## Model provider capabilities
+
+A model provider is **connected** when its model-list probe succeeds. Gateways (Ollama, OpenRouter, OpenAI-compatible) speak the OpenAI protocol; first-party Anthropic and Google do not.
+
+| Provider | Protocol | Class | Probe | Key injectable | Implicit for |
+|---|---|---|---|---|---|
+| Anthropic | anthropic | first-party | yes | yes | claude |
+| OpenAI | openai | first-party | yes | yes | codex |
+| Google | google | first-party | yes | yes | gemini |
+| xAI | openai | first-party | yes | yes | grok |
+| Ollama | openai | gateway | yes | optional | - |
+| OpenRouter | openai | gateway | yes | yes | - |
+
+## LLM tool × model provider
+
+**Native** — the CLI speaks this provider's protocol. **Bridge** — a protocol-preserving front (claude-code-router, litellm, …) is required. **Incompatible** — this first-party API is the wrong protocol for the CLI.
+
+Operator does not currently block incompatible delegators at launch; this matrix is the catalog fact.
+
+| Tool | Anthropic | OpenAI | Google | xAI | Ollama | OpenRouter |
+|---|---|---|---|---|---|---|
+| Claude | Native | Bridge | Incompatible | Bridge | Bridge | Bridge |
+| Codex | Incompatible | Native | Incompatible | Native | Native | Native |
+| Gemini CLI | Incompatible | Incompatible | Native | Incompatible | Bridge | Bridge |
+| Grok | Incompatible | Native | Incompatible | Native | Native | Native |

@@ -109,6 +109,7 @@ pub enum ModelServerKind {
     AnthropicApi,
     OpenAiApi,
     GoogleApi,
+    XaiApi,
     Ollama,
     OpenRouter,
     OpenAiCompat,
@@ -119,10 +120,11 @@ impl ModelServerKind {
     /// The canonical list of supported model-server kinds, in display order.
     ///
     /// Single source of truth - every surface derives its catalog from here.
-    pub const ALL: [ModelServerKind; 7] = [
+    pub const ALL: [ModelServerKind; 8] = [
         ModelServerKind::AnthropicApi,
         ModelServerKind::OpenAiApi,
         ModelServerKind::GoogleApi,
+        ModelServerKind::XaiApi,
         ModelServerKind::Ollama,
         ModelServerKind::OpenRouter,
         ModelServerKind::OpenAiCompat,
@@ -135,7 +137,8 @@ impl ModelServerKind {
         match self {
             ModelServerKind::AnthropicApi
             | ModelServerKind::OpenAiApi
-            | ModelServerKind::GoogleApi => ModelProviderClass::FirstParty,
+            | ModelServerKind::GoogleApi
+            | ModelServerKind::XaiApi => ModelProviderClass::FirstParty,
             ModelServerKind::Ollama
             | ModelServerKind::OpenRouter
             | ModelServerKind::OpenAiCompat
@@ -151,6 +154,7 @@ impl ModelServerKind {
             ModelServerKind::AnthropicApi => "anthropic-api",
             ModelServerKind::OpenAiApi => "openai-api",
             ModelServerKind::GoogleApi => "google-api",
+            ModelServerKind::XaiApi => "xai-api",
             ModelServerKind::Ollama => "ollama",
             ModelServerKind::OpenRouter => "openrouter",
             ModelServerKind::OpenAiCompat => "openai-compat",
@@ -169,6 +173,7 @@ impl ModelServerKind {
             ModelServerKind::AnthropicApi => "Anthropic API",
             ModelServerKind::OpenAiApi => "OpenAI API",
             ModelServerKind::GoogleApi => "Google Gemini API",
+            ModelServerKind::XaiApi => "xAI API",
             ModelServerKind::Ollama => "Ollama",
             ModelServerKind::OpenRouter => "OpenRouter",
             ModelServerKind::OpenAiCompat => "OpenAI-compatible",
@@ -182,7 +187,10 @@ impl ModelServerKind {
     pub fn is_builtin(&self) -> bool {
         matches!(
             self,
-            ModelServerKind::AnthropicApi | ModelServerKind::OpenAiApi | ModelServerKind::GoogleApi
+            ModelServerKind::AnthropicApi
+                | ModelServerKind::OpenAiApi
+                | ModelServerKind::GoogleApi
+                | ModelServerKind::XaiApi
         )
     }
 
@@ -192,6 +200,7 @@ impl ModelServerKind {
             ModelServerKind::AnthropicApi => "Anthropic Console or a compatible proxy",
             ModelServerKind::OpenAiApi => "OpenAI or a compatible proxy",
             ModelServerKind::GoogleApi => "Google Gemini API",
+            ModelServerKind::XaiApi => "xAI Console (Grok)",
             ModelServerKind::Ollama => "Local ollama server (ollama serve)",
             ModelServerKind::OpenRouter => {
                 "Hosted gateway to 300+ models (one OpenAI-compatible key)"
@@ -207,6 +216,7 @@ impl ModelServerKind {
             ModelServerKind::AnthropicApi => "https://console.anthropic.com/settings/keys",
             ModelServerKind::OpenAiApi => "https://platform.openai.com/api-keys",
             ModelServerKind::GoogleApi => "https://aistudio.google.com/app/apikey",
+            ModelServerKind::XaiApi => "https://console.x.ai/",
             ModelServerKind::Ollama => "https://ollama.com/download",
             ModelServerKind::OpenRouter => "https://openrouter.ai/keys",
             ModelServerKind::OpenAiCompat => {
@@ -223,6 +233,7 @@ impl ModelServerKind {
             ModelServerKind::AnthropicApi
             | ModelServerKind::OpenAiApi
             | ModelServerKind::GoogleApi
+            | ModelServerKind::XaiApi
             | ModelServerKind::OpenRouter => "cloud",
             // Self-hosted / local servers.
             ModelServerKind::Ollama | ModelServerKind::OpenAiCompat | ModelServerKind::LmStudio => {
@@ -242,6 +253,7 @@ impl ModelServerKind {
         match self {
             ModelServerKind::AnthropicApi => Some("anthropic"),
             ModelServerKind::GoogleApi => Some("google"),
+            ModelServerKind::XaiApi => Some("xai"),
             ModelServerKind::Ollama => Some("ollama"),
             ModelServerKind::OpenRouter => Some("openrouter"),
             ModelServerKind::OpenAiApi
@@ -264,6 +276,7 @@ impl ModelServerKind {
             ModelServerKind::OpenRouter => "/models",
             // OpenAI-protocol model list
             ModelServerKind::OpenAiApi
+            | ModelServerKind::XaiApi
             | ModelServerKind::OpenAiCompat
             | ModelServerKind::LmStudio => "/v1/models",
             // Anthropic's model list
@@ -283,6 +296,7 @@ impl ModelServerKind {
         match self {
             ModelServerKind::AnthropicApi => "ANTHROPIC_BASE_URL",
             ModelServerKind::OpenAiApi
+            | ModelServerKind::XaiApi
             | ModelServerKind::OpenAiCompat
             | ModelServerKind::Ollama
             | ModelServerKind::OpenRouter
@@ -295,6 +309,7 @@ impl ModelServerKind {
     pub fn api_key_env_var(&self) -> &'static str {
         match self {
             ModelServerKind::AnthropicApi => "ANTHROPIC_API_KEY",
+            ModelServerKind::XaiApi => "XAI_API_KEY",
             ModelServerKind::OpenAiApi
             | ModelServerKind::OpenAiCompat
             | ModelServerKind::Ollama
@@ -318,6 +333,7 @@ impl ModelServerKind {
             ModelServerKind::AnthropicApi => Some("https://api.anthropic.com"),
             ModelServerKind::OpenAiApi => Some("https://api.openai.com"),
             ModelServerKind::GoogleApi => Some("https://generativelanguage.googleapis.com"),
+            ModelServerKind::XaiApi => Some("https://api.x.ai"),
             ModelServerKind::OpenRouter => Some("https://openrouter.ai/api/v1"),
             ModelServerKind::Ollama => Some("http://localhost:11434"),
             ModelServerKind::OpenAiCompat | ModelServerKind::LmStudio => None,
@@ -336,6 +352,7 @@ impl ModelServerKind {
             ModelServerKind::AnthropicApi => Some("ANTHROPIC_API_KEY"),
             ModelServerKind::OpenAiApi => Some("OPENAI_API_KEY"),
             ModelServerKind::GoogleApi => Some("GEMINI_API_KEY"),
+            ModelServerKind::XaiApi => Some("XAI_API_KEY"),
             ModelServerKind::OpenRouter => Some("OPENROUTER_API_KEY"),
             ModelServerKind::Ollama | ModelServerKind::OpenAiCompat | ModelServerKind::LmStudio => {
                 None
@@ -428,7 +445,7 @@ mod tests {
             .collect();
         assert_eq!(
             first_party,
-            vec!["anthropic-api", "openai-api", "google-api"]
+            vec!["anthropic-api", "openai-api", "google-api", "xai-api"]
         );
         assert_eq!(
             gateways,
@@ -469,13 +486,16 @@ mod tests {
     }
 
     #[test]
-    fn test_builtins_are_the_three_vendor_apis() {
+    fn test_builtins_are_the_vendor_apis() {
         let builtins: Vec<_> = ModelServerKind::ALL
             .into_iter()
             .filter(ModelServerKind::is_builtin)
             .map(|k| k.slug())
             .collect();
-        assert_eq!(builtins, vec!["anthropic-api", "openai-api", "google-api"]);
+        assert_eq!(
+            builtins,
+            vec!["anthropic-api", "openai-api", "google-api", "xai-api"]
+        );
     }
 
     #[test]

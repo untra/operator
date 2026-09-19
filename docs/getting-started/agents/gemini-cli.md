@@ -1,74 +1,47 @@
 ---
 title: "Gemini CLI"
-description: "Configure Google Gemini as your AI coding agent."
+description: "Use Google Gemini CLI as an Operator LLM tool."
 layout: doc
 ---
 
-[Gemini](https://geminicli.com/) is [Google](https://google.com)'s multimodal agent CLI with strong coding capabilities.
+[Gemini CLI](https://geminicli.com/) is Google's agentic CLI. In Operator it is an **LLM tool** (binary `gemini`). The catalog slug is `gemini-cli` so it is not confused with the Gemini model family. Google the API is a separate [model provider](/getting-started/model-servers/google/).
 
 ## Status
 
-Gemini integration is currently **experimental**. Features may be limited compared to other agents.
+Alpha. Catalog slug `gemini-cli`, binary `gemini`.
 
-## Installation
+## Install
 
-Install the Google AI SDK:
+Install the Gemini CLI (not the `google-generativeai` Python SDK):
 
 ```bash
-pip install google-generativeai
+npm install -g @google/gemini-cli
 ```
 
-### Plans and Pricing
+Operator detects it with `which gemini` and `gemini --version`. `health_ok` means the binary is on **this host's** PATH.
 
+## Authenticate
 
+```bash
+export GEMINI_API_KEY="..."
+```
 
-## Configuration
+Remote launches need that key in the environment Operator can inject.
 
-See the full [Gemini agent configuration reference](/configuration/#agents-gemini).
+## Launch
 
-Add Gemini to your Operator configuration:
+Operator does not use `[agents.gemini]` config. Pair the tool in a delegator:
 
 ```toml
-# ~/.config/operator/config.toml
-
-[agents.gemini]
-enabled = true
-api_key_env = "GOOGLE_AI_API_KEY"
-model = "gemini-pro"
+[[delegators]]
+name = "gemini-pro"
+llm_tool = "gemini"
+model = "pro"
+# model_server omitted → implicit google-api
 ```
 
-## Authentication
+`llm_tool` is the binary name (`gemini`), not the catalog slug (`gemini-cli`).
 
-Set your Google AI API key:
+Project discovery looks for `GEMINI.md` at the repo root.
 
-```bash
-export GOOGLE_AI_API_KEY="your-api-key"
-```
-
-Get an API key from [Google AI Studio](https://makersuite.google.com/).
-
-## Features
-
-Gemini provides:
-
-- Code generation and completion
-- Multi-language support
-- Code explanation
-- Documentation generation
-
-## Limitations
-
-Current experimental limitations:
-
-- Limited context window compared to Claude
-- May require more specific prompting
-- Some Operator features may not be fully supported
-
-## Operator Integration
-
-When Operator assigns a ticket to Gemini:
-
-1. Gemini receives the ticket context
-2. Generates code implementations
-3. Applies changes to the codebase
-4. Reports completion status
+Gemini speaks Google's protocol. Pointing it at Ollama or OpenRouter requires a protocol bridge, the same as Claude.

@@ -598,9 +598,7 @@ async fn cmd_launch(
     // Named model_server must exist among declared servers or implicit builtins.
     if let Some(ref name) = overrides.model_server {
         let declared = config.model_servers.iter().any(|s| &s.name == name);
-        let implicit = ["claude", "codex", "gemini"]
-            .iter()
-            .any(|t| &config::implicit_model_server_for_tool(t).name == name);
+        let implicit = config::is_implicit_model_server_name(name);
         if !declared && !implicit {
             anyhow::bail!(
                 "Unknown model-server '{name}'. Declare it under [[model_servers]] in your config."

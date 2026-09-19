@@ -93,6 +93,9 @@ docs:
           - title: Gemini CLI
             url: /getting-started/agents/gemini-cli/
             icon: gemini
+          - title: Grok
+            url: /getting-started/agents/grok/
+            icon: xai
       - title: Supported Model Providers
         url: /getting-started/model-servers/
         children:
@@ -105,6 +108,9 @@ docs:
           - title: Google
             url: /getting-started/model-servers/google/
             icon: google
+          - title: xAI
+            url: /getting-started/model-servers/xai/
+            icon: xai
           - title: OpenRouter
             url: /getting-started/model-servers/openrouter/
             icon: openrouter

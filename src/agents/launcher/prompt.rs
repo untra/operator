@@ -263,8 +263,11 @@ pub fn write_command_file(
         format!("exec {llm_command}\n")
     };
 
+    let secret_env_block =
+        "if [ -f \"$0.env\" ]; then set -a; . \"$0.env\"; set +a; rm -f \"$0.env\"; fi\n";
+
     let script_content = format!(
-        "#!/bin/bash\n{env_block}{provider_block}{strip_block}{git_block}{pane_title}cd {} || exit 1\n{}",
+        "#!/bin/bash\n{secret_env_block}{env_block}{provider_block}{strip_block}{git_block}{pane_title}cd {} || exit 1\n{}",
         shell_escape(project_path),
         run
     );
@@ -294,9 +297,8 @@ pub fn write_command_file(
 ///
 /// Keys are sorted for deterministic output. Values are shell-escaped, *except*
 /// a pure shell-variable reference like `${OLLAMA_API_KEY}` is emitted unquoted
-/// so the shell expands it at run time - this lets an API key be passed by
-/// reference (inherited from operator's env) without writing the secret value
-/// into the on-disk command script.
+/// so the shell expands it at run time. This lets an API key be passed by
+/// reference (inherited from operator's env) without writing the secret value into the on-disk command script.
 fn render_env_exports(env: &std::collections::HashMap<String, String>) -> String {
     let mut keys: Vec<&String> = env.keys().collect();
     keys.sort();
@@ -313,18 +315,69 @@ fn render_env_exports(env: &std::collections::HashMap<String, String>) -> String
     out
 }
 
+/// Env-var names referenced as `${NAME}` in a provider env map that are unset
+/// in this process. Remote launches fail closed on a non-empty result.
+pub(crate) fn missing_env_refs(env: &std::collections::HashMap<String, String>) -> Vec<String> {
+    let mut missing: Vec<String> = env
+        .values()
+        .filter_map(|value| shell_var_name(value))
+        .filter(|name| std::env::var(name).is_err())
+        .map(str::to_string)
+        .collect();
+    missing.sort();
+    missing.dedup();
+    missing
+}
+
+/// Write resolved API-key values next to a payload script (`{payload}.env`, mode 0600).
+/// The payload sources and deletes this file at start. Never called for values that are not `${VAR}` references.
+pub(crate) fn write_secret_env_file(
+    command_file: &std::path::Path,
+    provider_env: &std::collections::HashMap<String, String>,
+) -> Result<Option<std::path::PathBuf>> {
+    let mut lines = String::new();
+    let mut keys: Vec<&String> = provider_env.keys().collect();
+    keys.sort();
+    for key in keys {
+        let Some(var) = shell_var_name(&provider_env[key]) else {
+            continue;
+        };
+        let value = std::env::var(var).with_context(|| {
+            format!("Operator environment is missing {var}, needed to launch on a remote target")
+        })?;
+        lines.push_str(&format!("export {key}={}\n", shell_escape(&value)));
+    }
+    if lines.is_empty() {
+        return Ok(None);
+    }
+    let env_file = std::path::PathBuf::from(format!("{}.env", command_file.display()));
+    fs::write(&env_file, lines).context("Failed to write secret env file")?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&env_file, fs::Permissions::from_mode(0o600))
+            .context("Failed to set secret env file permissions")?;
+    }
+    Ok(Some(env_file))
+}
+
 /// Whether a value is exactly a single shell-variable reference like `${FOO}`
 /// (a valid env-var name in braces). Such values are emitted unquoted so the
 /// shell expands them; anything else is shell-escaped.
 fn is_shell_var_reference(value: &str) -> bool {
-    let Some(inner) = value.strip_prefix("${").and_then(|s| s.strip_suffix('}')) else {
-        return false;
-    };
-    !inner.is_empty()
-        && inner
-            .chars()
-            .enumerate()
-            .all(|(i, c)| c == '_' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit()))
+    shell_var_name(value).is_some()
+}
+
+fn shell_var_name(value: &str) -> Option<&str> {
+    let inner = value.strip_prefix("${").and_then(|s| s.strip_suffix('}'))?;
+    if inner.is_empty() {
+        return None;
+    }
+    let valid = inner
+        .chars()
+        .enumerate()
+        .all(|(i, c)| c == '_' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit()));
+    valid.then_some(inner)
 }
 
 /// Shell-escape only when the value contains characters outside a
@@ -702,6 +755,37 @@ mod tests {
     }
 
     #[test]
+    fn test_missing_env_refs_reports_unset_vars() {
+        let mut env = std::collections::HashMap::new();
+        env.insert("OPENAI_API_KEY".into(), "${OPR_TEST_MISSING_KEY}".into());
+        env.insert("OPENAI_BASE_URL".into(), "http://localhost".into());
+        let missing = missing_env_refs(&env);
+        assert_eq!(missing, vec!["OPR_TEST_MISSING_KEY".to_string()]);
+    }
+
+    #[test]
+    fn test_write_secret_env_file_resolves_and_sets_mode() {
+        use tempfile::tempdir;
+        std::env::set_var("OPR_TEST_SECRET_ENV", "s3cret");
+        let dir = tempdir().unwrap();
+        let command_file = dir.path().join("sess.sh");
+        std::fs::write(&command_file, "#!/bin/bash\n").unwrap();
+        let mut env = std::collections::HashMap::new();
+        env.insert("OPENAI_API_KEY".into(), "${OPR_TEST_SECRET_ENV}".into());
+        env.insert("OPENAI_BASE_URL".into(), "http://gpu:8000".into());
+        let written = write_secret_env_file(&command_file, &env)
+            .unwrap()
+            .expect("secret file written");
+        assert_eq!(written, dir.path().join("sess.sh.env"));
+        let content = std::fs::read_to_string(&written).unwrap();
+        assert!(content.contains("export OPENAI_API_KEY="));
+        assert!(content.contains("s3cret"));
+        assert!(!content.contains("OPENAI_BASE_URL"));
+        std::env::remove_var("OPR_TEST_SECRET_ENV");
+        let _ = std::fs::remove_file(written);
+    }
+
+    #[test]
     fn test_is_shell_var_reference() {
         assert!(is_shell_var_reference("${FOO}"));
         assert!(is_shell_var_reference("${MY_KEY_2}"));
@@ -731,7 +815,9 @@ mod tests {
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
         assert!(!content.contains("OPERATOR_"));
         assert!(!content.contains("\\033]2;"));
-        assert!(content.starts_with("#!/bin/bash\ncd"));
+        assert!(content.starts_with("#!/bin/bash\n"));
+        assert!(content.contains("if [ -f \"$0.env\" ]"));
+        assert!(content.contains("cd '/path/to/project'"));
     }
     #[test]
     fn command_payload_applies_git_identity_and_removes_runtime() {

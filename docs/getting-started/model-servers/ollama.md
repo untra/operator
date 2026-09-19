@@ -6,7 +6,7 @@ layout: doc
 
 [**Ollama**](https://ollama.com/) runs open models (Llama, Qwen, Mistral, …)
 locally and serves them over an OpenAI-compatible API. Declare it as a
-[model server](./) to drive agents against models on your own machine - no cloud
+[model server](/getting-started/model-servers/) to drive agents against models on your own machine - no cloud
 key required.
 
 ## Prerequisites
@@ -15,7 +15,7 @@ key required.
   then `ollama serve` (default `http://localhost:11434`)
 - At least one model pulled, e.g. `ollama pull qwen2.5-coder`
 - An OpenAI-protocol LLM tool - **codex** works directly; claude/gemini need a
-  bridge (see [Protocol compatibility](./#protocol-compatibility))
+  bridge (see [Protocol compatibility](/getting-started/model-servers/#protocol-compatibility))
 
 ## Configuration
 
@@ -57,5 +57,5 @@ you've pulled.
 Ollama speaks the OpenAI protocol, so when a delegator resolves to it Operator
 exports `OPENAI_BASE_URL=http://localhost:11434`. A local server needs no key; if
 you've put one behind a proxy, set `api_key_env` and it is injected **by
-reference**. See the [Model Providers overview](./#how-env-injection-works) for
+reference**. See the [Model Providers overview](#how-env-injection-works) for
 the full mechanism.

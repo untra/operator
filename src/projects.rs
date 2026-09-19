@@ -15,12 +15,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use ts_rs::TS;
 
-/// Marker files for each LLM tool
-pub const TOOL_MARKERS: &[(&str, &str)] = &[
-    ("claude", "CLAUDE.md"),
-    ("gemini", "GEMINI.md"),
-    ("codex", "CODEX.md"),
-];
+/// Marker files for each shipped LLM tool, derived from the identity table.
+/// Flattened `(tool_name, marker)` pairs; a tool may appear more than once.
+pub fn tool_markers() -> Vec<(&'static str, &'static str)> {
+    crate::config::shipped_llm_tools()
+        .iter()
+        .flat_map(|tool| tool.markers.iter().map(|marker| (tool.tool_name, *marker)))
+        .collect()
+}
 
 /// A discovered project with git and LLM tool information
 #[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
@@ -90,11 +92,13 @@ pub fn discover_projects_with_git(projects_path: &Path) -> Vec<DiscoveredProject
                 };
 
                 // Check for LLM marker files
-                let llm_tools: Vec<String> = TOOL_MARKERS
-                    .iter()
+                let mut llm_tools: Vec<String> = tool_markers()
+                    .into_iter()
                     .filter(|(_, marker)| path.join(marker).exists())
-                    .map(|(tool, _)| (*tool).to_string())
+                    .map(|(tool, _)| tool.to_string())
                     .collect();
+                llm_tools.sort();
+                llm_tools.dedup();
 
                 // Include if has git OR has LLM markers
                 if git_info.is_some() || !llm_tools.is_empty() {
@@ -199,12 +203,12 @@ pub fn discover_projects_by_tool(projects_path: &Path) -> HashMap<String, Vec<St
 
                 if let Some(name) = dir_name {
                     // Check each tool marker
-                    for (tool, marker) in TOOL_MARKERS {
+                    for (tool, marker) in tool_markers() {
                         if path.join(marker).exists() {
-                            projects_by_tool
-                                .entry((*tool).to_string())
-                                .or_default()
-                                .push(name.clone());
+                            let list = projects_by_tool.entry(tool.to_string()).or_default();
+                            if !list.contains(&name) {
+                                list.push(name.clone());
+                            }
                         }
                     }
                 }
@@ -370,18 +374,30 @@ mod tests {
 
     #[test]
     fn test_tool_markers_contains_expected_tools() {
-        let tool_names: Vec<&str> = TOOL_MARKERS.iter().map(|(t, _)| *t).collect();
-        assert!(tool_names.contains(&"claude"));
-        assert!(tool_names.contains(&"gemini"));
-        assert!(tool_names.contains(&"codex"));
+        let tool_names: Vec<&str> = tool_markers().iter().map(|(t, _)| *t).collect();
+        for name in ["claude", "gemini", "codex", "grok"] {
+            assert!(tool_names.contains(&name), "missing {name}");
+        }
     }
 
     #[test]
     fn test_tool_markers_has_correct_filenames() {
-        let markers: std::collections::HashMap<&str, &str> = TOOL_MARKERS.iter().copied().collect();
-        assert_eq!(markers.get("claude"), Some(&"CLAUDE.md"));
-        assert_eq!(markers.get("gemini"), Some(&"GEMINI.md"));
-        assert_eq!(markers.get("codex"), Some(&"CODEX.md"));
+        let pairs = tool_markers();
+        for (tool, vendor) in [
+            ("claude", "CLAUDE.md"),
+            ("gemini", "GEMINI.md"),
+            ("codex", "CODEX.md"),
+            ("grok", "GROK.md"),
+        ] {
+            assert!(
+                pairs.contains(&(tool, "AGENTS.md")),
+                "{tool} must match AGENTS.md"
+            );
+            assert!(
+                pairs.contains(&(tool, vendor)),
+                "{tool} must match {vendor}"
+            );
+        }
     }
 
     #[test]
@@ -570,6 +586,24 @@ mod tests {
         assert!(projects[0].llm_tools.contains(&"claude".to_string()));
         assert!(projects[0].llm_tools.contains(&"gemini".to_string()));
         assert!(projects[0].llm_tools.contains(&"codex".to_string()));
+    }
+
+    #[test]
+    fn test_agents_md_matches_every_shipped_tool() {
+        let temp = tempdir().unwrap();
+        let project = temp.path().join("shared-agents");
+        fs::create_dir(&project).unwrap();
+        File::create(project.join("AGENTS.md")).unwrap();
+
+        let projects = discover_projects_with_git(temp.path());
+        assert_eq!(projects.len(), 1);
+        let tools = &projects[0].llm_tools;
+        for name in ["claude", "codex", "gemini", "grok"] {
+            assert!(
+                tools.contains(&name.to_string()),
+                "AGENTS.md should match {name}"
+            );
+        }
     }
 
     #[test]

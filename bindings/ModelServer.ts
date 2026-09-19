@@ -7,9 +7,7 @@
  * (`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint
  * (`model_server`, e.g. ollama-local, openai-api, a custom vllm host).
  *
- * Implicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are
- * returned by [`implicit_model_server_for_tool`] and do not need to be declared
- * in config.
+ * Implicit builtin servers are returned by [`implicit_model_server_for_tool`] for shipped tools.
  */
 export type ModelServer = { 
 /**

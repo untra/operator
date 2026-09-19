@@ -7,14 +7,14 @@ layout: doc
 [**OpenRouter**](https://openrouter.ai/) is a hosted gateway that fronts hundreds
 of models (Anthropic, OpenAI, Google, Meta, Mistral, and more) behind a single
 OpenAI-compatible endpoint and one API key. Declare it once as a
-[model server](./) and any delegator can target the whole catalog.
+[model server](/getting-started/model-servers/) and any delegator can target the whole catalog.
 
 ## Prerequisites
 
 - An OpenRouter account and an API key from
   [openrouter.ai/keys](https://openrouter.ai/keys)
 - An OpenAI-protocol LLM tool - **codex** works directly; claude/gemini need a
-  bridge (see [Protocol compatibility](./#protocol-compatibility))
+  bridge (see [Protocol compatibility](/getting-started/model-servers/#protocol-compatibility))
 
 ## Configuration
 
@@ -71,4 +71,4 @@ Operator exports:
 
 The key is injected **by reference**, never by value - the secret is never
 written into the on-disk command script. See the
-[Model Providers overview](./#how-env-injection-works) for the full mechanism.
+[Model Providers overview](#how-env-injection-works) for the full mechanism.

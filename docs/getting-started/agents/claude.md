@@ -1,62 +1,47 @@
 ---
 title: "Claude"
-description: "Configure Claude Code as your AI coding agent."
+description: "Use Claude Code as an Operator LLM tool."
 layout: doc
 ---
 
-[Claude Code](https://code.claude.com) is Anthropic's AI coding assistant agent, available as Claude Code for command-line development workflows.
+[Claude Code](https://code.claude.com) is Anthropic's agentic CLI. In Operator it is an **LLM tool** (binary `claude`). Anthropic the API is a separate [model provider](/getting-started/model-servers/anthropic/).
 
-## Installation
+## Status
 
-Install Claude Code via npm:
+Generally available. Catalog slug `claude`.
+
+## Install
 
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
 
-Or download directly from [Anthropic](https://claude.ai/code).
+Operator detects it with `which claude` and `claude --version` (minimum 2.1.0). `health_ok` means the binary is on **this host's** PATH.
 
-### Plans and Pricing
-
-View the [Claude pricing page](https://www.claude.com/pricing)
-
-## Configuration
-
-See the full [Claude agent configuration reference](/configuration/#agents-claude).
-
-Add Claude to your Operator configuration:
-
-```toml
-# ~/.config/operator/config.toml
-
-[agents.claude]
-enabled = true
-path = "claude"  # or full path to binary
-```
-
-## Authentication
-
-Claude Code requires an API key or Claude Pro subscription. Set up authentication:
+## Authenticate
 
 ```bash
 claude auth login
 ```
 
-## Multi-agent relay
+Headless and remote launches need `ANTHROPIC_API_KEY` in the environment Operator can see. Browser login on a laptop does not travel to an SSH target.
 
-Agents launched by Operator can participate in the relay hub when the hub is running.
-As long as the delegator (or global config) has enabled relay MCP injection.
+## Launch
 
-When relay is enabled for a delegator, Operator:
+Operator does not use `[agents.claude]` config. Pair the tool in a delegator:
 
-1. Injects `RELAY_HUB_SOCKET` and `RELAY_AGENT_NAME` (the ticket ID,
-   e.g. `FEAT-042`) into the session environment.
-2. Writes a per-session `relay-mcp.json` config and passes
-   `--mcp-config <path>` to Claude Code, so the `relay` MCP server starts alongside the agent.
+```toml
+[[delegators]]
+name = "claude-opus"
+llm_tool = "claude"
+model = "opus"
+# model_server omitted → implicit anthropic-api
+```
 
-To enable relay for a delegator, set `operator_relay = true` in its
-`launch_config`. The global default is `false` (opt-in), so single-agent
-workflows stay lean unless relay is explicitly requested.
+Or pick Claude + a live model id from the Model Providers view after a successful `/models` probe.
 
-See [Relay](/relay/) for the full architecture.
+Project discovery looks for `CLAUDE.md` at the repo root.
 
+## Relay
+
+When a delegator's `launch_config.operator_relay` is true, Operator injects the relay MCP config for Claude Code. See [Relay](/relay/).

@@ -10,8 +10,11 @@
 //! the system PATH unless a tool opts out via `detection.mode: "always"`.
 
 mod detection;
+mod inventory;
 pub mod skill_deployer;
 pub mod tool_config;
+
+pub use inventory::{probe_local, probe_over_ssh};
 
 pub use detection::verify_tool_health;
 #[allow(unused_imports)] // Used by main.rs binary

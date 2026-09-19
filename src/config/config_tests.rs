@@ -124,13 +124,47 @@ fn test_delegator_without_model_server_field_still_parses() {
 
 #[test]
 fn test_implicit_model_server_for_known_tools() {
-    assert_eq!(
-        implicit_model_server_for_tool("claude").kind,
-        "anthropic-api"
+    let pairs = [
+        ("claude", "anthropic-api"),
+        ("codex", "openai-api"),
+        ("gemini", "google-api"),
+        ("grok", "xai-api"),
+    ];
+    for (tool, kind) in pairs {
+        assert_eq!(
+            implicit_model_server_for_tool(tool)
+                .unwrap_or_else(|| panic!("{tool} is shipped"))
+                .kind,
+            kind
+        );
+    }
+    assert!(
+        implicit_model_server_for_tool("unknown").is_none(),
+        "unknown tools have no implicit server; the delegator must name one"
     );
-    assert_eq!(implicit_model_server_for_tool("codex").kind, "openai-api");
-    assert_eq!(implicit_model_server_for_tool("gemini").kind, "google-api");
-    assert_eq!(implicit_model_server_for_tool("unknown").kind, "openai-api");
+}
+
+#[test]
+fn test_shipped_llm_tools_identity_table() {
+    let names: Vec<&str> = shipped_llm_tools().iter().map(|t| t.tool_name).collect();
+    assert_eq!(names, vec!["claude", "codex", "gemini", "grok"]);
+
+    let gemini = shipped_llm_tool_by_name("gemini").expect("gemini is shipped");
+    assert_eq!(gemini.catalog_slug, "gemini-cli");
+    assert_eq!(gemini.tool_name, "gemini");
+    assert!(gemini.markers.contains(&"AGENTS.md"));
+    assert!(gemini.markers.contains(&"GEMINI.md"));
+    assert_eq!(gemini.implicit_server, "google-api");
+    assert!(
+        implicit_model_server_for_tool("gemini-cli").is_none(),
+        "lookup is by binary name, not catalog slug"
+    );
+
+    let grok = shipped_llm_tool_by_name("grok").expect("grok is shipped");
+    assert_eq!(grok.catalog_slug, "grok");
+    assert_eq!(grok.implicit_server, "xai-api");
+    assert!(grok.markers.contains(&"AGENTS.md"));
+    assert!(grok.markers.contains(&"GROK.md"));
 }
 
 #[test]

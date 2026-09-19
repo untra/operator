@@ -13,6 +13,7 @@ Operator orchestrates AI coding agents to work on tickets from your kanban board
 | [Claude](/getting-started/agents/claude/) | Recommended | Full feature support |
 | [Codex](/getting-started/agents/codex/) | Supported | OpenAI's coding model |
 | [Gemini CLI](/getting-started/agents/gemini-cli/) | Experimental | Google's AI assistant |
+| [Grok](/getting-started/agents/grok/) | Alpha | xAI CLI; remote SSH + tmux |
 
 ## Agent Capabilities
 

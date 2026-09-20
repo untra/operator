@@ -4,6 +4,7 @@ import type { StatusResponse, CollectionResponse, ProjectSummary } from "../api-
 import { useHost } from "../host";
 import { CONCEPTS } from "../concepts";
 import { PageHeader } from "../components/PageHeader";
+import { ProfileSelector } from "../profiles-context";
 import styles from "./ConfigPage.module.css";
 
 const CONFIG = CONCEPTS.config;
@@ -51,6 +52,11 @@ export function ConfigPage() {
       />
 
       {error && <div className={styles.error}>{error}</div>}
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Configurations</h2>
+        <ProfileSelector />
+      </section>
 
       {status && (
         <section className={styles.section}>

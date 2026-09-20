@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
-import type { StepComponent, StepProps } from "./types";
+import type { StepComponent, StepProps, StepRow } from "./types";
 import { Choice, ChoiceGroup, PremiumPaywall } from "@operator/webcomponents";
 import { LicensePanel } from "../../components/LicensePanel";
 import type { LicenseResponse } from "../../api-client";
@@ -33,7 +33,7 @@ function ExportBlock({ value }: { value: string }) {
   );
 }
 
-const Welcome: StepComponent = ({ status, draft, setDraft }) => (
+const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
   <Intro>
     <h2>Welcome to Operator</h2>
     <p>We’ll configure this workspace for both the terminal and browser.</p>
@@ -50,17 +50,21 @@ const Welcome: StepComponent = ({ status, draft, setDraft }) => (
       />
       <span>Use lowercase letters, numbers, hyphens, and underscores.</span>
     </label>
-    <dl>
-      <dt>Configuration</dt>
-      <dd>{status.config_path}</dd>
-      <dt>Tickets</dt>
-      <dd>{status.tickets_path}</dd>
-    </dl>
-    {Object.entries(status.projects_by_tool).map(([tool, projects]) => (
-      <p key={tool}>
-        <strong>{tool}</strong>: {projects.join(", ") || "none"}
-      </p>
-    ))}
+    {!creating && (
+      <>
+        <dl>
+          <dt>Configuration</dt>
+          <dd>{status.config_path}</dd>
+          <dt>Tickets</dt>
+          <dd>{status.tickets_path}</dd>
+        </dl>
+        {Object.entries(status.projects_by_tool).map(([tool, projects]) => (
+          <p key={tool}>
+            <strong>{tool}</strong>: {projects.join(", ") || "none"}
+          </p>
+        ))}
+      </>
+    )}
   </Intro>
 );
 
@@ -1030,10 +1034,8 @@ export const STEP_COMPONENTS = {
   "model-server": ModelServer,
   "git-provider": GitProvider,
   "collection-source": CollectionSource,
-  "hosted-collections": HostedCollections,
   "task-field-config": TaskFieldConfig,
   "session-wrapper-choice": SessionWrapperChoice,
-  "execution-target": ExecutionTarget,
   "worktree-preference": WorktreePreference,
   "admin-password": AdminPassword,
   "tmux-onboarding": TmuxOnboarding,
@@ -1042,6 +1044,8 @@ export const STEP_COMPONENTS = {
   "zellij-setup": ZellijSetup,
   "acceptance-criteria": AcceptanceCriteria,
   "startup-tickets": StartupTickets,
+  "hosted-collections": HostedCollections,
+  "execution-target": ExecutionTarget,
   confirm: Confirm,
 } satisfies Record<SetupStep, StepComponent>;
 
@@ -1060,4 +1064,37 @@ export function visibleSteps(steps: SetupStep[], draft: StepProps["draft"]): Set
       (step !== "hosted-collections" || draft.preset === "custom") &&
       (!wrapperSteps.has(step) || step === wrapperStep[draft.wrapper]),
   );
+}
+
+/**
+ * Steps a run may skip outright. The catalog gathers them just before `confirm`,
+ * and the sidebar shows the skipped ones as dimmed, unnumbered rows so that
+ * answering an earlier question never renumbers the steps already shown.
+ */
+export const OPTIONAL_STEPS = {
+  "hosted-collections": "if a hosted collection source is chosen",
+  "execution-target": "premium · if agents run on remote targets",
+} as const satisfies Partial<Record<SetupStep, string>>;
+
+type OptionalStep = keyof typeof OPTIONAL_STEPS;
+
+/**
+ * The sidebar's rows, in catalog order: every step of the walk numbered from 1,
+ * plus a `number: null` placeholder for each optional step this draft skips.
+ * Steps no run ever reaches (the admin password, the three unchosen wrappers)
+ * are left out entirely.
+ */
+export function stepRows(steps: SetupStep[], draft: StepProps["draft"]): StepRow[] {
+  const walk = new Set(visibleSteps(steps, draft));
+  const rows: StepRow[] = [];
+  let number = 0;
+  for (const slug of steps) {
+    if (walk.has(slug)) {
+      number += 1;
+      rows.push({ slug, number });
+    } else if (slug in OPTIONAL_STEPS) {
+      rows.push({ slug, number: null, hint: OPTIONAL_STEPS[slug as OptionalStep] });
+    }
+  }
+  return rows;
 }

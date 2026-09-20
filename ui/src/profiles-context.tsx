@@ -138,7 +138,9 @@ export function ProfileSelector() {
         return;
       }
       select(profile.id);
-      void navigate(profile.initialized ? "/" : "/onboarding");
+      if (!profile.initialized) {
+        void navigate("/onboarding");
+      }
     },
     [profiles, select, navigate],
   );
@@ -149,7 +151,7 @@ export function ProfileSelector() {
 
   return (
     <div className={styles.selector}>
-      <label htmlFor="configuration-selector">Configuration</label>
+      <label htmlFor="configuration-selector">Active configuration</label>
       <select id="configuration-selector" value={selected?.id ?? ""} onChange={onChange}>
         {profiles.map((profile) => (
           <option key={profile.id} value={profile.id}>

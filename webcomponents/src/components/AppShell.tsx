@@ -119,20 +119,38 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
   );
 }
 
-export interface SignOutButtonProps {
+export interface AccountFooterProps {
+  username: string;
+  configurationName: string;
   busy?: boolean;
   failed?: boolean;
-  onClick: () => void;
+  onSignOut: () => void;
 }
 
-export function SignOutButton({ busy, failed, onClick }: SignOutButtonProps) {
+export function AccountFooter({
+  username,
+  configurationName,
+  busy,
+  failed,
+  onSignOut,
+}: AccountFooterProps) {
   return (
-    <>
+    <div className={styles.accountFooter}>
       {failed && <p className={styles.signOutError}>Could not sign out.</p>}
-      <button className={styles.signOut} type="button" onClick={onClick} disabled={busy}>
-        {busy ? "Signing out…" : "Sign out"}
-      </button>
-    </>
+      <div className={styles.accountRow}>
+        <div className={styles.accountIdentity}>
+          <span className={styles.username} title={username}>
+            {username}
+          </span>
+          <span className={styles.configurationName} title={configurationName}>
+            {configurationName}
+          </span>
+        </div>
+        <button className={styles.signOut} type="button" onClick={onSignOut} disabled={busy}>
+          {busy ? "Signing out…" : "Sign out"}
+        </button>
+      </div>
+    </div>
   );
 }
 

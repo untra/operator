@@ -19,18 +19,18 @@ When Operator starts and no `.tickets/` directory exists, the setup wizard guide
 | 5 | Model Server | Declare which model providers this workspace uses |
 | 6 | Git Provider | Connect a git provider so agents can branch, push and open PRs |
 | 7 | Collection Source | Choose which issue type collection to use |
-| 8 | Hosted Collections | Browse and select hosted collections (only shown if Browse chosen) |
-| 9 | Task Field Config | Configure optional fields for TASK issue type |
-| 10 | Session Wrapper Choice | Select which session wrapper to use for launching coding agents |
-| 11 | Execution Target | Choose whether agents run locally or in Coder workspaces |
-| 12 | Worktree Preference | Choose whether to use git worktrees for ticket isolation |
-| 13 | Web UI Password | Optionally set the admin password for the web dashboard |
-| 14 | Tmux Onboarding | Help and documentation about tmux session management (shown if tmux selected) |
-| 15 | VS Code Setup | VS Code extension setup and verification (shown if VS Code selected) |
-| 16 | Cmux Setup | cmux session wrapper setup (shown if cmux selected) |
-| 17 | Zellij Setup | Zellij session wrapper setup (shown if Zellij selected) |
-| 18 | Acceptance Criteria | Review and configure acceptance criteria for ticket completion |
-| 19 | Startup Tickets | Optionally create tickets to bootstrap your projects |
+| 8 | Task Field Config | Configure optional fields for TASK issue type |
+| 9 | Session Wrapper Choice | Select which session wrapper to use for launching coding agents |
+| 10 | Worktree Preference | Choose whether to use git worktrees for ticket isolation |
+| 11 | Web UI Password | Optionally set the admin password for the web dashboard |
+| 12 | Tmux Onboarding | Help and documentation about tmux session management (shown if tmux selected) |
+| 13 | VS Code Setup | VS Code extension setup and verification (shown if VS Code selected) |
+| 14 | Cmux Setup | cmux session wrapper setup (shown if cmux selected) |
+| 15 | Zellij Setup | Zellij session wrapper setup (shown if Zellij selected) |
+| 16 | Acceptance Criteria | Review and configure acceptance criteria for ticket completion |
+| 17 | Startup Tickets | Optionally create tickets to bootstrap your projects |
+| 18 | Hosted Collections | Browse and select hosted collections (only shown if Browse chosen) |
+| 19 | Execution Target | Choose whether agents run locally or in Coder workspaces |
 | 20 | Confirm | Review settings and confirm initialization |
 
 ## Step Details
@@ -72,7 +72,7 @@ Both modes support multiple agents running at once.
 - **This machine**: agents and local containers run beside Operator.
 - **Remote targets**: agents run on SSH hosts or Coder workspaces and report back to this Operator server. Requires Premium.
 
-Choosing remote leads to target registration; choosing this machine skips it.
+Choosing remote adds a target-registration step at the end of setup; choosing this machine skips it.
 
 **Navigation**: ↑/↓ to select, Enter to continue, Esc to go back
 
@@ -136,19 +136,7 @@ Select a preset collection of issue types:
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 8. Hosted Collections
-
-*Browse and select hosted collections (only shown if Browse chosen)*
-
-Pick one or more curated collections published at             operator.untra.io.
-
-The list is fetched from the collections manifest; if it cannot be             reached, the collections bundled with Operator are offered instead.             Each collection brings its own issue types and workflow steps.
-
-Selections are additive - choose as many as apply.
-
-**Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
-
-### 9. Task Field Config
+### 8. Task Field Config
 
 *Configure optional fields for TASK issue type*
 
@@ -161,7 +149,7 @@ These choices propagate to other issue types. The 'summary' field is always requ
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
 
-### 10. Session Wrapper Choice
+### 9. Session Wrapper Choice
 
 *Select which session wrapper to use for launching coding agents*
 
@@ -175,19 +163,7 @@ Your choice determines which setup steps follow.
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 11. Execution Target
-
-*Choose whether agents run locally or in Coder workspaces*
-
-Local runs agent commands on the same machine as Operator. Coder creates or starts a per-ticket workspace and launches there over SSH.
-
-Coder configuration stores only environment variable names for the deployment URL and session token. Secret values remain in the process environment.
-
-Coder targets disable git worktrees and relay injection, and cannot be combined with Zellij.
-
-**Navigation**: ↑/↓ to select, Tab to switch fields, Enter to continue, Esc to go back
-
-### 12. Worktree Preference
+### 10. Worktree Preference
 
 *Choose whether to use git worktrees for ticket isolation*
 
@@ -199,7 +175,7 @@ Worktrees allow multiple agents to work on different tickets simultaneously with
 
 **Navigation**: ↑/↓ or j/k to navigate, Enter to select, Esc to go back
 
-### 13. Web UI Password
+### 11. Web UI Password
 
 *Optionally set the admin password for the web dashboard*
 
@@ -213,7 +189,7 @@ The password must be at least 12 characters. This step is hidden             whe
 
 **Navigation**: Tab to switch fields, Enter to continue (blank to skip), Esc to go back
 
-### 14. Tmux Onboarding
+### 12. Tmux Onboarding
 
 *Help and documentation about tmux session management (shown if tmux selected)*
 
@@ -227,7 +203,7 @@ Operator session names start with 'op-' for easy identification.
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 15. VS Code Setup
+### 13. VS Code Setup
 
 *VS Code extension setup and verification (shown if VS Code selected)*
 
@@ -238,7 +214,7 @@ Install the extension from the VS Code marketplace if prompted.
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 16. Cmux Setup
+### 14. Cmux Setup
 
 *cmux session wrapper setup (shown if cmux selected)*
 
@@ -248,7 +224,7 @@ This step verifies the cmux app's CLI binary exists at the configured binary_pat
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 17. Zellij Setup
+### 15. Zellij Setup
 
 *Zellij session wrapper setup (shown if Zellij selected)*
 
@@ -258,7 +234,7 @@ This step verifies Zellij is installed and configures the layout Operator will u
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 18. Acceptance Criteria
+### 16. Acceptance Criteria
 
 *Review and configure acceptance criteria for ticket completion*
 
@@ -269,7 +245,7 @@ The default criteria cover formatting, tests, and lint checks. You can customize
 
 **Navigation**: Enter to continue, Esc to go back
 
-### 19. Startup Tickets
+### 17. Startup Tickets
 
 *Optionally create tickets to bootstrap your projects*
 
@@ -281,6 +257,30 @@ Create startup tickets to help initialize your projects:
 These tickets are optional and help automate common setup tasks.
 
 **Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
+
+### 18. Hosted Collections
+
+*Browse and select hosted collections (only shown if Browse chosen)*
+
+Pick one or more curated collections published at             operator.untra.io.
+
+The list is fetched from the collections manifest; if it cannot be             reached, the collections bundled with Operator are offered instead.             Each collection brings its own issue types and workflow steps.
+
+Selections are additive - choose as many as apply.
+
+**Navigation**: ↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back
+
+### 19. Execution Target
+
+*Choose whether agents run locally or in Coder workspaces*
+
+Local runs agent commands on the same machine as Operator. Coder creates or starts a per-ticket workspace and launches there over SSH.
+
+Coder configuration stores only environment variable names for the deployment URL and session token. Secret values remain in the process environment.
+
+Coder targets disable git worktrees and relay injection, and cannot be combined with Zellij.
+
+**Navigation**: ↑/↓ to select, Tab to switch fields, Enter to continue, Esc to go back
 
 ### 20. Confirm
 

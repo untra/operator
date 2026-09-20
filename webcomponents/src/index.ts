@@ -4,15 +4,15 @@ export { PremiumPaywall, type PremiumPaywallProps } from "./components/PremiumPa
 
 export {
   AppShell,
+  AccountFooter,
   BrandName,
   NavGroup,
   NavRow,
-  SignOutButton,
   ThemeToggle,
+  type AccountFooterProps,
   type AppShellProps,
   type NavGroupProps,
   type NavRowProps,
-  type SignOutButtonProps,
   type ThemeToggleProps,
 } from "./components/AppShell";
 export {

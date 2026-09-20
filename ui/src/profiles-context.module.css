@@ -1,23 +1,55 @@
 .selector {
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem 0.75rem;
+  align-items: end;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .selector label {
+  grid-column: 1 / -1;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 
 .selector select,
 .selector button {
-  width: 100%;
   min-height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.selector select {
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.625rem;
+}
+
+.selector button {
+  padding: 0 0.75rem;
+  color: var(--color-salmon-text);
+  cursor: pointer;
+}
+
+.selector button:hover {
+  background: var(--surface-alt);
 }
 
 .gate {
   padding: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .selector {
+    grid-template-columns: 1fr;
+  }
+
+  .selector label {
+    grid-column: auto;
+  }
 }

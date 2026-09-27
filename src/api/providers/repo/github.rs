@@ -72,7 +72,7 @@ struct ReviewResponse {
 impl GitHubProvider {
     /// Create a new GitHub provider with the given token
     pub fn new(token: impl Into<String>) -> Result<Self, ApiError> {
-        let client = reqwest::Client::builder()
+        let client = crate::http_client::client_builder()
             .user_agent("operator-tui/0.1.0")
             .build()
             .map_err(|e| ApiError::network(PROVIDER_NAME, e.to_string()))?;

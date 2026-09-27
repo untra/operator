@@ -41,11 +41,9 @@ written to logs.
 Verification is **entirely offline**. Operator never contacts a licensing
 service, at install time or afterwards, and there is no activation step.
 
-A license is a signed token carrying the customer it was issued to, its license
-id, its tier, the configuration it belongs to, and its validity dates. Operator
-checks the signature against verification keys compiled into the binary, then
-checks those claims. A license is bound to one **configuration**, identified by
-a stable id that survives renaming the configuration.
+A license key is an token plus a root-signed attestation for the key that signed it. The token identifies customer it was issued to, its license id, the configuration it belongs to, and validity dates.
+
+Operator checks against a root public keyring compiled into the binary, then checks those claims. A license is bound to one **configuration** at a time.
 
 ### Status
 
@@ -61,21 +59,19 @@ Only **Premium** grants remote execution. An unrecognised tier grants nothing.
 
 ## When a license expires
 
-Nothing is killed. Running agents keep running, and a completion report from an
-agent already in flight is still accepted and recorded. What stops is *starting*
-further remote work: the next launch is refused before anything is provisioned.
+Nothing is killed. Running agents keep running, and a completion report from an agent already in flight is still accepted and recorded. What stops is *starting* further remote work: the next launch is refused before anything is provisioned.
 
-Configured remote targets stay visible and readable without a license, and
-removing one always works. Registering, editing or probing a target requires
-Premium.
+Configured remote targets stay visible and readable without a license, and removing one always works. Registering, editing or probing a target requires Premium.
 
 ## Building from source
 
-Verification keys are supplied at build time and are **not** in this repository,
-so a build from source carries none and rejects every license - Premium is
-unreachable in such a build, by design. This repository contains no signing key,
-issuer service, checkout, or revocation service; it only *consumes* licenses
-issued elsewhere.
+Verification keys are supplied at build time and are **not** in this repository, so a build from source carries none and rejects every license - Premium is unreachable in such a build, by design. This repository contains no signing key,
+issuer service, checkout, or revocation service; it only *consumes* licenses issued elsewhere.
 
-The build-time inputs are listed under Licensing in the
-[CLI reference](/cli/). A release build refuses to compile without them.
+A release binary compiles three values in, and none of them are runtime settings:
+
+- the issuer, the literal `operator-licensing`
+- the root public keyring, from the `OPERATOR_LICENSE_ROOT_KEYS` repository variable
+- the purchase URL, from the `OPERATOR_PURCHASE_URL` repository variable
+
+The keyring is a JSON object of key id to standard-base64 of the raw 32-byte key, for example `{"root-2026":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}`. The release build sets `OPERATOR_RELEASE=1`. If that keyring variable is empty, the build fails instead of publishing a binary that rejects every license. A source build leaves `OPERATOR_RELEASE` unset, carries no roots, and rejects every license.

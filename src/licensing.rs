@@ -1,10 +1,7 @@
-use std::collections::BTreeMap;
 use std::io::Write;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use base64::{engine::general_purpose::STANDARD, Engine};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utoipa::ToSchema;
@@ -14,10 +11,11 @@ use crate::config::{Config, TargetDef, TargetKind};
 
 pub const PREMIUM_TIER: &str = "premium";
 pub const LICENSE_AUDIENCE: &str = "operator-license";
+/// Claim version shared with `license`. The envelope, not this number, refuses a bare JWT.
 pub const LICENSE_VERSION: u32 = 1;
 const LICENSE_FILE: &str = "license.key";
 const MAX_LICENSE_BYTES: usize = 32 * 1024;
-const PUBLIC_KEY_BYTES: usize = 32;
+const PRODUCT_ID: &str = "operator";
 static LICENSE_UPDATE: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, TS)]
@@ -93,23 +91,47 @@ impl LicenseResponse {
 }
 
 pub struct Verifier {
-    keys: BTreeMap<String, String>,
+    roots: crate::trust_verify::RootKeyring,
     issuer: String,
 }
 
+/// Chain result plus the attestation window. The window stays off
+/// [`LicenseTerms`] because that type is public API.
+#[derive(Debug, Clone)]
+struct DecodedLicense {
+    terms: LicenseTerms,
+    attestation_not_before: i64,
+    attestation_expires_at: i64,
+}
+
+impl DecodedLicense {
+    fn effective_exp(&self) -> i64 {
+        crate::trust_verify::VerifiedLicense {
+            claims: (),
+            signing_kid: String::new(),
+            attestation_not_before: self.attestation_not_before,
+            attestation_expires_at: self.attestation_expires_at,
+        }
+        .effective_expiry(self.terms.exp)
+    }
+}
+
 impl Verifier {
-    /// A verifier over an explicit key set. Enforcement always goes through
-    /// [`Verifier::bundled`]; this exists so tests and issuing tools can verify
-    /// against a key that is not compiled in.
+    /// A verifier over an explicit root keyring. Enforcement always goes through
+    /// [`Verifier::bundled`]; this exists so tests can verify against a root
+    /// that is not compiled in.
     #[allow(dead_code)] // Verification seam: used from tests, not the binary
-    pub fn from_keys(keys: BTreeMap<String, String>, issuer: String) -> Self {
-        Self { keys, issuer }
+    pub fn from_keys(roots: crate::trust_verify::RootKeyring, issuer: String) -> Self {
+        Self { roots, issuer }
     }
 
     pub fn bundled() -> Result<Self> {
+        let roots = crate::trust_verify::RootKeyring::from_json(
+            option_env!("OPERATOR_LICENSE_ROOT_KEYS").unwrap_or("{}"),
+        )
+        .context("invalid bundled license root keys")?;
         Ok(Self {
-            keys: serde_json::from_str(option_env!("OPERATOR_LICENSE_PUBLIC_KEYS").unwrap_or("{}"))
-                .context("invalid bundled license verification keys")?,
+            roots,
             issuer: option_env!("OPERATOR_LICENSE_ISSUER")
                 .unwrap_or("operator-licensing")
                 .to_owned(),
@@ -121,55 +143,28 @@ impl Verifier {
 
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         self.issuer.hash(&mut hasher);
-        for (key_id, key) in &self.keys {
-            key_id.hash(&mut hasher);
-            key.hash(&mut hasher);
-        }
+        self.roots.hash(&mut hasher);
         hasher.finish()
     }
 
     /// Signature and claim checks. Deliberately time-independent so the result
     /// can be memoised; validity against the clock is [`status_for`].
-    fn decode(&self, key: &str, profile_id: Uuid) -> Result<LicenseTerms> {
+    fn decode(&self, key: &str, profile_id: Uuid) -> Result<DecodedLicense> {
         anyhow::ensure!(
             !profile_id.is_nil(),
             "configuration identity has not been initialized"
         );
         anyhow::ensure!(key.len() <= MAX_LICENSE_BYTES, "license is too large");
-        let bytes = STANDARD
-            .decode(key.trim())
-            .context("license must be Base64 encoded")?;
-        let token = std::str::from_utf8(&bytes).context("license is not a JWT")?;
-        let header = jsonwebtoken::decode_header(token).context("invalid license JWT")?;
-        anyhow::ensure!(
-            header.alg == Algorithm::EdDSA,
-            "unsupported license algorithm"
-        );
-        let encoded = header
-            .kid
-            .as_ref()
-            .and_then(|kid| self.keys.get(kid))
-            .context("unknown license signing key")?;
-        let public = STANDARD
-            .decode(encoded)
-            .context("invalid license verification key")?;
-        anyhow::ensure!(
-            public.len() == PUBLIC_KEY_BYTES,
-            "invalid license verification key"
-        );
-        let mut validation = Validation::new(Algorithm::EdDSA);
-        validation.set_issuer(&[&self.issuer]);
-        validation.set_audience(&[LICENSE_AUDIENCE]);
-        validation.set_required_spec_claims(&["exp", "iat", "nbf", "iss", "aud", "sub"]);
-        validation.validate_exp = false;
-        validation.validate_nbf = false;
-        let terms = jsonwebtoken::decode::<LicenseTerms>(
-            token,
-            &DecodingKey::from_ed_der(&public),
-            &validation,
-        )
-        .context("license signature or claims rejected")?
-        .claims;
+        let verified = crate::trust_verify::verify_license::<LicenseTerms>(
+            key,
+            &self.roots,
+            &crate::trust_verify::LicensePolicy {
+                product: PRODUCT_ID,
+                issuer: &self.issuer,
+                audience: LICENSE_AUDIENCE,
+            },
+        )?;
+        let terms = verified.claims;
         anyhow::ensure!(
             terms.version == LICENSE_VERSION,
             "unsupported license version"
@@ -187,7 +182,11 @@ impl Verifier {
             terms.iat >= 0 && terms.nbf >= terms.iat && terms.exp > terms.nbf,
             "invalid license validity interval"
         );
-        Ok(terms)
+        Ok(DecodedLicense {
+            terms,
+            attestation_not_before: verified.attestation_not_before,
+            attestation_expires_at: verified.attestation_expires_at,
+        })
     }
 
     fn verify(
@@ -196,16 +195,20 @@ impl Verifier {
         profile_id: Uuid,
         now: i64,
     ) -> Result<(LicenseStatus, LicenseTerms)> {
-        let terms = self.decode(key, profile_id)?;
-        Ok((status_for(&terms, now), terms))
+        let decoded = self.decode(key, profile_id)?;
+        let status = status_for(&decoded, now);
+        Ok((status, decoded.terms))
     }
 }
 
-/// Where `now` falls relative to the licence's validity interval.
-fn status_for(terms: &LicenseTerms, now: i64) -> LicenseStatus {
-    if now >= terms.exp {
+/// Where `now` falls relative to the licence and its attestation.
+fn status_for(decoded: &DecodedLicense, now: i64) -> LicenseStatus {
+    if now >= decoded.effective_exp() {
         LicenseStatus::Expired
-    } else if now < terms.nbf || now < terms.iat {
+    } else if now < decoded.terms.nbf
+        || now < decoded.terms.iat
+        || now < decoded.attestation_not_before
+    {
         LicenseStatus::NotYetValid
     } else {
         LicenseStatus::Valid
@@ -250,7 +253,7 @@ struct FileStamp {
 /// The verification outcome, without the time-dependent part.
 #[derive(Debug, Clone)]
 enum Verified {
-    Terms(Box<LicenseTerms>),
+    Terms(Box<DecodedLicense>),
     Rejected,
 }
 
@@ -339,7 +342,7 @@ pub fn status_with(config: &Config, verifier: &Verifier, now: i64) -> LicenseRes
             DECODES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let verified = match std::fs::read_to_string(&path) {
                 Ok(key) => match verifier.decode(&key, config.profile.id) {
-                    Ok(terms) => Verified::Terms(Box::new(terms)),
+                    Ok(decoded) => Verified::Terms(Box::new(decoded)),
                     Err(_) => Verified::Rejected,
                 },
                 Err(_) => Verified::Rejected,
@@ -351,13 +354,13 @@ pub fn status_with(config: &Config, verifier: &Verifier, now: i64) -> LicenseRes
 
     match verified {
         Verified::Rejected => rejected(config),
-        Verified::Terms(terms) => {
-            let status = status_for(&terms, now);
+        Verified::Terms(decoded) => {
+            let status = status_for(&decoded, now);
             LicenseResponse {
                 status,
                 profile_id: config.profile.id,
                 premium: status == LicenseStatus::Valid,
-                terms: Some(*terms),
+                terms: Some(decoded.terms),
                 purchase_url: purchase_url(),
             }
         }
@@ -492,16 +495,40 @@ mod tests {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
-    use jsonwebtoken::{EncodingKey, Header};
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    use jsonwebtoken::{Algorithm, EncodingKey, Header};
     use ring::signature::{Ed25519KeyPair, KeyPair};
 
-    fn fixture() -> (Verifier, EncodingKey, LicenseTerms) {
+    const ROOT_KID: &str = "root-test";
+    const SIGNING_KID: &str = "test";
+    const ATTESTATION_NBF: i64 = 2_000;
+    const ATTESTATION_EXP: i64 = 3_000;
+    const NOW: i64 = 2_500;
+
+    struct Fixture {
+        verifier: Verifier,
+        license_key: EncodingKey,
+        attestation: String,
+        terms: LicenseTerms,
+    }
+
+    fn generate_ed25519() -> (Ed25519KeyPair, Vec<u8>) {
         let document = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new()).unwrap();
-        let pair = Ed25519KeyPair::from_pkcs8(document.as_ref()).unwrap();
-        let verifier = Verifier {
-            keys: BTreeMap::from([("test".into(), STANDARD.encode(pair.public_key().as_ref()))]),
-            issuer: "test-issuer".into(),
-        };
+        let bytes = document.as_ref().to_vec();
+        let pair = Ed25519KeyPair::from_pkcs8(&bytes).unwrap();
+        (pair, bytes)
+    }
+
+    fn mint() -> Fixture {
+        let (root, root_pkcs8) = generate_ed25519();
+        let (signing, signing_pkcs8) = generate_ed25519();
+        let root_b64 = STANDARD.encode(root.public_key().as_ref());
+        let roots = crate::trust_verify::RootKeyring::from_json(&format!(
+            r#"{{"{ROOT_KID}":"{root_b64}"}}"#
+        ))
+        .unwrap();
+        let verifier = Verifier::from_keys(roots, "test-issuer".into());
+        let attestation = sign_attestation(&root_pkcs8, signing.public_key().as_ref());
         let terms = LicenseTerms {
             version: LICENSE_VERSION,
             iss: verifier.issuer.clone(),
@@ -510,68 +537,116 @@ mod tests {
             jti: Uuid::new_v4().to_string(),
             profile_id: Uuid::new_v4(),
             tier: PREMIUM_TIER.into(),
-            iat: 100,
-            nbf: 100,
-            exp: 200,
+            iat: ATTESTATION_NBF,
+            nbf: ATTESTATION_NBF,
+            exp: ATTESTATION_EXP,
         };
-        (verifier, EncodingKey::from_ed_der(document.as_ref()), terms)
+        Fixture {
+            verifier,
+            license_key: EncodingKey::from_ed_der(&signing_pkcs8),
+            attestation,
+            terms,
+        }
     }
 
-    fn sign(encoding: &EncodingKey, terms: &LicenseTerms) -> String {
+    fn sign_attestation(root_pkcs8: &[u8], signing_public: &[u8]) -> String {
+        let claims = crate::trust_verify::AttestationClaims {
+            version: crate::trust_verify::ATTESTATION_VERSION,
+            iss: crate::trust_verify::ATTESTATION_ISSUER.into(),
+            aud: crate::trust_verify::ATTESTATION_AUDIENCE.into(),
+            sub: PRODUCT_ID.into(),
+            purpose: crate::trust_verify::PURPOSE_LICENSE_SIGNING.into(),
+            kid: SIGNING_KID.into(),
+            public_key: STANDARD.encode(signing_public),
+            iat: ATTESTATION_NBF,
+            nbf: ATTESTATION_NBF,
+            exp: ATTESTATION_EXP,
+        };
         let mut header = Header::new(Algorithm::EdDSA);
-        header.kid = Some("test".into());
-        STANDARD.encode(jsonwebtoken::encode(&header, terms, encoding).unwrap())
+        header.kid = Some(ROOT_KID.into());
+        jsonwebtoken::encode(&header, &claims, &EncodingKey::from_ed_der(root_pkcs8)).unwrap()
+    }
+
+    fn sign(fixture: &Fixture, terms: &LicenseTerms) -> String {
+        let mut header = Header::new(Algorithm::EdDSA);
+        header.kid = Some(SIGNING_KID.into());
+        let license = jsonwebtoken::encode(&header, terms, &fixture.license_key).unwrap();
+        crate::trust_verify::Envelope::new(license, fixture.attestation.clone()).encode()
     }
 
     #[test]
     fn verifies_signature_identity_and_time_boundaries() {
-        let (verifier, encoding, terms) = fixture();
-        let key = sign(&encoding, &terms);
+        let fixture = mint();
+        let key = sign(&fixture, &fixture.terms);
         assert_eq!(
-            verifier.verify(&key, terms.profile_id, 100).unwrap().0,
+            fixture
+                .verifier
+                .verify(&key, fixture.terms.profile_id, ATTESTATION_NBF)
+                .unwrap()
+                .0,
             LicenseStatus::Valid
         );
         assert_eq!(
-            verifier.verify(&key, terms.profile_id, 99).unwrap().0,
+            fixture
+                .verifier
+                .verify(&key, fixture.terms.profile_id, ATTESTATION_NBF - 1)
+                .unwrap()
+                .0,
             LicenseStatus::NotYetValid
         );
         assert_eq!(
-            verifier.verify(&key, terms.profile_id, 200).unwrap().0,
+            fixture
+                .verifier
+                .verify(&key, fixture.terms.profile_id, ATTESTATION_EXP)
+                .unwrap()
+                .0,
             LicenseStatus::Expired
         );
-        assert!(verifier.verify(&key, Uuid::new_v4(), 150).is_err());
-        let (_, wrong_key, _) = fixture();
-        assert!(verifier
-            .verify(&sign(&wrong_key, &terms), terms.profile_id, 150)
+        assert!(fixture.verifier.verify(&key, Uuid::new_v4(), NOW).is_err());
+        let other = mint();
+        let mut header = Header::new(Algorithm::EdDSA);
+        header.kid = Some(SIGNING_KID.into());
+        let forged_license =
+            jsonwebtoken::encode(&header, &fixture.terms, &other.license_key).unwrap();
+        let forged =
+            crate::trust_verify::Envelope::new(forged_license, fixture.attestation.clone())
+                .encode();
+        assert!(fixture
+            .verifier
+            .verify(&forged, fixture.terms.profile_id, NOW)
             .is_err());
     }
 
     #[test]
     fn rejects_wrong_domain_tier_version_and_malformed_input() {
-        let (verifier, encoding, terms) = fixture();
+        let fixture = mint();
         for modified in [
             LicenseTerms {
                 aud: crate::auth::tokens::AUDIENCE_API.into(),
-                ..terms.clone()
+                ..fixture.terms.clone()
             },
             LicenseTerms {
                 iss: "attacker".into(),
-                ..terms.clone()
+                ..fixture.terms.clone()
             },
             LicenseTerms {
                 tier: "unknown".into(),
-                ..terms.clone()
+                ..fixture.terms.clone()
             },
             LicenseTerms {
                 version: LICENSE_VERSION + 1,
-                ..terms.clone()
+                ..fixture.terms.clone()
             },
         ] {
-            assert!(verifier
-                .verify(&sign(&encoding, &modified), terms.profile_id, 150)
+            assert!(fixture
+                .verifier
+                .verify(&sign(&fixture, &modified), fixture.terms.profile_id, NOW)
                 .is_err());
         }
-        assert!(verifier.verify("not-a-key", terms.profile_id, 150).is_err());
+        assert!(fixture
+            .verifier
+            .verify("not-a-key", fixture.terms.profile_id, NOW)
+            .is_err());
     }
 
     /// Pins today's default: a source build carries no verification keys, so
@@ -581,21 +656,104 @@ mod tests {
     #[test]
     fn a_build_with_no_bundled_keys_rejects_every_licence() {
         let bundled = Verifier::bundled().expect("bundled key set must parse");
-        let (_, encoding, terms) = fixture();
-        let signed = sign(&encoding, &terms);
-        let outcome = bundled.decode(&signed, terms.profile_id);
+        let fixture = mint();
+        let signed = sign(&fixture, &fixture.terms);
+        let outcome = bundled.decode(&signed, fixture.terms.profile_id);
 
-        if bundled.keys.is_empty() {
-            let error = outcome.expect_err("no keys means nothing can verify");
+        if bundled.roots.is_empty() {
+            let error = outcome.expect_err("no roots means nothing can verify");
             assert!(
-                error.to_string().contains("unknown license signing key"),
+                error
+                    .to_string()
+                    .contains("license attestation was signed by an untrusted root"),
                 "unexpected rejection: {error}"
             );
         } else {
-            // A build configured with real keys still must not accept a
-            // licence signed by this test's throwaway key.
-            assert!(outcome.is_err(), "a foreign key must never verify");
+            // A build configured with real roots still must not accept a
+            // licence signed under this test's throwaway root.
+            assert!(outcome.is_err(), "a foreign root must never verify");
         }
+    }
+
+    #[test]
+    fn a_bare_base64_jwt_is_refused() {
+        let fixture = mint();
+        let mut header = Header::new(Algorithm::EdDSA);
+        header.kid = Some(SIGNING_KID.into());
+        let jwt = jsonwebtoken::encode(&header, &fixture.terms, &fixture.license_key).unwrap();
+        let legacy = STANDARD.encode(jwt);
+        let error = fixture
+            .verifier
+            .decode(&legacy, fixture.terms.profile_id)
+            .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("license is not a valid envelope"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn an_hmac_license_inside_a_valid_envelope_is_refused() {
+        let fixture = mint();
+        let mut header = Header::new(Algorithm::HS256);
+        header.kid = Some(SIGNING_KID.into());
+        let hmac = EncodingKey::from_secret(b"not-the-signing-key");
+        let license = jsonwebtoken::encode(&header, &fixture.terms, &hmac).unwrap();
+        let key = crate::trust_verify::Envelope::new(license, fixture.attestation).encode();
+        let error = fixture
+            .verifier
+            .verify(&key, fixture.terms.profile_id, NOW)
+            .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("unsupported signature algorithm"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn attestation_window_bounds_the_license_clock() {
+        let fixture = mint();
+        let terms = LicenseTerms {
+            iat: 1_000,
+            nbf: 1_000,
+            exp: 5_000,
+            ..fixture.terms.clone()
+        };
+        let key = sign(&fixture, &terms);
+        assert_eq!(
+            fixture
+                .verifier
+                .verify(&key, terms.profile_id, NOW)
+                .unwrap()
+                .0,
+            LicenseStatus::Valid
+        );
+        assert_eq!(
+            fixture
+                .verifier
+                .verify(&key, terms.profile_id, 1_500)
+                .unwrap()
+                .0,
+            LicenseStatus::NotYetValid
+        );
+        assert_eq!(
+            fixture
+                .verifier
+                .verify(&key, terms.profile_id, 3_500)
+                .unwrap()
+                .0,
+            LicenseStatus::Expired
+        );
+        let (status, reported) = fixture
+            .verifier
+            .verify(&key, terms.profile_id, NOW)
+            .unwrap();
+        assert_eq!(status, LicenseStatus::Valid);
+        assert_eq!(reported.exp, 5_000, "terms.exp stays the license exp");
     }
 
     /// The launch path calls this once per gate, seven times per launch; the
@@ -605,17 +763,23 @@ mod tests {
         use std::sync::atomic::Ordering;
         let _serial = serial();
 
-        let (verifier, encoding, terms) = fixture();
+        let fixture = mint();
         let directory = tempfile::tempdir().unwrap();
         let mut config = Config::default();
         config.paths.state = directory.path().to_string_lossy().into_owned();
-        config.profile.id = terms.profile_id;
-        install_with(&config, &verifier, terms.nbf, &sign(&encoding, &terms)).unwrap();
+        config.profile.id = fixture.terms.profile_id;
+        install_with(
+            &config,
+            &fixture.verifier,
+            fixture.terms.nbf,
+            &sign(&fixture, &fixture.terms),
+        )
+        .unwrap();
 
         invalidate();
         let before = DECODES.load(Ordering::Relaxed);
         for _ in 0..8 {
-            assert!(entitlements_with(&config, &verifier, terms.nbf).premium);
+            assert!(entitlements_with(&config, &fixture.verifier, fixture.terms.nbf).premium);
         }
         assert_eq!(
             DECODES.load(Ordering::Relaxed) - before,
@@ -629,20 +793,20 @@ mod tests {
     #[test]
     fn entitlement_is_recomputed_when_the_licence_changes_on_disk() {
         let _serial = serial();
-        let (verifier, encoding, terms) = fixture();
+        let fixture = mint();
         let directory = tempfile::tempdir().unwrap();
         let mut config = Config::default();
         config.paths.state = directory.path().to_string_lossy().into_owned();
-        config.profile.id = terms.profile_id;
+        config.profile.id = fixture.terms.profile_id;
 
-        let key = sign(&encoding, &terms);
-        assert!(install_with(&config, &verifier, 150, &key).is_ok());
-        assert!(entitlements_with(&config, &verifier, 150).premium);
+        let key = sign(&fixture, &fixture.terms);
+        assert!(install_with(&config, &fixture.verifier, NOW, &key).is_ok());
+        assert!(entitlements_with(&config, &fixture.verifier, NOW).premium);
 
         remove(&config).unwrap();
-        assert!(!entitlements_with(&config, &verifier, 150).premium);
+        assert!(!entitlements_with(&config, &fixture.verifier, NOW).premium);
         assert_eq!(
-            status_with(&config, &verifier, 150).status,
+            status_with(&config, &fixture.verifier, NOW).status,
             LicenseStatus::Missing
         );
     }
@@ -650,17 +814,23 @@ mod tests {
     #[test]
     fn cached_verification_is_scoped_to_the_verifier() {
         let _serial = serial();
-        let (verifier, encoding, terms) = fixture();
-        let (other_verifier, _, _) = fixture();
+        let fixture = mint();
+        let other = mint();
         let directory = tempfile::tempdir().unwrap();
         let mut config = Config::default();
         config.paths.state = directory.path().to_string_lossy().into_owned();
-        config.profile.id = terms.profile_id;
+        config.profile.id = fixture.terms.profile_id;
 
-        install_with(&config, &verifier, 150, &sign(&encoding, &terms)).unwrap();
-        assert!(entitlements_with(&config, &verifier, 150).premium);
+        install_with(
+            &config,
+            &fixture.verifier,
+            NOW,
+            &sign(&fixture, &fixture.terms),
+        )
+        .unwrap();
+        assert!(entitlements_with(&config, &fixture.verifier, NOW).premium);
         assert_eq!(
-            status_with(&config, &other_verifier, 150).status,
+            status_with(&config, &other.verifier, NOW).status,
             LicenseStatus::Invalid
         );
     }
@@ -671,22 +841,50 @@ mod tests {
     #[test]
     fn a_cached_valid_licence_stops_granting_entitlement_once_it_expires() {
         let _serial = serial();
-        let (verifier, encoding, terms) = fixture();
+        let fixture = mint();
         let directory = tempfile::tempdir().unwrap();
         let mut config = Config::default();
         config.paths.state = directory.path().to_string_lossy().into_owned();
-        config.profile.id = terms.profile_id;
+        config.profile.id = fixture.terms.profile_id;
 
-        let key = sign(&encoding, &terms);
-        install_with(&config, &verifier, terms.nbf, &key).unwrap();
-        assert!(entitlements_with(&config, &verifier, terms.nbf).premium);
+        let key = sign(&fixture, &fixture.terms);
+        install_with(&config, &fixture.verifier, fixture.terms.nbf, &key).unwrap();
+        assert!(entitlements_with(&config, &fixture.verifier, fixture.terms.nbf).premium);
 
-        let expired = entitlements_with(&config, &verifier, terms.exp);
+        let expired = entitlements_with(&config, &fixture.verifier, fixture.terms.exp);
         assert!(
             !expired.premium,
             "an expired licence must not grant premium"
         );
         assert_eq!(expired.status, LicenseStatus::Expired);
+    }
+
+    #[test]
+    fn a_rotated_root_keyring_is_not_served_from_the_memo_cache() {
+        use std::sync::atomic::Ordering;
+        let _serial = serial();
+        let fixture = mint();
+        let directory = tempfile::tempdir().unwrap();
+        let mut config = Config::default();
+        config.paths.state = directory.path().to_string_lossy().into_owned();
+        config.profile.id = fixture.terms.profile_id;
+        let key = sign(&fixture, &fixture.terms);
+        install_with(&config, &fixture.verifier, fixture.terms.nbf, &key).unwrap();
+        invalidate();
+        let before = DECODES.load(Ordering::Relaxed);
+        assert!(entitlements_with(&config, &fixture.verifier, fixture.terms.nbf).premium);
+        assert_eq!(DECODES.load(Ordering::Relaxed) - before, 1);
+
+        let rotated = mint();
+        let after = DECODES.load(Ordering::Relaxed);
+        let again = status_with(&config, &rotated.verifier, fixture.terms.nbf);
+        assert_eq!(again.status, LicenseStatus::Invalid);
+        assert!(!again.premium);
+        assert_eq!(
+            DECODES.load(Ordering::Relaxed) - after,
+            1,
+            "rotated roots must recompute"
+        );
     }
 
     #[test]

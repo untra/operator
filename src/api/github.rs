@@ -149,7 +149,7 @@ impl GitHubClient {
     pub fn from_env() -> Result<Option<Self>> {
         match env::var("OPERATOR_GITHUB_TOKEN") {
             Ok(token) if !token.is_empty() => {
-                let client = reqwest::Client::builder()
+                let client = crate::http_client::client_builder()
                     .user_agent("operator-tui/0.1.0")
                     .build()
                     .context("Failed to build HTTP client")?;

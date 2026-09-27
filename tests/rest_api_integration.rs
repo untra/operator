@@ -203,7 +203,7 @@ impl RestApiTestContext {
     /// Health request with an explicit credential (`None` sends no auth header).
     async fn get_health(&self, token: Option<&str>) -> Result<HealthResponse, String> {
         let url = format!("http://localhost:{}/api/v1/health", self.port);
-        let client = reqwest::Client::builder()
+        let client = operator::http_client::client_builder()
             .timeout(Duration::from_secs(5))
             .build()
             .map_err(|e| e.to_string())?;

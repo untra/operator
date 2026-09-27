@@ -15,6 +15,16 @@ const API_SESSION_FILE: &str = ".tickets/operator/api-session.json";
 const API_TOKEN_ENV: &str = "OPERATOR_API_TOKEN";
 const PROFILE_ID_ENV: &str = "OPERATOR_PROFILE_ID";
 
+static INSTALL_CRYPTO_PROVIDER: std::sync::Once = std::sync::Once::new();
+
+/// reqwest is built with `rustls-no-provider` to stay on ring; rustls needs a
+/// process-default provider installed before the first client is built.
+fn ensure_crypto_provider() {
+    INSTALL_CRYPTO_PROVIDER.call_once(|| {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
+}
+
 /// Retry configuration
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 1000;
@@ -224,6 +234,7 @@ impl ApiClient {
     /// Create a client with an explicit callback credential and, when the
     /// configuration is known, the id its callbacks must be routed to.
     pub fn with_profile(base_url: &str, token: Option<String>, profile_id: Option<String>) -> Self {
+        ensure_crypto_provider();
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .build()

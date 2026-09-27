@@ -9,9 +9,12 @@ mod collections;
 mod config;
 mod editors;
 mod git;
+mod http_client;
 mod issuetypes;
 mod licensing;
 mod profiles;
+#[allow(dead_code)] // generated; the bin reaches it through licensing
+mod trust_verify;
 // Vertical catalog + capability inventory: consumed by the lib's REST/docs
 // layers and the external parity tests; several items read as unused in the bin.
 #[allow(dead_code, unused_imports)]
@@ -977,7 +980,7 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
                 "new_password": password,
             });
 
-            let response = reqwest::Client::new().post(&url).json(&body).send().await?;
+            let response = crate::http_client::client_builder().build()?.post(&url).json(&body).send().await?;
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
 
@@ -1454,8 +1457,7 @@ mod tests {
     #[test]
     fn test_detect_llm_tools_returns_vec() {
         let tools = detect_llm_tools();
-        // Just verify it returns a Vec, actual content depends on environment
-        assert!(tools.len() <= 3);
+        assert!(tools.len() <= crate::config::llm_tools::shipped_llm_tools().len());
     }
 
     #[test]

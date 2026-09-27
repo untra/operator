@@ -37,7 +37,7 @@ struct Message {
 impl AnthropicProvider {
     /// Create a new Anthropic provider with the given API key
     pub fn new(api_key: impl Into<String>) -> Result<Self, ApiError> {
-        let client = reqwest::Client::builder()
+        let client = crate::http_client::client_builder()
             .user_agent("operator-tui/0.1.0")
             .build()
             .map_err(|e| ApiError::network(PROVIDER_NAME, e.to_string()))?;

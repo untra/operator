@@ -270,7 +270,7 @@ pub async fn probe(
             licensing::require_premium(&config, PremiumFeature::RemoteTargets)?;
             let session = crate::agents::launcher::coder::resolve_session(coder)
                 .map_err(|error| ApiError::ValidationError(error.to_string()))?;
-            let client = reqwest::Client::builder()
+            let client = crate::http_client::client_builder()
                 .timeout(PROBE_TIMEOUT)
                 .build()
                 .map_err(|error| ApiError::InternalError(error.to_string()))?;

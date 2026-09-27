@@ -216,7 +216,7 @@ impl RestApiServer {
     /// conflict we should report. Always connects over loopback.
     pub async fn probe_external(&self) -> ExternalApiProbe {
         let url = format!("http://127.0.0.1:{}/api/v1/health", self.port);
-        let client = match reqwest::Client::builder()
+        let client = match crate::http_client::client_builder()
             .timeout(std::time::Duration::from_secs(2))
             .build()
         {

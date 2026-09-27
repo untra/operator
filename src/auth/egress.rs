@@ -178,7 +178,7 @@ pub fn validated_client(policy: EgressPolicy, timeout: Duration) -> Result<reqwe
         }
     });
 
-    reqwest::Client::builder()
+    crate::http_client::client_builder()
         .timeout(timeout)
         .redirect(redirect_policy)
         .build()

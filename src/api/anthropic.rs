@@ -136,7 +136,7 @@ impl AnthropicClient {
     pub fn from_env() -> Result<Option<Self>> {
         match env::var("OPERATOR_ANTHROPIC_API_KEY") {
             Ok(key) if !key.is_empty() => {
-                let client = reqwest::Client::builder()
+                let client = crate::http_client::client_builder()
                     .user_agent("operator-tui/0.1.0")
                     .build()
                     .context("Failed to build HTTP client")?;

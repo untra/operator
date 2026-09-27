@@ -6,6 +6,6 @@ doc-valid-idents = ["GitHub", "GitLab", "macOS", "OpenAPI", "OAuth", "TypeScript
 disallowed-methods = [
   { path = "reqwest::Client::new", reason = "use crate::http_client::default_client() so the rustls provider is installed" },
   { path = "reqwest::Client::builder", reason = "use crate::http_client::client_builder() so the rustls provider is installed" },
-  { path = "reqwest::blocking::Client::new", reason = "use crate::http_client::blocking_client_builder() so the rustls provider is installed" },
-  { path = "reqwest::blocking::Client::builder", reason = "use crate::http_client::blocking_client_builder() so the rustls provider is installed" },
+  { path = "reqwest::blocking::Client::new", allow-invalid = true, reason = "use crate::http_client::blocking_client_builder() so the rustls provider is installed" },
+  { path = "reqwest::blocking::Client::builder", allow-invalid = true, reason = "use crate::http_client::blocking_client_builder() so the rustls provider is installed" },
 ]

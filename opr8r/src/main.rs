@@ -1,5 +1,6 @@
 mod api;
 mod cli;
+mod http_client;
 #[cfg(unix)]
 mod operator_relay;
 mod output_parser;

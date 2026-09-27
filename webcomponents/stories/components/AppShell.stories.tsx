@@ -1,15 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  AccountFooter,
   AppShell,
   BrandName,
   NavGroup,
   NavRow,
-  SignOutButton,
   ThemeToggle,
 } from "../../src/components/AppShell";
 import { PageHeader } from "../../src/components/PageHeader";
 
 const NOOP = () => undefined;
+const STORY_USERNAME = "operator";
+const STORY_CONFIGURATION = "default";
 
 const STATUS_ROWS = [
   { label: "Model Providers", icon: "server", health: "green" },
@@ -26,7 +28,10 @@ const PAGE_ROWS = [
 /** Stories render plain anchors; the SPA supplies a react-router NavLink here. */
 const anchor =
   (isActive: boolean) =>
-  (content: React.ReactNode, className: (state: { isActive: boolean }) => string) => (
+  (
+    content: React.ReactNode,
+    className: (state: { isActive: boolean }) => string,
+  ) => (
     <a href="#nav" className={className({ isActive })}>
       {content}
     </a>
@@ -43,7 +48,11 @@ function Groups({ lockedReason }: { lockedReason?: string }) {
               icon={row.icon}
               health={row.health}
               disabledReason={row.label === "Kanban" ? lockedReason : undefined}
-              renderLink={row.label === "Kanban" && lockedReason ? undefined : anchor(index === 0)}
+              renderLink={
+                row.label === "Kanban" && lockedReason
+                  ? undefined
+                  : anchor(index === 0)
+              }
             />
           </li>
         ))}
@@ -51,7 +60,11 @@ function Groups({ lockedReason }: { lockedReason?: string }) {
       <NavGroup label="Pages">
         {PAGE_ROWS.map((row) => (
           <li key={row.label}>
-            <NavRow label={row.label} icon={row.icon} renderLink={anchor(false)} />
+            <NavRow
+              label={row.label}
+              icon={row.icon}
+              renderLink={anchor(false)}
+            />
           </li>
         ))}
       </NavGroup>
@@ -70,7 +83,13 @@ const meta = {
       </>
     ),
     groups: <Groups />,
-    footer: <SignOutButton onClick={NOOP} />,
+    footer: (
+      <AccountFooter
+        username={STORY_USERNAME}
+        configurationName={STORY_CONFIGURATION}
+        onSignOut={NOOP}
+      />
+    ),
     children: (
       <PageHeader
         title="Dashboard"
@@ -89,12 +108,36 @@ export const Default: Story = {};
 
 /** A section whose prerequisites are unmet: a disabled span naming what it needs. */
 export const PrerequisiteLocked: Story = {
-  args: { groups: <Groups lockedReason="Requires: Model Providers, Projects" /> },
+  args: {
+    groups: <Groups lockedReason="Requires: Model Providers, Projects" />,
+  },
 };
 
-export const SigningOut: Story = { args: { footer: <SignOutButton busy onClick={NOOP} /> } };
+export const SigningOut: Story = {
+  args: {
+    footer: (
+      <AccountFooter
+        username={STORY_USERNAME}
+        configurationName={STORY_CONFIGURATION}
+        busy
+        onSignOut={NOOP}
+      />
+    ),
+  },
+};
 
-export const SignOutFailed: Story = { args: { footer: <SignOutButton failed onClick={NOOP} /> } };
+export const SignOutFailed: Story = {
+  args: {
+    footer: (
+      <AccountFooter
+        username={STORY_USERNAME}
+        configurationName={STORY_CONFIGURATION}
+        failed
+        onSignOut={NOOP}
+      />
+    ),
+  },
+};
 
 export const DarkTheme: Story = {
   args: {

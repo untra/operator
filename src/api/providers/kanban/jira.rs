@@ -39,7 +39,7 @@ impl JiraProvider {
             domain,
             email,
             api_token,
-            client: Client::new(),
+            client: crate::http_client::default_client(),
         }
     }
 

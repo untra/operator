@@ -192,13 +192,10 @@ export function OnboardingPage() {
   const slugs = useMemo(() => steps.map((step) => step.slug), [steps]);
   const walk = useMemo(() => visibleSteps(slugs, draft), [draft, slugs]);
   const rows = useMemo(() => stepRows(slugs, draft), [draft, slugs]);
+  if (walk.length > 0 && !walk.includes(currentSlug)) {
+    setCurrentSlug(walk[0]);
+  }
   const currentIndex = Math.max(0, walk.indexOf(currentSlug));
-
-  useEffect(() => {
-    if (walk.length > 0 && !walk.includes(currentSlug)) {
-      setCurrentSlug(walk[0]);
-    }
-  }, [currentSlug, walk]);
 
   const current = steps.find((step) => step.slug === walk[currentIndex]);
   const Step = current ? STEP_COMPONENTS[current.slug] : null;

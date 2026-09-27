@@ -235,7 +235,7 @@ impl ApiClient {
     /// configuration is known, the id its callbacks must be routed to.
     pub fn with_profile(base_url: &str, token: Option<String>, profile_id: Option<String>) -> Self {
         ensure_crypto_provider();
-        let client = Client::builder()
+        let client = crate::http_client::default_client()
             .timeout(Duration::from_secs(30))
             .build()
             .expect("Failed to create HTTP client");

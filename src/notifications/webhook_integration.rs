@@ -50,7 +50,7 @@ struct WebhookPayload {
 /// Client used for webhook delivery, with redirect destinations re-validated.
 fn egress_client() -> Client {
     crate::auth::egress::validated_client(EgressPolicy::default(), Duration::from_secs(30))
-        .unwrap_or_else(|_| Client::new())
+        .unwrap_or_else(|_| crate::http_client::default_client())
 }
 
 impl WebhookIntegration {

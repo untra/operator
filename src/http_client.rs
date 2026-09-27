@@ -15,11 +15,19 @@ fn ensure_crypto_provider() {
     });
 }
 
+#[allow(clippy::disallowed_methods)]
+pub fn default_client() -> reqwest::Client {
+    ensure_crypto_provider();
+    reqwest::Client::new()
+}
+
+#[allow(clippy::disallowed_methods)]
 pub fn client_builder() -> reqwest::ClientBuilder {
     ensure_crypto_provider();
     reqwest::Client::builder()
 }
 
+#[allow(clippy::disallowed_methods)]
 pub fn blocking_client_builder() -> reqwest::blocking::ClientBuilder {
     ensure_crypto_provider();
     reqwest::blocking::Client::builder()
@@ -37,6 +45,12 @@ mod tests {
     #[test]
     fn blocking_client_builds_with_ring_provider() {
         assert!(blocking_client_builder().build().is_ok());
+    }
+
+    #[test]
+    fn default_client_installs_ring_provider() {
+        let _client = default_client();
+        assert!(rustls::crypto::CryptoProvider::get_default().is_some());
     }
 
     #[test]

@@ -49,7 +49,8 @@ fn grab_cli_token(command: &str, args: &[&str]) -> Option<String> {
 }
 
 pub fn validate_github_token(token: &str) -> Result<String> {
-    let response = crate::http_client::blocking_client_builder().build()?
+    let response = crate::http_client::blocking_client_builder()
+        .build()?
         .get("https://api.github.com/user")
         .header("Authorization", format!("Bearer {token}"))
         .header("User-Agent", "operator")
@@ -68,7 +69,8 @@ pub fn validate_github_token(token: &str) -> Result<String> {
 }
 
 pub fn validate_gitlab_token(token: &str) -> Result<String> {
-    let response = crate::http_client::blocking_client_builder().build()?
+    let response = crate::http_client::blocking_client_builder()
+        .build()?
         .get("https://gitlab.com/api/v4/user")
         .header("Private-Token", token)
         .header("User-Agent", "operator")

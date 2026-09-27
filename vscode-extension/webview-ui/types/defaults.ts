@@ -149,6 +149,7 @@ const DEFAULT_CONFIG: Config = {
     default_delegator: null,
     max_concurrent_sessions: 4,
   },
+  native_llm: { judge: null },
 };
 
 export const DEFAULT_WEBVIEW_CONFIG: WebviewConfig = {

@@ -19,7 +19,8 @@ voting_strategy: VotingStrategy,
  */
 share_answers: boolean, 
 /**
- * Prompt for the voting round (Handlebars, receives {{ answers }} array)
+ * Instruction for the judge that picks the winner (Handlebars, rendered
+ * with the ticket context; candidates are appended automatically)
  */
 voting_prompt?: string | null, 
 /**

@@ -353,7 +353,7 @@ Configuration for multi-model delegation steps (fan-out + vote)
 | `delegators` | `array` | Yes | Named delegator references (from config.delegators), minimum 2 |
 | `voting_strategy` | → `VotingStrategy` | Yes | How to aggregate/select the final answer |
 | `share_answers` | `boolean` | No | Whether to share all answers with all models in the voting round |
-| `voting_prompt` | `string` \| `null` | No | Prompt for the voting round (Handlebars, receives {{ answers }} array) |
+| `voting_prompt` | `string` \| `null` | No | Instruction for the judge that picks the winner (Handlebars, rendered with the ticket context; candidates are appended automatically) |
 | `voting_mode` | → `VotingMode` | No | How the voting round executes |
 
 ### Definition: VotingStrategy
@@ -373,7 +373,7 @@ Configuration for multi-prompt interrogation steps (N variations, select best)
 | `prompt_variations` | `array` | Yes | Prompt variations (Handlebars templates), minimum 2 |
 | `selection_strategy` | → `SelectionStrategy` | Yes | How to select the best result |
 | `agent` | `string` \| `null` | No | Agent/delegator to use for all variations |
-| `selection_prompt` | `string` \| `null` | No | Prompt for the selection/review round |
+| `selection_prompt` | `string` \| `null` | No | Instruction for the judge that picks the best variation with `model_choice` (Handlebars, rendered with the ticket context) |
 
 ### Definition: SelectionStrategy
 

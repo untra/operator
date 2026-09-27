@@ -11,6 +11,7 @@
 
 mod detection;
 mod inventory;
+pub mod native;
 pub mod skill_deployer;
 pub mod tool_config;
 

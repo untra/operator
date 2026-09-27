@@ -980,7 +980,12 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
                 "new_password": password,
             });
 
-            let response = crate::http_client::client_builder().build()?.post(&url).json(&body).send().await?;
+            let response = crate::http_client::client_builder()
+                .build()?
+                .post(&url)
+                .json(&body)
+                .send()
+                .await?;
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
 

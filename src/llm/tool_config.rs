@@ -2,8 +2,7 @@
 //!
 //! This module loads LLM CLI tool configurations - embedded builtin JSONs plus
 //! user JSONs from `<config dir>/operator/tools/` - and provides template-based
-//! command building. User configs are only ever read from the user-global
-//! config dir, never from repo-local paths (see [`load_user_tool_configs`]).
+//! command building. User configs are only ever read from the user-global config dir.
 
 use serde::{Deserialize, Serialize};
 

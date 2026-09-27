@@ -93,14 +93,7 @@ async fn probe_models_inner(
 
     let url = format!("{}{}", base.trim_end_matches('/'), kind.models_endpoint());
 
-    // API key: read the instance's named env var, else the kind's default probe
-    // env var (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY / …).
-    let api_key = server
-        .api_key_env
-        .as_deref()
-        .or_else(|| kind.default_api_key_env())
-        .and_then(|var| std::env::var(var).ok())
-        .filter(|k| !k.is_empty());
+    let api_key = super::resolve_api_key(server, kind);
 
     // This request carries the provider API key, so where it is allowed to go
     // matters as much as what it sends. Validating the destination *and* every

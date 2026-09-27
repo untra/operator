@@ -867,3 +867,27 @@ fn test_delegator_launch_config_operator_relay_defaults_to_none() {
     let d: Delegator = toml::from_str(toml_str).unwrap();
     assert!(d.launch_config.as_ref().unwrap().operator_relay.is_none());
 }
+
+#[test]
+fn test_native_llm_absent_means_no_judge() {
+    let cfg: NativeLlmConfig = toml::from_str("").unwrap();
+    assert!(cfg.judge.is_none());
+    assert!(Config::default().native_llm.judge.is_none());
+}
+
+#[test]
+fn test_native_llm_judge_parses_with_default_timeout() {
+    let toml_str = r#"
+[judge]
+model_server = "anthropic-api"
+model = "claude-sonnet-5"
+"#;
+    let cfg: NativeLlmConfig = toml::from_str(toml_str).unwrap();
+    let judge = cfg.judge.unwrap();
+    assert_eq!(judge.model_server, "anthropic-api");
+    assert_eq!(judge.model, "claude-sonnet-5");
+    assert_eq!(
+        judge.timeout_secs,
+        crate::llm::native::DEFAULT_JUDGE_TIMEOUT_SECS
+    );
+}

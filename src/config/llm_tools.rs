@@ -234,6 +234,34 @@ pub struct ModelServer {
     pub display_name: Option<String>,
 }
 
+/// In-daemon LLM calls (built with the `native-llm` feature). Distinct from
+/// delegators: these are single typed API calls, not agent CLI sessions.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
+pub struct NativeLlmConfig {
+    /// Model that picks the winner of `multi_model` (`voting_mode = single_judge`)
+    /// and `multi_prompt` (`selection_strategy = model_choice`) steps. Unset keeps
+    /// the deterministic first/longest rule.
+    #[serde(default)]
+    pub judge: Option<JudgeConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct JudgeConfig {
+    /// Name of a declared or implicit model server (e.g. "anthropic-api")
+    pub model_server: String,
+    /// Full API model id (e.g. "claude-sonnet-5"), not a CLI alias like "sonnet"
+    pub model: String,
+    /// Seconds before the judge is abandoned and the deterministic rule applies
+    #[serde(default = "default_judge_timeout_secs")]
+    pub timeout_secs: u64,
+}
+
+fn default_judge_timeout_secs() -> u64 {
+    crate::llm::native::DEFAULT_JUDGE_TIMEOUT_SECS
+}
+
 /// A named remote machine that agent CLI processes can be launched on over SSH.
 ///
 /// Distinct from [`ModelServer`] (where model *inference* lives) and from

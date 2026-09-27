@@ -70,6 +70,24 @@ pub(crate) fn resolve_model_server_for_delegator(
     }
 }
 
+/// Look up a model server by name among declared servers, then the implicit builtins.
+pub(crate) fn resolve_model_server_by_name(
+    config: &Config,
+    name: &str,
+) -> Result<ModelServer, ResolutionError> {
+    config
+        .model_servers
+        .iter()
+        .find(|s| s.name == name)
+        .cloned()
+        .or_else(|| {
+            crate::config::implicit_model_servers()
+                .into_iter()
+                .find(|s| s.name == name)
+        })
+        .ok_or_else(|| ResolutionError::UnknownModelServer(name.to_string()))
+}
+
 /// Convert a `Delegator` into an `LlmProvider`, resolving its `model_server` and
 /// threading the server's env vars (base URL, API key, extra env) into
 /// [`LlmProvider::env`] so they are exported when the agent spawns.
@@ -114,17 +132,7 @@ fn adhoc_model_server_env(
     model_server: Option<&str>,
 ) -> Result<std::collections::HashMap<String, String>, ResolutionError> {
     let server = match model_server {
-        Some(name) => config
-            .model_servers
-            .iter()
-            .find(|s| s.name == name)
-            .cloned()
-            .or_else(|| {
-                crate::config::implicit_model_servers()
-                    .into_iter()
-                    .find(|s| s.name == name)
-            })
-            .ok_or_else(|| ResolutionError::UnknownModelServer(name.to_string()))?,
+        Some(name) => resolve_model_server_by_name(config, name)?,
         None => implicit_model_server_for_tool(tool)
             .ok_or_else(|| ResolutionError::UnknownLlmTool(tool.to_string()))?,
     };

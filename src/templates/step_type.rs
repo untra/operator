@@ -465,6 +465,131 @@ pub fn apply_aggregation(base: &mut serde_json::Value, result: serde_json::Value
     base["value"] = result;
 }
 
+use crate::llm::native::{JudgeCandidate, JudgeRequest, DEFAULT_SELECTION_INSTRUCTION};
+use crate::templates::schema::{SelectionStrategy, VotingMode};
+
+/// A judge request plus the map from its (non-empty) candidates back to the
+/// aggregator's `responses` / `variations` index.
+#[derive(Debug, Clone, PartialEq)]
+pub struct JudgePlan {
+    pub request: JudgeRequest,
+    pub aggregate_indices: Vec<usize>,
+}
+
+impl JudgePlan {
+    pub fn aggregate_index(&self, candidate_index: usize) -> Option<usize> {
+        self.aggregate_indices.get(candidate_index).copied()
+    }
+}
+
+/// Build a judge request when the step asks for model-based selection and
+/// there is an actual choice to make (at least two non-empty candidates).
+/// `render` turns the step's prompt template into the final instruction.
+pub fn judge_plan(
+    step: &StepSchema,
+    outputs: &HashMap<String, serde_json::Value>,
+    render: &dyn Fn(&str) -> String,
+) -> Option<JudgePlan> {
+    let (keys, labels, instruction): (Vec<String>, Vec<String>, Option<&String>) =
+        match step.step_type {
+            StepTypeTag::MultiModel => {
+                let cfg = step.multi_model_config.as_ref()?;
+                if cfg.voting_mode != VotingMode::SingleJudge {
+                    return None;
+                }
+                (
+                    cfg.delegators.clone(),
+                    cfg.delegators.clone(),
+                    cfg.voting_prompt.as_ref(),
+                )
+            }
+            StepTypeTag::MultiPrompt => {
+                let cfg = step.multi_prompt_config.as_ref()?;
+                if cfg.selection_strategy != SelectionStrategy::ModelChoice {
+                    return None;
+                }
+                let n = cfg.prompt_variations.len();
+                (
+                    (0..n).map(|i| i.to_string()).collect(),
+                    (0..n).map(|i| format!("variation {i}")).collect(),
+                    cfg.selection_prompt.as_ref(),
+                )
+            }
+            _ => return None,
+        };
+
+    let mut candidates = Vec::new();
+    let mut aggregate_indices = Vec::new();
+    for (i, (key, label)) in keys.iter().zip(labels).enumerate() {
+        if let Some(text) = outputs.get(key).and_then(candidate_text) {
+            candidates.push(JudgeCandidate { label, text });
+            aggregate_indices.push(i);
+        }
+    }
+    if candidates.len() < 2 {
+        return None;
+    }
+
+    let instruction =
+        instruction.map_or_else(|| DEFAULT_SELECTION_INSTRUCTION.to_string(), |t| render(t));
+    Some(JudgePlan {
+        request: JudgeRequest {
+            instruction,
+            candidates,
+        },
+        aggregate_indices,
+    })
+}
+
+fn candidate_text(value: &serde_json::Value) -> Option<String> {
+    let text = match value {
+        serde_json::Value::Null => return None,
+        serde_json::Value::String(s) => s.clone(),
+        other => other.to_string(),
+    };
+    (!text.trim().is_empty()).then_some(text)
+}
+
+/// Overwrite the deterministic winner with the judge's pick.
+/// `winner` is an aggregator index (see [`JudgePlan::aggregate_index`]).
+/// Returns `false`, leaving `base` untouched, when the index doesn't fit this step.
+pub fn apply_judge_verdict(
+    base: &mut serde_json::Value,
+    step: &StepSchema,
+    winner: usize,
+    rationale: &str,
+) -> bool {
+    let applied = match step.step_type {
+        StepTypeTag::MultiModel => match step.multi_model_config.as_ref() {
+            Some(cfg) if winner < cfg.delegators.len() => {
+                let votes = HashMap::from([(JUDGE_VOTER.to_string(), winner)]);
+                apply_votes(base, &votes, cfg);
+                true
+            }
+            _ => false,
+        },
+        StepTypeTag::MultiPrompt => {
+            let fits = base["variations"]
+                .as_array()
+                .is_some_and(|v| winner < v.len());
+            if fits {
+                apply_selection(base, winner);
+            }
+            fits
+        }
+        _ => false,
+    };
+    if applied {
+        base["judge"] = serde_json::json!({
+            "winner_index": winner,
+            "rationale": rationale,
+        });
+    }
+    applied
+}
+
+const JUDGE_VOTER: &str = "judge";
+
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -893,5 +1018,152 @@ mod tests {
         apply_aggregation(&mut result, serde_json::json!("synthesized answer"));
         assert_eq!(result["aggregated_result"], "synthesized answer");
         assert_eq!(result["value"], "synthesized answer");
+    }
+
+    fn no_render(t: &str) -> String {
+        t.to_string()
+    }
+
+    fn multi_model_step(voting_mode: VotingMode, voting_prompt: Option<&str>) -> StepSchema {
+        let mut step = make_base_step(StepTypeTag::MultiModel);
+        step.multi_model_config = Some(MultiModelConfig {
+            delegators: vec!["a".to_string(), "b".to_string(), "c".to_string()],
+            voting_strategy: VotingStrategy::Majority,
+            share_answers: true,
+            voting_prompt: voting_prompt.map(str::to_string),
+            voting_mode,
+        });
+        step
+    }
+
+    fn multi_prompt_step(strategy: SelectionStrategy) -> StepSchema {
+        let mut step = make_base_step(StepTypeTag::MultiPrompt);
+        step.multi_prompt_config = Some(MultiPromptConfig {
+            prompt_variations: vec!["p0".to_string(), "p1".to_string()],
+            selection_strategy: strategy,
+            agent: None,
+            selection_prompt: Some("Pick for {{ id }}".to_string()),
+        });
+        step
+    }
+
+    fn outputs(pairs: &[(&str, serde_json::Value)]) -> HashMap<String, serde_json::Value> {
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn judge_plan_multi_model_single_judge_uses_default_instruction() {
+        let step = multi_model_step(VotingMode::SingleJudge, None);
+        let out = outputs(&[
+            ("a", serde_json::json!("A")),
+            ("b", serde_json::json!("B")),
+            ("c", serde_json::json!("C")),
+        ]);
+        let plan = judge_plan(&step, &out, &no_render).unwrap();
+        assert_eq!(plan.request.instruction, DEFAULT_SELECTION_INSTRUCTION);
+        let labels: Vec<_> = plan.request.candidates.iter().map(|c| &c.label).collect();
+        assert_eq!(labels, ["a", "b", "c"]);
+        assert_eq!(plan.aggregate_indices, [0, 1, 2]);
+    }
+
+    #[test]
+    fn judge_plan_skips_empty_candidates_and_maps_indices() {
+        let step = multi_model_step(VotingMode::SingleJudge, Some("custom"));
+        let out = outputs(&[
+            ("a", serde_json::Value::Null),
+            ("b", serde_json::json!("B")),
+            ("c", serde_json::json!({"k": 1})),
+        ]);
+        let plan = judge_plan(&step, &out, &no_render).unwrap();
+        assert_eq!(plan.request.instruction, "custom");
+        assert_eq!(plan.request.candidates.len(), 2);
+        assert_eq!(plan.request.candidates[1].text, r#"{"k":1}"#);
+        assert_eq!(plan.aggregate_index(0), Some(1));
+        assert_eq!(plan.aggregate_index(1), Some(2));
+        assert_eq!(plan.aggregate_index(2), None);
+    }
+
+    #[test]
+    fn judge_plan_none_with_fewer_than_two_candidates() {
+        let step = multi_model_step(VotingMode::SingleJudge, None);
+        let out = outputs(&[
+            ("a", serde_json::json!("A")),
+            ("b", serde_json::json!("  ")),
+        ]);
+        assert!(judge_plan(&step, &out, &no_render).is_none());
+    }
+
+    #[test]
+    fn judge_plan_none_for_multi_voter() {
+        let step = multi_model_step(VotingMode::MultiVoter, None);
+        let out = outputs(&[("a", serde_json::json!("A")), ("b", serde_json::json!("B"))]);
+        assert!(judge_plan(&step, &out, &no_render).is_none());
+    }
+
+    #[test]
+    fn judge_plan_multi_prompt_model_choice_renders_selection_prompt() {
+        let step = multi_prompt_step(SelectionStrategy::ModelChoice);
+        let out = outputs(&[("0", serde_json::json!("x")), ("1", serde_json::json!("y"))]);
+        let render = |t: &str| t.replace("{{ id }}", "FEAT-1");
+        let plan = judge_plan(&step, &out, &render).unwrap();
+        assert_eq!(plan.request.instruction, "Pick for FEAT-1");
+        assert_eq!(plan.request.candidates[0].label, "variation 0");
+    }
+
+    #[test]
+    fn judge_plan_none_for_scored_or_matrixed() {
+        let scored = multi_prompt_step(SelectionStrategy::Scored);
+        let out = outputs(&[("0", serde_json::json!("x")), ("1", serde_json::json!("y"))]);
+        assert!(judge_plan(&scored, &out, &no_render).is_none());
+
+        let matrixed = make_base_step(StepTypeTag::Matrixed);
+        assert!(judge_plan(&matrixed, &out, &no_render).is_none());
+    }
+
+    #[test]
+    fn apply_judge_verdict_overrides_multi_model_winner() {
+        let step = multi_model_step(VotingMode::SingleJudge, None);
+        let cfg = step.multi_model_config.clone().unwrap();
+        let out = outputs(&[
+            ("a", serde_json::json!("A")),
+            ("b", serde_json::json!("B")),
+            ("c", serde_json::json!("C")),
+        ]);
+        let mut base = aggregate_multi_model(&out, &cfg);
+        assert_eq!(base["winner_index"], 0);
+
+        assert!(apply_judge_verdict(&mut base, &step, 2, "most complete"));
+        assert_eq!(base["winner_index"], 2);
+        assert_eq!(base["winner_delegator"], "c");
+        assert_eq!(base["value"], "C");
+        assert_eq!(base["judge"]["rationale"], "most complete");
+    }
+
+    #[test]
+    fn apply_judge_verdict_overrides_multi_prompt_selection() {
+        let step = multi_prompt_step(SelectionStrategy::ModelChoice);
+        let cfg = step.multi_prompt_config.clone().unwrap();
+        let out = outputs(&[("0", serde_json::json!("x")), ("1", serde_json::json!("y"))]);
+        let mut base = aggregate_multi_prompt(&out, &cfg);
+
+        assert!(apply_judge_verdict(&mut base, &step, 1, "why"));
+        assert_eq!(base["selected_index"], 1);
+        assert_eq!(base["value"], "y");
+        assert_eq!(base["judge"]["winner_index"], 1);
+    }
+
+    #[test]
+    fn apply_judge_verdict_rejects_out_of_range_and_leaves_base() {
+        let step = multi_model_step(VotingMode::SingleJudge, None);
+        let cfg = step.multi_model_config.clone().unwrap();
+        let out = outputs(&[("a", serde_json::json!("A")), ("b", serde_json::json!("B"))]);
+        let mut base = aggregate_multi_model(&out, &cfg);
+        let before = base.clone();
+
+        assert!(!apply_judge_verdict(&mut base, &step, 3, "x"));
+        assert_eq!(base, before);
     }
 }

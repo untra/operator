@@ -225,7 +225,33 @@ pub struct MultiAgentGroup {
     /// Maps launched `agent_id` to the `variant_key` used as the output key.
     #[serde(default)]
     pub agent_variant_keys: HashMap<String, String>,
+    /// The in-flight LLM judge call (set when phase = Voting). Its verdict
+    /// arrives as a side file keyed by `attempt_id`, never through `State`.
+    #[serde(default)]
+    pub judge_attempt: Option<JudgeAttempt>,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct JudgeAttempt {
+    pub attempt_id: String,
+    #[ts(type = "string")]
+    pub started_at: DateTime<Utc>,
+    /// Judge timeout copied at start, so a config edit can't strand the attempt
+    pub timeout_secs: u64,
+}
+
+impl JudgeAttempt {
+    /// When a missing verdict counts as abandoned (task timed out, or the
+    /// daemon restarted and the task is gone).
+    pub fn deadline(&self) -> DateTime<Utc> {
+        let secs = self.timeout_secs.saturating_add(JUDGE_DEADLINE_GRACE_SECS);
+        self.started_at + chrono::Duration::seconds(i64::try_from(secs).unwrap_or(i64::MAX))
+    }
+}
+
+/// Slack past the judge timeout for the task to write its outcome file.
+const JUDGE_DEADLINE_GRACE_SECS: u64 = 30;
 
 /// A sub-agent that has been planned but not yet launched (slot queue).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -1055,6 +1081,7 @@ impl State {
             expected_total,
             pending_launches: pending,
             agent_variant_keys: HashMap::new(),
+            judge_attempt: None,
         };
         self.multi_agent_groups.push(group);
         self.save()?;
@@ -1152,6 +1179,25 @@ impl State {
             self.save()?;
         }
         Ok(())
+    }
+
+    /// Move a group into the judging (Voting) phase with a fresh attempt.
+    /// Persists state and returns the attempt, whose id keys the verdict file.
+    pub fn begin_judging(&mut self, group_id: &str, timeout_secs: u64) -> Result<JudgeAttempt> {
+        let group = self
+            .multi_agent_groups
+            .iter_mut()
+            .find(|g| g.group_id == group_id)
+            .ok_or_else(|| anyhow::anyhow!("group {group_id} not found"))?;
+        let attempt = JudgeAttempt {
+            attempt_id: Uuid::new_v4().to_string(),
+            started_at: Utc::now(),
+            timeout_secs,
+        };
+        group.phase = MultiAgentPhase::Voting;
+        group.judge_attempt = Some(attempt.clone());
+        self.save()?;
+        Ok(attempt)
     }
 
     /// Set the aggregated output for a group and mark as complete
@@ -2138,6 +2184,55 @@ mod tests {
             group.individual_outputs.get("gemini-pro"),
             Some(&serde_json::json!({"v": 2}))
         );
+    }
+
+    #[test]
+    fn test_begin_judging_sets_voting_and_persists_attempt() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+        let gid = state
+            .create_multi_agent_group("FEAT-1", "review", "multi_model", vec![pending("a", "a")])
+            .unwrap();
+
+        let attempt = state.begin_judging(&gid, 120).unwrap();
+
+        let reloaded = State::load(&config).unwrap();
+        let group = reloaded
+            .multi_agent_groups
+            .iter()
+            .find(|g| g.group_id == gid)
+            .unwrap();
+        assert_eq!(group.phase, MultiAgentPhase::Voting);
+        assert_eq!(group.judge_attempt.as_ref(), Some(&attempt));
+        assert_eq!(
+            attempt.deadline() - attempt.started_at,
+            chrono::Duration::seconds(150)
+        );
+    }
+
+    #[test]
+    fn test_begin_judging_twice_issues_a_new_attempt_id() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        let mut state = State::load(&config).unwrap();
+        let gid = state
+            .create_multi_agent_group("FEAT-1", "review", "multi_model", vec![pending("a", "a")])
+            .unwrap();
+
+        let first = state.begin_judging(&gid, 120).unwrap();
+        let second = state.begin_judging(&gid, 120).unwrap();
+        assert_ne!(first.attempt_id, second.attempt_id);
+    }
+
+    #[test]
+    fn test_group_without_judge_attempt_field_still_deserializes() {
+        let json = r#"{
+            "group_id": "g", "ticket_id": "FEAT-1", "step_name": "review",
+            "step_type": "multi_model", "agent_ids": [], "phase": "fan_out"
+        }"#;
+        let group: MultiAgentGroup = serde_json::from_str(json).unwrap();
+        assert!(group.judge_attempt.is_none());
     }
 
     #[test]

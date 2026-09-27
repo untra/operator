@@ -10,6 +10,7 @@ import type { LlmToolsConfig } from "./LlmToolsConfig";
 import type { LoggingConfig } from "./LoggingConfig";
 import type { McpConfig } from "./McpConfig";
 import type { ModelServer } from "./ModelServer";
+import type { NativeLlmConfig } from "./NativeLlmConfig";
 import type { NotificationsConfig } from "./NotificationsConfig";
 import type { PathsConfig } from "./PathsConfig";
 import type { ProfileIdentity } from "./ProfileIdentity";
@@ -70,4 +71,8 @@ mcp: McpConfig,
 /**
  * Agent Client Protocol (ACP) agent configuration
  */
-acp: AcpConfig, };
+acp: AcpConfig, 
+/**
+ * In-daemon LLM calls (judge); requires the `native-llm` build feature
+ */
+native_llm: NativeLlmConfig, };

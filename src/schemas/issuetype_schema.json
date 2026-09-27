@@ -1195,7 +1195,7 @@
           "default": true
         },
         "voting_prompt": {
-          "description": "Prompt for the voting round (Handlebars, receives {{ answers }} array)",
+          "description": "Instruction for the judge that picks the winner (Handlebars, rendered\nwith the ticket context; candidates are appended automatically)",
           "type": [
             "string",
             "null"
@@ -1237,12 +1237,12 @@
       "description": "How the voting round is executed in multi-model steps",
       "oneOf": [
         {
-          "description": "One agent reviews all answers and picks winner (uses 1 slot)",
+          "description": "An LLM judge (`[native_llm.judge]`) picks the winner; falls back to the\nvoting strategy's deterministic rule when no judge is available",
           "type": "string",
           "const": "single_judge"
         },
         {
-          "description": "All original delegators re-run with shared answers, each votes (uses N slots)",
+          "description": "All original delegators re-run with shared answers, each votes (uses N\nslots). Not yet run: the deterministic rule applies",
           "type": "string",
           "const": "multi_voter"
         }
@@ -1272,7 +1272,7 @@
           "default": null
         },
         "selection_prompt": {
-          "description": "Prompt for the selection/review round",
+          "description": "Instruction for the judge that picks the best variation with\n`model_choice` (Handlebars, rendered with the ticket context)",
           "type": [
             "string",
             "null"
@@ -1289,7 +1289,7 @@
       "description": "Selection strategy for multi-prompt steps",
       "oneOf": [
         {
-          "description": "Model reviews all outputs and picks the best",
+          "description": "An LLM judge (`[native_llm.judge]`) picks the best; falls back to the\nfirst variation when no judge is available",
           "type": "string",
           "const": "model_choice"
         },

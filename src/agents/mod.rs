@@ -9,6 +9,7 @@ pub mod delegator_resolution;
 mod generator;
 pub mod hooks;
 pub mod idle_detector;
+mod judge;
 pub(crate) mod launcher;
 pub use launcher::step_command::StepLaunchContext;
 mod monitor;

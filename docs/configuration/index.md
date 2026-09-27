@@ -330,6 +330,8 @@ external_servers = []
 stdio_advertised = true
 max_concurrent_sessions = 8
 
+[native_llm]
+
 ```
 
 ## Configuration Files

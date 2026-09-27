@@ -99,6 +99,20 @@ impl ModelProviderClass {
     }
 }
 
+/// Read the server's API key from **this process's** environment: the
+/// instance's named env var, else the kind's default (`ANTHROPIC_API_KEY` /
+/// `OPENAI_API_KEY` / `GEMINI_API_KEY` / ...). Only for requests the daemon
+/// itself makes (model probes, native LLM calls); agent spawns get the key by
+/// reference via [`env_for_server`] instead.
+pub fn resolve_api_key(server: &ModelServer, kind: ModelServerKind) -> Option<String> {
+    server
+        .api_key_env
+        .as_deref()
+        .or_else(|| kind.default_api_key_env())
+        .and_then(|var| std::env::var(var).ok())
+        .filter(|k| !k.is_empty())
+}
+
 /// A model-server protocol kind.
 ///
 /// `OpenAiCompat` is the explicit catch-all for any OpenAI-API-compatible server

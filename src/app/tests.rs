@@ -83,6 +83,56 @@ fn make_test_config(temp_dir: &TempDir) -> Config {
     }
 }
 
+fn blank_for_test(config: Config) -> App {
+    let tmux_client: std::sync::Arc<dyn crate::agents::TmuxClient> =
+        std::sync::Arc::new(crate::agents::tmux::MockTmuxClient::new());
+    let (_pr_event_tx, pr_event_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (_version_tx, version_rx) = tokio::sync::mpsc::unbounded_channel();
+    App {
+        config: config.clone(),
+        dashboard: crate::ui::Dashboard::new(&config),
+        confirm_dialog: crate::ui::ConfirmDialog::new(),
+        help_dialog: crate::ui::dialogs::HelpDialog::new(config.sessions.wrapper),
+        create_dialog: crate::ui::create_dialog::CreateDialog::new(),
+        projects_dialog: crate::ui::ProjectsDialog::new(),
+        setup_screen: None,
+        should_quit: false,
+        exit_message: None,
+        session_monitor: crate::agents::SessionMonitor::new(&config),
+        session_preview: crate::ui::SessionPreview::new(),
+        ticket_sync: crate::agents::TicketSessionSync::new(
+            &config,
+            std::sync::Arc::clone(&tmux_client),
+        ),
+        sync_status_message: None,
+        rest_api_server: crate::rest::RestApiServer::new(config.clone(), config.rest_api.port),
+        exit_confirmation_mode: false,
+        exit_confirmation_time: None,
+        start_web_on_launch: false,
+        open_ui_on_launch: false,
+        session_recovery_dialog: crate::ui::SessionRecoveryDialog::new(),
+        collection_dialog: crate::ui::CollectionSwitchDialog::new(),
+        kanban_view: crate::ui::KanbanView::new(),
+        sync_confirm_dialog: crate::ui::SyncConfirmDialog::new(),
+        git_token_dialog: crate::ui::GitTokenDialog::new(),
+        kanban_onboarding_dialog: crate::ui::KanbanOnboardingDialog::new(),
+        kanban_onboarding_creds: super::kanban_onboarding::KanbanOnboardingCreds::default(),
+        kanban_sync_service: crate::services::KanbanSyncService::new(&config),
+        issue_type_registry: crate::issuetypes::IssueTypeRegistry::new(),
+        pr_event_rx,
+        pr_tracked: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+        pr_shutdown_tx: None,
+        notification_service: crate::notifications::NotificationService::from_config(&config)
+            .expect("disabled notifications still build a service"),
+        update_available_version: None,
+        update_notification_shown_at: None,
+        version_rx,
+        #[cfg(unix)]
+        relay_hub: None,
+        tmux_client,
+    }
+}
+
 // ============================================
 // State Transition Tests
 // ============================================
@@ -94,44 +144,28 @@ mod state_transitions {
     fn test_pause_queue_sets_state_paused() {
         let temp_dir = TempDir::new().unwrap();
         let config = make_test_config(&temp_dir);
-
-        // Initialize state file
         let mut state = State::load(&config).unwrap();
         state.set_paused(false).unwrap();
 
-        // Reload and verify initial state
-        let state = State::load(&config).unwrap();
-        assert!(!state.paused);
+        let mut app = blank_for_test(config.clone());
+        app.pause_queue().unwrap();
 
-        // Simulate pause_queue logic
-        let mut state = State::load(&config).unwrap();
-        state.set_paused(true).unwrap();
-
-        // Verify state is now paused
-        let reloaded = State::load(&config).unwrap();
-        assert!(reloaded.paused);
+        assert!(app.dashboard.paused);
+        assert!(State::load(&config).unwrap().paused);
     }
 
     #[test]
     fn test_resume_queue_sets_state_resumed() {
         let temp_dir = TempDir::new().unwrap();
         let config = make_test_config(&temp_dir);
-
-        // Initialize state as paused
         let mut state = State::load(&config).unwrap();
         state.set_paused(true).unwrap();
 
-        // Reload and verify
-        let state = State::load(&config).unwrap();
-        assert!(state.paused);
+        let mut app = blank_for_test(config.clone());
+        app.resume_queue().unwrap();
 
-        // Simulate resume_queue logic
-        let mut state = State::load(&config).unwrap();
-        state.set_paused(false).unwrap();
-
-        // Verify state is now resumed
-        let reloaded = State::load(&config).unwrap();
-        assert!(!reloaded.paused);
+        assert!(!app.dashboard.paused);
+        assert!(!State::load(&config).unwrap().paused);
     }
 
     #[test]
@@ -1717,5 +1751,526 @@ mod agent_lifecycle {
         let state = State::load(&config).unwrap();
         assert_eq!(state.running_agents().len(), 0);
         assert!(state.agent_by_session("op-TASK-remove").is_none());
+    }
+}
+
+mod key_dispatch {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::widgets::ListState;
+
+    use crate::queue::Ticket;
+    use crate::state::State;
+    use crate::ui::dashboard::FocusedPanel;
+    use crate::ui::{KanbanOnboardingAction, KanbanOnboardingProvider, KanbanOnboardingState};
+
+    use super::super::keyboard::TerminalKeyOp;
+    use super::*;
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    fn app() -> (tempfile::TempDir, App) {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let config = make_test_config(&temp_dir);
+        State::load(&config).unwrap();
+        (temp_dir, blank_for_test(config))
+    }
+
+    fn sample_ticket(project: &str) -> Ticket {
+        Ticket {
+            filename: format!("20240101-0000-TASK-{project}-sample.md"),
+            filepath: format!("/tmp/missing-{project}.md"),
+            timestamp: "20240101-0000".to_string(),
+            ticket_type: "TASK".to_string(),
+            project: project.to_string(),
+            id: format!("TASK-{project}"),
+            summary: "sample".to_string(),
+            priority: "P2-medium".to_string(),
+            status: "queued".to_string(),
+            step: String::new(),
+            content: String::new(),
+            sessions: std::collections::HashMap::new(),
+            step_delegators: std::collections::HashMap::new(),
+            llm_task: crate::queue::LlmTask::default(),
+            worktree_path: None,
+            branch: None,
+            external_id: None,
+            external_url: None,
+            external_provider: None,
+            collection: None,
+        }
+    }
+
+    fn focus_queue(app: &mut App, ticket: Option<Ticket>) {
+        app.dashboard.focused = FocusedPanel::Queue;
+        app.dashboard.queue_panel.tickets = ticket.into_iter().collect();
+        app.dashboard.queue_panel.state = ListState::default();
+        if !app.dashboard.queue_panel.tickets.is_empty() {
+            app.dashboard.queue_panel.state.select(Some(0));
+        }
+    }
+
+    fn assert_dashboard_untouched(app: &App) {
+        assert!(!app.should_quit);
+        assert!(!app.confirm_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn git_token_swallows_dashboard_keys() {
+        let (_dir, mut app) = app();
+        app.git_token_dialog
+            .show("github", "GitHub", "https://example", "token");
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        app.dispatch_key(key(KeyCode::Char('a'))).await.unwrap();
+        assert_eq!(app.git_token_dialog.token(), "qLa");
+        assert_dashboard_untouched(&app);
+        app.dispatch_key(key(KeyCode::Esc)).await.unwrap();
+        assert!(!app.git_token_dialog.visible);
+        assert!(app.git_token_dialog.token().is_empty());
+    }
+
+    #[tokio::test]
+    async fn git_token_outranks_kanban_onboarding() {
+        let (_dir, mut app) = app();
+        app.show_kanban_onboarding_dialog();
+        app.git_token_dialog
+            .show("github", "GitHub", "https://example", "token");
+        app.dispatch_key(key(KeyCode::Char('a'))).await.unwrap();
+        assert_eq!(app.git_token_dialog.token(), "a");
+        assert_eq!(
+            app.kanban_onboarding_dialog.state,
+            KanbanOnboardingState::PickProvider
+        );
+        assert!(app.kanban_onboarding_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn sync_confirm_swallows_dashboard_keys() {
+        let (_dir, mut app) = app();
+        app.sync_confirm_dialog.visible = true;
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.sync_confirm_dialog.visible);
+        assert_dashboard_untouched(&app);
+        app.dispatch_key(key(KeyCode::Esc)).await.unwrap();
+        assert!(!app.sync_confirm_dialog.visible);
+        assert!(app.sync_status_message.is_none());
+    }
+
+    #[tokio::test]
+    async fn kanban_onboarding_esc_hides_without_quitting() {
+        let (_dir, mut app) = app();
+        app.show_kanban_onboarding_dialog();
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.kanban_onboarding_dialog.visible);
+        assert_dashboard_untouched(&app);
+        app.dispatch_key(key(KeyCode::Esc)).await.unwrap();
+        assert!(!app.kanban_onboarding_dialog.visible);
+        assert!(app.kanban_onboarding_creds.jira.is_none());
+        assert!(app.kanban_onboarding_creds.linear.is_none());
+    }
+
+    #[tokio::test]
+    async fn help_any_key_closes_without_quitting() {
+        let (_dir, mut app) = app();
+        app.help_dialog.visible = true;
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        assert!(!app.help_dialog.visible);
+        assert_dashboard_untouched(&app);
+    }
+
+    #[tokio::test]
+    async fn session_preview_q_hides_preview() {
+        let (_dir, mut app) = app();
+        app.session_preview.visible = true;
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.session_preview.visible);
+        assert_dashboard_untouched(&app);
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        assert!(!app.session_preview.visible);
+        assert!(!app.should_quit);
+    }
+
+    #[tokio::test]
+    async fn create_dialog_letter_does_not_submit() {
+        let (_dir, mut app) = app();
+        app.create_dialog.show();
+        let op = app.dispatch_key(key(KeyCode::Char('a'))).await.unwrap();
+        assert!(matches!(op, TerminalKeyOp::None));
+        assert!(app.create_dialog.visible);
+        assert_dashboard_untouched(&app);
+        app.dispatch_key(key(KeyCode::Esc)).await.unwrap();
+        assert!(!app.create_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn projects_dialog_esc_hides() {
+        let (_dir, mut app) = app();
+        app.projects_dialog.show();
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.projects_dialog.visible);
+        assert_dashboard_untouched(&app);
+        app.dispatch_key(key(KeyCode::Esc)).await.unwrap();
+        assert!(!app.projects_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn confirm_n_hides_without_launching() {
+        let (_dir, mut app) = app();
+        let ticket = sample_ticket("test-project");
+        let id = ticket.id.clone();
+        app.confirm_dialog.show(ticket);
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.confirm_dialog.visible);
+        app.dispatch_key(key(KeyCode::Char('n'))).await.unwrap();
+        assert!(!app.confirm_dialog.visible);
+        assert!(!app.should_quit);
+        assert_eq!(State::load(&app.config).unwrap().running_agents().len(), 0);
+        let _ = id;
+    }
+
+    #[tokio::test]
+    async fn failed_launch_restores_confirm_ticket() {
+        let (_dir, mut app) = app();
+        let ticket = sample_ticket("missing-project");
+        let id = ticket.id.clone();
+        app.confirm_dialog.show(ticket);
+        let err = app.dispatch_key(key(KeyCode::Char('y'))).await;
+        assert!(err.is_err());
+        assert!(app.confirm_dialog.visible);
+        assert_eq!(
+            app.confirm_dialog.ticket.as_ref().map(|t| t.id.as_str()),
+            Some(id.as_str())
+        );
+    }
+
+    #[tokio::test]
+    async fn session_recovery_l_does_not_quit() {
+        let (_dir, mut app) = app();
+        app.session_recovery_dialog.visible = true;
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.session_recovery_dialog.visible);
+        assert_dashboard_untouched(&app);
+        app.dispatch_key(key(KeyCode::Esc)).await.unwrap();
+        assert!(!app.session_recovery_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn collection_dialog_q_hides_without_quitting() {
+        let (_dir, mut app) = app();
+        app.collection_dialog.visible = true;
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.collection_dialog.visible);
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        assert!(!app.collection_dialog.visible);
+        assert_dashboard_untouched(&app);
+    }
+
+    #[tokio::test]
+    async fn kanban_view_q_does_not_quit_app() {
+        let (_dir, mut app) = app();
+        app.kanban_view.visible = true;
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.kanban_view.visible);
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        assert!(!app.kanban_view.visible);
+        assert!(!app.should_quit);
+    }
+
+    #[tokio::test]
+    async fn welcome_setup_eats_quit_and_launch_letters() {
+        let (_dir, mut app) = app();
+        app.setup_screen = Some(crate::ui::setup::SetupScreen::new(
+            app.config.paths.tickets.clone(),
+            Vec::new(),
+            std::collections::HashMap::new(),
+        ));
+        app.dispatch_key(key(KeyCode::Char('c'))).await.unwrap();
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(!app.should_quit);
+        assert!(!app.confirm_dialog.visible);
+        assert_eq!(app.setup_screen.as_ref().unwrap().configuration_name, "c");
+    }
+
+    #[tokio::test]
+    async fn l_opens_confirm_for_selected_queue_ticket() {
+        let (_dir, mut app) = app();
+        let ticket = sample_ticket("test-project");
+        let id = ticket.id.clone();
+        focus_queue(&mut app, Some(ticket));
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(app.confirm_dialog.visible);
+        assert_eq!(
+            app.confirm_dialog.ticket.as_ref().map(|t| t.id.as_str()),
+            Some(id.as_str())
+        );
+        assert_eq!(State::load(&app.config).unwrap().running_agents().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn enter_on_queue_opens_confirm() {
+        let (_dir, mut app) = app();
+        focus_queue(&mut app, Some(sample_ticket("test-project")));
+        app.dispatch_key(key(KeyCode::Enter)).await.unwrap();
+        assert!(app.confirm_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn shift_enter_without_ticket_does_not_launch() {
+        let (_dir, mut app) = app();
+        focus_queue(&mut app, None);
+        let before = app.dashboard.status_message.clone();
+        app.dispatch_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::SHIFT))
+            .await
+            .unwrap();
+        assert!(!app.confirm_dialog.visible);
+        assert_eq!(app.dashboard.status_message, before);
+        assert_eq!(State::load(&app.config).unwrap().running_agents().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn l_refuses_when_queue_paused() {
+        let (_dir, mut app) = app();
+        focus_queue(&mut app, Some(sample_ticket("test-project")));
+        app.dashboard.paused = true;
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(!app.confirm_dialog.visible);
+        let status = app.dashboard.status_message.unwrap();
+        assert!(status.starts_with("Cannot launch:"));
+        assert!(status.contains("paused"));
+    }
+
+    #[tokio::test]
+    async fn l_refuses_when_global_cap_is_full() {
+        let (_dir, mut app) = app();
+        focus_queue(&mut app, Some(sample_ticket("test-project")));
+        let cap = app.config.effective_max_agents();
+        let mut state = State::load(&app.config).unwrap();
+        for i in 0..cap {
+            state
+                .add_agent(
+                    format!("other-{i}"),
+                    "TASK".to_string(),
+                    format!("other-{i}"),
+                    false,
+                )
+                .unwrap();
+        }
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(!app.confirm_dialog.visible);
+        let status = app.dashboard.status_message.unwrap();
+        assert!(status.starts_with("Cannot launch:"));
+        assert!(status.contains("agents active"));
+    }
+
+    #[tokio::test]
+    async fn l_refuses_when_project_cap_is_full() {
+        let (_dir, mut app) = app();
+        focus_queue(&mut app, Some(sample_ticket("test-project")));
+        let mut state = State::load(&app.config).unwrap();
+        state
+            .add_agent(
+                "busy".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(!app.confirm_dialog.visible);
+        let status = app.dashboard.status_message.unwrap();
+        assert!(status.starts_with("Cannot launch:"));
+        assert!(status.contains("test-project"));
+    }
+
+    #[tokio::test]
+    async fn l_with_nothing_selected_leaves_confirm_hidden() {
+        let (_dir, mut app) = app();
+        focus_queue(&mut app, None);
+        app.dispatch_key(key(KeyCode::Char('L'))).await.unwrap();
+        assert!(!app.confirm_dialog.visible);
+        assert!(app.dashboard.status_message.is_none());
+    }
+
+    #[tokio::test]
+    async fn p_and_r_pause_and_resume_through_app() {
+        let (_dir, mut app) = app();
+        app.dispatch_key(key(KeyCode::Char('p'))).await.unwrap();
+        assert!(app.dashboard.paused);
+        assert!(State::load(&app.config).unwrap().paused);
+        app.dispatch_key(key(KeyCode::Char('r'))).await.unwrap();
+        assert!(!app.dashboard.paused);
+        assert!(!State::load(&app.config).unwrap().paused);
+    }
+
+    #[tokio::test]
+    async fn normal_mode_opens_dialogs_and_moves_focus() {
+        let (_dir, mut app) = app();
+        let before = app.dashboard.focused;
+        app.dispatch_key(key(KeyCode::Tab)).await.unwrap();
+        assert_ne!(app.dashboard.focused, before);
+        app.dispatch_key(key(KeyCode::Char('C'))).await.unwrap();
+        assert!(app.create_dialog.visible);
+        app.create_dialog.visible = false;
+        app.dispatch_key(key(KeyCode::Char('J'))).await.unwrap();
+        assert!(app.projects_dialog.visible);
+        app.projects_dialog.visible = false;
+        app.dispatch_key(key(KeyCode::Char('?'))).await.unwrap();
+        assert!(app.help_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn q_quits_without_a_running_api() {
+        let (_dir, mut app) = app();
+        assert!(!app.rest_api_server.is_running());
+        app.dispatch_key(key(KeyCode::Char('q'))).await.unwrap();
+        assert!(app.should_quit);
+    }
+
+    #[tokio::test]
+    async fn ctrl_c_is_two_stage() {
+        let (_dir, mut app) = app();
+        app.handle_ctrl_c().await;
+        assert!(app.exit_confirmation_mode);
+        assert!(!app.should_quit);
+        app.handle_ctrl_c().await;
+        assert!(app.should_quit);
+    }
+
+    #[tokio::test]
+    async fn s_without_providers_sets_status() {
+        let (_dir, mut app) = app();
+        app.dispatch_key(key(KeyCode::Char('S'))).await.unwrap();
+        assert_eq!(
+            app.sync_status_message.as_deref(),
+            Some("No kanban providers configured")
+        );
+        assert!(!app.sync_confirm_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn k_without_providers_opens_onboarding() {
+        let (_dir, mut app) = app();
+        app.dispatch_key(key(KeyCode::Char('K'))).await.unwrap();
+        assert!(app.kanban_onboarding_dialog.visible);
+        assert!(!app.kanban_view.visible);
+    }
+
+    #[tokio::test]
+    async fn enter_on_in_progress_is_an_attach_op() {
+        let (_dir, mut app) = app();
+        app.dashboard.focused = FocusedPanel::InProgress;
+        let op = app.dispatch_key(key(KeyCode::Enter)).await.unwrap();
+        assert!(matches!(op, TerminalKeyOp::AttachSession));
+    }
+
+    #[tokio::test]
+    async fn enter_on_status_is_a_status_op() {
+        let (_dir, mut app) = app();
+        app.dashboard.focused = FocusedPanel::Status;
+        let op = app.dispatch_key(key(KeyCode::Enter)).await.unwrap();
+        assert!(matches!(op, TerminalKeyOp::StatusAction(_)));
+    }
+
+    #[tokio::test]
+    async fn show_onboarding_clears_stashed_creds() {
+        let (_dir, mut app) = app();
+        app.kanban_onboarding_creds.jira =
+            Some(super::super::kanban_onboarding::JiraCredsInflight {
+                domain: "acme.atlassian.net".to_string(),
+                email: "a@b.co".to_string(),
+                api_token: "secret".to_string(),
+            });
+        app.show_kanban_onboarding_dialog();
+        assert!(app.kanban_onboarding_dialog.visible);
+        assert_eq!(
+            app.kanban_onboarding_dialog.state,
+            KanbanOnboardingState::PickProvider
+        );
+        assert!(app.kanban_onboarding_creds.jira.is_none());
+    }
+
+    #[tokio::test]
+    async fn ui_only_onboarding_actions_do_not_write() {
+        let (_dir, mut app) = app();
+        app.show_kanban_onboarding_dialog();
+        for action in [
+            KanbanOnboardingAction::None,
+            KanbanOnboardingAction::PickedProvider(KanbanOnboardingProvider::Jira),
+            KanbanOnboardingAction::Cancelled,
+            KanbanOnboardingAction::Done,
+        ] {
+            app.handle_kanban_onboarding_action(action).await.unwrap();
+        }
+        assert!(app.kanban_onboarding_creds.jira.is_none());
+        assert!(app.kanban_onboarding_creds.linear.is_none());
+    }
+
+    #[tokio::test]
+    async fn copy_export_block_sets_status() {
+        let (_dir, mut app) = app();
+        app.show_kanban_onboarding_dialog();
+        app.handle_kanban_onboarding_action(KanbanOnboardingAction::CopyExportBlock)
+            .await
+            .unwrap();
+        assert!(app.sync_status_message.is_some());
+        assert!(app.kanban_onboarding_dialog.visible);
+    }
+
+    #[tokio::test]
+    async fn picked_project_without_creds_sets_dialog_error() {
+        let (_dir, mut app) = app();
+        app.show_kanban_onboarding_dialog();
+        app.handle_kanban_onboarding_action(KanbanOnboardingAction::PickedProject {
+            provider: KanbanOnboardingProvider::Jira,
+            project_key: "PROJ".to_string(),
+            project_name: "Proj".to_string(),
+        })
+        .await
+        .unwrap();
+        assert!(app
+            .kanban_onboarding_dialog
+            .error_message()
+            .contains("Missing stashed Jira credentials"));
+        assert_eq!(
+            app.kanban_onboarding_dialog.state,
+            KanbanOnboardingState::Error
+        );
+
+        app.show_kanban_onboarding_dialog();
+        app.handle_kanban_onboarding_action(KanbanOnboardingAction::PickedProject {
+            provider: KanbanOnboardingProvider::Linear,
+            project_key: "ENG".to_string(),
+            project_name: "Eng".to_string(),
+        })
+        .await
+        .unwrap();
+        assert!(app
+            .kanban_onboarding_dialog
+            .error_message()
+            .contains("Missing stashed Linear credentials"));
+    }
+
+    #[test]
+    fn process_agent_switches_ignores_agents_without_marker() {
+        let (_dir, app) = app();
+        let mut state = State::load(&app.config).unwrap();
+        state
+            .add_agent(
+                "TASK-plain".to_string(),
+                "TASK".to_string(),
+                "test-project".to_string(),
+                false,
+            )
+            .unwrap();
+        app.process_agent_switches(&mut state).unwrap();
+        assert!(state
+            .agents
+            .iter()
+            .all(|agent| agent.review_state.is_none()));
     }
 }

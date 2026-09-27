@@ -1,12 +1,22 @@
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::ui::create_dialog::CreateDialogResult;
 use crate::ui::setup::SetupResult;
-use crate::ui::status_panel::ActionButton;
+use crate::ui::status_panel::{ActionButton, StatusAction};
 use crate::ui::{ConfirmSelection, KanbanViewResult, SessionRecoverySelection, SyncConfirmResult};
 
 use super::git_onboarding;
 use super::{App, AppTerminal};
+
+pub(super) enum TerminalKeyOp {
+    None,
+    CreateTicket(CreateDialogResult),
+    ViewTicket,
+    EditTicket,
+    AttachSession,
+    StatusAction(StatusAction),
+}
 
 impl App {
     pub(super) async fn handle_key(
@@ -14,6 +24,17 @@ impl App {
         key: KeyEvent,
         terminal: &mut AppTerminal,
     ) -> Result<()> {
+        match self.dispatch_key(key).await? {
+            TerminalKeyOp::None => Ok(()),
+            TerminalKeyOp::CreateTicket(result) => self.create_ticket(result, terminal),
+            TerminalKeyOp::ViewTicket => self.view_ticket(terminal),
+            TerminalKeyOp::EditTicket => self.edit_ticket(terminal),
+            TerminalKeyOp::AttachSession => self.attach_to_session(terminal),
+            TerminalKeyOp::StatusAction(action) => self.execute_status_action(action, terminal),
+        }
+    }
+
+    pub(super) async fn dispatch_key(&mut self, key: KeyEvent) -> Result<TerminalKeyOp> {
         let code = key.code;
         let mods = key.modifiers;
 
@@ -105,7 +126,7 @@ impl App {
                 }
                 _ => {}
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Sync confirm dialog handling
@@ -120,13 +141,13 @@ impl App {
                     }
                 }
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         if self.kanban_onboarding_dialog.visible {
             let action = self.kanban_onboarding_dialog.handle_key(code);
             self.handle_kanban_onboarding_action(action).await?;
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Setup screen takes absolute priority
@@ -135,7 +156,7 @@ impl App {
                 && matches!(code, KeyCode::Char(_) | KeyCode::Backspace)
             {
                 setup.handle_configuration_name_key(code);
-                return Ok(());
+                return Ok(TerminalKeyOp::None);
             }
             // The password step needs raw characters, and the wizard bindings
             // below would eat them: `i` runs initialize_tickets() outright,
@@ -155,7 +176,7 @@ impl App {
                 )
             {
                 setup.handle_password_key(code);
-                return Ok(());
+                return Ok(TerminalKeyOp::None);
             }
             if setup.step == crate::ui::setup::SetupStep::License
                 && matches!(
@@ -170,7 +191,7 @@ impl App {
                 )
             {
                 setup.handle_license_key(code);
-                return Ok(());
+                return Ok(TerminalKeyOp::None);
             }
             if setup.step == crate::ui::setup::SetupStep::ExecutionTarget
                 && setup.execution_target_state.selected() == Some(1)
@@ -180,7 +201,7 @@ impl App {
                 )
             {
                 setup.handle_execution_target_key(code);
-                return Ok(());
+                return Ok(TerminalKeyOp::None);
             }
 
             match code {
@@ -261,13 +282,13 @@ impl App {
                 }
                 _ => {}
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Help dialog takes priority
         if self.help_dialog.visible {
             self.help_dialog.visible = false;
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Session preview handling
@@ -296,15 +317,15 @@ impl App {
                 }
                 _ => {}
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Create dialog handling
         if self.create_dialog.visible {
             if let Some(result) = self.create_dialog.handle_key(code) {
-                self.create_ticket(result, terminal)?;
+                return Ok(TerminalKeyOp::CreateTicket(result));
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Projects dialog handling
@@ -312,7 +333,7 @@ impl App {
             if let Some(result) = self.projects_dialog.handle_key(code) {
                 self.execute_project_action(result)?;
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Confirm dialog handling
@@ -365,10 +386,10 @@ impl App {
                         self.launch_confirmed().await?;
                     }
                     KeyCode::Char('v' | 'V') => {
-                        self.view_ticket(terminal)?;
+                        return Ok(TerminalKeyOp::ViewTicket);
                     }
                     KeyCode::Char('e' | 'E') => {
-                        self.edit_ticket(terminal)?;
+                        return Ok(TerminalKeyOp::EditTicket);
                     }
                     KeyCode::Char('n' | 'N') | KeyCode::Esc => {
                         self.confirm_dialog.hide();
@@ -401,7 +422,7 @@ impl App {
                             self.launch_confirmed().await?;
                         }
                         ConfirmSelection::View => {
-                            self.view_ticket(terminal)?;
+                            return Ok(TerminalKeyOp::ViewTicket);
                         }
                         ConfirmSelection::No => {
                             self.confirm_dialog.hide();
@@ -410,7 +431,7 @@ impl App {
                     _ => {}
                 }
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Session recovery dialog handling
@@ -443,7 +464,7 @@ impl App {
                 }
                 _ => {}
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Collection dialog handling
@@ -451,7 +472,7 @@ impl App {
             if let Some(result) = self.collection_dialog.handle_key(code) {
                 self.handle_collection_switch(result)?;
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Kanban view handling
@@ -482,7 +503,7 @@ impl App {
                     }
                 }
             }
-            return Ok(());
+            return Ok(TerminalKeyOp::None);
         }
 
         // Normal mode
@@ -534,7 +555,7 @@ impl App {
                             ActionButton::A
                         };
                         let action = self.dashboard.status_action(button);
-                        self.execute_status_action(action, terminal)?;
+                        return Ok(TerminalKeyOp::StatusAction(action));
                     }
                     crate::ui::dashboard::FocusedPanel::Queue => {
                         if mods.contains(KeyModifiers::SHIFT) {
@@ -544,7 +565,7 @@ impl App {
                         }
                     }
                     crate::ui::dashboard::FocusedPanel::InProgress => {
-                        self.attach_to_session(terminal)?;
+                        return Ok(TerminalKeyOp::AttachSession);
                     }
                     crate::ui::dashboard::FocusedPanel::Completed => {
                         // No action on completed panel
@@ -609,12 +630,12 @@ impl App {
             {
                 // B-action: go back / collapse section in status panel
                 let action = self.dashboard.status_action(ActionButton::B);
-                self.execute_status_action(action, terminal)?;
+                return Ok(TerminalKeyOp::StatusAction(action));
             }
             _ => {}
         }
 
-        Ok(())
+        Ok(TerminalKeyOp::None)
     }
 
     /// Handle Ctrl+C for graceful two-stage exit

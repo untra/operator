@@ -278,39 +278,60 @@ impl App {
     }
 
     pub(super) async fn launch_confirmed(&mut self) -> Result<()> {
-        if let Some(ticket) = self.confirm_dialog.ticket.take() {
-            let launcher = Launcher::new(&self.config)?;
+        let Some(ticket) = self.confirm_dialog.ticket.take() else {
+            return Ok(());
+        };
 
-            // Build launch options from dialog state
-            // Only set project_override if it differs from the ticket's original project
-            let project_override = if self.confirm_dialog.is_project_overridden() {
-                self.confirm_dialog.selected_project_name().cloned()
-            } else {
-                None
-            };
+        let restore = |app: &mut Self, ticket: crate::queue::Ticket| {
+            app.confirm_dialog.ticket = Some(ticket);
+            app.confirm_dialog.visible = true;
+        };
 
-            // Dialog target picker resolves by name; "local" (index 0) shields
-            // the launch.docker.enabled fallback so picker-off = local.
-            let target = crate::agents::delegator_resolution::resolve_named_target(
-                &self.config,
-                self.confirm_dialog.selected_target_name(),
-            )
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let launcher = match Launcher::new(&self.config) {
+            Ok(launcher) => launcher,
+            Err(e) => {
+                restore(self, ticket);
+                return Err(e);
+            }
+        };
 
-            let options = LaunchOptions {
-                provider: self.confirm_dialog.selected_provider().cloned(),
-                delegator_name: None,
-                extra_flags: Vec::new(),
-                target,
-                yolo_mode: self.confirm_dialog.yolo_selected,
-                project_override,
-                ..Default::default()
-            };
+        // Build launch options from dialog state
+        // Only set project_override if it differs from the ticket's original project
+        let project_override = if self.confirm_dialog.is_project_overridden() {
+            self.confirm_dialog.selected_project_name().cloned()
+        } else {
+            None
+        };
 
-            launcher.launch_with_options(&ticket, options).await?;
-            self.confirm_dialog.hide();
-            self.refresh_data()?;
+        // Dialog target picker resolves by name; "local" (index 0) shields
+        // the launch.docker.enabled fallback so picker-off = local.
+        let target = match crate::agents::delegator_resolution::resolve_named_target(
+            &self.config,
+            self.confirm_dialog.selected_target_name(),
+        ) {
+            Ok(target) => target,
+            Err(e) => {
+                restore(self, ticket);
+                return Err(anyhow::anyhow!(e.to_string()));
+            }
+        };
+
+        let options = LaunchOptions {
+            provider: self.confirm_dialog.selected_provider().cloned(),
+            delegator_name: None,
+            extra_flags: Vec::new(),
+            target,
+            yolo_mode: self.confirm_dialog.yolo_selected,
+            project_override,
+            ..Default::default()
+        };
+
+        if let Err(e) = launcher.launch_with_options(&ticket, options).await {
+            restore(self, ticket);
+            return Err(e);
         }
+        self.confirm_dialog.hide();
+        self.refresh_data()?;
         Ok(())
     }
 

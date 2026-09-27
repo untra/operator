@@ -228,7 +228,10 @@ impl KanbanOnboardingDialog {
         &self.export_block
     }
 
-    // ─── Input helpers ───────────────────────────────────────────────────
+    #[allow(dead_code)]
+    pub fn error_message(&self) -> &str {
+        &self.error_message
+    }
 
     fn current_buf(&self) -> &str {
         match self.state {

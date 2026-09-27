@@ -19,8 +19,7 @@ voting_strategy: VotingStrategy,
  */
 share_answers: boolean, 
 /**
- * Instruction for the judge that picks the winner (Handlebars, rendered
- * with the ticket context; candidates are appended automatically)
+ * Instruction prompt for the judge that picks the winner (Handlebars, rendered with the ticket context)
  */
 voting_prompt?: string | null, 
 /**

@@ -73,6 +73,7 @@ mcp: McpConfig,
  */
 acp: AcpConfig, 
 /**
- * In-daemon LLM calls (judge); requires the `native-llm` build feature
+ * In-daemon LLM calls (judge). Accepted but inert until the `native-llm`
+ * build feature ships; a configured judge falls back to the deterministic rule.
  */
 native_llm: NativeLlmConfig, };

@@ -28,10 +28,7 @@ const PAGE_ROWS = [
 /** Stories render plain anchors; the SPA supplies a react-router NavLink here. */
 const anchor =
   (isActive: boolean) =>
-  (
-    content: React.ReactNode,
-    className: (state: { isActive: boolean }) => string,
-  ) => (
+  (content: React.ReactNode, className: (state: { isActive: boolean }) => string) => (
     <a href="#nav" className={className({ isActive })}>
       {content}
     </a>
@@ -48,11 +45,7 @@ function Groups({ lockedReason }: { lockedReason?: string }) {
               icon={row.icon}
               health={row.health}
               disabledReason={row.label === "Kanban" ? lockedReason : undefined}
-              renderLink={
-                row.label === "Kanban" && lockedReason
-                  ? undefined
-                  : anchor(index === 0)
-              }
+              renderLink={row.label === "Kanban" && lockedReason ? undefined : anchor(index === 0)}
             />
           </li>
         ))}
@@ -60,11 +53,7 @@ function Groups({ lockedReason }: { lockedReason?: string }) {
       <NavGroup label="Pages">
         {PAGE_ROWS.map((row) => (
           <li key={row.label}>
-            <NavRow
-              label={row.label}
-              icon={row.icon}
-              renderLink={anchor(false)}
-            />
+            <NavRow label={row.label} icon={row.icon} renderLink={anchor(false)} />
           </li>
         ))}
       </NavGroup>

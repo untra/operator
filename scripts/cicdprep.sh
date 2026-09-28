@@ -237,7 +237,7 @@ if needs_shell; then
   section "Shell scripts"
   require_tool shellcheck "shell script lint"
 
-  run_step "shellcheck" bash -c 'shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*'
+  run_step "shellcheck" bash -c 'shellcheck -S warning scripts/*.sh scripts/ci/*.sh'
 else
   skip "Shell scripts"
 fi

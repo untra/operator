@@ -353,7 +353,7 @@ Configuration for multi-model delegation steps (fan-out + vote)
 | `delegators` | `array` | Yes | Named delegator references (from config.delegators), minimum 2 |
 | `voting_strategy` | → `VotingStrategy` | Yes | How to aggregate/select the final answer |
 | `share_answers` | `boolean` | No | Whether to share all answers with all models in the voting round |
-| `voting_prompt` | `string` \| `null` | No | Instruction for the judge that picks the winner (Handlebars, rendered with the ticket context; candidates are appended automatically) |
+| `voting_prompt` | `string` \| `null` | No | Instruction prompt for the judge that picks the winner (Handlebars, rendered with the ticket context) |
 | `voting_mode` | → `VotingMode` | No | How the voting round executes |
 
 ### Definition: VotingStrategy

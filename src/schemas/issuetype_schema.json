@@ -1195,7 +1195,7 @@
           "default": true
         },
         "voting_prompt": {
-          "description": "Instruction for the judge that picks the winner (Handlebars, rendered\nwith the ticket context; candidates are appended automatically)",
+          "description": "Instruction prompt for the judge that picks the winner (Handlebars, rendered with the ticket context)",
           "type": [
             "string",
             "null"
@@ -1237,7 +1237,7 @@
       "description": "How the voting round is executed in multi-model steps",
       "oneOf": [
         {
-          "description": "An LLM judge (`[native_llm.judge]`) picks the winner; falls back to the\nvoting strategy's deterministic rule when no judge is available",
+          "description": "An LLM judge (`[native_llm.judge]`, not yet in release builds) picks the\nwinner; the voting strategy's deterministic rule applies until then",
           "type": "string",
           "const": "single_judge"
         },
@@ -1289,7 +1289,7 @@
       "description": "Selection strategy for multi-prompt steps",
       "oneOf": [
         {
-          "description": "An LLM judge (`[native_llm.judge]`) picks the best; falls back to the\nfirst variation when no judge is available",
+          "description": "An LLM judge (`[native_llm.judge]`, not yet in release builds) picks the\nbest; the first variation is used until then",
           "type": "string",
           "const": "model_choice"
         },

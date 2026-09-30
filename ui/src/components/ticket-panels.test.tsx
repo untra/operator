@@ -7,45 +7,9 @@ import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
 import { RightPanelProvider } from "../right-panel";
+import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => ({
-  TicketCreateForm: ({
-    onChange,
-    onSubmit,
-  }: {
-    onChange: (value: { issueType: string; project: string; summary: string }) => void;
-    onSubmit: () => void;
-  }) => (
-    <>
-      <button
-        type="button"
-        onClick={() => onChange({ issueType: "TASK", project: "operator", summary: "Test" })}
-      >
-        Fill ticket
-      </button>
-      <button type="button" onClick={onSubmit}>
-        Submit ticket
-      </button>
-    </>
-  ),
-  TicketDetailView: ({
-    launchControls,
-    launchActions,
-  }: {
-    launchControls?: ReactNode;
-    launchActions?: ReactNode;
-  }) => (
-    <div>
-      {launchControls}
-      {launchActions}
-    </div>
-  ),
-  LaunchForm: ({ onSubmit }: { onSubmit: () => void }) => (
-    <button type="button" onClick={onSubmit}>
-      Launch ticket
-    </button>
-  ),
-}));
+mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { TicketCreatePanel } = await import("./TicketCreatePanel");
 const { TicketDetailPanel } = await import("./TicketDetailPanel");

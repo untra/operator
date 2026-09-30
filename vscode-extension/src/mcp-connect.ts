@@ -453,7 +453,9 @@ export async function registerInCursorUserConfig(
           "Please fix or remove the file and retry.",
       );
     } else {
-      void vscode.window.showErrorMessage(`Could not write ${configPath}: ${result.message}`);
+      void vscode.window.showErrorMessage(
+        `Could not write ${configPath}: ${result.message}`,
+      );
     }
     return;
   }

@@ -1,60 +1,13 @@
 import { afterEach, describe, expect, jest, mock, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
+import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => ({
-  AuthCard: ({
-    title,
-    error,
-    children,
-    actions,
-    onSubmit,
-  }: {
-    title: string;
-    error?: string | null;
-    children: ReactNode;
-    actions?: ReactNode;
-    onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
-  }) => (
-    <form onSubmit={onSubmit}>
-      <h1>{title}</h1>
-      {error && <p>{error}</p>}
-      {children}
-      {actions}
-    </form>
-  ),
-  AuthField: ({
-    label,
-    value,
-    onChange,
-    type,
-  }: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    type?: string;
-  }) => (
-    <label>
-      {label}
-      <input
-        aria-label={label}
-        type={type}
-        value={value}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
-      />
-    </label>
-  ),
-  AuthSubmit: ({ children, disabled }: { children: ReactNode; disabled?: boolean }) => (
-    <button type="submit" disabled={disabled}>
-      {children}
-    </button>
-  ),
-}));
+mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { LoginPage } = await import("./LoginPage");
 const { SetupPage } = await import("./SetupPage");

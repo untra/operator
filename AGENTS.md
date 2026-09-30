@@ -79,9 +79,8 @@ excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
 
 Install the pre-push hook once per clone so the fast gate (`fmt-check` +
 root `clippy`, no tests) runs automatically before every push; the full `make check` remains
-the expectation before opening a PR.
+the expectation before opening a PR:
 
-./scripts/cicdprep.sh
 
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
 

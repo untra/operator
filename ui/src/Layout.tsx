@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   AppShell,
@@ -15,8 +15,8 @@ import { CONCEPTS, STATUS_KEYS, PAGE_KEYS } from "./concepts";
 import { SectionsProvider, useSections } from "./sections-context";
 import { RightPanelProvider, useRightPanel } from "./right-panel";
 import type { SectionDto } from "./api-client";
-import { OperatorApi } from "./api-client";
-import { useHost } from "./host";
+import { useApiMutation, useApiQuery, useResetSession } from "./api";
+import { currentSessionQuery, logoutMutation } from "./api/definitions";
 import { useProfiles } from "./profiles-context";
 
 // The "Status" group mirrors the canonical section order shared with the TUI and
@@ -83,46 +83,24 @@ function RightPanelController() {
 
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
-  const host = useHost();
   const { selected } = useProfiles();
   const navigate = useNavigate();
-  const [username, setUsername] = useState<string | null>(null);
-  const [signingOut, setSigningOut] = useState(false);
+  const session = useApiQuery(currentSessionQuery());
+  const logout = useApiMutation(logoutMutation);
+  const resetSession = useResetSession();
+  const username = session.error ? "Account unavailable" : (session.data?.subject ?? null);
   const [signOutError, setSignOutError] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    new OperatorApi(host)
-      .currentSession()
-      .then((session) => {
-        if (active) {
-          setUsername(session.subject);
-        }
-        return undefined;
-      })
-      .catch(() => {
-        if (active) {
-          setUsername("Account unavailable");
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [host]);
-
   const signOut = useCallback(async () => {
-    setSigningOut(true);
     setSignOutError(false);
     try {
-      const api = new OperatorApi(host);
-      await api.logout();
+      await logout.mutateAsync({});
+      resetSession();
       void navigate("/login", { replace: true });
     } catch {
       setSignOutError(true);
-    } finally {
-      setSigningOut(false);
     }
-  }, [host, navigate]);
+  }, [logout, navigate, resetSession]);
 
   return (
     <SectionsProvider>
@@ -144,7 +122,7 @@ export function Layout() {
             <AccountFooter
               username={username ?? "Loading account…"}
               configurationName={selected?.name ?? "No configuration"}
-              busy={signingOut}
+              busy={logout.isPending}
               failed={signOutError}
               onSignOut={signOut}
             />

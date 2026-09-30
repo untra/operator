@@ -5,7 +5,6 @@ import type { SetupExecutionTarget } from "@operator/bindings/SetupExecutionTarg
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type {
   IntegrationCatalogEntryDto,
-  OperatorApi,
   SetupCollectionResponse,
   SetupStatusResponse,
 } from "../../api-client";
@@ -26,7 +25,6 @@ export type WizardDraft = {
 };
 
 export type StepProps = {
-  api: OperatorApi;
   status: SetupStatusResponse;
   integrations: IntegrationCatalogEntryDto[];
   collections: SetupCollectionResponse[];

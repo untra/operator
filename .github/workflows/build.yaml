@@ -96,7 +96,7 @@ jobs:
         run: bun run test:webview
 
       - name: Lint shell scripts
-        run: shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*
+        run: shellcheck -S warning scripts/*.sh scripts/ci/*.sh
 
       - name: Build UI dist
         run: |

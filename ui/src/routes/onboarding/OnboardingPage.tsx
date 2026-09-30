@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import type { SetupStatusResponse, SetupStepResponse } from "../../api-client";
-import { ApiError, OperatorApi } from "../../api-client";
-import { useHost } from "../../host";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { ApiError, type SetupStepResponse } from "../../api-client";
+import { useApiMutation, useApiQuery } from "../../api";
+import {
+  initializeSetupMutation,
+  integrationsQuery,
+  licenseQuery,
+  renameProfileMutation,
+  setupCollectionsQuery,
+  setupStatusQuery,
+  setupStepsQuery,
+} from "../../api/definitions";
 import { STEP_COMPONENTS, stepRows, visibleSteps } from "./steps";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepRow, WizardDraft } from "./types";
@@ -11,6 +19,7 @@ import styles from "./OnboardingPage.module.css";
 
 const WIZARD_DRAFT_VERSION = 1;
 const WIZARD_DRAFT_PREFIX = "operator.onboarding-draft";
+const EMPTY_STEPS: SetupStepResponse[] = [];
 
 type SavedDraft = {
   version?: number;
@@ -50,7 +59,7 @@ function SetupProgress({
   currentSlug,
 }: {
   rows: StepRow[];
-  steps: SetupStepResponse[];
+  steps: { slug: SetupStep; name: string }[];
   currentSlug: SetupStep;
 }) {
   const currentRow = rows.findIndex((row) => row.slug === currentSlug);
@@ -84,94 +93,71 @@ function SetupProgress({
 }
 
 export function OnboardingPage() {
-  const host = useHost();
   const { selected, create, refresh } = useProfiles();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [api] = useState(() => new OperatorApi(host));
-  // Mount-scoped, not a live read of the query string: the step sync below
-  // strips `?new=1` as soon as the catalog loads, and a failed create must
-  // still leave the user creating rather than renaming the selected profile.
+  const statusQuery = useApiQuery(setupStatusQuery());
+  const stepsQuery = useApiQuery(setupStepsQuery());
+  const integrationsQueryResult = useApiQuery(integrationsQuery());
+  const collectionsQueryResult = useApiQuery(setupCollectionsQuery());
+  const license = useApiQuery(licenseQuery(), { enabled: false });
+  const rename = useApiMutation(renameProfileMutation);
+  const initialize = useApiMutation(initializeSetupMutation);
   const [creating] = useState(() => !selected || params.get("new") === "1");
   const [initialStepParam] = useState(() => params.get("step"));
-  const [status, setStatus] = useState<SetupStatusResponse | null>(null);
-  const [steps, setSteps] = useState<Awaited<ReturnType<typeof api.setupSteps>>>([]);
-  const [integrations, setIntegrations] = useState<Awaited<ReturnType<typeof api.integrations>>>(
-    [],
-  );
-  const [collections, setCollections] = useState<Awaited<ReturnType<typeof api.setupCollections>>>(
-    [],
-  );
   const [draft, setDraft] = useState<WizardDraft>(() => emptyDraft(""));
   const [currentSlug, setCurrentSlug] = useState<SetupStep>("welcome");
   const [exports, setExports] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [creatingBusy, setCreatingBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    Promise.all([api.setupStatus(), api.setupSteps(), api.integrations(), api.setupCollections()])
-      .then(([nextStatus, nextSteps, nextIntegrations, nextCollections]) => {
-        if (!active) {
-          return undefined;
-        }
-        // While creating, the status describes whichever configuration the
-        // server defaulted to, so its `initialized` flag says nothing about the
-        // one being created.
-        if (nextStatus.initialized && !creating) {
-          void navigate("/", { replace: true });
-          return undefined;
-        }
-        setStatus(nextStatus);
-        setSteps(nextSteps);
-        setIntegrations(nextIntegrations);
-        setCollections(nextCollections);
-        const initial = emptyDraft(
-          creating ? "" : (selected?.name ?? ""),
-          nextStatus.default_acceptance_criteria,
-        );
-        const known = new Set(nextSteps.map((step) => step.slug));
-        let saved: SavedDraft | null = null;
-        if (selected && !creating) {
-          try {
-            saved = JSON.parse(
-              sessionStorage.getItem(draftStorageKey(selected.id)) ?? "null",
-            ) as SavedDraft | null;
-          } catch {
-            sessionStorage.removeItem(draftStorageKey(selected.id));
-          }
-        }
-        setDraft(
-          saved?.version === WIZARD_DRAFT_VERSION && saved.draft
-            ? { ...initial, ...saved.draft }
-            : initial,
-        );
-        const fromUrl = initialStepParam as SetupStep | null;
-        setCurrentSlug(
-          fromUrl && known.has(fromUrl)
-            ? fromUrl
-            : saved?.currentSlug && known.has(saved.currentSlug)
-              ? saved.currentSlug
-              : "welcome",
-        );
-        return undefined;
-      })
-      .catch(
-        (cause: unknown) =>
-          active && setError(cause instanceof Error ? cause.message : "Could not load setup"),
-      );
-    return () => {
-      active = false;
-    };
-  }, [api, creating, initialStepParam, navigate, selected]);
+  const status = statusQuery.data;
+  const steps = stepsQuery.data ?? EMPTY_STEPS;
+  const integrations = integrationsQueryResult.data ?? [];
+  const collections = collectionsQueryResult.data ?? [];
+  const busy = creatingBusy || rename.isPending || initialize.isPending;
+  const nextStatus = statusQuery.data;
+  const nextSteps = stepsQuery.data;
 
-  // The address bar names the step, so a refresh resumes where the user was and
-  // `?new=1` falls away once the wizard has taken over.
-  useEffect(() => {
-    if (status) {
-      void navigate(`/onboarding?step=${currentSlug}`, { replace: true });
+  if (!hydrated && nextStatus && nextSteps && !(nextStatus.initialized && !creating)) {
+    const initial = emptyDraft(
+      creating ? "" : (selected?.name ?? ""),
+      nextStatus.default_acceptance_criteria,
+    );
+    const known = new Set(nextSteps.map((step) => step.slug));
+    let saved: SavedDraft | null = null;
+    if (selected && !creating) {
+      try {
+        saved = JSON.parse(
+          sessionStorage.getItem(draftStorageKey(selected.id)) ?? "null",
+        ) as SavedDraft | null;
+      } catch {
+        sessionStorage.removeItem(draftStorageKey(selected.id));
+      }
     }
-  }, [currentSlug, navigate, status]);
+    setHydrated(true);
+    setDraft(
+      saved?.version === WIZARD_DRAFT_VERSION && saved.draft
+        ? { ...initial, ...saved.draft }
+        : initial,
+    );
+    const fromUrl = initialStepParam as SetupStep | null;
+    setCurrentSlug(
+      fromUrl && known.has(fromUrl)
+        ? fromUrl
+        : saved?.currentSlug && known.has(saved.currentSlug)
+          ? saved.currentSlug
+          : "welcome",
+    );
+  }
+
+  useEffect(() => {
+    if (!status || (status.initialized && !creating)) {
+      return;
+    }
+    void navigate(`/onboarding?step=${currentSlug}`, { replace: true });
+  }, [creating, currentSlug, navigate, status]);
 
   useEffect(() => {
     if (!selected || !status || status.initialized || creating) {
@@ -210,7 +196,7 @@ export function OnboardingPage() {
    * have to land before that commit for the handoff to survive.
    */
   async function createConfiguration(nextSlug: SetupStep): Promise<boolean> {
-    setBusy(true);
+    setCreatingBusy(true);
     try {
       const profile = await create(draft.configurationName);
       sessionStorage.setItem(
@@ -227,7 +213,7 @@ export function OnboardingPage() {
       setError(cause instanceof Error ? cause.message : "Could not create configuration");
       return false;
     } finally {
-      setBusy(false);
+      setCreatingBusy(false);
     }
   }
 
@@ -247,22 +233,19 @@ export function OnboardingPage() {
         return;
       }
       if (selected && selected.name !== draft.configurationName) {
-        setBusy(true);
         try {
-          await api.renameProfile(selected.id, draft.configurationName);
+          await rename.mutateAsync({ id: selected.id, name: draft.configurationName });
           await refresh();
         } catch (cause) {
           setError(cause instanceof Error ? cause.message : "Could not rename configuration");
           return;
-        } finally {
-          setBusy(false);
         }
       }
     }
     if (current.slug === "execution-mode" && draft.executionMode === "remote") {
       try {
-        const license = await api.license();
-        if (!license.premium) {
+        const licenseValue = await license.refetch();
+        if (!licenseValue.premium) {
           setError("A valid Premium license is required for remote targets.");
           return;
         }
@@ -298,8 +281,7 @@ export function OnboardingPage() {
     setCurrentSlug(nextSlug);
   }
 
-  async function initialize() {
-    setBusy(true);
+  async function onInitialize() {
     setError(null);
     try {
       const executionTarget: WizardDraft["executionTarget"] =
@@ -311,7 +293,7 @@ export function OnboardingPage() {
               ),
             }
           : draft.executionTarget;
-      await api.initializeSetup({
+      await initialize.mutateAsync({
         preset: draft.preset,
         task_fields: draft.taskFields,
         wrapper: draft.wrapper,
@@ -340,8 +322,6 @@ export function OnboardingPage() {
             ? cause.message
             : "Initialization failed",
       );
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -349,8 +329,21 @@ export function OnboardingPage() {
     void next();
   };
 
+  const loadError =
+    statusQuery.error?.message ??
+    stepsQuery.error?.message ??
+    integrationsQueryResult.error?.message ??
+    collectionsQueryResult.error?.message ??
+    null;
+
+  if (statusQuery.data?.initialized && !creating) {
+    return <Navigate to="/" replace />;
+  }
+
   if (!status || !current || !Step) {
-    return <main className={styles.loading}>{error ?? "Loading workspace setup…"}</main>;
+    return (
+      <main className={styles.loading}>{error ?? loadError ?? "Loading workspace setup…"}</main>
+    );
   }
 
   return (
@@ -367,7 +360,6 @@ export function OnboardingPage() {
         {error && <div className={styles.error}>{error}</div>}
         <div className={styles.body}>
           <Step
-            api={api}
             status={status}
             integrations={integrations}
             collections={collections}
@@ -390,7 +382,7 @@ export function OnboardingPage() {
             Back
           </button>
           {currentIndex === walk.length - 1 ? (
-            <button type="button" className={styles.primary} disabled={busy} onClick={initialize}>
+            <button type="button" className={styles.primary} disabled={busy} onClick={onInitialize}>
               {busy ? "Initializing…" : "Initialize workspace"}
             </button>
           ) : (

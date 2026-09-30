@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { TicketCreateForm } from "@operator/webcomponents";
 import type { TicketCreateFormValue } from "@operator/webcomponents";
-import type { IssueTypeSummary } from "@operator/bindings/IssueTypeSummary";
-import type { ProjectSummary } from "@operator/bindings/ProjectSummary";
-import { OperatorApi } from "../api-client";
-import { useHost } from "../host";
+import { useApiMutation, useApiQuery } from "../api";
+import { createTicketMutation, issueTypesQuery, projectsQuery } from "../api/definitions";
 import { useRightPanel } from "../right-panel";
 import styles from "./TicketCreatePanel.module.css";
 
@@ -16,83 +14,57 @@ const EMPTY: TicketCreateFormValue = { issueType: "", project: "", summary: "" }
  * identical to one created anywhere else.
  */
 export function TicketCreatePanel({ onCreated }: { onCreated: () => void }) {
-  const host = useHost();
   const { close } = useRightPanel();
-  const [api] = useState(() => new OperatorApi(host));
-
   const [value, setValue] = useState<TicketCreateFormValue>(EMPTY);
-  const [issueTypes, setIssueTypes] = useState<IssueTypeSummary[]>([]);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const createRequest = useRef(0);
-
-  useEffect(
-    () => () => {
-      createRequest.current += 1;
-    },
-    [],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([api.listIssueTypes(), api.listProjects()])
-      .then(([types, projectList]) => {
-        if (!cancelled) {
-          setIssueTypes(types);
-          setProjects(projectList.filter((project) => project.exists));
-        }
-        return undefined;
-      })
-      .catch((e: Error) => !cancelled && setError(e.message));
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
+  const types = useApiQuery(issueTypesQuery());
+  const projects = useApiQuery(projectsQuery());
+  const create = useApiMutation(createTicketMutation);
+  const issueTypes = types.data ?? [];
+  const projectList = (projects.data ?? []).filter((project) => project.exists);
+  const error = create.error?.message ?? types.error?.message ?? projects.error?.message ?? null;
+  const loading = types.isLoading || projects.isLoading;
+  const empty = !loading && !error && (issueTypes.length === 0 || projectList.length === 0);
 
   const onSubmit = useCallback(() => {
-    const request = ++createRequest.current;
-    setBusy(true);
-    setError(null);
-    api
-      .createTicket({
+    create.mutate(
+      {
         template: value.issueType,
         project: value.project,
         summary: value.summary,
         values: {},
-      })
-      .then(() => {
-        if (request === createRequest.current) {
+      },
+      {
+        onSuccess: () => {
           onCreated();
           close();
-        }
-        return undefined;
-      })
-      .catch((e: Error) => {
-        if (request === createRequest.current) {
-          setError(e.message);
-        }
-      })
-      .finally(() => {
-        if (request === createRequest.current) {
-          setBusy(false);
-        }
-      });
-  }, [api, close, onCreated, value]);
+        },
+      },
+    );
+  }, [close, create, onCreated, value]);
 
   return (
     <div className={styles.panel}>
       <h2 className={styles.title}>New ticket</h2>
       <p className={styles.hint}>Lands in the TODO queue, ready to launch.</p>
-      <TicketCreateForm
-        value={value}
-        issueTypes={issueTypes}
-        projects={projects}
-        busy={busy}
-        error={error}
-        onChange={setValue}
-        onSubmit={onSubmit}
-      />
+      {loading ? (
+        <p className={styles.hint}>Loading issue types and projects…</p>
+      ) : empty ? (
+        <p className={styles.hint}>
+          {issueTypes.length === 0
+            ? "No issue types are configured. Add one before creating a ticket."
+            : "No available projects were found."}
+        </p>
+      ) : (
+        <TicketCreateForm
+          value={value}
+          issueTypes={issueTypes}
+          projects={projectList}
+          busy={create.isPending}
+          error={error}
+          onChange={setValue}
+          onSubmit={onSubmit}
+        />
+      )}
     </div>
   );
 }

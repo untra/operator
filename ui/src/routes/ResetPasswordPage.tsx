@@ -1,19 +1,21 @@
 import { useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ApiError, OperatorApi } from "../api-client";
-import { useHost } from "../host";
+import { ApiError } from "../api-client";
+import { useApiMutation, useResetSession } from "../api";
+import { loginMutation, resetPasswordMutation } from "../api/definitions";
 import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, MIN_PASSWORD_LENGTH } from "../auth-constraints";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function ResetPasswordPage() {
-  const host = useHost();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const reset = useApiMutation(resetPasswordMutation);
+  const login = useApiMutation(loginMutation);
+  const resetSession = useResetSession();
   const ready =
     username.length > 0 &&
     currentPassword.length > 0 &&
@@ -23,16 +25,15 @@ export function ResetPasswordPage() {
   const submit = useCallback(
     async (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      setBusy(true);
       setError(null);
       try {
-        const api = new OperatorApi(host);
-        await api.resetPassword({
+        await reset.mutateAsync({
           username,
           current_password: currentPassword,
           new_password: newPassword,
         });
-        await api.login(username, newPassword);
+        await login.mutateAsync({ username, password: newPassword });
+        resetSession();
         void navigate("/", { replace: true });
       } catch (caught) {
         const status = caught instanceof ApiError ? caught.status : 0;
@@ -45,11 +46,9 @@ export function ResetPasswordPage() {
                 : "The new password is invalid."
               : "Incorrect username or current password.",
         );
-      } finally {
-        setBusy(false);
       }
     },
-    [host, username, currentPassword, newPassword, navigate],
+    [reset, login, username, currentPassword, newPassword, navigate, resetSession],
   );
 
   return (
@@ -59,7 +58,11 @@ export function ResetPasswordPage() {
       error={error}
       onSubmit={submit}
       actions={
-        <AuthSubmit busy={busy} busyLabel="Changing…" disabled={!ready}>
+        <AuthSubmit
+          busy={reset.isPending || login.isPending}
+          busyLabel="Changing…"
+          disabled={!ready}
+        >
           Change password
         </AuthSubmit>
       }

@@ -6,25 +6,24 @@
 
 import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useHost } from "../host";
-import { OperatorApi, ApiError } from "../api-client";
+import { ApiError } from "../api-client";
+import { useApiMutation } from "../api";
+import { approveDeviceMutation } from "../api/definitions";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function DevicePage() {
-  const host = useHost();
   const [params] = useSearchParams();
   const [userCode, setUserCode] = useState(params.get("user_code") ?? "");
   const [approved, setApproved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const approve = useApiMutation(approveDeviceMutation);
 
   const submit = useCallback(
     async (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
       setError(null);
-      setBusy(true);
       try {
-        const res = await new OperatorApi(host).approveDevice(userCode.trim());
+        const res = await approve.mutateAsync({ userCode: userCode.trim() });
         setApproved(res.client_id);
       } catch (e) {
         setError(
@@ -32,11 +31,9 @@ export function DevicePage() {
             ? "That code is unknown or has expired. Start the connection again from your editor."
             : "Approval failed.",
         );
-      } finally {
-        setBusy(false);
       }
     },
-    [host, userCode],
+    [approve, userCode],
   );
 
   const onCodeChange = useCallback((value: string) => setUserCode(value.toUpperCase()), []);
@@ -59,7 +56,7 @@ export function DevicePage() {
       error={error}
       onSubmit={submit}
       actions={
-        <AuthSubmit busy={busy} busyLabel="Approving…" disabled={!userCode}>
+        <AuthSubmit busy={approve.isPending} busyLabel="Approving…" disabled={!userCode}>
           Approve
         </AuthSubmit>
       }

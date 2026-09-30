@@ -1,12 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { OperatorApi, type ProfileSummary } from "./api-client";
+import type { ProfileSummary } from "./api-client";
 import { AsyncState } from "@operator/webcomponents";
 import { HostContext, useHost, type Host } from "./host";
+import { useApiMutation, useApiQuery } from "./api";
+import { createProfileMutation, profilesQuery } from "./api/definitions";
 import styles from "./profiles-context.module.css";
 
 const SELECTED_PROFILE_KEY = "operator.selected-profile";
+const EMPTY_PROFILES: ProfileSummary[] = [];
 
 type ProfilesContextValue = {
   profiles: ProfileSummary[];
@@ -43,38 +46,11 @@ function ProfileScope({ profileId, children }: { profileId?: string; children: R
 }
 
 export function ProfilesProvider() {
-  const host = useHost();
-  const api = useMemo(() => new OperatorApi(host), [host]);
-  const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
+  const { data, error, isLoading, refetch } = useApiQuery(profilesQuery());
+  const createProfile = useApiMutation(createProfileMutation);
+  const profiles = data ?? EMPTY_PROFILES;
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem(SELECTED_PROFILE_KEY));
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setProfiles(await api.profiles());
-    setLoaded(true);
-  }, [api]);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .profiles()
-      .then((items) => {
-        if (!cancelled) {
-          setProfiles(items);
-          setLoaded(true);
-        }
-        return undefined;
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled) {
-          setError(cause instanceof Error ? cause.message : "Could not load configurations");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
+  const loaded = !isLoading && data !== null;
 
   const selected =
     profiles.find((profile) => profile.id === selectedId) ??
@@ -89,13 +65,16 @@ export function ProfilesProvider() {
 
   const create = useCallback(
     async (name: string) => {
-      const profile = await api.createProfile(name);
-      setProfiles((items) => [...items, profile]);
+      const profile = await createProfile.mutateAsync({ name });
       select(profile.id);
       return profile;
     },
-    [api, select],
+    [createProfile, select],
   );
+
+  const refresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   const value = useMemo(
     () => ({ profiles, selected, select, create, refresh }),
@@ -108,7 +87,7 @@ export function ProfilesProvider() {
         <AsyncState<null>
           value={
             error
-              ? { status: "error", message: error }
+              ? { status: "error", message: error.message }
               : { status: "loading", message: "Loading configurations…" }
           }
         >

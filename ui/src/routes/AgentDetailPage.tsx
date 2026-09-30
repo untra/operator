@@ -1,34 +1,18 @@
-import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { OperatorApi } from "../api-client";
-import type { AgentDetailResponse } from "../api-client";
-import { useHost } from "../host";
+import { AGENT_POLL_MS, useApiQuery } from "../api";
+import { agentQuery } from "../api/definitions";
 import styles from "./AgentDetailPage.module.css";
 
 export function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const host = useHost();
-  const [api] = useState(() => new OperatorApi(host));
-  const [agent, setAgent] = useState<AgentDetailResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const query = useApiQuery(agentQuery(id ?? ""), {
+    enabled: Boolean(id),
+    pollIntervalMs: AGENT_POLL_MS,
+  });
+  const agent = query.data;
 
-  useEffect(() => {
-    if (!id) {
-      return undefined;
-    }
-    const load = () => {
-      api
-        .getAgent(id)
-        .then(setAgent)
-        .catch((e) => setError(e.message));
-    };
-    load();
-    const interval = setInterval(load, 5000);
-    return () => clearInterval(interval);
-  }, [api, id]);
-
-  if (error) {
-    return <div className={styles.error}>Error: {error}</div>;
+  if (query.error) {
+    return <div className={styles.error}>Error: {query.error.message}</div>;
   }
   if (!agent) {
     return <div className={styles.loading}>Loading...</div>;

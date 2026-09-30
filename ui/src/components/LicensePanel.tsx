@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import type { LicenseResponse, OperatorApi } from "../api-client";
+import { useCallback, useState } from "react";
+import type { LicenseResponse } from "../api-client";
+import { useApiMutation, useApiQuery } from "../api";
+import { installLicenseMutation, licenseQuery, removeLicenseMutation } from "../api/definitions";
 import styles from "./LicensePanel.module.css";
 
 const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
@@ -12,75 +14,55 @@ const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
 /// Licence timestamps are i64 seconds, which cross the wire as bigint.
 const date = (seconds: bigint) => new Date(Number(seconds) * 1000).toLocaleString();
 
-export function LicensePanel({
-  api,
-  onChange,
-}: {
-  api: OperatorApi;
-  onChange?: (license: LicenseResponse) => void;
-}) {
-  const [license, setLicense] = useState<LicenseResponse | null>(null);
+export function LicensePanel() {
+  const query = useApiQuery(licenseQuery());
+  const install = useApiMutation(installLicenseMutation);
+  const remove = useApiMutation(removeLicenseMutation);
   const [key, setKey] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    api
-      .license()
-      .then((value) => {
-        if (active) {
-          setLicense(value);
-          onChange?.(value);
-        }
-        return undefined;
-      })
-      .catch((cause: unknown) => {
-        if (active) {
-          setError(cause instanceof Error ? cause.message : "Could not load license");
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [api, onChange]);
-
-  const update = useCallback(
-    async (remove: boolean) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const value = remove ? await api.removeLicense() : await api.installLicense(key.trim());
-        setLicense(value);
-        setKey("");
-        onChange?.(value);
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Could not update license");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [api, key, onChange],
-  );
+  const license = query.data;
+  const busy = install.isPending || remove.isPending;
 
   const onRemove = useCallback(() => {
-    void update(true);
-  }, [update]);
+    setError(null);
+    remove.mutate(
+      {},
+      {
+        onError: (cause) => {
+          setError(cause.message);
+        },
+      },
+    );
+  }, [remove]);
 
   const onSubmit = useCallback(
-    (event: React.FormEvent) => {
+    (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      void update(false);
+      setError(null);
+      install.mutate(
+        { licenseKey: key.trim() },
+        {
+          onSuccess: () => {
+            setKey("");
+          },
+          onError: (cause) => {
+            setError(cause.message);
+          },
+        },
+      );
     },
-    [update],
+    [install, key],
   );
+
+  const displayError = error ?? query.error?.message ?? null;
 
   return (
     <section className={styles.panel} aria-label="Operator license">
       <h2>Operator Premium</h2>
       <p>Premium enables remote targets. Multiple agents on this machine are available free.</p>
-      {error && (
+      {displayError && (
         <p role="alert" className={styles.error}>
-          {error}
+          {displayError}
         </p>
       )}
       {license ? (

@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PremiumPaywall } from "@operator/webcomponents";
 import type { TargetDef } from "@operator/bindings/TargetDef";
-import { OperatorApi, type LicenseResponse, type TargetResponse } from "../api-client";
-import { useHost } from "../host";
+import type { TargetResponse } from "../api-client";
+import { useApiMutation, useApiQuery } from "../api";
+import {
+  licenseQuery,
+  probeTargetMutation,
+  removeTargetMutation,
+  saveTargetMutation,
+  targetsQuery,
+} from "../api/definitions";
 import form from "./onboarding/OnboardingPage.module.css";
 import styles from "./RemoteTargetsPage.module.css";
 
@@ -62,68 +69,38 @@ function TargetRow({ target, busy, onProbe, onEdit, onRemove }: TargetRowProps) 
 }
 
 export function RemoteTargetsPage() {
-  const host = useHost();
-  const api = useMemo(() => new OperatorApi(host), [host]);
   const navigate = useNavigate();
-  const [targets, setTargets] = useState<TargetResponse[]>([]);
-  const [license, setLicense] = useState<LicenseResponse | null>(null);
+  const targetsResult = useApiQuery(targetsQuery());
+  const license = useApiQuery(licenseQuery());
+  const save = useApiMutation(saveTargetMutation);
+  const remove = useApiMutation(removeTargetMutation);
+  const probe = useApiMutation(probeTargetMutation);
   const [draft, setDraft] = useState<TargetDef>(emptyTarget);
   const [editing, setEditing] = useState<string>();
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const refresh = useCallback(async () => {
-    const [targetResult, licenseResult] = await Promise.all([api.targets(), api.license()]);
-    setTargets(remoteOnly(targetResult.targets));
-    setLicense(licenseResult);
-  }, [api]);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([api.targets(), api.license()])
-      .then(([targetResult, licenseResult]) => {
-        if (!cancelled) {
-          setTargets(remoteOnly(targetResult.targets));
-          setLicense(licenseResult);
-        }
-        return undefined;
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled) {
-          setMessage(cause instanceof Error ? cause.message : "Could not load targets");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
-
-  const act = useCallback(
-    async (operation: () => Promise<unknown>, success: string) => {
-      setBusy(true);
-      setMessage(null);
-      try {
-        await operation();
-        await refresh();
-        setMessage(success);
-      } catch (cause) {
-        setMessage(cause instanceof Error ? cause.message : "Target operation failed");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [refresh],
-  );
+  const targets = remoteOnly(targetsResult.data?.targets ?? []);
+  const busy = save.isPending || remove.isPending || probe.isPending;
 
   const onProbe = useCallback(
     (target: TargetResponse) => {
-      void act(async () => {
-        const result = await api.probeTarget(target.name);
-        if (!result.reachable) {
-          throw new Error(result.message ?? "Target is unreachable");
-        }
-      }, "Target is reachable.");
+      setMessage(null);
+      probe.mutate(
+        { name: target.name },
+        {
+          onSuccess: (result) => {
+            setMessage(
+              result.reachable
+                ? "Target is reachable."
+                : (result.message ?? "Target is unreachable"),
+            );
+          },
+          onError: (cause) => {
+            setMessage(cause.message);
+          },
+        },
+      );
     },
-    [act, api],
+    [probe],
   );
 
   const onEdit = useCallback((target: TargetResponse) => {
@@ -139,9 +116,20 @@ export function RemoteTargetsPage() {
 
   const onRemove = useCallback(
     (target: TargetResponse) => {
-      void act(() => api.removeTarget(target.name), "Target removed.");
+      setMessage(null);
+      remove.mutate(
+        { name: target.name },
+        {
+          onSuccess: () => {
+            setMessage("Target removed.");
+          },
+          onError: (cause) => {
+            setMessage(cause.message);
+          },
+        },
+      );
     },
-    [act, api],
+    [remove],
   );
 
   const onAddLicense = useCallback(() => {
@@ -149,15 +137,24 @@ export function RemoteTargetsPage() {
   }, [navigate]);
 
   const onSubmit = useCallback(
-    (event: React.FormEvent) => {
+    (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      void act(async () => {
-        await api.saveTarget(draft, editing);
-        setDraft(emptyTarget());
-        setEditing(undefined);
-      }, "Target saved.");
+      setMessage(null);
+      save.mutate(
+        { target: draft, existingName: editing },
+        {
+          onSuccess: () => {
+            setDraft(emptyTarget());
+            setEditing(undefined);
+            setMessage("Target saved.");
+          },
+          onError: (cause) => {
+            setMessage(cause.message);
+          },
+        },
+      );
     },
-    [act, api, draft, editing],
+    [draft, editing, save],
   );
 
   const onCancelEdit = useCallback(() => {
@@ -165,19 +162,26 @@ export function RemoteTargetsPage() {
     setDraft(emptyTarget());
   }, []);
 
+  const statusMessage = message ?? targetsResult.error?.message ?? license.error?.message ?? null;
+  const loading = targetsResult.isLoading || license.isLoading;
+
   return (
     <main className={styles.page}>
       <h1 className={styles.heading}>
         Remote targets <span className={styles.badge}>Premium</span>
       </h1>
       <p>Register SSH hosts and Coder workspaces for delegators to run agents remotely.</p>
-      {message && <output className={styles.status}>{message}</output>}
-      {license && !license.premium && (
+      {statusMessage && <output className={styles.status}>{statusMessage}</output>}
+      {loading && <p className={styles.status}>Loading remote targets…</p>}
+      {license.data && !license.data.premium && (
         <PremiumPaywall
           feature="Remote targets"
-          purchaseUrl={license.purchase_url}
+          purchaseUrl={license.data.purchase_url}
           onAddLicense={onAddLicense}
         />
+      )}
+      {!loading && !targetsResult.error && targets.length === 0 && (
+        <p className={styles.status}>No remote targets are registered.</p>
       )}
       <ul className={styles.targets}>
         {targets.map((target) => (
@@ -191,7 +195,7 @@ export function RemoteTargetsPage() {
           />
         ))}
       </ul>
-      {license?.premium && (
+      {license.data?.premium && (
         <form className={form.form} onSubmit={onSubmit}>
           <h2>{editing ? "Edit target" : "Register target"}</h2>
           <label>

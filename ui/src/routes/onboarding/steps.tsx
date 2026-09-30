@@ -1,10 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepComponent, StepProps, StepRow } from "./types";
 import { Choice, ChoiceGroup, PremiumPaywall } from "@operator/webcomponents";
 import { LicensePanel } from "../../components/LicensePanel";
-import type { LicenseResponse } from "../../api-client";
+import { useApiMutation, useApiQuery } from "../../api";
+import {
+  gitProvidersQuery,
+  kanbanProvidersQuery,
+  licenseQuery,
+  listKanbanProjectsMutation,
+  listKanbanStatusesMutation,
+  providerKindsQuery,
+  providerModelsQuery,
+  setGitSessionEnvMutation,
+  setKanbanSessionEnvMutation,
+  validateGitTokenMutation,
+  validateKanbanCredentialsMutation,
+  writeGitConfigMutation,
+  writeKanbanConfigMutation,
+} from "../../api/definitions";
 import styles from "./OnboardingPage.module.css";
 
 const TASK_FIELDS = ["priority", "points", "user_story"] as const;
@@ -68,39 +83,12 @@ const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
   </Intro>
 );
 
-const License: StepComponent = ({ api, setDraft }) => {
-  const onChange = useCallback(
-    (license: LicenseResponse) => setDraft((current) => ({ ...current, premium: license.premium })),
-    [setDraft],
-  );
-  return <LicensePanel api={api} onChange={onChange} />;
-};
+const License: StepComponent = () => <LicensePanel />;
 
-const ExecutionMode: StepComponent = ({ api, draft, setDraft }) => {
-  const [license, setLicense] = useState<LicenseResponse | null>(null);
+const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
+  const licenseQueryResult = useApiQuery(licenseQuery());
   const [showLicense, setShowLicense] = useState(false);
-  const changed = useCallback(
-    (value: LicenseResponse) => {
-      setLicense(value);
-      setDraft((current) => ({ ...current, premium: value.premium }));
-    },
-    [setDraft],
-  );
-  useEffect(() => {
-    let active = true;
-    api
-      .license()
-      .then((value) => {
-        if (active) {
-          changed(value);
-        }
-        return undefined;
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [api, changed]);
+  const license = licenseQueryResult.data;
 
   const selectLocal = useCallback(() => {
     setDraft((current) => ({
@@ -150,38 +138,47 @@ const ExecutionMode: StepComponent = ({ api, draft, setDraft }) => {
           onAddLicense={addLicense}
         />
       )}
-      {showLicense && <LicensePanel api={api} onChange={changed} />}
+      {showLicense && <LicensePanel />}
     </Intro>
   );
 };
 
-function KanbanInfo({ api, addExport }: StepProps) {
-  const [providers, setProviders] = useState<Awaited<ReturnType<typeof api.kanbanProviders>>>([]);
+function KanbanInfo({ addExport }: StepProps) {
+  const providersQuery = useApiQuery(kanbanProvidersQuery());
+  const validateCredentials = useApiMutation(validateKanbanCredentialsMutation);
+  const listProjects = useApiMutation(listKanbanProjectsMutation);
+  const listStatuses = useApiMutation(listKanbanStatusesMutation);
+  const writeConfig = useApiMutation(writeKanbanConfigMutation);
+  const setSessionEnv = useApiMutation(setKanbanSessionEnvMutation);
   const [provider, setProvider] = useState<KanbanProviderKind | "">("");
   const [domain, setDomain] = useState("");
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [rootPath, setRootPath] = useState("");
   const [instance, setInstance] = useState("default");
-  const [projects, setProjects] = useState<{ id: string; key: string; name: string }[]>([]);
   const [projectKey, setProjectKey] = useState("");
-  const [statuses, setStatuses] = useState<string[]>([]);
   const [mapping, setMapping] = useState({ todo: "", doing: "", done: "" });
   const [syncUserId, setSyncUserId] = useState("");
   const [workspaceKey, setWorkspaceKey] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    void api
-      .kanbanProviders()
-      .then(setProviders)
-      .catch((error: Error) => setMessage(error.message));
-  }, [api]);
+  const providers = providersQuery.data ?? [];
+  const projects = listProjects.data?.projects ?? [];
+  const statuses = listStatuses.data?.statuses ?? [];
+  const busy =
+    validateCredentials.isPending ||
+    listProjects.isPending ||
+    listStatuses.isPending ||
+    writeConfig.isPending ||
+    setSessionEnv.isPending;
 
   const selectProvider = useCallback(
-    (slug: string) => setProvider(KANBAN_KINDS.find((kind) => kind === slug) ?? ""),
-    [setProvider],
+    (slug: string) => {
+      setProvider(KANBAN_KINDS.find((kind) => kind === slug) ?? "");
+      setProjectKey("");
+      listProjects.reset();
+      listStatuses.reset();
+    },
+    [listProjects, listStatuses],
   );
 
   // The catalog carries one more provider than `KANBAN_KINDS`: the built-in board
@@ -200,10 +197,9 @@ function KanbanInfo({ api, addExport }: StepProps) {
     if (!provider) {
       return;
     }
-    setBusy(true);
     setMessage(null);
     try {
-      const validation = await api.validateKanbanCredentials(credentials());
+      const validation = await validateCredentials.mutateAsync(credentials());
       if (!validation.valid) {
         throw new Error(validation.error ?? "Credentials were rejected");
       }
@@ -215,7 +211,7 @@ function KanbanInfo({ api, addExport }: StepProps) {
       );
       setWorkspaceKey(validation.github?.user_login ?? "");
       if (provider === "openspec") {
-        await api.writeKanbanConfig({
+        await writeConfig.mutateAsync({
           provider,
           openspec: { instance, root_path: rootPath, project: null },
           jira: null,
@@ -225,13 +221,10 @@ function KanbanInfo({ api, addExport }: StepProps) {
         setMessage("OpenSpec connected.");
         return;
       }
-      const listed = await api.listKanbanProjects(credentials());
-      setProjects(listed.projects);
+      await listProjects.mutateAsync(credentials());
       setMessage("Credentials validated. Choose a project.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Connection failed");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -241,8 +234,7 @@ function KanbanInfo({ api, addExport }: StepProps) {
       return;
     }
     try {
-      const result = await api.listKanbanStatuses({ ...credentials(), project_key: value });
-      setStatuses(result.statuses);
+      const result = await listStatuses.mutateAsync({ ...credentials(), project_key: value });
       setMapping({
         todo: result.statuses[0] ?? "",
         doing: result.statuses[1] ?? "",
@@ -257,7 +249,6 @@ function KanbanInfo({ api, addExport }: StepProps) {
     if (!provider || !projectKey) {
       return;
     }
-    setBusy(true);
     try {
       const env =
         provider === "jira"
@@ -267,13 +258,13 @@ function KanbanInfo({ api, addExport }: StepProps) {
             : "OPERATOR_GITHUB_TOKEN";
       const status_mapping = mapping;
       if (provider === "jira") {
-        const envResult = await api.setKanbanSessionEnv({
+        const envResult = await setSessionEnv.mutateAsync({
           provider,
           jira: { domain, email, api_token: token, api_key_env: env },
           linear: null,
           github: null,
         });
-        await api.writeKanbanConfig({
+        await writeConfig.mutateAsync({
           provider,
           jira: {
             domain,
@@ -289,14 +280,14 @@ function KanbanInfo({ api, addExport }: StepProps) {
         });
         addExport(envResult.shell_export_block);
       } else if (provider === "linear") {
-        const envResult = await api.setKanbanSessionEnv({
+        const envResult = await setSessionEnv.mutateAsync({
           provider,
           linear: { api_key: token, api_key_env: env },
           jira: null,
           github: null,
         });
         const selected = projects.find((item) => item.key === projectKey);
-        await api.writeKanbanConfig({
+        await writeConfig.mutateAsync({
           provider,
           linear: {
             workspace_key: selected?.id ?? projectKey,
@@ -311,7 +302,7 @@ function KanbanInfo({ api, addExport }: StepProps) {
         });
         addExport(envResult.shell_export_block);
       } else if (provider === "github") {
-        const envResult = await api.setKanbanSessionEnv({
+        const envResult = await setSessionEnv.mutateAsync({
           provider,
           github: { token, api_key_env: env },
           jira: null,
@@ -319,7 +310,7 @@ function KanbanInfo({ api, addExport }: StepProps) {
         });
         const selected = projects.find((item) => item.key === projectKey);
         const owner = selected?.name.split("/#", 1)[0] ?? workspaceKey;
-        await api.writeKanbanConfig({
+        await writeConfig.mutateAsync({
           provider,
           github: {
             owner,
@@ -338,8 +329,6 @@ function KanbanInfo({ api, addExport }: StepProps) {
       setMessage("Kanban provider connected.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not save provider");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -456,52 +445,33 @@ function KanbanInfo({ api, addExport }: StepProps) {
               </button>
             </>
           )}
-          {message && <p>{message}</p>}
+          {(message ?? providersQuery.error?.message) && (
+            <p>{message ?? providersQuery.error?.message}</p>
+          )}
         </div>
       )}
     </Intro>
   );
 }
 
-function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
+function ProbeLabel({ slug }: { slug: string }) {
+  const { data, error, isLoading } = useApiQuery(providerModelsQuery(slug));
+  if (data?.reachable) {
+    return `${data.models.length} models`;
+  }
+  if (isLoading) {
+    return "checking…";
+  }
+  return data?.error ?? (error ? "unreachable" : "checking…");
+}
+
+function ModelServer({ integrations, draft, setDraft }: StepProps) {
   const entries = useMemo(
     () => integrations.filter((entry) => entry.vertical === "model"),
     [integrations],
   );
-  const [kinds, setKinds] = useState<Awaited<ReturnType<typeof api.listProviderKinds>>>([]);
-  const [probes, setProbes] = useState<Record<string, string>>({});
-  useEffect(() => {
-    let active = true;
-    void api.listProviderKinds().then((result) => {
-      if (active) {
-        setKinds(result);
-      }
-      return undefined;
-    });
-    for (const entry of entries) {
-      void api
-        .providerModels(entry.slug)
-        .then((result) => {
-          if (active) {
-            setProbes((current) => ({
-              ...current,
-              [entry.slug]: result.reachable
-                ? `${result.models.length} models`
-                : (result.error ?? "unreachable"),
-            }));
-          }
-          return undefined;
-        })
-        .catch(() => {
-          if (active) {
-            setProbes((current) => ({ ...current, [entry.slug]: "unreachable" }));
-          }
-        });
-    }
-    return () => {
-      active = false;
-    };
-  }, [api, entries]);
+  const kindsQuery = useApiQuery(providerKindsQuery());
+  const kinds = kindsQuery.data ?? [];
   const keyExports = draft.modelServers.flatMap((slug) => {
     const env = kinds.find((kind) => kind.slug === slug)?.default_api_key_env;
     return env ? [`export ${env}="<your-token>"`] : [];
@@ -511,7 +481,7 @@ function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
       setDraft((current) => ({
         ...current,
         modelServers: current.modelServers.includes(provider)
-          ? current.modelServers.filter((slug) => slug !== provider)
+          ? current.modelServers.filter((item) => item !== provider)
           : [...current.modelServers, provider],
       })),
     [setDraft],
@@ -532,7 +502,9 @@ function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
             onSelect={toggleProvider}
           >
             <strong>{entry.label}</strong>
-            <span>{probes[entry.slug] ?? "checking…"}</span>
+            <span>
+              <ProbeLabel slug={entry.slug} />
+            </span>
           </Choice>
         ))}
       </ChoiceGroup>
@@ -541,38 +513,35 @@ function ModelServer({ api, integrations, draft, setDraft }: StepProps) {
   );
 }
 
-function GitProvider({ api, addExport }: StepProps) {
-  const [providers, setProviders] = useState<Awaited<ReturnType<typeof api.gitProviders>>>([]);
+function GitProvider({ addExport }: StepProps) {
+  const providersQuery = useApiQuery(gitProvidersQuery());
+  const validateToken = useApiMutation(validateGitTokenMutation);
+  const writeConfig = useApiMutation(writeGitConfigMutation);
+  const setSessionEnv = useApiMutation(setGitSessionEnvMutation);
   const [selected, setSelected] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    void api
-      .gitProviders()
-      .then(setProviders)
-      .catch((error: Error) => setMessage(error.message));
-  }, [api]);
+  const providers = providersQuery.data ?? [];
+  const busy = validateToken.isPending || writeConfig.isPending || setSessionEnv.isPending;
   const provider = providers.find((item) => item.slug === selected);
   async function save() {
     if (!provider) {
       return;
     }
-    setBusy(true);
     setMessage(null);
     try {
       if (provider.state !== "authenticated") {
-        const validation = await api.validateGitToken({ provider: provider.slug, token });
+        const validation = await validateToken.mutateAsync({ provider: provider.slug, token });
         if (!validation.valid) {
           throw new Error(validation.error ?? "Token was rejected");
         }
       }
-      const config = await api.writeGitConfig({
+      const config = await writeConfig.mutateAsync({
         provider: provider.slug,
         token_env: provider.token_env,
       });
       if (token) {
-        const env = await api.setGitSessionEnv({ provider: provider.slug, token });
+        const env = await setSessionEnv.mutateAsync({ provider: provider.slug, token });
         addExport(env.shell_export_block);
       } else {
         addExport(config.shell_export_block);
@@ -581,8 +550,6 @@ function GitProvider({ api, addExport }: StepProps) {
       setMessage(`Connected ${provider.label}${config.username ? ` as ${config.username}` : ""}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not connect provider");
-    } finally {
-      setBusy(false);
     }
   }
   return (
@@ -628,7 +595,9 @@ function GitProvider({ api, addExport }: StepProps) {
           >
             Connect
           </button>
-          {message && <p>{message}</p>}
+          {(message ?? providersQuery.error?.message) && (
+            <p>{message ?? providersQuery.error?.message}</p>
+          )}
         </div>
       )}
     </Intro>

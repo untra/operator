@@ -12,6 +12,7 @@ export interface DashboardViewProps {
   health: HealthResponse | null;
   queue: QueueStatusResponse | null;
   board: KanbanBoardResponse | null;
+  loading?: boolean;
   error?: string | null;
   updatedLabel?: string;
   statusLink: ReactNode;
@@ -23,6 +24,7 @@ export function DashboardView({
   health,
   queue,
   board,
+  loading,
   error,
   updatedLabel,
   statusLink,
@@ -46,6 +48,7 @@ export function DashboardView({
         <span className={styles.statusLink}>{statusLink}</span>
       </div>
       {error && <div className={styles.error}>API: {error}</div>}
+      {loading && <div className={styles.loading}>Loading dashboard…</div>}
       <div className={styles.cards}>
         {metrics.map(([label, value]) => (
           <div className={styles.card} key={label}>

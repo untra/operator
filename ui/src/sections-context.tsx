@@ -3,13 +3,11 @@
 // one place (mounted once by Layout) keeps the sidebar and every section page in
 // sync off a single 3s timer instead of N drifting ones.
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
-import { OperatorApi } from "./api-client";
 import type { SectionDto } from "./api-client";
-import { useHost } from "./host";
-
-const POLL_INTERVAL_MS = 3000;
+import { STATUS_POLL_MS, useApiQuery } from "./api";
+import { sectionsQuery } from "./api/definitions";
 
 interface SectionsState {
   sections: SectionDto[] | null;
@@ -19,38 +17,8 @@ interface SectionsState {
 const SectionsContext = createContext<SectionsState>({ sections: null, error: null });
 
 export function SectionsProvider({ children }: { children: ReactNode }) {
-  const host = useHost();
-  const [api] = useState(() => new OperatorApi(host));
-  const [sections, setSections] = useState<SectionDto[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = () => {
-      api
-        .sections()
-        .then((s) => {
-          if (!cancelled) {
-            setSections(s);
-            setError(null);
-          }
-          return undefined;
-        })
-        .catch((e) => {
-          if (!cancelled) {
-            setError(e.message);
-          }
-        });
-    };
-    refresh();
-    const timer = setInterval(refresh, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [api]);
-
-  const value = useMemo(() => ({ sections, error }), [sections, error]);
+  const { data, error } = useApiQuery(sectionsQuery(), { pollIntervalMs: STATUS_POLL_MS });
+  const value = useMemo(() => ({ sections: data, error: error?.message ?? null }), [data, error]);
 
   return <SectionsContext.Provider value={value}>{children}</SectionsContext.Provider>;
 }

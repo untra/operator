@@ -1,31 +1,27 @@
 import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { useHost } from "../host";
-import { OperatorApi } from "../api-client";
+import { useApiMutation } from "../api";
+import { forgotPasswordMutation } from "../api/definitions";
 import { MAX_USERNAME_LENGTH } from "../auth-constraints";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function ForgotPasswordPage() {
-  const host = useHost();
   const [username, setUsername] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const forgot = useApiMutation(forgotPasswordMutation);
   const submit = useCallback(
     async (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      setBusy(true);
       try {
-        const response = await new OperatorApi(host).forgotPassword(username);
+        const response = await forgot.mutateAsync({ username });
         setMessage(response.message);
       } catch {
         setMessage(
           "Recovery instructions are unavailable. Ask the server administrator to run `operator auth reset-admin-password` locally.",
         );
-      } finally {
-        setBusy(false);
       }
     },
-    [host, username],
+    [forgot, username],
   );
 
   return (
@@ -35,7 +31,7 @@ export function ForgotPasswordPage() {
       notice={message}
       onSubmit={submit}
       actions={
-        <AuthSubmit busy={busy} busyLabel="Checking…" disabled={!username}>
+        <AuthSubmit busy={forgot.isPending} busyLabel="Checking…" disabled={!username}>
           Get recovery instructions
         </AuthSubmit>
       }

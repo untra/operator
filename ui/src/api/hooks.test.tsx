@@ -117,11 +117,13 @@ describe("useApiQuery", () => {
     const { unmount } = renderHook(() => useApiQuery(definition, { pollIntervalMs: 10 }), {
       wrapper: Providers,
     });
-    await act(async () => undefined);
+    await act(() => Promise.resolve());
     expect(calls).toBe(1);
     unmount();
-    act(() => jest.advanceTimersByTime(50));
-    await act(async () => undefined);
+    act(() => {
+      jest.advanceTimersByTime(50);
+    });
+    await act(() => Promise.resolve());
     expect(calls).toBe(1);
   });
 });
@@ -143,7 +145,7 @@ describe("useApiMutation", () => {
       result.current.mutate({ value: "done" }, { onSuccess: (data) => success.push(data) }),
     );
     expect(result.current.isPending).toBe(true);
-    await act(async () => release("done"));
+    await act(() => Promise.resolve(release("done")));
     expect(result.current.isPending).toBe(false);
     expect(success).toEqual(["done"]);
   });

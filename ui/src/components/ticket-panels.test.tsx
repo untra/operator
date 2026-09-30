@@ -7,7 +7,7 @@ import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
 import { RightPanelProvider } from "../right-panel";
-import { mockFetch, restoreFetch } from "../test-fetch";
+import { mockFetch, requestBody, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
 mock.module("@operator/webcomponents", () => webcomponentMocks);
@@ -21,6 +21,11 @@ const TEST_HOST: Host = {
   browseFolder: () => Promise.resolve(null),
   openFile: () => undefined,
 };
+let createdTickets: string[] = [];
+
+function recordCreatedTicket(): void {
+  createdTickets.push("created");
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -45,6 +50,7 @@ afterEach(() => {
   cleanup();
   resetSessionState();
   setCsrfToken(null);
+  createdTickets = [];
   restoreFetch();
   jest.restoreAllMocks();
 });
@@ -53,8 +59,8 @@ describe("ticket panels", () => {
   test("creates a ticket with the selected type, project, and summary", async () => {
     const requests: Array<{ path: string; method: string; body?: string }> = [];
     mockFetch((input, init) => {
-      const path = new URL(String(input)).pathname;
-      requests.push({ path, method: init?.method ?? "GET", body: init?.body?.toString() });
+      const path = requestPath(input);
+      requests.push({ path, method: init?.method ?? "GET", body: requestBody(init) });
       if (path.endsWith("/issuetypes")) {
         return Promise.resolve(json([{ key: "TASK", name: "Task" }]));
       }
@@ -67,12 +73,11 @@ describe("ticket panels", () => {
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }, 500));
     });
     setCsrfToken("csrf");
-    const created: string[] = [];
-    renderPanel(<TicketCreatePanel onCreated={() => created.push("created")} />);
+    renderPanel(<TicketCreatePanel onCreated={recordCreatedTicket} />);
     await screen.findByRole("button", { name: "Fill ticket" });
     fireEvent.click(screen.getByRole("button", { name: "Fill ticket" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit ticket" }));
-    await waitFor(() => expect(created).toEqual(["created"]));
+    await waitFor(() => expect(createdTickets).toEqual(["created"]));
     const request = requests.find((item) => item.path.endsWith("/tickets"));
     expect(request?.method).toBe("POST");
     expect(JSON.parse(request?.body ?? "{}")).toEqual({
@@ -86,7 +91,7 @@ describe("ticket panels", () => {
   test("launches a ticket and focuses its cmux session", async () => {
     const requests: string[] = [];
     mockFetch((input, init) => {
-      const path = new URL(String(input)).pathname;
+      const path = requestPath(input);
       requests.push(`${init?.method ?? "GET"} ${path}`);
       if (path.endsWith("/configuration")) {
         return Promise.resolve(json({ launch: { session_wrapper: "cmux" } }));

@@ -1,4 +1,4 @@
-import type { ChangeEvent, FormEvent, ReactNode } from "react";
+import type { ChangeEvent, ReactNode, SubmitEvent } from "react";
 
 export function AuthCard({
   title,
@@ -11,7 +11,7 @@ export function AuthCard({
   error?: string | null;
   children: ReactNode;
   actions?: ReactNode;
-  onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit?: (event: SubmitEvent<HTMLFormElement>) => void;
 }) {
   return (
     <form onSubmit={onSubmit}>

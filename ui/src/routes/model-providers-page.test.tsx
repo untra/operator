@@ -4,7 +4,7 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
-import { mockFetch, restoreFetch } from "../test-fetch";
+import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
 mock.module("@operator/webcomponents", () => webcomponentMocks);
@@ -48,7 +48,7 @@ describe("ModelProvidersPage", () => {
       git: null,
     };
     mockFetch((input, init) => {
-      const path = new URL(String(input)).pathname;
+      const path = requestPath(input);
       const method = init?.method ?? "GET";
       requests.push({ path, method });
       if (path.endsWith("/model-servers/kinds")) {

@@ -5,7 +5,7 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
-import { mockFetch, restoreFetch } from "../test-fetch";
+import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
 mock.module("@operator/webcomponents", () => webcomponentMocks);
@@ -63,7 +63,7 @@ describe("authentication routes", () => {
 
   test("login maps rate limiting to an actionable message", async () => {
     mockFetch((input, init) => {
-      const path = new URL(String(input)).pathname;
+      const path = requestPath(input);
       if (path.endsWith("/bootstrap") && init?.method !== "POST") {
         return Promise.resolve(json({ state: "complete", requires_temporary_password: false }));
       }
@@ -79,7 +79,7 @@ describe("authentication routes", () => {
 
   test("successful login routes an unfinished workspace to onboarding", async () => {
     mockFetch((input, init) => {
-      const path = new URL(String(input)).pathname;
+      const path = requestPath(input);
       if (path.endsWith("/bootstrap")) {
         return Promise.resolve(json({ state: "complete", requires_temporary_password: false }));
       }
@@ -113,7 +113,7 @@ describe("authentication routes", () => {
   test("setup redirects complete servers and maps a rejected temporary password", async () => {
     let complete = true;
     mockFetch((input, init) => {
-      const path = new URL(String(input)).pathname;
+      const path = requestPath(input);
       if (path.endsWith("/bootstrap") && init?.method !== "POST") {
         return Promise.resolve(
           json({

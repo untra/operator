@@ -4,7 +4,7 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
-import { mockFetch, restoreFetch } from "../test-fetch";
+import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
 
 const { SecurityPage } = await import("./SecurityPage");
 
@@ -34,7 +34,7 @@ describe("SecurityPage", () => {
   test("creates and revokes credentials through mutation lifecycles", async () => {
     const requests: string[] = [];
     mockFetch((input, init) => {
-      const path = new URL(String(input)).pathname;
+      const path = requestPath(input);
       const method = init?.method ?? "GET";
       requests.push(`${method} ${path}`);
       if (path.endsWith("/auth/sessions") && method === "GET") {

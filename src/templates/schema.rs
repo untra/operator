@@ -633,8 +633,8 @@ pub struct PipelineStage {
 }
 
 /// Where a pipeline's iterated items come from. The variant determines *when*
-/// the list resolves: export-time (a literal array → static fan-out width in
-/// the compiled graph) vs runtime (an identifier → symbolic width).
+/// the list resolves: export-time (a literal array -> static fan-out width in
+/// the compiled graph) vs runtime (an identifier -> symbolic width).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 #[serde(tag = "type", rename_all = "snake_case")]

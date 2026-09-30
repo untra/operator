@@ -177,7 +177,7 @@ unnecessary_wraps = "allow"
 unused_async = "allow"
 # Doc links with quotes are fine
 doc_link_with_quotes = "allow"
-# Allow cast_possible_wrap for u64→i64 in timestamps
+# Allow cast_possible_wrap for u64->i64 in timestamps
 cast_possible_wrap = "allow"
 # Match arms kept separate for readability in TUI event handlers
 match_same_arms = "allow"

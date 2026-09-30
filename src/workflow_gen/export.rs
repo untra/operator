@@ -455,10 +455,8 @@ fn render_matrixed(hbs: &Handlebars, ctx: &Value, step: &StepSchema, var: &str) 
     ))
 }
 
-/// Render a pipeline step: one top-level `const r_x = await pipeline(items,
-/// …stage thunks);`. Items resolve per `ItemSource` (literal array → static
-/// fan-out width in the compiled graph; identifier → symbolic). The step graph
-/// stays linear - the N-item fan-out lives entirely inside this one statement.
+/// Render a pipeline step. Items resolve per `ItemSource` (literal array -> static fan-out width in the compiled graph).
+/// The step graph stays linear - the N-item fan-out lives entirely inside this one statement.
 fn render_pipeline(
     hbs: &Handlebars,
     ctx: &Value,

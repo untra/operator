@@ -98,6 +98,7 @@ test-ts:
 	bun install --frozen-lockfile
 	cd webcomponents && bun install --frozen-lockfile && bun run test
 	cd coder-module && bun test
+	bun test agnt-plugin
 
 # Every gate for one module, for when only that module changed.
 relay:

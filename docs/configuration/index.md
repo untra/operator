@@ -46,9 +46,9 @@ macOS notification preferences
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `enabled` * | `boolean` | true | Global enabled flag for all notifications |
-| `os` | → `OsNotificationConfig` | - | OS notification configuration |
+| `os` | `OsNotificationConfig` | - | OS notification configuration |
 | `webhook` | `any` | - | Single webhook configuration (for simple setups) |
-| `webhooks` | `array`[→ `WebhookConfig`] | - | Multiple webhook configurations |
+| `webhooks` | `array`[`WebhookConfig`] | - | Multiple webhook configurations |
 
 ## `[queue]`
 
@@ -80,7 +80,7 @@ Terminal UI appearance and behavior
 | `refresh_rate_ms` * | `integer` | 250 |  |
 | `completed_history_hours` * | `integer` | 24 |  |
 | `summary_max_length` * | `integer` | 40 |  |
-| `panel_names` | → `PanelNamesConfig` | - |  |
+| `panel_names` | `PanelNamesConfig` | - |  |
 
 ## `[launch]`
 
@@ -92,8 +92,8 @@ Agent launch behavior and confirmations
 | `confirm_paired` * | `boolean` | true |  |
 | `launch_delay_ms` * | `integer` | 2000 |  |
 | `target` | `string` \| `null` | - | Default named execution target. Per-launch and per-delegator choices take precedence. |
-| `docker` | → `DockerConfig` | - | Docker execution configuration |
-| `yolo` | → `YoloConfig` | - | YOLO (auto-accept) mode configuration |
+| `docker` | `DockerConfig` | - | Docker execution configuration |
+| `yolo` | `YoloConfig` | - | YOLO (auto-accept) mode configuration |
 
 ## `[templates]`
 
@@ -101,7 +101,7 @@ Issue type collections and presets
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `preset` | → `CollectionPreset` | - | Named preset for issue type collection Options: simple, `dev_kanban`, `devops_kanban`, custom |
+| `preset` | `CollectionPreset` | - | Named preset for issue type collection Options: simple, `dev_kanban`, `devops_kanban`, custom |
 | `collection` | `array`[`string`] | - | Custom issuetype collection (only used when preset = custom) List of issue type keys: TASK, FEAT, FIX, SPIKE, INV |
 | `active_collection` | `string` \| `null` | - | Active collection name (overrides preset if set) Can be a builtin preset name or a user-defined collection |
 | `collections_fetch_enabled` | `boolean` | - | Enable fetching hosted issuetype collections during setup. When disabled, only the embedded (offline) collections are offered. |
@@ -141,8 +141,8 @@ LLM CLI tool detection and providers
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `detected` | `array`[→ `DetectedTool`] | - | Detected CLI tools (populated on first startup) |
-| `providers` | `array`[→ `LlmProvider`] | - | Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases |
+| `detected` | `array`[`DetectedTool`] | - | Detected CLI tools (populated on first startup) |
+| `providers` | `array`[`LlmProvider`] | - | Available {tool, model} pairs for launching tickets Built from detected tools + their model aliases |
 | `detection_complete` | `boolean` | - | Whether detection has been completed |
 | `default_tool` | `string` \| `null` | - | User's preferred default LLM tool (e.g., "claude") |
 | `default_model` | `string` \| `null` | - | User's preferred default model alias (e.g., "opus") |

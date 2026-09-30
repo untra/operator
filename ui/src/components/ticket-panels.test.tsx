@@ -7,6 +7,7 @@ import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
 import { RightPanelProvider } from "../right-panel";
+import { mockFetch, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
 mock.module("@operator/webcomponents", () => webcomponentMocks);
@@ -44,13 +45,14 @@ afterEach(() => {
   cleanup();
   resetSessionState();
   setCsrfToken(null);
+  restoreFetch();
   jest.restoreAllMocks();
 });
 
 describe("ticket panels", () => {
   test("creates a ticket with the selected type, project, and summary", async () => {
     const requests: Array<{ path: string; method: string; body?: string }> = [];
-    globalThis.fetch = jest.fn((input, init) => {
+    mockFetch((input, init) => {
       const path = new URL(String(input)).pathname;
       requests.push({ path, method: init?.method ?? "GET", body: init?.body?.toString() });
       if (path.endsWith("/issuetypes")) {
@@ -63,7 +65,7 @@ describe("ticket panels", () => {
         return Promise.resolve(json({ id: "TASK-1", filename: "TASK-1.md", path: "/ticket" }));
       }
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }, 500));
-    }) as typeof fetch;
+    });
     setCsrfToken("csrf");
     const created: string[] = [];
     renderPanel(<TicketCreatePanel onCreated={() => created.push("created")} />);
@@ -83,7 +85,7 @@ describe("ticket panels", () => {
 
   test("launches a ticket and focuses its cmux session", async () => {
     const requests: string[] = [];
-    globalThis.fetch = jest.fn((input, init) => {
+    mockFetch((input, init) => {
       const path = new URL(String(input)).pathname;
       requests.push(`${init?.method ?? "GET"} ${path}`);
       if (path.endsWith("/configuration")) {
@@ -121,7 +123,7 @@ describe("ticket panels", () => {
         return Promise.resolve(new Response(null, { status: 204 }));
       }
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }, 500));
-    }) as typeof fetch;
+    });
     setCsrfToken("csrf");
     renderPanel(
       <TicketDetailPanel

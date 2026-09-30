@@ -60,8 +60,7 @@ describe("API architecture", () => {
 
   test("migrated server responses are not mirrored in component state", () => {
     const files = walk(UI_SRC).filter((file) => file.endsWith(".tsx"));
-    const mirrored =
-      /\[(?:probes|projects|statuses|newSecret),\s*set\w+\]\s*=\s*useState/;
+    const mirrored = /\[(?:probes|projects|statuses|newSecret),\s*set\w+\]\s*=\s*useState/;
     const hits = files
       .filter((file) => mirrored.test(readFileSync(file, "utf8")))
       .map((file) => relative(UI_SRC, file));

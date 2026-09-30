@@ -38,10 +38,10 @@ describe("useApiQuery", () => {
       params: {},
       fetch: () => Promise.resolve(`value-${++calls}`),
     };
-    const { result, rerender } = renderHook(
-      ({ enabled }) => useApiQuery(definition, { enabled }),
-      { initialProps: { enabled: false }, wrapper: Providers },
-    );
+    const { result, rerender } = renderHook(({ enabled }) => useApiQuery(definition, { enabled }), {
+      initialProps: { enabled: false },
+      wrapper: Providers,
+    });
     expect(result.current.isLoading).toBe(false);
     expect(calls).toBe(0);
     rerender({ enabled: true });
@@ -114,10 +114,9 @@ describe("useApiQuery", () => {
       params: {},
       fetch: () => Promise.resolve(++calls),
     };
-    const { unmount } = renderHook(
-      () => useApiQuery(definition, { pollIntervalMs: 10 }),
-      { wrapper: Providers },
-    );
+    const { unmount } = renderHook(() => useApiQuery(definition, { pollIntervalMs: 10 }), {
+      wrapper: Providers,
+    });
     await act(async () => undefined);
     expect(calls).toBe(1);
     unmount();
@@ -140,7 +139,9 @@ describe("useApiMutation", () => {
     };
     const success: string[] = [];
     const { result } = renderHook(() => useApiMutation(definition), { wrapper: Providers });
-    act(() => result.current.mutate({ value: "done" }, { onSuccess: (data) => success.push(data) }));
+    act(() =>
+      result.current.mutate({ value: "done" }, { onSuccess: (data) => success.push(data) }),
+    );
     expect(result.current.isPending).toBe(true);
     await act(async () => release("done"));
     expect(result.current.isPending).toBe(false);

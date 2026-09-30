@@ -4,6 +4,7 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
+import { mockFetch, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
 mock.module("@operator/webcomponents", () => webcomponentMocks);
@@ -28,6 +29,7 @@ afterEach(() => {
   cleanup();
   resetSessionState();
   setCsrfToken(null);
+  restoreFetch();
   jest.restoreAllMocks();
 });
 
@@ -45,7 +47,7 @@ describe("ModelProvidersPage", () => {
       remote_agent: null,
       git: null,
     };
-    globalThis.fetch = jest.fn((input, init) => {
+    mockFetch((input, init) => {
       const path = new URL(String(input)).pathname;
       const method = init?.method ?? "GET";
       requests.push({ path, method });
@@ -107,7 +109,7 @@ describe("ModelProvidersPage", () => {
         return Promise.resolve(json(delegator));
       }
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }));
-    }) as typeof fetch;
+    });
     setCsrfToken("csrf");
     render(
       <ApiProvider>

@@ -5,6 +5,7 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
+import { mockFetch, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
 mock.module("@operator/webcomponents", () => webcomponentMocks);
@@ -47,26 +48,27 @@ afterEach(() => {
   cleanup();
   resetSessionState();
   setCsrfToken(null);
+  restoreFetch();
   jest.restoreAllMocks();
 });
 
 describe("authentication routes", () => {
   test("login redirects an uninitialized server to setup", async () => {
-    globalThis.fetch = jest.fn(() =>
+    mockFetch(() =>
       Promise.resolve(json({ state: "uninitialized", requires_temporary_password: false })),
-    ) as typeof fetch;
+    );
     renderAuth("/login");
     expect(await screen.findByRole("heading", { name: "Set up Operator" })).toBeTruthy();
   });
 
   test("login maps rate limiting to an actionable message", async () => {
-    globalThis.fetch = jest.fn((input, init) => {
+    mockFetch((input, init) => {
       const path = new URL(String(input)).pathname;
       if (path.endsWith("/bootstrap") && init?.method !== "POST") {
         return Promise.resolve(json({ state: "complete", requires_temporary_password: false }));
       }
       return Promise.resolve(json({ message: "slow down" }, 429));
-    }) as typeof fetch;
+    });
     renderAuth("/login");
     await screen.findByRole("heading", { name: "Sign in to Operator" });
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "operator" } });
@@ -76,7 +78,7 @@ describe("authentication routes", () => {
   });
 
   test("successful login routes an unfinished workspace to onboarding", async () => {
-    globalThis.fetch = jest.fn((input, init) => {
+    mockFetch((input, init) => {
       const path = new URL(String(input)).pathname;
       if (path.endsWith("/bootstrap")) {
         return Promise.resolve(json({ state: "complete", requires_temporary_password: false }));
@@ -99,7 +101,7 @@ describe("authentication routes", () => {
         );
       }
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }, 500));
-    }) as typeof fetch;
+    });
     renderAuth("/login");
     await screen.findByRole("heading", { name: "Sign in to Operator" });
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "operator" } });
@@ -110,7 +112,7 @@ describe("authentication routes", () => {
 
   test("setup redirects complete servers and maps a rejected temporary password", async () => {
     let complete = true;
-    globalThis.fetch = jest.fn((input, init) => {
+    mockFetch((input, init) => {
       const path = new URL(String(input)).pathname;
       if (path.endsWith("/bootstrap") && init?.method !== "POST") {
         return Promise.resolve(
@@ -121,7 +123,7 @@ describe("authentication routes", () => {
         );
       }
       return Promise.resolve(json({ message: "invalid bootstrap password" }, 401));
-    }) as typeof fetch;
+    });
     const first = renderAuth("/setup");
     expect(await screen.findByRole("heading", { name: "Sign in to Operator" })).toBeTruthy();
     first.unmount();

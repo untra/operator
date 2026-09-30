@@ -4,6 +4,7 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
+import { mockFetch, restoreFetch } from "../test-fetch";
 
 const { SecurityPage } = await import("./SecurityPage");
 
@@ -25,13 +26,14 @@ afterEach(() => {
   cleanup();
   resetSessionState();
   setCsrfToken(null);
+  restoreFetch();
   jest.restoreAllMocks();
 });
 
 describe("SecurityPage", () => {
   test("creates and revokes credentials through mutation lifecycles", async () => {
     const requests: string[] = [];
-    globalThis.fetch = jest.fn((input, init) => {
+    mockFetch((input, init) => {
       const path = new URL(String(input)).pathname;
       const method = init?.method ?? "GET";
       requests.push(`${method} ${path}`);
@@ -86,7 +88,7 @@ describe("SecurityPage", () => {
         return Promise.resolve(json({ id: "key-1", revoked_at: "2026-09-30T01:00:00Z" }));
       }
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }));
-    }) as typeof fetch;
+    });
     setCsrfToken("csrf");
     render(
       <ApiProvider>

@@ -77,11 +77,6 @@ excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
 > deprecation that only surfaces under `--all-targets`), which is how a clippy
 > failure can pass locally yet break CI. Always use the full command above.
 
-Install the pre-push hook once per clone so the fast gate (`fmt-check` +
-root `clippy`, no tests) runs automatically before every push; the full `make check` remains
-the expectation before opening a PR:
-
-
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
 
 #### Strict Linting

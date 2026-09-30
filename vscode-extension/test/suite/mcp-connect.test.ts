@@ -573,15 +573,12 @@ suite("MCP Connect Test Suite", () => {
 
   suite("connectMcpServer() dispatch", () => {
     let detectHostStub: sinon.SinonStub;
-    let discoverApiUrlStub: sinon.SinonStub;
     let configUpdateStub: sinon.SinonStub;
     let getStub: sinon.SinonStub;
 
     setup(() => {
       detectHostStub = sinon.stub(_testable, "rawAppName");
-      discoverApiUrlStub = sinon
-        .stub(apiClient, "discoverApiUrl")
-        .resolves("http://localhost:7008");
+      sinon.stub(apiClient, "discoverApiUrl").resolves("http://localhost:7008");
       configUpdateStub = sinon.stub().resolves();
       getStub = sinon.stub().returns({});
       sinon.stub(vscode.workspace, "getConfiguration").returns({

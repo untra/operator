@@ -110,14 +110,8 @@ export function OnboardingPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      api.refreshCsrf(),
-      api.setupStatus(),
-      api.setupSteps(),
-      api.integrations(),
-      api.setupCollections(),
-    ])
-      .then(([, nextStatus, nextSteps, nextIntegrations, nextCollections]) => {
+    Promise.all([api.setupStatus(), api.setupSteps(), api.integrations(), api.setupCollections()])
+      .then(([nextStatus, nextSteps, nextIntegrations, nextCollections]) => {
         if (!active) {
           return undefined;
         }

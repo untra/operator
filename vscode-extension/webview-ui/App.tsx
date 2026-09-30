@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Alert, Spinner } from "./components/primitives";
 import { ConfigPage } from "./components/ConfigPage";
 import { postMessage, onMessage } from "./vscodeApi";
@@ -11,10 +11,23 @@ import type {
   IssueTypeSummary,
   CollectionResponse,
   ExternalIssueTypeSummary,
+  NavigationPrefill,
 } from "./types/messages";
-import type { JiraConfig } from "../src/generated/JiraConfig";
-import type { LinearConfig } from "../src/generated/LinearConfig";
-import type { ProjectSyncConfig } from "../src/generated/ProjectSyncConfig";
+import { applyUpdate } from "./state/applyUpdate";
+import {
+  configErrorFrom,
+  errorAfterSnapshot,
+  isStaleSnapshot,
+  toWireValue,
+  type ConfigErrorState,
+} from "./state/configSync";
+
+interface NavigationRequest {
+  section: string;
+  prefill?: NavigationPrefill;
+}
+
+const CREATE_DELEGATOR_ACTION = "createDelegator";
 
 function browseFolder(field: string): void {
   postMessage({ type: "browseFolder", field });
@@ -46,7 +59,7 @@ function openOperatorUi(route: "issuetypes" | "projects"): void {
 
 export function App() {
   const [config, setConfig] = useState<WebviewConfig | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ConfigErrorState | null>(null);
   const [jiraResult, setJiraResult] = useState<JiraValidationInfo | null>(null);
   const [linearResult, setLinearResult] = useState<LinearValidationInfo | null>(null);
   const [validatingJira, setValidatingJira] = useState(false);
@@ -58,17 +71,27 @@ export function App() {
     Map<string, ExternalIssueTypeSummary[]>
   >(new Map());
   const [kanbanStatuses, setKanbanStatuses] = useState<Map<string, string[]>>(new Map());
+  const [navigation, setNavigation] = useState<NavigationRequest | null>(null);
+  const lastSentRev = useRef(0);
+  const hasConfig = config !== null;
+  const delegatorPrefill =
+    navigation?.prefill?.action === CREATE_DELEGATOR_ACTION ? navigation.prefill : undefined;
 
   useEffect(() => {
     const cleanup = onMessage((msg: ExtensionToWebviewMessage) => {
       switch (msg.type) {
         case "configLoaded":
         case "configUpdated":
-          setConfig(mergeWithDefaults(msg.config));
-          setError(null);
+          setError((prev) => errorAfterSnapshot(prev, msg.type));
+          if (!isStaleSnapshot(msg.rev, lastSentRev.current)) {
+            setConfig(mergeWithDefaults(msg.config));
+          }
           break;
         case "configError":
-          setError(msg.error);
+          setError(configErrorFrom(msg.error, msg.rev));
+          if (msg.rev !== undefined) {
+            postMessage({ type: "getConfig" });
+          }
           break;
         case "browseResult":
           setConfig((prev) => {
@@ -90,7 +113,12 @@ export function App() {
           setValidatingLinear(false);
           break;
         case "llmToolsDetected":
-          setConfig(mergeWithDefaults(msg.config));
+          if (!isStaleSnapshot(msg.rev, lastSentRev.current)) {
+            setConfig(mergeWithDefaults(msg.config));
+          }
+          break;
+        case "navigateTo":
+          setNavigation({ section: msg.section, prefill: msg.prefill });
           break;
         case "apiHealthResult":
           setApiReachable(msg.reachable);
@@ -154,17 +182,27 @@ export function App() {
     return cleanup;
   }, []);
 
-  const handleUpdate = useCallback(
-    (section: string, key: string, value: unknown) => {
-      postMessage({ type: "updateConfig", section, key, value });
+  useEffect(() => {
+    if (hasConfig && navigation) {
+      document
+        .getElementById(navigation.section)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hasConfig, navigation]);
 
-      // Optimistic update for responsiveness
-      setConfig((prev) => {
-        if (!prev) {
-          return prev;
-        }
-        return applyUpdate(prev, section, key, value);
+  const handleUpdate = useCallback(
+    (section: string, key: string, value: unknown, instanceKey?: string) => {
+      lastSentRev.current += 1;
+      const rev = lastSentRev.current;
+      postMessage({
+        type: "updateConfig",
+        section,
+        key,
+        value: toWireValue(value),
+        rev,
+        instanceKey,
       });
+      setConfig((prev) => (prev ? applyUpdate(prev, section, key, value, instanceKey) : prev));
     },
     [setConfig],
   );
@@ -191,7 +229,7 @@ export function App() {
     <>
       {error && (
         <Alert severity="error" style={{ margin: 16 }}>
-          {error}
+          {error.message}
         </Alert>
       )}
       {config ? (
@@ -216,6 +254,7 @@ export function App() {
           kanbanStatuses={kanbanStatuses}
           onGetKanbanStatuses={getKanbanStatuses}
           onOpenOperatorUi={openOperatorUi}
+          delegatorPrefill={delegatorPrefill}
         />
       ) : (
         <div
@@ -262,166 +301,4 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: T): T {
     }
   }
   return result as T;
-}
-
-const DEFAULT_JIRA: JiraConfig = {
-  enabled: false,
-  api_key_env: "OPERATOR_JIRA_API_KEY",
-  email: "",
-  projects: {},
-};
-const DEFAULT_LINEAR: LinearConfig = {
-  enabled: false,
-  api_key_env: "OPERATOR_LINEAR_API_KEY",
-  projects: {},
-};
-const DEFAULT_PROJECT_SYNC: ProjectSyncConfig = {
-  sync_user_id: "",
-  status_mapping: {},
-  collection_name: null,
-  type_mappings: {},
-  bidirectional: false,
-};
-
-/** Apply an update to the config object by section/key path */
-function applyUpdate(
-  config: WebviewConfig,
-  section: string,
-  key: string,
-  value: unknown,
-): WebviewConfig {
-  const next = { ...config, config: { ...config.config } };
-
-  switch (section) {
-    case "primary":
-      if (key === "working_directory") {
-        next.working_directory = value as string;
-      }
-      break;
-
-    case "agents": {
-      const updated = { ...next.config.agents };
-      (updated as Record<string, unknown>)[key] = value;
-      next.config.agents = updated;
-      break;
-    }
-
-    case "sessions": {
-      const updated = { ...next.config.sessions };
-      (updated as Record<string, unknown>)[key] = value;
-      next.config.sessions = updated;
-      break;
-    }
-
-    case "kanban.jira": {
-      const jiraMap = { ...next.config.kanban.jira };
-      const domains = Object.keys(jiraMap);
-      const domain = domains[0] ?? "your-org.atlassian.net";
-      const ws: JiraConfig = { ...(jiraMap[domain] ?? DEFAULT_JIRA) };
-
-      if (key === "enabled" || key === "email" || key === "api_key_env") {
-        (ws as Record<string, unknown>)[key] = value;
-        jiraMap[domain] = ws;
-      } else if (key === "domain" && typeof value === "string" && value !== domain) {
-        delete jiraMap[domain];
-        jiraMap[value] = ws;
-      } else if (
-        key === "project_key" ||
-        key === "status_mapping" ||
-        key === "collection_name" ||
-        key === "sync_user_id" ||
-        key === "type_mappings"
-      ) {
-        const projects = { ...ws.projects };
-        const pKeys = Object.keys(projects);
-        const pKey = pKeys[0] ?? "default";
-        if (key === "project_key") {
-          const oldProject = projects[pKey] ?? DEFAULT_PROJECT_SYNC;
-          delete projects[pKey];
-          projects[value as string] = oldProject;
-        } else {
-          const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
-          (existing as Record<string, unknown>)[key] = value;
-          projects[pKey] = existing;
-        }
-        ws.projects = projects;
-        jiraMap[domain] = ws;
-      } else if (key.startsWith("projects.")) {
-        // Multi-project writes: projects.{projectKey}.{field}
-        const parts = key.split(".");
-        if (parts.length >= 3) {
-          const pKey = parts[1];
-          const field = parts.slice(2).join(".");
-          const projects = { ...ws.projects };
-          const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
-          (existing as Record<string, unknown>)[field] = value;
-          projects[pKey] = existing;
-          ws.projects = projects;
-          jiraMap[domain] = ws;
-        }
-      }
-      next.config.kanban = { ...next.config.kanban, jira: jiraMap };
-      break;
-    }
-
-    case "kanban.linear": {
-      const linearMap = { ...next.config.kanban.linear };
-      const teams = Object.keys(linearMap);
-      const teamId = teams[0] ?? "default-team";
-      const ws: LinearConfig = { ...(linearMap[teamId] ?? DEFAULT_LINEAR) };
-
-      if (key === "enabled" || key === "api_key_env") {
-        (ws as Record<string, unknown>)[key] = value;
-        linearMap[teamId] = ws;
-      } else if (key === "team_id" && typeof value === "string" && value !== teamId) {
-        delete linearMap[teamId];
-        linearMap[value] = ws;
-      } else if (
-        key === "status_mapping" ||
-        key === "collection_name" ||
-        key === "sync_user_id" ||
-        key === "type_mappings"
-      ) {
-        const projects = { ...ws.projects };
-        const pKeys = Object.keys(projects);
-        const pKey = pKeys[0] ?? "default";
-        const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
-        (existing as Record<string, unknown>)[key] = value;
-        projects[pKey] = existing;
-        ws.projects = projects;
-        linearMap[teamId] = ws;
-      } else if (key.startsWith("projects.")) {
-        // Multi-project writes: projects.{projectKey}.{field}
-        const parts = key.split(".");
-        if (parts.length >= 3) {
-          const pKey = parts[1];
-          const field = parts.slice(2).join(".");
-          const projects = { ...ws.projects };
-          const existing = { ...(projects[pKey] ?? DEFAULT_PROJECT_SYNC) };
-          (existing as Record<string, unknown>)[field] = value;
-          projects[pKey] = existing;
-          ws.projects = projects;
-          linearMap[teamId] = ws;
-        }
-      }
-      next.config.kanban = { ...next.config.kanban, linear: linearMap };
-      break;
-    }
-
-    case "git": {
-      const updated = { ...next.config.git };
-      (updated as Record<string, unknown>)[key] = value;
-      next.config.git = updated;
-      break;
-    }
-
-    case "git.github": {
-      const github = { ...next.config.git.github };
-      (github as Record<string, unknown>)[key] = value;
-      next.config.git = { ...next.config.git, github };
-      break;
-    }
-  }
-
-  return next;
 }

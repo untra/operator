@@ -18,6 +18,7 @@ import * as configPaths from "../../src/config-paths";
 import * as walkthrough from "../../src/walkthrough";
 import * as operatorBinary from "../../src/operator-binary";
 import * as apiClient from "../../src/api-client";
+import * as mcpConnect from "../../src/mcp-connect";
 
 const EMPTY_STUB = {};
 
@@ -292,6 +293,35 @@ suite("Status Provider Test Suite", () => {
       const icon = wrapper.iconPath as vscode.ThemeIcon;
       assert.strictEqual(icon.id, "warning", "Should show warning icon for non-vscode wrapper");
       assert.strictEqual(wrapper.description, "tmux");
+    });
+  });
+
+  suite("MCP status row", () => {
+    test("describes editor registration instead of a boolean Connected", async () => {
+      const mockContext = createMockContext(sandbox, "/fake/working-dir");
+      sandbox.stub(configPaths, "configFileExists").resolves(true);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
+      sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
+      sandbox.stub(mcpConnect, "inspectMcpRegistration").resolves({
+        vscodeWorkspace: true,
+        workspacePortable: false,
+        copilotGlobal: false,
+        cursor: false,
+      });
+      sandbox.stub(mcpConnect, "isVscodeWorkspaceStdio").returns(true);
+      sandbox.stub(mcpConnect, "detectHostApp").returns("vscode");
+
+      const provider = new StatusTreeProvider(mockContext);
+      await provider.setTicketsDir(tempDir);
+
+      const sections = provider.getChildren();
+      const connections = findChild(sections, "Connections");
+      assert.ok(connections, "Should have Connections section");
+
+      const children = provider.getChildren(connections);
+      const mcp = findChild(children, "MCP");
+      assert.ok(mcp, "Should have MCP item");
+      assert.strictEqual(mcp.description, "editor");
     });
   });
 

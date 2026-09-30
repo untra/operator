@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { TextInput, SelectInput, Toggle } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
+import { useDraftField } from "../../hooks/useDraftField";
 import type { GitConfig } from "../../../src/generated/GitConfig";
 
 interface GitRepositoriesSectionProps {
@@ -24,16 +25,16 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
       onUpdate("git.github", "enabled", event.target.checked),
     [onUpdate],
   );
-  const handleGithubTokenChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("git.github", "token_env", event.target.value),
+  const commitGithubToken = useCallback(
+    (next: string) => onUpdate("git.github", "token_env", next),
     [onUpdate],
   );
-  const handleBranchFormatChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("git", "branch_format", event.target.value),
+  const commitBranchFormat = useCallback(
+    (next: string) => onUpdate("git", "branch_format", next),
     [onUpdate],
   );
+  const githubTokenDraft = useDraftField(githubTokenEnv, commitGithubToken);
+  const branchFormatDraft = useDraftField(branchFormat, commitBranchFormat);
   const handleWorktreesChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
       onUpdate("git", "use_worktrees", event.target.checked),
@@ -68,8 +69,7 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
 
         <TextInput
           label="GitHub Token Environment Variable"
-          value={githubTokenEnv}
-          onChange={handleGithubTokenChange}
+          {...githubTokenDraft}
           placeholder="GITHUB_TOKEN"
           helperText="Name of the environment variable containing your GitHub personal access token"
           disabled={!githubEnabled}
@@ -77,8 +77,7 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
 
         <TextInput
           label="Branch Format"
-          value={branchFormat}
-          onChange={handleBranchFormatChange}
+          {...branchFormatDraft}
           placeholder="{type}/{ticket_id}-{slug}"
           helperText="Template for branch names. Variables: {type}, {ticket_id}, {slug}"
         />

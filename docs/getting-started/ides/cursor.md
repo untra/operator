@@ -57,6 +57,8 @@ The extension shares the same configuration as the VS Code session manager. Sett
 
 Cursor's `~/.cursor/mcp.json` uses the `mcpServers` shape with `command`, `args`, and `cwd` - stdio only. SSE-style URL entries are not honored by Cursor's MCP UI.
 
+Stock VS Code 1.140 also writes workspace-root `.mcp.json` and can write Copilot Global (`$COPILOT_HOME/mcp-config.json` or `~/.copilot/mcp-config.json`). Inside Cursor, Connect MCP still writes only `~/.cursor/mcp.json`.
+
 ### Requirements
 
 - Operator must be running with `[mcp].stdio_advertised = true` in its config (this is the default). Restart the operator API after toggling.

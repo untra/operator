@@ -1493,12 +1493,29 @@ mod tests {
             .0
             .csrf_token;
         assert_ne!(rotated, login_body.csrf_token);
+        assert!(state
+            .auth
+            .store
+            .verify_csrf(&session_id, &login_body.csrf_token)
+            .unwrap());
+        assert!(state.auth.store.verify_csrf(&session_id, &rotated).unwrap());
+
+        let rotated_again = csrf_token(State(state.clone()), Authenticated(principal.clone()))
+            .await
+            .unwrap()
+            .0
+            .csrf_token;
         assert!(!state
             .auth
             .store
             .verify_csrf(&session_id, &login_body.csrf_token)
             .unwrap());
         assert!(state.auth.store.verify_csrf(&session_id, &rotated).unwrap());
+        assert!(state
+            .auth
+            .store
+            .verify_csrf(&session_id, &rotated_again)
+            .unwrap());
 
         let bearer = Principal {
             kind: PrincipalKind::AccessToken,
@@ -2251,22 +2268,27 @@ mod tests {
             .unwrap()
             .is_none());
 
-        let (status, _, value) = body_json(
-            app.clone()
-                .oneshot(router_request(
-                    "GET",
-                    "/api/v1/auth/csrf",
-                    Some(&cookie),
-                    None,
-                    same_origin,
-                ))
-                .await
-                .unwrap(),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK, "{value}");
-        let rotated = parse::<CsrfTokenResponse>(value).csrf_token;
-        assert_ne!(rotated, csrf);
+        // One superseded token stays valid, so retiring the login token takes two.
+        const ROTATIONS_TO_RETIRE_A_TOKEN: usize = 2;
+        let mut rotated = csrf.clone();
+        for _ in 0..ROTATIONS_TO_RETIRE_A_TOKEN {
+            let (status, _, value) = body_json(
+                app.clone()
+                    .oneshot(router_request(
+                        "GET",
+                        "/api/v1/auth/csrf",
+                        Some(&cookie),
+                        None,
+                        same_origin,
+                    ))
+                    .await
+                    .unwrap(),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{value}");
+            rotated = parse::<CsrfTokenResponse>(value).csrf_token;
+            assert_ne!(rotated, csrf);
+        }
 
         let (status, _, value) = body_json(
             app.clone()

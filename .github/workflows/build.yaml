@@ -92,6 +92,9 @@ jobs:
           bun run lint:agnt
           bun run lint:coder-module
 
+      - name: Webview unit tests
+        run: bun run test:webview
+
       - name: Lint shell scripts
         run: shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*
 
@@ -100,6 +103,7 @@ jobs:
           cd ui
           bun install --frozen-lockfile
           bun run typecheck
+          bun test
           bun run build
           DIST_SIZE=$(du -sb dist/ | cut -f1)
           echo "UI dist size: ${DIST_SIZE}B ($(echo "scale=1; $DIST_SIZE/1048576" | bc)MB uncompressed)"

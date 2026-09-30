@@ -35,9 +35,6 @@ export function SecurityPage() {
   const load = useCallback(async () => {
     const api = new OperatorApi(host);
     try {
-      // A page load leaves no CSRF token in memory even though the session
-      // cookie survived, so re-issue one before any mutation is possible.
-      await api.refreshCsrf().catch(() => undefined);
       const [s, k] = await Promise.all([api.listSessions(), api.listAccessKeys()]);
       setSessions(s);
       setKeys(k);
@@ -50,10 +47,7 @@ export function SecurityPage() {
   useEffect(() => {
     let cancelled = false;
     const api = new OperatorApi(host);
-    void api
-      .refreshCsrf()
-      .catch(() => undefined)
-      .then(() => Promise.all([api.listSessions(), api.listAccessKeys()]))
+    void Promise.all([api.listSessions(), api.listAccessKeys()])
       .then(([s, k]) => {
         if (!cancelled) {
           setSessions(s);

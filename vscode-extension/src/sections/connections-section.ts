@@ -9,7 +9,8 @@ import type { ApiSessionInfo } from "../api-client";
 import { discoverApiUrl, AuthRequiredError, OperatorApiClient } from "../api-client";
 import { SIGN_IN_COMMAND_TITLE } from "../auth/errors";
 import { getOperatorPath, getOperatorVersion } from "../operator-binary";
-import { isMcpServerRegistered } from "../mcp-connect";
+import * as mcpConnect from "../mcp-connect";
+import type { McpRegistrationPresence } from "../mcp-connect";
 
 export class ConnectionsSection implements StatusSection {
   readonly sectionId: SectionId = "connections";
@@ -19,7 +20,13 @@ export class ConnectionsSection implements StatusSection {
   private apiStatus: ApiStatus = { connected: false };
   private operatorVersion: string | undefined;
   private localDirectoryName: string | undefined;
-  private mcpRegistered = false;
+  private mcpPresence: McpRegistrationPresence = {
+    vscodeWorkspace: false,
+    workspacePortable: false,
+    copilotGlobal: false,
+    cursor: false,
+  };
+  private workspaceStdio: boolean | undefined;
   private wrapperType = "vscode";
   private webUiAvailable = false;
 
@@ -57,7 +64,8 @@ export class ConnectionsSection implements StatusSection {
       this.checkApiStatus(ctx),
       this.checkWrapperType(ctx),
     ]);
-    this.mcpRegistered = isMcpServerRegistered();
+    this.mcpPresence = await mcpConnect.inspectMcpRegistration();
+    this.workspaceStdio = mcpConnect.isVscodeWorkspaceStdio();
   }
 
   private async checkWebhookStatus(ctx: SectionContext): Promise<void> {
@@ -399,13 +407,18 @@ export class ConnectionsSection implements StatusSection {
         });
 
     // 5. MCP Connection
+    const mcpStatus = mcpConnect.mcpStatusDescription(
+      this.mcpPresence,
+      mcpConnect.detectHostApp(),
+      this.workspaceStdio,
+    );
     let mcpItem: StatusItem;
-    if (this.mcpRegistered) {
+    if (mcpStatus.connected) {
       mcpItem = new StatusItem({
         label: "MCP",
-        description: "Connected",
+        description: mcpStatus.description,
         icon: "pass",
-        tooltip: "Operator MCP server is registered in workspace settings",
+        tooltip: mcpStatus.tooltip,
         command: this.apiStatus.connected
           ? {
               command: "operator.connectMcpServer",
@@ -417,9 +430,9 @@ export class ConnectionsSection implements StatusSection {
     } else if (this.apiStatus.connected) {
       mcpItem = new StatusItem({
         label: "MCP",
-        description: "Connect",
+        description: mcpStatus.description,
         icon: "plug",
-        tooltip: "Connect Operator as MCP server in VS Code",
+        tooltip: mcpStatus.tooltip,
         command: {
           command: "operator.connectMcpServer",
           title: "Connect MCP Server",

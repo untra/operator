@@ -7,6 +7,7 @@ import type {
   ModelServerKindEntry,
   ModelServerModelsResponse,
   DelegatorResponse,
+  NavigationPrefill,
 } from "../../types/messages";
 
 const BRAND_ICONS = new Set(["anthropic", "google", "ollama", "openrouter"]);
@@ -14,6 +15,7 @@ const BRAND_ICONS = new Set(["anthropic", "google", "ollama", "openrouter"]);
 interface ModelProvidersSectionProps {
   detectedTools: string[];
   apiReachable: boolean;
+  delegatorPrefill?: NavigationPrefill;
 }
 
 type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
@@ -46,7 +48,11 @@ function DismissableAlert({
   );
 }
 
-export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProvidersSectionProps) {
+export function ModelProvidersSection({
+  detectedTools,
+  apiReachable,
+  delegatorPrefill,
+}: ModelProvidersSectionProps) {
   const [kinds, setKinds] = useState<ModelServerKindEntry[]>([]);
   const [probes, setProbes] = useState<ProbeMap>({});
   const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
@@ -104,6 +110,7 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
         case "kanbanStatusesLoaded":
         case "linearValidationResult":
         case "llmToolsDetected":
+        case "navigateTo":
         case "projectsError":
         case "projectsLoaded":
           break;
@@ -148,7 +155,12 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
       <ProviderGroup heading="First-party" kinds={firstParty} probes={probes} />
       <ProviderGroup heading="Gateways" kinds={gateways} probes={probes} />
 
-      <CreateDelegatorForm kinds={kinds} probes={probes} detectedTools={detectedTools} />
+      <CreateDelegatorForm
+        kinds={kinds}
+        probes={probes}
+        detectedTools={detectedTools}
+        prefill={delegatorPrefill}
+      />
 
       <p className="op-body2 op-text-secondary op-mt-2 op-mb-05">Delegators</p>
       {delegators.length === 0 ? (
@@ -236,15 +248,25 @@ function CreateDelegatorForm({
   kinds,
   probes,
   detectedTools,
+  prefill,
 }: {
   kinds: ModelServerKindEntry[];
   probes: ProbeMap;
   detectedTools: string[];
+  prefill?: NavigationPrefill;
 }) {
-  const [tool, setTool] = useState("");
+  const [tool, setTool] = useState(prefill?.tool ?? "");
   const [provider, setProvider] = useState("");
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(prefill?.model ?? "");
   const [name, setName] = useState("");
+  const [appliedPrefill, setAppliedPrefill] = useState(prefill);
+  if (prefill !== appliedPrefill) {
+    setAppliedPrefill(prefill);
+    if (prefill) {
+      setTool(prefill.tool ?? "");
+      setModel(prefill.model ?? "");
+    }
+  }
 
   const selectedTool = tool || detectedTools[0] || "";
 

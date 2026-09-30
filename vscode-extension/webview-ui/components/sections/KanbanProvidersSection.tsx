@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { SectionHeader } from "../SectionHeader";
 import { LinkOutCard } from "../LinkOutCard";
 import { ProviderCard } from "../kanban/ProviderCard";
+import { useStableKeys } from "../../hooks/useStableKeys";
 import type {
   JiraValidationInfo,
   LinearValidationInfo,
@@ -15,7 +16,7 @@ import type { LinearConfig } from "../../../src/generated/LinearConfig";
 
 interface KanbanProvidersSectionProps {
   kanban: KanbanConfig;
-  onUpdate: (section: string, key: string, value: unknown) => void;
+  onUpdate: (section: string, key: string, value: unknown, instanceKey?: string) => void;
   onValidateJira: (domain: string, email: string, apiToken: string) => void;
   onValidateLinear: (apiKey: string) => void;
   jiraResult: JiraValidationInfo | null;
@@ -43,6 +44,18 @@ const DEFAULT_LINEAR: LinearConfig = {
   api_key_env: "OPERATOR_LINEAR_API_KEY",
   projects: {},
 };
+const DEFAULT_JIRA_DOMAIN = "your-org.atlassian.net";
+const DEFAULT_LINEAR_TEAM = "default-team";
+
+/** Render a placeholder card under the default instance key until one is configured. */
+function entriesOrDefault<W>(
+  map: Record<string, W> | undefined,
+  defaultKey: string,
+  defaultValue: W,
+): Array<[string, W]> {
+  const entries = Object.entries(map ?? {});
+  return entries.length > 0 ? entries : [[defaultKey, defaultValue]];
+}
 
 export function KanbanProvidersSection({
   kanban,
@@ -62,15 +75,10 @@ export function KanbanProvidersSection({
   onGetKanbanStatuses,
   onOpenOperatorUi,
 }: KanbanProvidersSectionProps) {
-  // Iterate all Jira domains
-  const jiraEntries = Object.entries(kanban.jira ?? {});
-  const hasJira = jiraEntries.length > 0;
-  const defaultJiraDomain = "your-org.atlassian.net";
-
-  // Iterate all Linear workspaces
-  const linearEntries = Object.entries(kanban.linear ?? {});
-  const hasLinear = linearEntries.length > 0;
-  const defaultLinearTeam = "default-team";
+  const jiraEntries = entriesOrDefault(kanban.jira, DEFAULT_JIRA_DOMAIN, DEFAULT_JIRA);
+  const linearEntries = entriesOrDefault(kanban.linear, DEFAULT_LINEAR_TEAM, DEFAULT_LINEAR);
+  const jiraIds = useStableKeys(jiraEntries.map(([domain]) => domain));
+  const linearIds = useStableKeys(linearEntries.map(([teamId]) => teamId));
 
   // Viewing an issue type now links out to the hosted Operator UI.
   const handleViewIssueType = useCallback(() => {
@@ -90,32 +98,12 @@ export function KanbanProvidersSection({
       </p>
 
       <div className="op-col op-gap-3">
-        {/* Jira providers */}
-        {hasJira ? (
-          jiraEntries.map(([domain, config]) => (
-            <ProviderCard
-              key={`jira-${domain}`}
-              type="jira"
-              domain={domain}
-              config={config}
-              onUpdate={onUpdate}
-              onValidate={onValidateJira}
-              validationResult={jiraResult}
-              validating={validatingJira}
-              collections={collections}
-              issueTypes={issueTypes}
-              externalIssueTypes={externalIssueTypes}
-              onGetExternalIssueTypes={onGetExternalIssueTypes}
-              kanbanStatuses={kanbanStatuses}
-              onGetKanbanStatuses={onGetKanbanStatuses}
-              onViewIssueType={handleViewIssueType}
-            />
-          ))
-        ) : (
+        {jiraEntries.map(([domain, config]) => (
           <ProviderCard
+            key={`jira-${jiraIds.get(domain) ?? domain}`}
             type="jira"
-            domain={defaultJiraDomain}
-            config={DEFAULT_JIRA}
+            domain={domain}
+            config={config}
             onUpdate={onUpdate}
             onValidate={onValidateJira}
             validationResult={jiraResult}
@@ -128,34 +116,14 @@ export function KanbanProvidersSection({
             onGetKanbanStatuses={onGetKanbanStatuses}
             onViewIssueType={handleViewIssueType}
           />
-        )}
+        ))}
 
-        {/* Linear providers */}
-        {hasLinear ? (
-          linearEntries.map(([teamId, config]) => (
-            <ProviderCard
-              key={`linear-${teamId}`}
-              type="linear"
-              domain={teamId}
-              config={config}
-              onUpdate={onUpdate}
-              onValidate={onValidateLinear}
-              validationResult={linearResult}
-              validating={validatingLinear}
-              collections={collections}
-              issueTypes={issueTypes}
-              externalIssueTypes={externalIssueTypes}
-              onGetExternalIssueTypes={onGetExternalIssueTypes}
-              kanbanStatuses={kanbanStatuses}
-              onGetKanbanStatuses={onGetKanbanStatuses}
-              onViewIssueType={handleViewIssueType}
-            />
-          ))
-        ) : (
+        {linearEntries.map(([teamId, config]) => (
           <ProviderCard
+            key={`linear-${linearIds.get(teamId) ?? teamId}`}
             type="linear"
-            domain={defaultLinearTeam}
-            config={DEFAULT_LINEAR}
+            domain={teamId}
+            config={config}
             onUpdate={onUpdate}
             onValidate={onValidateLinear}
             validationResult={linearResult}
@@ -168,7 +136,7 @@ export function KanbanProvidersSection({
             onGetKanbanStatuses={onGetKanbanStatuses}
             onViewIssueType={handleViewIssueType}
           />
-        )}
+        ))}
       </div>
 
       {/* Issue types & collections now live in the hosted Operator UI */}

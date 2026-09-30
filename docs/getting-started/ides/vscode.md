@@ -62,6 +62,25 @@ Access via Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 | `Operator: Launch Ticket` | Launch a ticket in a new terminal |
 | `Operator: Launch Ticket (with options)` | Launch with agent/mode selection |
 | `Operator: Download Operator` | Download the Operator CLI |
+| `Operator: Connect MCP Server` | Register Operator as an MCP server for this editor, workspace `.mcp.json`, and optionally Copilot Global |
+
+## MCP Integration
+
+The sidebar launches and watches tickets. MCP is the other direction: an agent in the Copilot harness or Copilot CLI asks Operator about that same queue.
+
+`Operator: Connect MCP Server` writes:
+
+1. Workspace `mcp.servers` (`.vscode/mcp.json`) so the editor's own MCP list still sees Operator. Stdio when the daemon advertises it, otherwise SSE.
+2. Workspace-root `.mcp.json` with `mcpServers.operator` (`command`, `args`, `cwd`) when the descriptor includes stdio. VS Code 1.140 Agent Host and Copilot CLI read this file directly.
+3. An optional **Also write Copilot Global** action that merges the same `mcpServers.operator` block into `$COPILOT_HOME/mcp-config.json`, or `~/.copilot/mcp-config.json` when `COPILOT_HOME` is unset. That file is machine-wide, so the next Copilot session in any folder can see the queue.
+
+Default MCP tools are read-only: health, status, issue types, collections, skills, and `operator_list_tickets`. Create, launch, and review require `[mcp].expose_ticket_write_tools = true` on the daemon.
+
+Cluster daemons with `[mcp].stdio_advertised = false` stay on SSE in `.vscode/mcp.json`. Portable files are skipped so a local `operator mcp` is not pointed at a different process.
+
+`.mcp.json` holds an absolute machine-local binary path. Do not commit it.
+
+The Status MCP row lists which of those files contain `operator`.
 
 ## Sidebar Views
 
@@ -90,7 +109,7 @@ The extension exposes a local HTTP API for Operator communication:
 
 ## Requirements
 
-- VS Code 1.85.0 or later
+- VS Code 1.140.0 or later
 - Operator CLI (for full functionality)
 
 ## Troubleshooting

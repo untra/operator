@@ -5,6 +5,18 @@ All notable changes to **Operator! Terminals** VS Code extension will be documen
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Operator: Connect MCP Server writes workspace-root `.mcp.json` (`mcpServers.operator`) so VS Code 1.140 Agent Host and Copilot CLI see Operator.
+- Optional Copilot Global write to `$COPILOT_HOME/mcp-config.json` or `~/.copilot/mcp-config.json`.
+- Status MCP row lists which MCP files contain `operator`.
+
+### Changed
+
+- Minimum VS Code version is 1.140.0.
+
 ## [0.1.16] - 2026-01-24
 
 ### Added

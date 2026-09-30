@@ -15,7 +15,7 @@ import { CONCEPTS, STATUS_KEYS, PAGE_KEYS } from "./concepts";
 import { SectionsProvider, useSections } from "./sections-context";
 import { RightPanelProvider, useRightPanel } from "./right-panel";
 import type { SectionDto } from "./api-client";
-import { OperatorApi, setCsrfToken } from "./api-client";
+import { OperatorApi } from "./api-client";
 import { useHost } from "./host";
 import { useProfiles } from "./profiles-context";
 
@@ -115,9 +115,7 @@ export function Layout() {
     setSignOutError(false);
     try {
       const api = new OperatorApi(host);
-      await api.refreshCsrf();
       await api.logout();
-      setCsrfToken(null);
       void navigate("/login", { replace: true });
     } catch {
       setSignOutError(true);

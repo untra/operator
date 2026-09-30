@@ -49,11 +49,28 @@ export interface ProjectSummary {
   commands: string[];
 }
 
+/**
+ * Optional payload carried by `navigateTo`. Only `createDelegator` exists
+ * today (sent by the `operator.createDelegator` command).
+ */
+export interface NavigationPrefill {
+  action?: string;
+  tool?: string;
+  model?: string;
+}
+
 /** Messages from the webview to the extension host */
 export type WebviewToExtensionMessage =
   | { type: "ready" }
   | { type: "getConfig" }
-  | { type: "updateConfig"; section: string; key: string; value: unknown }
+  | {
+      type: "updateConfig";
+      section: string;
+      key: string;
+      value: unknown;
+      rev: number;
+      instanceKey?: string;
+    }
   | { type: "browseFile"; field: string }
   | { type: "browseFolder"; field: string }
   | { type: "validateJira"; domain: string; email: string; apiToken: string }
@@ -83,13 +100,13 @@ export type WebviewToExtensionMessage =
 
 /** Messages from the extension host to the webview */
 export type ExtensionToWebviewMessage =
-  | { type: "configLoaded"; config: WebviewConfig }
-  | { type: "configUpdated"; config: WebviewConfig }
-  | { type: "configError"; error: string }
+  | { type: "configLoaded"; config: WebviewConfig; rev: number }
+  | { type: "configUpdated"; config: WebviewConfig; rev: number }
+  | { type: "configError"; error: string; rev?: number }
   | { type: "browseResult"; field: string; path: string }
   | { type: "jiraValidationResult"; result: JiraValidationInfo }
   | { type: "linearValidationResult"; result: LinearValidationInfo }
-  | { type: "llmToolsDetected"; config: WebviewConfig }
+  | { type: "llmToolsDetected"; config: WebviewConfig; rev: number }
   | { type: "apiHealthResult"; reachable: boolean }
   | { type: "projectsLoaded"; projects: ProjectSummary[] }
   | { type: "projectsError"; error: string }
@@ -116,7 +133,8 @@ export type ExtensionToWebviewMessage =
   | { type: "modelProvidersLoaded"; kinds: ModelServerKindEntry[]; delegators: DelegatorResponse[] }
   | { type: "providerProbed"; slug: string; result: ModelServerModelsResponse }
   | { type: "delegatorCreated"; name: string }
-  | { type: "modelProvidersError"; error: string };
+  | { type: "modelProvidersError"; error: string }
+  | { type: "navigateTo"; section: string; prefill?: NavigationPrefill };
 
 export interface JiraValidationInfo {
   valid: boolean;

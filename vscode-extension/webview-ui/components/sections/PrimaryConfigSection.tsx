@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { Button, TextInput, SelectInput } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
 import { OperatorBrand } from "../OperatorBrand";
+import { useDraftField } from "../../hooks/useDraftField";
 
 interface PrimaryConfigSectionProps {
   working_directory: string;
@@ -16,11 +17,11 @@ export function PrimaryConfigSection({
   onUpdate,
   onBrowseFolder,
 }: PrimaryConfigSectionProps) {
-  const handleWorkingDirectoryChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("primary", "working_directory", event.target.value),
+  const commitWorkingDirectory = useCallback(
+    (next: string) => onUpdate("primary", "working_directory", next),
     [onUpdate],
   );
+  const workingDirectoryDraft = useDraftField(working_directory, commitWorkingDirectory);
   const handleBrowseFolder = useCallback(
     () => onBrowseFolder("workingDirectory"),
     [onBrowseFolder],
@@ -47,8 +48,7 @@ export function PrimaryConfigSection({
         <div style={{ display: "flex", gap: 8 }}>
           <TextInput
             style={{ flex: 1 }}
-            value={working_directory}
-            onChange={handleWorkingDirectoryChange}
+            {...workingDirectoryDraft}
             placeholder="/path/to/your/repos"
             helperText="Parent directory of Operator! managed code repositories containing .tickets/ working directory"
           />

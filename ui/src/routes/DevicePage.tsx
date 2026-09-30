@@ -4,7 +4,7 @@
 // asking, and approves. It renders inside the authenticated Layout on purpose:
 // approving a device grants a credential, so it requires an admin session.
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useHost } from "../host";
 import { OperatorApi, ApiError } from "../api-client";
@@ -17,14 +17,6 @@ export function DevicePage() {
   const [approved, setApproved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  // A CSRF token is required to approve, and a page load (or a fresh tab
-  // opened by the IDE) has none in memory yet.
-  useEffect(() => {
-    new OperatorApi(host).refreshCsrf().catch(() => {
-      /* An unauthenticated visitor is redirected to login by the request layer. */
-    });
-  }, [host]);
 
   const submit = useCallback(
     async (event: React.SubmitEvent<HTMLFormElement>) => {

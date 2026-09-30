@@ -94,8 +94,8 @@ suite("Config Panel Kanban Providers", () => {
 
       test(`${slug}: scalar field writes under the default instance key`, () => {
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, "enabled", true);
-        applyKanbanProviderField(kanban, slug, "api_key_env", "MY_TOKEN");
+        applyKanbanProviderField(kanban, slug, meta.defaultInstanceKey, "enabled", true);
+        applyKanbanProviderField(kanban, slug, meta.defaultInstanceKey, "api_key_env", "MY_TOKEN");
 
         const providerMap = kanban[slug] as Record<string, unknown>;
         assert.ok(providerMap, `Expected kanban.${slug} table to exist`);
@@ -107,8 +107,14 @@ suite("Config Panel Kanban Providers", () => {
 
       test(`${slug}: instance-key field renames the provider map key`, () => {
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, "enabled", true);
-        applyKanbanProviderField(kanban, slug, meta.instanceKeyField, "renamed-instance");
+        applyKanbanProviderField(kanban, slug, meta.defaultInstanceKey, "enabled", true);
+        applyKanbanProviderField(
+          kanban,
+          slug,
+          meta.defaultInstanceKey,
+          meta.instanceKeyField,
+          "renamed-instance",
+        );
 
         const providerMap = kanban[slug] as Record<string, unknown>;
         assert.ok(
@@ -123,7 +129,13 @@ suite("Config Panel Kanban Providers", () => {
 
       test(`${slug}: project-scoped field writes into a project sub-table`, () => {
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, "projects.PROJ.sync_user_id", "user-123");
+        applyKanbanProviderField(
+          kanban,
+          slug,
+          meta.defaultInstanceKey,
+          "projects.PROJ.sync_user_id",
+          "user-123",
+        );
 
         const providerMap = kanban[slug] as Record<string, unknown>;
         const instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
@@ -138,7 +150,13 @@ suite("Config Panel Kanban Providers", () => {
 
         // Explicit projects.<key>.status_mapping path (ProjectRow write path)
         const kanban: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban, slug, "projects.PROJ.status_mapping", mapping);
+        applyKanbanProviderField(
+          kanban,
+          slug,
+          meta.defaultInstanceKey,
+          "projects.PROJ.status_mapping",
+          mapping,
+        );
         let providerMap = kanban[slug] as Record<string, unknown>;
         let instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
         let proj = (instance.projects as Record<string, unknown>).PROJ as Record<string, unknown>;
@@ -146,7 +164,7 @@ suite("Config Panel Kanban Providers", () => {
 
         // Shorthand project-level key (single-project config forms)
         const kanban2: Record<string, unknown> = {};
-        applyKanbanProviderField(kanban2, slug, "status_mapping", mapping);
+        applyKanbanProviderField(kanban2, slug, meta.defaultInstanceKey, "status_mapping", mapping);
         providerMap = kanban2[slug] as Record<string, unknown>;
         instance = providerMap[meta.defaultInstanceKey] as Record<string, unknown>;
         const projects = instance.projects as Record<string, unknown>;
@@ -154,13 +172,97 @@ suite("Config Panel Kanban Providers", () => {
         proj = projects[firstKey] as Record<string, unknown>;
         assert.deepStrictEqual(proj.status_mapping, mapping);
       });
+
+      test(`${slug}: updates and renames only the selected instance`, () => {
+        const secondInstanceKey = "second-instance";
+        const renamedInstanceKey = "renamed-second-instance";
+        const firstInstance = { enabled: true, projects: {} };
+        const secondInstance = { enabled: false, projects: {} };
+        const kanban: Record<string, unknown> = {
+          [slug]: {
+            [meta.defaultInstanceKey]: firstInstance,
+            [secondInstanceKey]: secondInstance,
+          },
+        };
+
+        applyKanbanProviderField(kanban, slug, secondInstanceKey, "enabled", true);
+        applyKanbanProviderField(
+          kanban,
+          slug,
+          secondInstanceKey,
+          "projects.PROJ.sync_user_id",
+          "user-456",
+        );
+        applyKanbanProviderField(
+          kanban,
+          slug,
+          secondInstanceKey,
+          meta.instanceKeyField,
+          renamedInstanceKey,
+        );
+
+        const providerMap = kanban[slug] as Record<string, unknown>;
+        assert.deepStrictEqual(providerMap[meta.defaultInstanceKey], firstInstance);
+        assert.ok(!Object.prototype.hasOwnProperty.call(providerMap, secondInstanceKey));
+        const renamed = providerMap[renamedInstanceKey] as Record<string, unknown>;
+        assert.strictEqual(renamed.enabled, true);
+        const projects = renamed.projects as Record<string, unknown>;
+        const project = projects.PROJ as Record<string, unknown>;
+        assert.strictEqual(project.sync_user_id, "user-456");
+      });
     }
   });
 
   test("unknown provider slug throws rather than silently dropping the write", () => {
     assert.throws(
-      () => applyKanbanProviderField({}, "notaprovider", "enabled", true),
+      () => applyKanbanProviderField({}, "notaprovider", "instance", "enabled", true),
       /Unknown kanban provider/,
     );
+  });
+
+  test("missing instance identifier throws rather than selecting the first instance", () => {
+    assert.throws(
+      () => applyKanbanProviderField({}, "jira", undefined, "enabled", true),
+      /instance identifier/,
+    );
+  });
+
+  test("missing instance target throws rather than creating a sibling entry", () => {
+    const kanban = {
+      jira: {
+        "first.atlassian.net": { enabled: true, projects: {} },
+      },
+    };
+    assert.throws(
+      () => applyKanbanProviderField(kanban, "jira", "missing.atlassian.net", "enabled", false),
+      /was not found/,
+    );
+    assert.deepStrictEqual(Object.keys(kanban.jira), ["first.atlassian.net"]);
+  });
+
+  test("instance rename collision throws without overwriting either instance", () => {
+    const first = { enabled: true, projects: {} };
+    const second = { enabled: false, projects: {} };
+    const kanban = {
+      jira: {
+        "first.atlassian.net": first,
+        "second.atlassian.net": second,
+      },
+    };
+    assert.throws(
+      () =>
+        applyKanbanProviderField(
+          kanban,
+          "jira",
+          "second.atlassian.net",
+          "domain",
+          "first.atlassian.net",
+        ),
+      /already exists/,
+    );
+    assert.deepStrictEqual(kanban.jira, {
+      "first.atlassian.net": first,
+      "second.atlassian.net": second,
+    });
   });
 });

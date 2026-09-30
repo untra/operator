@@ -25,26 +25,25 @@ suite("Manifest Parity Tests", () => {
   });
 
   // -----------------------------------------------------------------------
-  // engines.vscode must be >= 1.93 for terminal shell execution APIs
+  // engines.vscode must be >= 1.140 for portable MCP / Agent Host files
   // -----------------------------------------------------------------------
 
-  test("engines.vscode floor is at least 1.93 for shell execution APIs", () => {
+  test("engines.vscode floor is at least 1.140 for portable MCP / Agent Host files", () => {
     const enginesVscode = packageJson.engines?.vscode;
     assert.ok(enginesVscode, "engines.vscode must be defined");
 
-    // Extract the minimum version number from the semver range (e.g. "^1.93.0" -> "1.93.0")
+    // Extract the minimum version number from the semver range (e.g. "^1.140.0" -> "1.140.0")
     const match = enginesVscode.match(/(\d+)\.(\d+)/);
     assert.ok(match, `Could not parse version from engines.vscode: ${enginesVscode}`);
 
     const major = Number.parseInt(match[1]!, 10);
     const minor = Number.parseInt(match[2]!, 10);
 
-    // onDidStartTerminalShellExecution was added in 1.93
-    const meetsMinimum = major > 1 || (major === 1 && minor >= 93);
+    const meetsMinimum = major > 1 || (major === 1 && minor >= 140);
     assert.ok(
       meetsMinimum,
-      `engines.vscode "${enginesVscode}" is below 1.93 - TerminalManager uses ` +
-        `onDidStartTerminalShellExecution/onDidEndTerminalShellExecution which require VS Code 1.93+`,
+      `engines.vscode "${enginesVscode}" is below 1.140 - Connect MCP writes ` +
+        `workspace .mcp.json and Copilot Global files that VS Code 1.140 Agent Host reads`,
     );
   });
 

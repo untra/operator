@@ -18,11 +18,10 @@ interface ProjectRowProps {
   issueTypes: IssueTypeSummary[];
   externalTypes: ExternalIssueTypeSummary[] | undefined;
   statuses: string[] | undefined;
-  onUpdate: (section: string, key: string, value: unknown) => void;
+  onUpdate: (key: string, value: unknown) => void;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
   onGetKanbanStatuses: (provider: string, projectKey: string) => void;
   onViewIssueType: () => void;
-  sectionKey: string;
 }
 
 const OPERATOR_STATES = [
@@ -47,7 +46,6 @@ export function ProjectRow({
   onGetExternalIssueTypes,
   onGetKanbanStatuses,
   onViewIssueType,
-  sectionKey,
 }: ProjectRowProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -72,9 +70,9 @@ export function ProjectRow({
       } else {
         newMappings[externalName] = operatorKey;
       }
-      onUpdate(sectionKey, `projects.${projectKey}.type_mappings`, newMappings);
+      onUpdate(`projects.${projectKey}.type_mappings`, newMappings);
     },
-    [onUpdate, project.type_mappings, projectKey, sectionKey],
+    [onUpdate, project.type_mappings, projectKey],
   );
 
   const handleStatusMappingChange = useCallback(
@@ -85,9 +83,9 @@ export function ProjectRow({
       } else {
         next[field] = column;
       }
-      onUpdate(sectionKey, `projects.${projectKey}.status_mapping`, next);
+      onUpdate(`projects.${projectKey}.status_mapping`, next);
     },
-    [onUpdate, projectKey, sectionKey, statusMapping],
+    [onUpdate, projectKey, statusMapping],
   );
 
   /** Discovered columns plus the currently-mapped value (so a stale mapping stays visible). */
@@ -102,8 +100,8 @@ export function ProjectRow({
   const toggleExpanded = useCallback(() => setExpanded((current) => !current), [setExpanded]);
   const handleCollectionChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) =>
-      onUpdate(sectionKey, `projects.${projectKey}.collection_name`, event.target.value),
-    [onUpdate, projectKey, sectionKey],
+      onUpdate(`projects.${projectKey}.collection_name`, event.target.value),
+    [onUpdate, projectKey],
   );
 
   return (

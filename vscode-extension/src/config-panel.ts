@@ -16,11 +16,28 @@ import { detectInstalledLlmTools } from "./walkthrough";
 import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from "./config-paths";
 import { OperatorApiClient, discoverApiUrl } from "./api-client";
 import type { CreateDelegatorRequest } from "./generated";
+import { SerialQueue } from "./serial-queue";
 
 /** Message types from the webview */
 interface WebviewMessage {
   type: string;
   [key: string]: unknown;
+}
+
+/**
+ * Messages that read or write config.toml. They run through one queue so a
+ * write's snapshot can never be overtaken by an older read-modify-write.
+ */
+const CONFIG_MESSAGE_TYPES: ReadonlySet<string> = new Set([
+  "ready",
+  "getConfig",
+  "updateConfig",
+  "detectLlmTools",
+]);
+
+interface NavigationRequest {
+  section: string;
+  prefill?: Record<string, unknown>;
 }
 
 /** WebviewConfig shape matching the webview types */
@@ -37,6 +54,11 @@ export class ConfigPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
+  private readonly _configQueue = new SerialQueue();
+  /** Rev of the last `updateConfig` processed; stamped on every snapshot sent. */
+  private _lastRev = 0;
+  private _webviewReady = false;
+  private _pendingNavigation: NavigationRequest | undefined;
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
     this._panel = panel;
@@ -47,7 +69,7 @@ export class ConfigPanel {
     this._panel.onDidDispose(() => this._dispose(), null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
-      (msg: WebviewMessage) => this._handleMessage(msg),
+      (msg: WebviewMessage) => this._dispatch(msg),
       null,
       this._disposables,
     );
@@ -78,15 +100,48 @@ export class ConfigPanel {
     ConfigPanel.currentPanel = new ConfigPanel(panel, extensionUri);
   }
 
-  /** Send a navigation message to the webview to scroll to a section */
+  /**
+   * Send a navigation message to the webview to scroll to a section. A
+   * freshly created panel isn't listening yet, so the request is held until
+   * the webview reports `ready`.
+   */
   public static navigateTo(section: string, prefill?: Record<string, unknown>): void {
-    if (ConfigPanel.currentPanel) {
-      void ConfigPanel.currentPanel._panel.webview.postMessage({
-        type: "navigateTo",
-        section,
-        prefill,
-      });
+    const panel = ConfigPanel.currentPanel;
+    if (!panel) {
+      return;
     }
+    if (panel._webviewReady) {
+      panel._postNavigation({ section, prefill });
+    } else {
+      panel._pendingNavigation = { section, prefill };
+    }
+  }
+
+  private _postNavigation(request: NavigationRequest): void {
+    void this._panel.webview.postMessage({ type: "navigateTo", ...request });
+  }
+
+  private _flushPendingNavigation(): void {
+    const pending = this._pendingNavigation;
+    this._pendingNavigation = undefined;
+    if (pending) {
+      this._postNavigation(pending);
+    }
+  }
+
+  private _dispatch(message: WebviewMessage): void {
+    if (!CONFIG_MESSAGE_TYPES.has(message.type)) {
+      void this._handleMessage(message);
+      return;
+    }
+    this._configQueue
+      .run(() => this._handleMessage(message))
+      .catch((err: unknown) => {
+        void this._panel.webview.postMessage({
+          type: "configError",
+          error: err instanceof Error ? err.message : "Config operation failed",
+        });
+      });
   }
 
   private _getHtmlContent(): string {
@@ -123,8 +178,11 @@ export class ConfigPanel {
   private async _handleMessage(message: WebviewMessage): Promise<void> {
     switch (message.type) {
       case "ready":
-        // Webview is ready, send config
+        // A (re)loaded webview starts counting revs from zero.
+        this._lastRev = 0;
+        this._webviewReady = true;
         await this._sendConfig();
+        this._flushPendingNavigation();
         break;
 
       case "getConfig":
@@ -132,7 +190,15 @@ export class ConfigPanel {
         break;
 
       case "updateConfig":
-        await this._updateConfig(message.section as string, message.key as string, message.value);
+        if (typeof message.rev === "number") {
+          this._lastRev = message.rev;
+        }
+        await this._updateConfig(
+          message.section as string,
+          message.key as string,
+          message.value,
+          typeof message.instanceKey === "string" ? message.instanceKey : undefined,
+        );
         break;
 
       case "browseFile": {
@@ -302,11 +368,13 @@ export class ConfigPanel {
           void this._panel.webview.postMessage({
             type: "llmToolsDetected",
             config,
+            rev: this._lastRev,
           });
         } catch {
           // If we can't read config, just send tool names for compatibility
           void this._panel.webview.postMessage({
             type: "llmToolsDetected",
+            rev: this._lastRev,
             config: {
               config_path: configPath || "",
               working_directory: resolveWorkingDirectory(),
@@ -534,6 +602,7 @@ export class ConfigPanel {
       void this._panel.webview.postMessage({
         type: "configLoaded",
         config,
+        rev: this._lastRev,
       });
     } catch (err) {
       void this._panel.webview.postMessage({
@@ -543,20 +612,31 @@ export class ConfigPanel {
     }
   }
 
-  /** Apply a field update to config.toml and send updated config back */
-  private async _updateConfig(section: string, key: string, value: unknown): Promise<void> {
+  /**
+   * Apply a field update to config.toml and send updated config back. The
+   * error carries the rev so the webview rolls back its optimistic state.
+   */
+  private async _updateConfig(
+    section: string,
+    key: string,
+    value: unknown,
+    instanceKey?: string,
+  ): Promise<void> {
+    const rev = this._lastRev;
     try {
-      await writeConfigField(section, key, value);
+      await writeConfigField(section, key, value, instanceKey);
 
       const config = await readConfig();
       void this._panel.webview.postMessage({
         type: "configUpdated",
         config,
+        rev,
       });
     } catch (err) {
       void this._panel.webview.postMessage({
         type: "configError",
         error: err instanceof Error ? err.message : "Failed to update config",
+        rev,
       });
     }
   }
@@ -628,6 +708,7 @@ const KANBAN_PROJECT_LEVEL_KEYS = new Set([
  *
  * @param kanban the `[kanban]` table from the parsed config
  * @param slug   provider slug (`jira`, `linear`, `github`, …)
+ * @param instanceKey provider map key identifying the instance to update
  * @param key    field key emitted by the webview (`enabled`, `api_key_env`,
  *               the instance-key field, `project_key`, a project-level key, or
  *               a `projects.<id>.<field>` path)
@@ -635,12 +716,16 @@ const KANBAN_PROJECT_LEVEL_KEYS = new Set([
 export function applyKanbanProviderField(
   kanban: TomlConfig,
   slug: string,
+  instanceKey: string | undefined,
   key: string,
   value: unknown,
 ): void {
   const meta = KANBAN_PROVIDERS[slug];
   if (!meta) {
     throw new Error(`Unknown kanban provider: ${slug}`);
+  }
+  if (!instanceKey) {
+    throw new Error(`Kanban provider ${slug} update is missing an instance identifier`);
   }
 
   if (!kanban[slug]) {
@@ -649,14 +734,18 @@ export function applyKanbanProviderField(
   const providerMap = kanban[slug] as TomlConfig;
 
   const instanceKeys = Object.keys(providerMap);
-  const instanceKey = instanceKeys[0] ?? meta.defaultInstanceKey;
+  if (instanceKeys.length > 0 && !Object.hasOwn(providerMap, instanceKey)) {
+    throw new Error(`Kanban provider ${slug} instance "${instanceKey}" was not found`);
+  }
   if (!providerMap[instanceKey]) {
     providerMap[instanceKey] = {};
   }
   const ws = providerMap[instanceKey] as TomlConfig;
 
   if (key === meta.instanceKeyField && typeof value === "string" && value !== instanceKey) {
-    // Rename the instance key (e.g. the Jira domain / GitHub owner)
+    if (Object.hasOwn(providerMap, value)) {
+      throw new Error(`Kanban provider ${slug} instance "${value}" already exists`);
+    }
     const existing = providerMap[instanceKey];
     delete providerMap[instanceKey];
     providerMap[value] = existing;
@@ -741,7 +830,12 @@ async function readConfig(): Promise<WebviewConfig> {
 }
 
 /** Write a single field update to config.toml */
-async function writeConfigField(section: string, key: string, value: unknown): Promise<void> {
+async function writeConfigField(
+  section: string,
+  key: string,
+  value: unknown,
+  instanceKey?: string,
+): Promise<void> {
   const configPath = getResolvedConfigPath();
   if (!configPath) {
     throw new Error("No working directory configured");
@@ -774,6 +868,7 @@ async function writeConfigField(section: string, key: string, value: unknown): P
     applyKanbanProviderField(
       parsed.kanban as TomlConfig,
       section.slice("kanban.".length),
+      instanceKey,
       key,
       value,
     );

@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { Button, Chip } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
+import { useDraftField } from "../../hooks/useDraftField";
 import type { AgentsConfig } from "../../../src/generated/AgentsConfig";
 import type { LlmToolsConfig } from "../../../src/generated/LlmToolsConfig";
 
@@ -12,21 +13,37 @@ interface NumberFieldProps {
   min: number;
   max: number;
   helperText: string;
-  onChange: React.ChangeEventHandler<HTMLInputElement>;
+  onCommit: (value: number) => void;
 }
 
-function NumberField({ label, value, min, max, helperText, onChange }: NumberFieldProps) {
+function parseBoundedInteger(text: string, min: number, max: number): number | null {
+  const trimmed = text.trim();
+  const n = Number(trimmed);
+  if (trimmed === "" || !Number.isInteger(n) || n < min || n > max) {
+    return null;
+  }
+  return n;
+}
+
+function NumberField({ label, value, min, max, helperText, onCommit }: NumberFieldProps) {
+  const isValid = useCallback(
+    (next: string) => parseBoundedInteger(next, min, max) !== null,
+    [max, min],
+  );
+  const commit = useCallback(
+    (next: string) => {
+      const n = parseBoundedInteger(next, min, max);
+      if (n !== null) {
+        onCommit(n);
+      }
+    },
+    [max, min, onCommit],
+  );
+  const draft = useDraftField(String(value), commit, isValid);
   return (
     <label className="op-field">
       <span className="op-field-label">{label}</span>
-      <input
-        className="op-field-input"
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        onChange={onChange}
-      />
+      <input className="op-field-input" type="number" min={min} max={max} {...draft} />
       <span className="op-field-helper">{helperText}</span>
     </label>
   );
@@ -50,24 +67,20 @@ export function CodingAgentsSection({
   const stepTimeout = Number(agents.step_timeout);
   const silenceThreshold = Number(agents.silence_threshold);
   const detected = llm_tools.detected;
-  const handleMaxParallelChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("agents", "max_parallel", Number.parseInt(event.target.value, 10) || 1),
+  const commitMaxParallel = useCallback(
+    (n: number) => onUpdate("agents", "max_parallel", n),
     [onUpdate],
   );
-  const handleGenerationTimeoutChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("agents", "generation_timeout_secs", Number.parseInt(event.target.value, 10) || 300),
+  const commitGenerationTimeout = useCallback(
+    (n: number) => onUpdate("agents", "generation_timeout_secs", BigInt(n)),
     [onUpdate],
   );
-  const handleStepTimeoutChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("agents", "step_timeout", Number.parseInt(event.target.value, 10) || 1800),
+  const commitStepTimeout = useCallback(
+    (n: number) => onUpdate("agents", "step_timeout", BigInt(n)),
     [onUpdate],
   );
-  const handleSilenceThresholdChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("agents", "silence_threshold", Number.parseInt(event.target.value, 10) || 30),
+  const commitSilenceThreshold = useCallback(
+    (n: number) => onUpdate("agents", "silence_threshold", BigInt(n)),
     [onUpdate],
   );
 
@@ -121,7 +134,7 @@ export function CodingAgentsSection({
           value={maxParallel}
           min={1}
           max={16}
-          onChange={handleMaxParallelChange}
+          onCommit={commitMaxParallel}
           helperText="Maximum number of agents running simultaneously"
         />
 
@@ -130,7 +143,7 @@ export function CodingAgentsSection({
           value={generationTimeout}
           min={30}
           max={3600}
-          onChange={handleGenerationTimeoutChange}
+          onCommit={commitGenerationTimeout}
           helperText="Timeout for each agent generation step"
         />
 
@@ -139,7 +152,7 @@ export function CodingAgentsSection({
           value={stepTimeout}
           min={60}
           max={7200}
-          onChange={handleStepTimeoutChange}
+          onCommit={commitStepTimeout}
           helperText="Maximum seconds a step can run before timing out"
         />
 
@@ -148,7 +161,7 @@ export function CodingAgentsSection({
           value={silenceThreshold}
           min={5}
           max={300}
-          onChange={handleSilenceThresholdChange}
+          onCommit={commitSilenceThreshold}
           helperText="Seconds of silence before considering agent awaiting input"
         />
       </div>

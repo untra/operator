@@ -89,7 +89,6 @@ export function ProfilesProvider() {
 
   const create = useCallback(
     async (name: string) => {
-      await api.refreshCsrf();
       const profile = await api.createProfile(name);
       setProfiles((items) => [...items, profile]);
       select(profile.id);

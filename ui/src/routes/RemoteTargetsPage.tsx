@@ -102,7 +102,6 @@ export function RemoteTargetsPage() {
       setBusy(true);
       setMessage(null);
       try {
-        await api.refreshCsrf();
         await operation();
         await refresh();
         setMessage(success);
@@ -112,7 +111,7 @@ export function RemoteTargetsPage() {
         setBusy(false);
       }
     },
-    [api, refresh],
+    [refresh],
   );
 
   const onProbe = useCallback(

@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "lint": "cd .. && bun run lint:ui"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
     "react-router-dom": "^7.6.1"
   },
   "devDependencies": {
+    "@types/bun": "^1.4.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

@@ -23,7 +23,14 @@ import {
   detectHostApp,
   registerInCursorUserConfig,
   registerInVscodeWorkspaceConfig,
+  registerInVscodeWorkspacePortableConfig,
+  registerInCopilotGlobalConfig,
+  copilotGlobalConfigPath,
   connectMcpServer,
+  writeMcpServersOperatorEntry,
+  COPILOT_GLOBAL_ACTION,
+  inspectMcpRegistration,
+  mcpStatusDescription,
   _testable,
 } from "../../src/mcp-connect";
 
@@ -166,6 +173,87 @@ suite("MCP Connect Test Suite", () => {
     test("returns 'other' for unknown host (e.g. 'Theia IDE')", () => {
       rawAppNameStub.returns("Theia IDE");
       assert.strictEqual(detectHostApp(), "other");
+    });
+  });
+
+  suite("writeMcpServersOperatorEntry()", () => {
+    let tmpDir: string;
+    let configPath: string;
+
+    setup(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-mcp-servers-"));
+      configPath = path.join(tmpDir, ".mcp.json");
+    });
+
+    teardown(async () => {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    const stdio = {
+      command: "/usr/local/bin/operator",
+      args: ["mcp"],
+      cwd: "/Users/dev/work",
+    };
+
+    test("creates parent directory and writes mcpServers.operator", async () => {
+      const result = await writeMcpServersOperatorEntry(configPath, stdio);
+      assert.deepStrictEqual(result, { ok: true, path: configPath });
+      const parsed = JSON.parse(await fs.readFile(configPath, "utf-8")) as {
+        mcpServers: { operator: { command: string; args: string[]; cwd: string } };
+      };
+      assert.deepStrictEqual(parsed.mcpServers.operator, stdio);
+    });
+
+    test("copies descriptor args including --profile", async () => {
+      const profileStdio = {
+        command: "/usr/local/bin/operator",
+        args: ["--profile", "work", "mcp"],
+        cwd: "/Users/dev/work",
+      };
+      await writeMcpServersOperatorEntry(configPath, profileStdio);
+      const parsed = JSON.parse(await fs.readFile(configPath, "utf-8")) as {
+        mcpServers: { operator: { args: string[] } };
+      };
+      assert.deepStrictEqual(parsed.mcpServers.operator.args, ["--profile", "work", "mcp"]);
+    });
+
+    test("preserves sibling mcpServers entries and other top-level keys", async () => {
+      await fs.writeFile(
+        configPath,
+        JSON.stringify({
+          customKey: { foo: "bar" },
+          mcpServers: { other: { command: "/usr/bin/other", args: [] } },
+        }),
+        "utf-8",
+      );
+      await writeMcpServersOperatorEntry(configPath, stdio);
+      const parsed = JSON.parse(await fs.readFile(configPath, "utf-8")) as {
+        customKey: { foo: string };
+        mcpServers: Record<string, unknown>;
+      };
+      assert.deepStrictEqual(parsed.customKey, { foo: "bar" });
+      assert.ok(parsed.mcpServers.other);
+      assert.ok(parsed.mcpServers.operator);
+    });
+
+    test("does not write type or url fields", async () => {
+      await writeMcpServersOperatorEntry(configPath, stdio);
+      const parsed = JSON.parse(await fs.readFile(configPath, "utf-8")) as {
+        mcpServers: { operator: Record<string, unknown> };
+      };
+      assert.strictEqual(parsed.mcpServers.operator.type, undefined);
+      assert.strictEqual(parsed.mcpServers.operator.url, undefined);
+    });
+
+    test("returns parse failure and leaves malformed JSON untouched", async () => {
+      await fs.writeFile(configPath, "{not valid json", "utf-8");
+      const result = await writeMcpServersOperatorEntry(configPath, stdio);
+      assert.strictEqual(result.ok, false);
+      if (result.ok) {
+        return;
+      }
+      assert.strictEqual(result.reason, "parse");
+      assert.strictEqual(await fs.readFile(configPath, "utf-8"), "{not valid json");
     });
   });
 
@@ -323,7 +411,7 @@ suite("MCP Connect Test Suite", () => {
         args: ["mcp"],
         cwd: "/Users/dev/work",
       });
-      assert.ok(infoStub.calledOnce);
+      assert.ok(infoStub.notCalled, "workspace register defers toasts to connectMcpServer");
     });
 
     test("writes sse entry when descriptor.stdio is absent", async () => {
@@ -352,6 +440,137 @@ suite("MCP Connect Test Suite", () => {
     });
   });
 
+  suite("registerInVscodeWorkspacePortableConfig()", () => {
+    let tmpDir: string;
+    let configPath: string;
+
+    setup(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-mcp-ws-"));
+      configPath = path.join(tmpDir, ".mcp.json");
+    });
+
+    teardown(async () => {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    test("writes mcpServers.operator from descriptor.stdio", async () => {
+      const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+      const result = await registerInVscodeWorkspacePortableConfig(descriptor, configPath);
+      assert.strictEqual(result.ok, true);
+      const parsed = JSON.parse(await fs.readFile(configPath, "utf-8")) as {
+        mcpServers: { operator: { command: string } };
+      };
+      assert.strictEqual(parsed.mcpServers.operator.command, "/usr/local/bin/operator");
+    });
+
+    test("skips write when descriptor has no stdio", async () => {
+      const descriptor = await loadFixture("mcp-descriptor-response.json");
+      const result = await registerInVscodeWorkspacePortableConfig(descriptor, configPath);
+      assert.strictEqual(result.ok, false);
+      if (result.ok) {
+        return;
+      }
+      assert.strictEqual(result.reason, "no-stdio");
+      await assert.rejects(() => fs.access(configPath));
+    });
+
+    test("skips write when workspace path is missing", async () => {
+      sinon.stub(_testable, "workspacePortableMcpPath").returns(undefined);
+      const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+      const result = await registerInVscodeWorkspacePortableConfig(descriptor, undefined);
+      assert.strictEqual(result.ok, false);
+      if (result.ok) {
+        return;
+      }
+      assert.strictEqual(result.reason, "no-workspace");
+    });
+
+    test("uses _testable.workspacePortableMcpPath when configPath is omitted", async () => {
+      const pathStub = sinon.stub(_testable, "workspacePortableMcpPath").returns(undefined);
+      try {
+        const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+        const result = await registerInVscodeWorkspacePortableConfig(descriptor);
+        assert.strictEqual(result.ok, false);
+        if (result.ok) {
+          return;
+        }
+        assert.strictEqual(result.reason, "no-workspace");
+        assert.ok(pathStub.calledOnce);
+      } finally {
+        pathStub.restore();
+      }
+    });
+  });
+
+  suite("copilotGlobalConfigPath()", () => {
+    test("uses COPILOT_HOME when set", () => {
+      const prev = process.env.COPILOT_HOME;
+      process.env.COPILOT_HOME = "/tmp/copilot-home-test";
+      try {
+        assert.strictEqual(
+          copilotGlobalConfigPath(),
+          path.join("/tmp/copilot-home-test", "mcp-config.json"),
+        );
+      } finally {
+        if (prev === undefined) {
+          delete process.env.COPILOT_HOME;
+        } else {
+          process.env.COPILOT_HOME = prev;
+        }
+      }
+    });
+
+    test("falls back to ~/.copilot/mcp-config.json", () => {
+      const prev = process.env.COPILOT_HOME;
+      delete process.env.COPILOT_HOME;
+      try {
+        assert.strictEqual(
+          copilotGlobalConfigPath(),
+          path.join(os.homedir(), ".copilot", "mcp-config.json"),
+        );
+      } finally {
+        if (prev !== undefined) {
+          process.env.COPILOT_HOME = prev;
+        }
+      }
+    });
+  });
+
+  suite("registerInCopilotGlobalConfig()", () => {
+    let tmpDir: string;
+    let configPath: string;
+
+    setup(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-copilot-mcp-"));
+      configPath = path.join(tmpDir, "mcp-config.json");
+    });
+
+    teardown(async () => {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    test("writes mcpServers.operator when stdio is present", async () => {
+      const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+      const result = await registerInCopilotGlobalConfig(descriptor, configPath);
+      assert.strictEqual(result.ok, true);
+      const parsed = JSON.parse(await fs.readFile(configPath, "utf-8")) as {
+        mcpServers: { operator: { cwd: string } };
+      };
+      assert.strictEqual(parsed.mcpServers.operator.cwd, "/Users/dev/work");
+    });
+
+    test("skips write when descriptor has no stdio", async () => {
+      const descriptor = await loadFixture("mcp-descriptor-response.json");
+      const result = await registerInCopilotGlobalConfig(descriptor, configPath);
+      assert.strictEqual(result.ok, false);
+      if (result.ok) {
+        return;
+      }
+      assert.strictEqual(result.reason, "no-stdio");
+      await assert.rejects(() => fs.access(configPath));
+    });
+  });
+
   suite("connectMcpServer() dispatch", () => {
     let detectHostStub: sinon.SinonStub;
     let discoverApiUrlStub: sinon.SinonStub;
@@ -373,21 +592,99 @@ suite("MCP Connect Test Suite", () => {
       sinon.stub(vscode.window, "showErrorMessage");
     });
 
-    test("VS Code host writes to workspace mcp.servers", async () => {
+    test("VS Code host writes workspace mcp.servers and .mcp.json when stdio is present", async () => {
       detectHostStub.returns("Visual Studio Code");
-      const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
-      fetchStub.resolves(new Response(JSON.stringify(descriptor), { status: 200 }));
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-connect-ws-"));
+      const portablePath = path.join(tmpDir, ".mcp.json");
+      sinon.stub(_testable, "workspacePortableMcpPath").returns(portablePath);
+      try {
+        const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+        fetchStub.resolves(new Response(JSON.stringify(descriptor), { status: 200 }));
 
-      await connectMcpServer(undefined);
+        await connectMcpServer(undefined);
 
-      assert.ok(discoverApiUrlStub.calledOnce);
-      assert.ok(configUpdateStub.calledOnce, "VS Code path should write workspace config");
-      const written = configUpdateStub.firstCall.args[1] as Record<
-        string,
-        Record<string, unknown> | undefined
-      >;
-      assert.ok(written.operator, "operator entry should be written");
-      assert.strictEqual(written.operator.type, "stdio");
+        assert.ok(configUpdateStub.calledOnce, "legacy mcp.servers write");
+        const written = configUpdateStub.firstCall.args[1] as Record<
+          string,
+          Record<string, unknown> | undefined
+        >;
+        assert.ok(written.operator, "operator entry should be written");
+        assert.strictEqual(written.operator.type, "stdio");
+        const parsed = JSON.parse(await fs.readFile(portablePath, "utf-8")) as {
+          mcpServers: { operator: { command: string } };
+        };
+        assert.strictEqual(parsed.mcpServers.operator.command, "/usr/local/bin/operator");
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("VS Code host does not write .mcp.json when stdio is absent", async () => {
+      detectHostStub.returns("Visual Studio Code");
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-connect-sse-"));
+      const portablePath = path.join(tmpDir, ".mcp.json");
+      sinon.stub(_testable, "workspacePortableMcpPath").returns(portablePath);
+      try {
+        const descriptor = await loadFixture("mcp-descriptor-response.json");
+        fetchStub.resolves(new Response(JSON.stringify(descriptor), { status: 200 }));
+
+        await connectMcpServer(undefined);
+
+        assert.ok(configUpdateStub.calledOnce);
+        const written = configUpdateStub.firstCall.args[1] as Record<
+          string,
+          { type: string } | undefined
+        >;
+        assert.strictEqual(written.operator?.type, "sse");
+        await assert.rejects(() => fs.access(portablePath));
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("VS Code host writes Copilot Global when the user accepts the follow-up", async () => {
+      detectHostStub.returns("Visual Studio Code");
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-connect-global-"));
+      const portablePath = path.join(tmpDir, ".mcp.json");
+      const globalPath = path.join(tmpDir, "mcp-config.json");
+      sinon.stub(_testable, "workspacePortableMcpPath").returns(portablePath);
+      sinon.stub(_testable, "copilotGlobalConfigPath").returns(globalPath);
+      const infoStub = vscode.window.showInformationMessage as unknown as sinon.SinonStub;
+      infoStub.resolves(COPILOT_GLOBAL_ACTION);
+      try {
+        const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+        fetchStub.resolves(new Response(JSON.stringify(descriptor), { status: 200 }));
+
+        await connectMcpServer(undefined);
+
+        const parsed = JSON.parse(await fs.readFile(globalPath, "utf-8")) as {
+          mcpServers: { operator: { command: string } };
+        };
+        assert.strictEqual(parsed.mcpServers.operator.command, "/usr/local/bin/operator");
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("VS Code host does not write Copilot Global when the user dismisses the toast", async () => {
+      detectHostStub.returns("Visual Studio Code");
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-connect-dismiss-"));
+      const portablePath = path.join(tmpDir, ".mcp.json");
+      const globalPath = path.join(tmpDir, "mcp-config.json");
+      sinon.stub(_testable, "workspacePortableMcpPath").returns(portablePath);
+      sinon.stub(_testable, "copilotGlobalConfigPath").returns(globalPath);
+      const infoStub = vscode.window.showInformationMessage as unknown as sinon.SinonStub;
+      infoStub.resolves(undefined);
+      try {
+        const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+        fetchStub.resolves(new Response(JSON.stringify(descriptor), { status: 200 }));
+
+        await connectMcpServer(undefined);
+
+        await assert.rejects(() => fs.access(globalPath));
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
     });
 
     test("Cursor host does NOT write to workspace mcp.servers", async () => {
@@ -411,6 +708,123 @@ suite("MCP Connect Test Suite", () => {
           mcpServers: { operator: { command: string } };
         };
         assert.strictEqual(parsed.mcpServers.operator.command, "/usr/local/bin/operator");
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  suite("inspectMcpRegistration() and mcpStatusDescription()", () => {
+    test("mcpStatusDescription vscode workspace-only stdio", () => {
+      const { connected, description, tooltip } = mcpStatusDescription(
+        {
+          vscodeWorkspace: true,
+          workspacePortable: false,
+          copilotGlobal: false,
+          cursor: false,
+        },
+        "vscode",
+        true,
+      );
+      assert.strictEqual(connected, true);
+      assert.strictEqual(description, "editor");
+      assert.ok(tooltip.includes("Copilot CLI"));
+    });
+
+    test("mcpStatusDescription vscode SSE-only", () => {
+      const { description } = mcpStatusDescription(
+        {
+          vscodeWorkspace: true,
+          workspacePortable: false,
+          copilotGlobal: false,
+          cursor: false,
+        },
+        "vscode",
+        false,
+      );
+      assert.strictEqual(description, "editor (SSE)");
+    });
+
+    test("mcpStatusDescription vscode editor plus portable plus global", () => {
+      const { description } = mcpStatusDescription(
+        {
+          vscodeWorkspace: true,
+          workspacePortable: true,
+          copilotGlobal: true,
+          cursor: false,
+        },
+        "vscode",
+        true,
+      );
+      assert.strictEqual(description, "editor · .mcp.json · Copilot");
+    });
+
+    test("mcpStatusDescription cursor ignores workspace settings", () => {
+      const { connected, description } = mcpStatusDescription(
+        {
+          vscodeWorkspace: true,
+          workspacePortable: false,
+          copilotGlobal: false,
+          cursor: false,
+        },
+        "cursor",
+        true,
+      );
+      assert.strictEqual(connected, false);
+      assert.strictEqual(description, "Connect");
+    });
+
+    test("mcpStatusDescription cursor file present", () => {
+      const { connected, description } = mcpStatusDescription(
+        {
+          vscodeWorkspace: false,
+          workspacePortable: false,
+          copilotGlobal: false,
+          cursor: true,
+        },
+        "cursor",
+        true,
+      );
+      assert.strictEqual(connected, true);
+      assert.strictEqual(description, "~/.cursor/mcp.json");
+    });
+
+    test("mcpStatusDescription Copilot Global only", () => {
+      const { connected, description } = mcpStatusDescription(
+        {
+          vscodeWorkspace: false,
+          workspacePortable: false,
+          copilotGlobal: true,
+          cursor: false,
+        },
+        "vscode",
+        undefined,
+      );
+      assert.strictEqual(connected, true);
+      assert.strictEqual(description, "Copilot Global");
+    });
+
+    test("inspectMcpRegistration reads stubbed portable files", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-inspect-"));
+      const portablePath = path.join(tmpDir, ".mcp.json");
+      const globalPath = path.join(tmpDir, "mcp-config.json");
+      await fs.writeFile(
+        portablePath,
+        JSON.stringify({ mcpServers: { operator: { command: "x", args: ["mcp"], cwd: "/" } } }),
+        "utf-8",
+      );
+      sinon.stub(_testable, "workspacePortableMcpPath").returns(portablePath);
+      sinon.stub(_testable, "copilotGlobalConfigPath").returns(globalPath);
+      sinon.stub(_testable, "cursorMcpConfigPath").returns(path.join(tmpDir, "cursor.json"));
+      sinon.stub(vscode.workspace, "getConfiguration").returns({
+        get: () => ({ operator: { type: "stdio" } }),
+      } as unknown as vscode.WorkspaceConfiguration);
+      try {
+        const presence = await inspectMcpRegistration();
+        assert.strictEqual(presence.vscodeWorkspace, true);
+        assert.strictEqual(presence.workspacePortable, true);
+        assert.strictEqual(presence.copilotGlobal, false);
+        assert.strictEqual(presence.cursor, false);
       } finally {
         await fs.rm(tmpDir, { recursive: true, force: true });
       }

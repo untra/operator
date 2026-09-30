@@ -49,7 +49,6 @@ export function LicensePanel({
       setBusy(true);
       setError(null);
       try {
-        await api.refreshCsrf();
         const value = remove ? await api.removeLicense() : await api.installLicense(key.trim());
         setLicense(value);
         setKey("");

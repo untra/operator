@@ -40,6 +40,13 @@
   background: var(--surface-alt);
 }
 
+.refreshError {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--danger);
+}
+
 .gate {
   padding: 1.5rem;
 }

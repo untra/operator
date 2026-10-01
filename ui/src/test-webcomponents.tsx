@@ -1,4 +1,5 @@
 import type { ChangeEvent, ReactNode, SubmitEvent } from "react";
+import type { AsyncValue } from "@operator/webcomponents";
 
 export function AuthCard({
   title,
@@ -134,4 +135,17 @@ export function Choice({
 
 export function PremiumPaywall() {
   return <div>Premium required</div>;
+}
+
+export function AsyncState<T>({
+  value,
+  children,
+}: {
+  value: AsyncValue<T>;
+  children: (data: T) => ReactNode;
+}) {
+  if (value.status === "ready") {
+    return children(value.data);
+  }
+  return <div data-status={value.status}>{value.message}</div>;
 }

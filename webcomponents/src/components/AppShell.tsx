@@ -5,7 +5,7 @@
  * stay in the host, which passes the rendered pieces in as slots.
  */
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { ConceptIcon } from "./ConceptIcon";
 import styles from "./AppShell.module.css";
 
@@ -54,8 +54,8 @@ export interface NavRowProps {
   /** Section health dot. Omitted for rows with no section analog. */
   health?: string | null;
   /**
-   * Set when the row's prerequisites are unmet. The row renders as a disabled
-   * span naming what it needs, rather than a link.
+   * Set when the row's prerequisites are unmet. The row remains focusable and
+   * names what it needs, but cannot be activated.
    */
   disabledReason?: string;
   /**
@@ -72,6 +72,7 @@ const linkClassName = ({ isActive }: { isActive: boolean }) =>
   isActive ? `${styles.navLink} ${styles.active}` : styles.navLink;
 
 export function NavRow({ label, icon, health, disabledReason, renderLink }: NavRowProps) {
+  const disabledReasonId = useId();
   const content = (
     <>
       <ConceptIcon name={icon} className={styles.navIcon} />
@@ -82,13 +83,21 @@ export function NavRow({ label, icon, health, disabledReason, renderLink }: NavR
 
   if (disabledReason !== undefined) {
     return (
-      <span
+      <button
+        type="button"
         className={`${styles.navLink} ${styles.navDisabled}`}
         aria-disabled="true"
-        title={disabledReason}
+        aria-describedby={disabledReasonId}
       >
-        {content}
-      </span>
+        <ConceptIcon name={icon} className={styles.navIcon} />
+        <span className={styles.navDisabledText}>
+          <span className={styles.navLabel}>{label}</span>
+          <span id={disabledReasonId} className={styles.navDisabledReason}>
+            {disabledReason}
+          </span>
+        </span>
+        {health && <span className={styles.navDot} data-health={health} />}
+      </button>
     );
   }
 

@@ -534,7 +534,7 @@ export class ConfigPanel {
           void this._panel.webview.postMessage({ type: "delegatorCreated", name: created.name });
         } catch (err) {
           void this._panel.webview.postMessage({
-            type: "modelProvidersError",
+            type: "delegatorCreateError",
             error: err instanceof Error ? err.message : "Failed to create delegator",
           });
         }

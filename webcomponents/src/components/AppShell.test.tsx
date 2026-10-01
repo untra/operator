@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { AccountFooter } from "./AppShell";
+import { AccountFooter, NavRow } from "./AppShell";
 
 function handleSignOut() {}
 
@@ -30,5 +30,18 @@ describe("AccountFooter", () => {
     expect(markup).toContain("Could not sign out.");
     expect(markup).toContain("disabled");
     expect(markup).toContain("Signing out…");
+  });
+});
+
+describe("NavRow", () => {
+  test("exposes a disabled reason to keyboard and screen-reader users", () => {
+    const markup = renderToStaticMarkup(
+      <NavRow label="Kanban" icon="project" disabledReason="Requires: Projects" />,
+    );
+
+    expect(markup).toContain('<button type="button"');
+    expect(markup).toContain('aria-disabled="true"');
+    expect(markup).toMatch(/aria-describedby="([^"]+)"[\s\S]*id="\1"/);
+    expect(markup).not.toContain("title=");
   });
 });

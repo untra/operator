@@ -203,9 +203,32 @@
 /* Section whose prerequisites aren't met: shown but not navigable. */
 .navDisabled,
 .navDisabled:hover {
+  width: 100%;
+  border: 0;
   background: transparent;
   color: var(--text-muted);
   cursor: not-allowed;
+  font-family: inherit;
+  text-align: left;
+}
+
+.navDisabled:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.navDisabledText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navDisabledReason {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.25;
 }
 
 .navDisabled .navDot {

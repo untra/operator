@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepComponent, StepProps, StepRow } from "./types";
@@ -25,6 +25,7 @@ import styles from "./OnboardingPage.module.css";
 const TASK_FIELDS = ["priority", "points", "user_story"] as const;
 const WRAPPERS = ["tmux", "vscode", "cmux", "zellij"] as const;
 const KANBAN_KINDS = ["jira", "linear", "github", "openspec"] as const;
+const EMPTY_STATUS_MAPPING = { todo: "", doing: "", done: "" };
 const COLLECTION_SOURCES = [
   ["simple", "Simple"],
   ["dev_kanban", "Development"],
@@ -157,7 +158,8 @@ function KanbanInfo({ addExport }: StepProps) {
   const [rootPath, setRootPath] = useState("");
   const [instance, setInstance] = useState("default");
   const [projectKey, setProjectKey] = useState("");
-  const [mapping, setMapping] = useState({ todo: "", doing: "", done: "" });
+  const [mapping, setMapping] = useState(EMPTY_STATUS_MAPPING);
+  const statusRequest = useRef(0);
   const [syncUserId, setSyncUserId] = useState("");
   const [workspaceKey, setWorkspaceKey] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -175,6 +177,8 @@ function KanbanInfo({ addExport }: StepProps) {
     (slug: string) => {
       setProvider(KANBAN_KINDS.find((kind) => kind === slug) ?? "");
       setProjectKey("");
+      setMapping(EMPTY_STATUS_MAPPING);
+      statusRequest.current += 1;
       listProjects.reset();
       listStatuses.reset();
     },
@@ -229,18 +233,26 @@ function KanbanInfo({ addExport }: StepProps) {
   }
 
   async function chooseProject(value: string) {
+    const request = ++statusRequest.current;
     setProjectKey(value);
+    setMapping(EMPTY_STATUS_MAPPING);
     if (!provider || !value) {
       return;
     }
     try {
       const result = await listStatuses.mutateAsync({ ...credentials(), project_key: value });
+      if (request !== statusRequest.current) {
+        return;
+      }
       setMapping({
         todo: result.statuses[0] ?? "",
         doing: result.statuses[1] ?? "",
         done: result.statuses.at(-1) ?? "",
       });
     } catch (error) {
+      if (request !== statusRequest.current) {
+        return;
+      }
       setMessage(error instanceof Error ? error.message : "Could not list statuses");
     }
   }
@@ -412,7 +424,11 @@ function KanbanInfo({ addExport }: StepProps) {
             <>
               <label>
                 Project
-                <select value={projectKey} onChange={(event) => chooseProject(event.target.value)}>
+                <select
+                  value={projectKey}
+                  disabled={listStatuses.isPending}
+                  onChange={(event) => chooseProject(event.target.value)}
+                >
                   <option value="">Choose…</option>
                   {projects.map((item) => (
                     <option key={item.id} value={item.key}>

@@ -95,7 +95,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-/** A section whose prerequisites are unmet: a disabled span naming what it needs. */
+/** A focusable disabled section with its unmet prerequisites shown inline. */
 export const PrerequisiteLocked: Story = {
   args: {
     groups: <Groups lockedReason="Requires: Model Providers, Projects" />,

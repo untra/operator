@@ -16,17 +16,20 @@ export function StatusPage() {
   const [searchParams] = useSearchParams();
   const targetSection = searchParams.get("s");
   const { sections, error } = useSections();
+  const hasTargetSection = Boolean(
+    targetSection && sections?.some((section) => section.id === targetSection),
+  );
 
-  // Scroll to a deep-linked section (e.g. /status?s=git) once sections load.
+  // Scroll to a deep-linked section (e.g. /status?s=git) once that section exists.
   useEffect(() => {
-    if (!sections || !targetSection) {
+    if (!targetSection || !hasTargetSection) {
       return;
     }
     const el = document.getElementById(targetSection);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [sections, targetSection]);
+  }, [hasTargetSection, targetSection]);
 
   return (
     <div className={styles.page}>

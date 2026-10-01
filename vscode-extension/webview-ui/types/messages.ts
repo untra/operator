@@ -133,6 +133,7 @@ export type ExtensionToWebviewMessage =
   | { type: "modelProvidersLoaded"; kinds: ModelServerKindEntry[]; delegators: DelegatorResponse[] }
   | { type: "providerProbed"; slug: string; result: ModelServerModelsResponse }
   | { type: "delegatorCreated"; name: string }
+  | { type: "delegatorCreateError"; error: string }
   | { type: "modelProvidersError"; error: string }
   | { type: "navigateTo"; section: string; prefill?: NavigationPrefill };
 

@@ -13,5 +13,5 @@
     "sourceMap": true
   },
   "include": ["webview-ui/**/*", "src/generated/**/*"],
-  "exclude": ["node_modules", "webview-ui/**/*.test.ts"]
+  "exclude": ["node_modules", "webview-ui/**/*.test.ts", "webview-ui/**/*.test.tsx"]
 }

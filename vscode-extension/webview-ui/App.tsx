@@ -160,6 +160,7 @@ export function App() {
         case "collectionActivated":
         case "collectionsError":
         case "delegatorCreated":
+        case "delegatorCreateError":
         case "issueTypeCreated":
         case "issueTypeDeleted":
         case "issueTypeError":

@@ -17,6 +17,7 @@ type ProfilesContextValue = {
   select: (id: string) => void;
   create: (name: string) => Promise<ProfileSummary>;
   refresh: () => Promise<void>;
+  refreshError: Error | null;
 };
 
 const ProfilesContext = createContext<ProfilesContextValue | null>(null);
@@ -50,7 +51,8 @@ export function ProfilesProvider() {
   const createProfile = useApiMutation(createProfileMutation);
   const profiles = data ?? EMPTY_PROFILES;
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem(SELECTED_PROFILE_KEY));
-  const loaded = !isLoading && data !== null;
+  const loaded = !isLoading && data != null;
+  const refreshError = loaded ? error : null;
 
   const selected =
     profiles.find((profile) => profile.id === selectedId) ??
@@ -77,11 +79,11 @@ export function ProfilesProvider() {
   }, [refetch]);
 
   const value = useMemo(
-    () => ({ profiles, selected, select, create, refresh }),
-    [profiles, selected, select, create, refresh],
+    () => ({ profiles, selected, select, create, refresh, refreshError }),
+    [profiles, selected, select, create, refresh, refreshError],
   );
 
-  if (error || !loaded) {
+  if (!loaded) {
     return (
       <main className={styles.gate}>
         <AsyncState<null>
@@ -106,7 +108,7 @@ export function ProfilesProvider() {
 }
 
 export function ProfileSelector() {
-  const { profiles, selected, select } = useProfiles();
+  const { profiles, selected, select, refresh, refreshError } = useProfiles();
   const navigate = useNavigate();
 
   const onChange = useCallback(
@@ -127,6 +129,10 @@ export function ProfileSelector() {
     void navigate("/onboarding?new=1");
   }, [navigate]);
 
+  const onRetry = useCallback(() => {
+    void refresh().catch(() => undefined);
+  }, [refresh]);
+
   return (
     <div className={styles.selector}>
       <label htmlFor="configuration-selector">Active configuration</label>
@@ -141,6 +147,14 @@ export function ProfileSelector() {
       <button type="button" onClick={onCreate}>
         New configuration
       </button>
+      {refreshError && (
+        <p role="alert" className={styles.refreshError}>
+          Couldn't refresh configurations: {refreshError.message}{" "}
+          <button type="button" onClick={onRetry}>
+            Retry
+          </button>
+        </p>
+      )}
     </div>
   );
 }

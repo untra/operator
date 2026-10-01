@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { Alert, Button, Card, CardContent, Chip, Spinner, TextInput, Toggle } from "../primitives";
 import { ProjectRow } from "./ProjectRow";
 import { useDraftField } from "../../hooks/useDraftField";
+import { addProject } from "../../state/addProject";
 import type { JiraConfig } from "../../../src/generated/JiraConfig";
 import type { LinearConfig } from "../../../src/generated/LinearConfig";
 import type {
@@ -94,8 +95,13 @@ export function ProviderCard({
     }
   }, [apiToken, domain, isJira, jiraConfig?.email, onValidate]);
   const handleAddProject = useCallback(
-    (key: string) => updateProvider(`projects.${key}.collection_name`, ""),
-    [updateProvider],
+    (key: string) => {
+      const projects = addProject(config.projects, key);
+      if (projects !== config.projects) {
+        updateProvider("projects", projects);
+      }
+    },
+    [config.projects, updateProvider],
   );
 
   return (

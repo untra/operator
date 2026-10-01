@@ -323,6 +323,14 @@ enum Commands {
     },
 }
 
+impl Commands {
+    /// Stdio protocol servers are spawned by editors, often sandboxed away from
+    /// the user config directory. They serve unregistered rather than not at all.
+    fn tolerates_unregistered(&self) -> bool {
+        matches!(self, Commands::Acp | Commands::Mcp)
+    }
+}
+
 #[derive(Subcommand)]
 enum AuthAction {
     /// Reset the admin password, revoking every issued credential.
@@ -386,8 +394,23 @@ async fn main() -> Result<()> {
     } else {
         Config::load(cli.config.as_deref())?
     };
+    let mut registration_error = None;
     if !matches!(cli.command, Some(Commands::Docs { .. })) && cli.profile.is_none() {
-        profiles::register_legacy(&mut config)?;
+        // Registration mutates as it goes; adopt it only whole, so a failure
+        // midway never leaves a half-registered config behind.
+        let mut registered = config.clone();
+        match profiles::register_legacy(&mut registered) {
+            Ok(()) => config = registered,
+            Err(error)
+                if cli
+                    .command
+                    .as_ref()
+                    .is_some_and(Commands::tolerates_unregistered) =>
+            {
+                registration_error = Some(error);
+            }
+            Err(error) => return Err(error),
+        }
     }
 
     // Determine if we're running in TUI mode (no subcommand)
@@ -395,6 +418,12 @@ async fn main() -> Result<()> {
 
     // Initialize logging (file-based for TUI, stderr for CLI)
     let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
+    if let Some(error) = registration_error {
+        tracing::warn!(
+            error = format!("{error:#}"),
+            "Profile registry unavailable; continuing as an unregistered configuration"
+        );
+    }
 
     // Inject the status-section provider into the REST layer. The section logic
     // lives in `ui` (which `rest` can't depend on - see rest::dto::sections), so

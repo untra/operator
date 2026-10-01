@@ -4,12 +4,59 @@
 //! Phase A: `initialize` roundtrip. Phase B adds `session/new` and
 //! `session/prompt` with `/bin/cat` as a stand-in delegator.
 
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
 const PER_LINE_TIMEOUT: Duration = Duration::from_secs(5);
+const REGISTRY_ENV: &str = "OPERATOR_PROFILE_REGISTRY";
+const REGISTRY_FILE: &str = "profiles.sqlite";
+const INITIALIZE_REQUEST: &[u8] = br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"acp-integration-test","version":"0.0.0"}}}"#;
+
+/// Spawnable `operator` pointed at `registry` instead of the developer's own
+/// profile registry, so tests neither depend on nor pollute it.
+fn operator_command(registry: &Path, config: Option<&Path>, subcommand: &str) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_operator"));
+    command.env(REGISTRY_ENV, registry);
+    if let Some(config) = config {
+        command.arg("--config").arg(config);
+    }
+    command
+        .arg(subcommand)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    command
+}
+
+/// A directory nothing can be created in, restored on drop so the tempdir can
+/// clean itself up even when an assertion panics.
+#[cfg(unix)]
+struct ReadOnlyDir(tempfile::TempDir);
+
+#[cfg(unix)]
+impl ReadOnlyDir {
+    fn new() -> Self {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+        Self(dir)
+    }
+
+    fn registry(&self) -> PathBuf {
+        self.0.path().join("operator").join(REGISTRY_FILE)
+    }
+}
+
+#[cfg(unix)]
+impl Drop for ReadOnlyDir {
+    fn drop(&mut self) {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(self.0.path(), std::fs::Permissions::from_mode(0o755));
+    }
+}
 
 async fn read_line<R: tokio::io::AsyncRead + Unpin>(
     reader: &mut tokio::io::Lines<BufReader<R>>,
@@ -23,12 +70,11 @@ async fn read_line<R: tokio::io::AsyncRead + Unpin>(
 
 #[tokio::test]
 async fn test_operator_acp_stdio_initialize_roundtrip() {
-    let exe = env!("CARGO_BIN_EXE_operator");
-    let mut child = Command::new(exe)
-        .arg("acp")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+    let tickets = tempfile::TempDir::new().unwrap();
+    let registry_dir = tempfile::TempDir::new().unwrap();
+    let registry = registry_dir.path().join(REGISTRY_FILE);
+    let (_config_keep, config_path) = write_cat_delegator_config(tickets.path());
+    let mut child = operator_command(&registry, Some(&config_path), "acp")
         .spawn()
         .expect("spawn operator acp");
 
@@ -36,9 +82,10 @@ async fn test_operator_acp_stdio_initialize_roundtrip() {
     let stdout = child.stdout.take().expect("take stdout");
     let mut reader = BufReader::new(stdout).lines();
 
-    let request = br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"acp-integration-test","version":"0.0.0"}}}
-"#;
-    stdin.write_all(request).await.expect("write request");
+    stdin
+        .write_all(INITIALIZE_REQUEST)
+        .await
+        .expect("write request");
     stdin.flush().await.expect("flush request");
 
     let line = read_line(&mut reader).await;
@@ -57,9 +104,61 @@ async fn test_operator_acp_stdio_initialize_roundtrip() {
         result["agentInfo"]["name"], "operator",
         "agentInfo.name should identify operator: {result:?}"
     );
+    assert!(
+        registry.exists(),
+        "{REGISTRY_ENV} should redirect registration to {}",
+        registry.display()
+    );
 
     drop(stdin);
     let _ = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_acp_initialize_survives_unwritable_registry() {
+    let unwritable = ReadOnlyDir::new();
+    let tickets = tempfile::TempDir::new().unwrap();
+    let (_config_keep, config_path) = write_cat_delegator_config(tickets.path());
+    let mut child = operator_command(&unwritable.registry(), Some(&config_path), "acp")
+        .spawn()
+        .expect("spawn operator acp");
+
+    let mut stdin = child.stdin.take().expect("take stdin");
+    let stdout = child.stdout.take().expect("take stdout");
+    let mut reader = BufReader::new(stdout).lines();
+
+    stdin.write_all(INITIALIZE_REQUEST).await.unwrap();
+    stdin.flush().await.unwrap();
+
+    let response: serde_json::Value =
+        serde_json::from_str(&read_line(&mut reader).await).expect("response should be valid JSON");
+    assert_eq!(
+        response["result"]["agentInfo"]["name"], "operator",
+        "acp must still serve when the registry is unwritable: {response}"
+    );
+
+    drop(stdin);
+    let _ = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_unwritable_registry_still_fails_non_protocol_commands() {
+    let unwritable = ReadOnlyDir::new();
+    let tickets = tempfile::TempDir::new().unwrap();
+    let (_config_keep, config_path) = write_cat_delegator_config(tickets.path());
+
+    let output = operator_command(&unwritable.registry(), Some(&config_path), "queue")
+        .output()
+        .await
+        .expect("run operator queue");
+
+    assert!(
+        !output.status.success(),
+        "only stdio protocol servers may run unregistered; queue exited {}",
+        output.status
+    );
 }
 
 fn write_sleep_delegator_config(
@@ -139,19 +238,14 @@ default_delegator = "test-cat"
 
 #[tokio::test]
 async fn test_operator_acp_session_new_and_prompt_with_cat_delegator() {
-    let exe = env!("CARGO_BIN_EXE_operator");
     let tickets = tempfile::TempDir::new().unwrap();
+    let registry_dir = tempfile::TempDir::new().unwrap();
+    let registry = registry_dir.path().join(REGISTRY_FILE);
     let cwd = tempfile::TempDir::new().unwrap();
     let canonical_cwd = std::fs::canonicalize(cwd.path()).unwrap();
     let (_config_keep, config_path) = write_cat_delegator_config(tickets.path());
 
-    let mut child = Command::new(exe)
-        .arg("--config")
-        .arg(&config_path)
-        .arg("acp")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+    let mut child = operator_command(&registry, Some(&config_path), "acp")
         .spawn()
         .expect("spawn operator acp with cat-delegator config");
 
@@ -240,19 +334,14 @@ async fn test_operator_acp_session_new_and_prompt_with_cat_delegator() {
 
 #[tokio::test]
 async fn test_cancel_kills_delegator() {
-    let exe = env!("CARGO_BIN_EXE_operator");
     let tickets = tempfile::TempDir::new().unwrap();
+    let registry_dir = tempfile::TempDir::new().unwrap();
+    let registry = registry_dir.path().join(REGISTRY_FILE);
     let cwd = tempfile::TempDir::new().unwrap();
     let canonical_cwd = std::fs::canonicalize(cwd.path()).unwrap();
     let (_config_keep, config_path) = write_sleep_delegator_config(tickets.path());
 
-    let mut child = Command::new(exe)
-        .arg("--config")
-        .arg(&config_path)
-        .arg("acp")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+    let mut child = operator_command(&registry, Some(&config_path), "acp")
         .spawn()
         .expect("spawn operator acp with sleep-delegator config");
 

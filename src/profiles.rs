@@ -15,6 +15,7 @@ use crate::rest::state::ApiState;
 pub const MAX_PROFILE_NAME_LENGTH: usize = 64;
 pub const LEGACY_PROFILE_NAME: &str = "legacy";
 const REGISTRY_FILE: &str = "profiles.sqlite";
+pub const REGISTRY_ENV: &str = "OPERATOR_PROFILE_REGISTRY";
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, ToSchema)]
 #[ts(export)]
@@ -51,6 +52,9 @@ pub fn validate_name(name: &str) -> Result<()> {
 }
 
 pub fn registry_path() -> Result<PathBuf> {
+    if let Some(path) = std::env::var_os(REGISTRY_ENV).filter(|path| !path.is_empty()) {
+        return Ok(PathBuf::from(path));
+    }
     Ok(dirs::config_dir()
         .context("User configuration directory unavailable")?
         .join("operator")
@@ -247,15 +251,27 @@ fn register_in(config: &mut Config, registry: &Path) -> Result<()> {
     if registered {
         config.save()?;
     }
+    let own_state = config.state_path();
     connection.execute(
         "INSERT OR IGNORE INTO settings (key,value) VALUES ('auth_path',?1)",
-        [config.state_path().to_string_lossy().as_ref()],
+        [own_state.to_string_lossy().as_ref()],
     )?;
-    config.server_auth_path = Some(PathBuf::from(connection.query_row(
+    let mut auth_path = PathBuf::from(connection.query_row(
         "SELECT value FROM settings WHERE key='auth_path'",
         [],
         |row| row.get::<_, String>(0),
-    )?));
+    )?);
+    // The first configuration ever registered pins server auth. If its state
+    // directory has since vanished (a deleted workspace or temp dir), every
+    // later login would target a database nobody can reach.
+    if !auth_path.exists() {
+        connection.execute(
+            "UPDATE settings SET value=?1 WHERE key='auth_path'",
+            [own_state.to_string_lossy().as_ref()],
+        )?;
+        auth_path = own_state;
+    }
+    config.server_auth_path = Some(auth_path);
     if config.tickets_path().join("queue").is_dir()
         && !crate::startup::workspace_initialized(config)
     {
@@ -644,5 +660,64 @@ mod tests {
         drop(profiles);
         let reopened = ServerProfiles::open(primary).unwrap();
         assert_eq!(reopened.state(a.id).unwrap().config().profile.name, "first");
+    }
+
+    fn workspace_config(root: &Path) -> Config {
+        std::fs::create_dir_all(root).unwrap();
+        let mut config = Config::default();
+        config.paths.state = root.to_string_lossy().into_owned();
+        config.paths.tickets = root.join("tickets").to_string_lossy().into_owned();
+        config
+    }
+
+    fn seed_auth_path(registry: &Path, value: &Path) {
+        open_registry(registry)
+            .unwrap()
+            .execute(
+                "INSERT INTO settings (key,value) VALUES ('auth_path',?1)",
+                [value.to_string_lossy().as_ref()],
+            )
+            .unwrap();
+    }
+
+    fn stored_auth_path(registry: &Path) -> PathBuf {
+        PathBuf::from(
+            open_registry(registry)
+                .unwrap()
+                .query_row(
+                    "SELECT value FROM settings WHERE key='auth_path'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+        )
+    }
+
+    #[test]
+    fn registration_repins_auth_path_that_no_longer_exists() {
+        let temp = tempfile::tempdir().unwrap();
+        let registry = temp.path().join(REGISTRY_FILE);
+        seed_auth_path(&registry, &temp.path().join("vanished-workspace"));
+        let mut config = workspace_config(&temp.path().join("workspace"));
+
+        register_in(&mut config, &registry).unwrap();
+
+        assert_eq!(stored_auth_path(&registry), config.state_path());
+        assert_eq!(config.server_auth_path, Some(config.state_path()));
+    }
+
+    #[test]
+    fn registration_keeps_auth_path_that_still_exists() {
+        let temp = tempfile::tempdir().unwrap();
+        let registry = temp.path().join(REGISTRY_FILE);
+        let server_auth = temp.path().join("server-auth");
+        std::fs::create_dir_all(&server_auth).unwrap();
+        seed_auth_path(&registry, &server_auth);
+        let mut config = workspace_config(&temp.path().join("workspace"));
+
+        register_in(&mut config, &registry).unwrap();
+
+        assert_eq!(stored_auth_path(&registry), server_auth);
+        assert_eq!(config.server_auth_path, Some(server_auth));
     }
 }

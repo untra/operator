@@ -233,6 +233,21 @@ jobs:
           bun run storybook:build
           bun run test:storybook
 
+  # Probes Apple notary + signing credentials without notarizing.
+  preflight-apple:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check Apple notary + signing credentials
+        env:
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: scripts/ci/preflight-apple.sh
+
   # Compute the next version once, before anything is built, so the compiled
   # binaries embed the same version that the release tag + Docker tag will use.
   version:

@@ -93,9 +93,6 @@ pub trait DocGenerator {
 /// A few keys differ from the generator's `name()` for historical reasons; the
 /// keys are the documented CLI contract and are what belongs here.
 ///
-/// `LlmToolsDocGenerator` is deliberately **not** listed: `docs/llm-tools/index.md`
-/// is hand-written, and running the generator would overwrite it. It stays
-/// reachable by key for a deliberate regeneration.
 pub fn all_generators() -> Vec<(&'static str, Box<dyn DocGenerator>)> {
     vec![
         ("taxonomy", Box::new(taxonomy::TaxonomyDocGenerator)),
@@ -148,13 +145,13 @@ pub fn all_generators() -> Vec<(&'static str, Box<dyn DocGenerator>)> {
             Box::new(collections_pages::CollectionsPagesGenerator),
         ),
         ("maturity", Box::new(integrations::MaturityDocGenerator)),
+        ("llm-tools", Box::new(llm_tools::LlmToolsDocGenerator)),
     ]
 }
 
-/// Generators reachable by `--only` but excluded from a full run, because they
-/// would overwrite a page that is currently maintained by hand.
+/// Generators reachable by `--only` but excluded from a full run.
 fn opt_in_generators() -> Vec<(&'static str, Box<dyn DocGenerator>)> {
-    vec![("llm-tools", Box::new(llm_tools::LlmToolsDocGenerator))]
+    Vec::new()
 }
 
 /// Resolve a `--only` key to its generator.

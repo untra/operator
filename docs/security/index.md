@@ -96,6 +96,16 @@ The authentication database at `.tickets/operator/auth.sqlite3` is created owner
 
 Plaintext passwords, temporary bootstrap passwords, device codes, refresh tokens, and access keys are never written to disk or logs.
 
+### Credentials Operator uses itself
+
+Model-server probes are made by the Operator process with a provider API key
+attached. The key is read from Operator's own environment at request time (the
+server's `api_key_env`, else the provider default such as `ANTHROPIC_API_KEY`)
+and is never written to config, state, or logs. Planned native LLM calls, such
+as the multi-agent judge, will follow the same rules and the same egress
+validation, and will send candidate agent outputs to the configured model
+server.
+
 ### Credentials Operator passes to agents
 
 Launching an agent injects environment variables into the agent's process, including a short-lived callback credential and whatever provider keys the configured tool needs. Per the trust-boundary discussion above, the agent can read all of them.

@@ -15,7 +15,7 @@
   },
   "license": "MIT",
   "engines": {
-    "vscode": "^1.120.0"
+    "vscode": "^1.140.0"
   },
   "categories": [
     "Other"
@@ -609,7 +609,9 @@
     "smol-toml": "^1.7.1"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.14.5",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@testing-library/react": "^16.3.3",
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
     "@types/react": "^19.2.0",
@@ -623,6 +625,7 @@
     "css-loader": "^7.1.4",
     "fantasticon": "^4.1.0",
     "glob": "^13.0.6",
+    "happy-dom": "^20.14.5",
     "mocha": "^11.8.0",
     "nyc": "^18.0.0",
     "ovsx": "^1.0.2",

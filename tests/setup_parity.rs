@@ -15,6 +15,8 @@ const SETUP_MOD_RS: &str = include_str!("../src/ui/setup/mod.rs");
 const GIT_STEP_RS: &str = include_str!("../src/ui/setup/steps/git.rs");
 const MODEL_STEP_RS: &str = include_str!("../src/ui/setup/steps/model_server.rs");
 const WEB_STEPS_TSX: &str = include_str!("../ui/src/routes/onboarding/steps.tsx");
+const API_DEFINITIONS_TS: &str = include_str!("../ui/src/api/definitions.ts");
+const ONBOARDING_PAGE_TSX: &str = include_str!("../ui/src/routes/onboarding/OnboardingPage.tsx");
 
 /// The assertions below scrape TSX source, so collapse what the formatter is
 /// free to rewrite: quote style and line wrapping. Prose keeps single spaces.
@@ -33,6 +35,13 @@ fn tsx_contains_code(needle: &str) -> bool {
         s.chars().filter(|c| !c.is_whitespace()).collect()
     }
     compact(&WEB_STEPS_TSX.replace('\'', "\"")).contains(&compact(needle))
+}
+
+fn api_definitions_contains_code(needle: &str) -> bool {
+    fn compact(s: &str) -> String {
+        s.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+    compact(&API_DEFINITIONS_TS.replace('\'', "\"")).contains(&compact(needle))
 }
 
 /// Variant names in `SetupStep::ALL`, in declaration order.
@@ -199,8 +208,10 @@ fn test_web_wizard_has_an_exhaustive_component_map() {
 #[test]
 fn test_web_wizard_derives_provider_lists_from_rest_catalogs() {
     assert!(tsx_contains_code("entry.vertical === \"model\""));
-    assert!(tsx_contains_code("api.gitProviders()"));
-    assert!(tsx_contains_code("api.kanbanProviders()"));
+    assert!(tsx_contains_code("useApiQuery(gitProvidersQuery())"));
+    assert!(api_definitions_contains_code("api.gitProviders()"));
+    assert!(tsx_contains_code("useApiQuery(kanbanProvidersQuery())"));
+    assert!(api_definitions_contains_code("api.kanbanProviders()"));
 }
 
 #[test]
@@ -266,18 +277,85 @@ fn test_confirm_step_reports_parameter_count_without_values() {
 /// Empty and duplicate names are rejected before submit; values are sent verbatim
 #[test]
 fn test_web_wizard_validates_coder_parameter_names() {
-    const PAGE_TSX: &str = include_str!("../ui/src/routes/onboarding/OnboardingPage.tsx");
-
     assert!(
-        PAGE_TSX.contains("Coder parameter names cannot be empty."),
+        ONBOARDING_PAGE_TSX.contains("Coder parameter names cannot be empty."),
         "the wizard must reject an empty parameter name"
     );
     assert!(
-        PAGE_TSX.contains("Coder parameter names must be unique."),
+        ONBOARDING_PAGE_TSX.contains("Coder parameter names must be unique."),
         "the wizard must reject duplicate parameter names"
     );
     assert!(
-        PAGE_TSX.contains("[name.trim(), value]"),
+        ONBOARDING_PAGE_TSX.contains("[name.trim(), value]"),
         "parameter names are trimmed but values must be submitted verbatim"
     );
+}
+
+/// The slugs the web wizard may skip entirely, gathered at the end of the walk so
+/// that answering an earlier question never renumbers the steps already shown.
+const OPTIONAL_TAIL: [&str; 2] = ["hosted-collections", "execution-target"];
+
+/// Keys of the `OPTIONAL_STEPS` record in `steps.tsx`, in declaration order.
+fn web_optional_steps() -> Vec<String> {
+    let body = WEB_STEPS_TSX
+        .split_once("export const OPTIONAL_STEPS")
+        .expect("steps.tsx must declare OPTIONAL_STEPS")
+        .1
+        .split_once('{')
+        .unwrap()
+        .1
+        .split_once('}')
+        .unwrap()
+        .0;
+    body.lines()
+        .filter_map(|l| l.trim().strip_prefix('"'))
+        .map(|rest| rest.split('"').next().unwrap_or("").to_string())
+        .collect()
+}
+
+/// Optional steps are configured last, so the numbered part of the sidebar is
+/// stable from the first screen onward.
+#[test]
+fn test_optional_steps_are_last_in_the_catalog() {
+    let slugs = catalog_slugs();
+    let tail: Vec<&str> = slugs
+        .iter()
+        .rev()
+        .take(3)
+        .rev()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        tail,
+        vec![OPTIONAL_TAIL[0], OPTIONAL_TAIL[1], "confirm"],
+        "the optional steps must sit immediately before confirm in SetupStep::ALL"
+    );
+}
+
+/// `OPTIONAL_STEPS` drives the dimmed placeholder rows; if it drifts from the
+/// catalog tail the sidebar either hides a step or invents one.
+#[test]
+fn test_web_optional_steps_match_the_catalog_tail() {
+    assert_eq!(
+        web_optional_steps(),
+        OPTIONAL_TAIL.map(String::from).to_vec(),
+        "steps.tsx OPTIONAL_STEPS must list exactly the catalog's optional tail, in order"
+    );
+}
+
+/// Defect: the `?new=1` screen hardcoded a three-item sidebar in front of a
+/// fourteen-step wizard, and nothing here looked at it. The sidebar must be
+/// derived from the catalog so it cannot drift again.
+#[test]
+fn test_web_wizard_sidebar_is_derived_not_hardcoded() {
+    assert!(
+        ONBOARDING_PAGE_TSX.contains("stepRows("),
+        "the sidebar must be built from stepRows(), not written out by hand"
+    );
+    for label in ["Name configuration", "Operator Premium", "Execution mode"] {
+        assert!(
+            !ONBOARDING_PAGE_TSX.contains(label),
+            "OnboardingPage.tsx hardcodes the step label {label:?}; render it from the catalog"
+        );
+    }
 }

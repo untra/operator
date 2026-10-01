@@ -13,6 +13,7 @@ pub mod collections;
 pub mod config;
 pub mod editors;
 pub mod git;
+pub mod http_client;
 pub mod licensing;
 pub mod profiles;
 pub mod queue;
@@ -20,6 +21,7 @@ pub mod rest;
 pub mod setup;
 pub mod startup;
 pub mod state;
+pub mod trust_verify;
 pub mod types;
 
 // Internal modules required by public modules

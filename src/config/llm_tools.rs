@@ -146,8 +146,7 @@ pub struct RemoteAgentRef {
 
 /// Agent delegator configuration for autonomous ticket launching
 ///
-/// A delegator is a named {tool, model} pairing with optional launch configuration
-/// that can be used to launch agents for tickets.
+/// A delegator is a named {tool, model} pairing with optional launch configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct Delegator {
@@ -212,9 +211,7 @@ pub struct Delegator {
 /// (`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint
 /// (`model_server`, e.g. ollama-local, openai-api, a custom vllm host).
 ///
-/// Implicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are
-/// returned by [`implicit_model_server_for_tool`] and do not need to be declared
-/// in config.
+/// Implicit builtin servers are returned by [`implicit_model_server_for_tool`] for shipped tools.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct ModelServer {
@@ -235,6 +232,34 @@ pub struct ModelServer {
     /// Optional display name for UI
     #[serde(default)]
     pub display_name: Option<String>,
+}
+
+/// In-daemon LLM calls (built with the `native-llm` feature). Distinct from
+/// delegators: these are single typed API calls, not agent CLI sessions.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export, optional_fields = nullable)]
+pub struct NativeLlmConfig {
+    /// Model that picks the winner of `multi_model` (`voting_mode = single_judge`)
+    /// and `multi_prompt` (`selection_strategy = model_choice`) steps. Unset keeps
+    /// the deterministic first/longest rule.
+    #[serde(default)]
+    pub judge: Option<JudgeConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct JudgeConfig {
+    /// Name of a declared or implicit model server (e.g. "anthropic-api")
+    pub model_server: String,
+    /// Full API model id (e.g. "claude-sonnet-5"), not a CLI alias like "sonnet"
+    pub model: String,
+    /// Seconds before the judge is abandoned and the deterministic rule applies
+    #[serde(default = "default_judge_timeout_secs")]
+    pub timeout_secs: u64,
+}
+
+fn default_judge_timeout_secs() -> u64 {
+    crate::llm::native::DEFAULT_JUDGE_TIMEOUT_SECS
 }
 
 /// A named remote machine that agent CLI processes can be launched on over SSH.
@@ -260,25 +285,104 @@ pub struct RemoteHost {
     pub ssh_config_path: Option<String>,
 }
 
+/// One shipped LLM CLI: catalog identity, binary name, implicit first-party model server, and project marker file.
+///
+/// This is the single source of truth for the three (later four) builtins.
+/// Catalog slug may differ from the binary (`gemini-cli` vs `gemini`).
+/// Lookup of implicit servers is always by [`Self::tool_name`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShippedLlmTool {
+    /// Vertical catalog slug (`gemini-cli` for Gemini CLI).
+    pub catalog_slug: &'static str,
+    /// Binary / `Delegator.llm_tool` name (`gemini`).
+    pub tool_name: &'static str,
+    /// Implicit builtin `ModelServer` name and kind (`google-api`).
+    pub implicit_server: &'static str,
+    /// Project-root marker files. `AGENTS.md` is the shared default; the vendor
+    /// file (`CLAUDE.md`, `GROK.md`, …) is the backup.
+    pub markers: &'static [&'static str],
+}
+
+const SHARED_AGENT_MARKER: &str = "AGENTS.md";
+
+const SHIPPED_LLM_TOOLS: &[ShippedLlmTool] = &[
+    ShippedLlmTool {
+        catalog_slug: "claude",
+        tool_name: "claude",
+        implicit_server: "anthropic-api",
+        markers: &[SHARED_AGENT_MARKER, "CLAUDE.md"],
+    },
+    ShippedLlmTool {
+        catalog_slug: "codex",
+        tool_name: "codex",
+        implicit_server: "openai-api",
+        markers: &[SHARED_AGENT_MARKER, "CODEX.md"],
+    },
+    ShippedLlmTool {
+        catalog_slug: "gemini-cli",
+        tool_name: "gemini",
+        implicit_server: "google-api",
+        markers: &[SHARED_AGENT_MARKER, "GEMINI.md"],
+    },
+    ShippedLlmTool {
+        catalog_slug: "grok",
+        tool_name: "grok",
+        implicit_server: "xai-api",
+        markers: &[SHARED_AGENT_MARKER, "GROK.md"],
+    },
+];
+
+/// Shipped LLM CLIs, in catalog display order.
+pub fn shipped_llm_tools() -> &'static [ShippedLlmTool] {
+    SHIPPED_LLM_TOOLS
+}
+
+/// Lookup a shipped tool by binary / `llm_tool` name.
+pub fn shipped_llm_tool_by_name(tool_name: &str) -> Option<&'static ShippedLlmTool> {
+    SHIPPED_LLM_TOOLS
+        .iter()
+        .find(|tool| tool.tool_name == tool_name)
+}
+
+/// Implicit builtin servers derived from the shipped-tool table (deduped).
+pub fn implicit_model_servers() -> Vec<ModelServer> {
+    let mut servers = Vec::new();
+    for tool in SHIPPED_LLM_TOOLS {
+        if let Some(server) = implicit_model_server_for_tool(tool.tool_name) {
+            if !servers
+                .iter()
+                .any(|existing: &ModelServer| existing.name == server.name)
+            {
+                servers.push(server);
+            }
+        }
+    }
+    servers
+}
+
+/// Whether `name` is one of the implicit vendor builtins (cannot be created,
+/// updated, or deleted via the model-server CRUD API).
+pub fn is_implicit_model_server_name(name: &str) -> bool {
+    implicit_model_servers()
+        .iter()
+        .any(|server| server.name == name)
+}
+
 /// Returns the implicit builtin `ModelServer` associated with a given `llm_tool`.
 ///
 /// Used when a `Delegator` has no explicit `model_server`. Unknown tools
-/// fall back to an `"openai-api"` server so arbitrary future tools still resolve.
-pub fn implicit_model_server_for_tool(tool: &str) -> ModelServer {
-    let (name, kind) = match tool {
-        "claude" => ("anthropic-api", "anthropic-api"),
-        "codex" => ("openai-api", "openai-api"),
-        "gemini" => ("google-api", "google-api"),
-        _ => ("openai-api", "openai-api"),
-    };
-    ModelServer {
-        name: name.to_string(),
-        kind: kind.to_string(),
+/// return `None` — they must name a `model_server` rather than inheriting a
+/// vendor default.
+pub fn implicit_model_server_for_tool(tool: &str) -> Option<ModelServer> {
+    let shipped = shipped_llm_tool_by_name(tool)?;
+    Some(ModelServer {
+        name: shipped.implicit_server.to_string(),
+        kind: shipped.implicit_server.to_string(),
         base_url: None,
         api_key_env: None,
         extra_env: std::collections::HashMap::new(),
         display_name: None,
-    }
+    })
 }
 
 #[cfg(test)]

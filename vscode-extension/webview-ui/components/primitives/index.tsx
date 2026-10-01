@@ -16,38 +16,29 @@ function cx(...parts: Array<string | false | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
-export interface ButtonProps extends CommonProps {
+export interface ButtonProps
+  extends CommonProps, Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "type"> {
   variant?: "contained" | "outlined" | "text";
   accent?: "sage";
   size?: "small" | "medium";
-  disabled?: boolean;
-  title?: string;
-  onClick?: React.MouseEventHandler<HTMLButtonElement>;
-  children?: ReactNode;
 }
 
 export function Button({
   variant = "text",
   accent,
   size = "medium",
-  disabled,
-  title,
-  onClick,
-  children,
   className,
-  style,
+  children,
+  ...rest
 }: ButtonProps) {
   return (
     <button
+      {...rest}
       type="button"
       className={cx("op-btn", className)}
       data-variant={variant}
       data-accent={accent}
       data-size={size}
-      disabled={disabled}
-      title={title}
-      onClick={onClick}
-      style={style}
     >
       {children}
     </button>

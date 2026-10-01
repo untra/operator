@@ -4,7 +4,9 @@ An [AGNT.gg](https://agnt.gg) plugin that exposes **Operator!**'s ticket orchest
 Drop these nodes into an AGNT workflow to create tickets, launch coding agents, poll the queue, export workflows, and
 raise investigations.
 
-This is the **AGNT → Operator** direction. The companion direction (Operator → AGNT) is the `operator workflow export --format agnt` emitter built into Operator, which emits graphs composed of the `operator-launch-agent` nodes this plugin defines.
+This is the **AGNT -> Operator** direction. The companion direction (Operator -> AGNT) is `operator workflow export --format agnt`, which emits one `operator-run-step` node per issuetype step. `operator-launch-agent` remains a separate node: it launches a whole ticket by `id`.
+
+Operator exports AGNT workflows as runnable visual scaffolds of a ticket's execution shape, not as lossless equivalents of Operator's internal workflow semantics. Interactive AGNT agents should use Operator's MCP server against the Operator that holds their tickets. Visual workflows use these nodes. See `docs/getting-started/integrations/agnt.md`.
 
 ## Nodes
 
@@ -33,14 +35,27 @@ Start Operator's REST API with:
 operator api
 ```
 
+## Authentication
+
+`OPERATOR_BASE_URL` defaults to `http://localhost:7008`.
+
+| Deployment | Set this | What it is |
+|------------|----------|------------|
+| Loopback `operator api` | `OPERATOR_API_TOKEN` | Contents of `.tickets/operator/local-token`. Sent as a bearer. Replaced every server start. Absent when Operator is not bound to loopback. |
+| Kubernetes or any other bind | `OPERATOR_ACCESS_KEY` | Service access key with `read`, `write`, and `execute`. Exchanged at `POST /api/v1/auth/token` (`grant_type` `operator:access-key`) for a 15-minute bearer. |
+
+A 401 on `/api/v1/queue/status` means neither credential was presented. A certificate error means the AGNT process does not trust the server CA. Set `NODE_EXTRA_CA_CERTS`. The plugin keeps TLS verification on.
+
+Node parameters `operatorApiToken` and `operatorAccessKey` override the env vars and are stored in the workflow file. Prefer the env vars.
+
 ## Example workflow
 
 ```
 webhook-trigger
-  → operator-create-ticket   { template: "fix", project: "gamesvc", summary: "{{payload.title}}" }
-  → operator-launch-agent    { id: "{{prev.result.id}}" }
-  → operator-queue-status
-  → slack-send
+operator-create-ticket   { template: "fix", project: "gamesvc", summary: "{{payload.title}}" }
+operator-launch-agent    { id: "{{prev.result.id}}" }
+operator-queue-status
+slack-send
 ```
 
 `operator-create-ticket` returns `{ id, filename, path }`, so the next node can
@@ -62,7 +77,7 @@ Packaging uses AGNT's bundled builder (it gzips the manifest + JS + any
 cp -r agnt-plugin /path/to/agnt/backend/plugins/dev/operator-plugin
 cd /path/to/agnt/backend/plugins
 node build-plugin.js operator-plugin
-# → plugin-builds/operator-plugin.agnt
+# plugin-builds/operator-plugin.agnt
 ```
 
 Install the resulting `.agnt` via AGNT's Marketplace UI, or drop it into
@@ -72,16 +87,12 @@ Install the resulting `.agnt` via AGNT's Marketplace UI, or drop it into
 curl -X POST http://localhost:3333/api/plugins/reload
 ```
 
-## Alternative: the MCP bridge (no plugin)
+## MCP for interactive agents
 
-Operator also ships a stdio MCP server exposing ~18 orchestration tools. AGNT
-consumes stdio MCP servers natively - register Operator without this plugin via
-AGNT's MCP settings:
+`operator mcp` is a local subprocess. It opens the tickets on the machine where AGNT spawns it. It does not call a remote Operator URL.
 
 ```json
 { "name": "operator", "command": "operator", "args": ["mcp"] }
 ```
 
-The plugin's value over the raw MCP bridge is first-class canvas nodes with
-typed parameters and marketplace discoverability. See
-`docs/getting-started/integrations/agnt/` for the full comparison.
+A cluster Operator serves the same tools at the descriptor's `transport_url` (`GET /api/v1/mcp/sse`), and that stream requires the same bearer as the REST API. Write and launch tools stay off until `[mcp].expose_ticket_write_tools = true`. If AGNT can only register stdio, use these plugin nodes against the cluster. The comparison is in `docs/getting-started/integrations/agnt.md`.

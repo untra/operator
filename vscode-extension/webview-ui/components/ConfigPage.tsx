@@ -15,11 +15,12 @@ import type {
   IssueTypeSummary,
   CollectionResponse,
   ExternalIssueTypeSummary,
+  NavigationPrefill,
 } from "../types/messages";
 
 interface ConfigPageProps {
   config: WebviewConfig;
-  onUpdate: (section: string, key: string, value: unknown) => void;
+  onUpdate: (section: string, key: string, value: unknown, instanceKey?: string) => void;
   onBrowseFolder: (field: string) => void;
   onOpenFile: (filePath: string) => void;
   onStartSetup: () => void;
@@ -38,6 +39,7 @@ interface ConfigPageProps {
   kanbanStatuses: Map<string, string[]>;
   onGetKanbanStatuses: (provider: string, projectKey: string) => void;
   onOpenOperatorUi: (route: "issuetypes" | "projects") => void;
+  delegatorPrefill?: NavigationPrefill;
 }
 
 export function ConfigPage({
@@ -61,6 +63,7 @@ export function ConfigPage({
   kanbanStatuses,
   onGetKanbanStatuses,
   onOpenOperatorUi,
+  delegatorPrefill,
 }: ConfigPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasWorkDir = Boolean(config.working_directory);
@@ -142,6 +145,7 @@ export function ConfigPage({
         <ModelProvidersSection
           detectedTools={config.config.llm_tools.detected.map((t) => t.name)}
           apiReachable={apiReachable}
+          delegatorPrefill={delegatorPrefill}
         />
         <GitRepositoriesSection git={config.config.git} onUpdate={onUpdate} />
         <LinkOutCard

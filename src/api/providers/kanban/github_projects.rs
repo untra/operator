@@ -118,7 +118,7 @@ impl GithubProjectsProvider {
     pub fn new(token: String, resolved_env_var: String) -> Self {
         Self {
             token,
-            client: Client::new(),
+            client: crate::http_client::default_client(),
             resolved_env_var,
             status_field_cache: RwLock::new(HashMap::new()),
             item_lookup: RwLock::new(HashMap::new()),

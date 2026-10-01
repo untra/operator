@@ -63,23 +63,28 @@ fn refresh_with_configs(existing: &LlmToolsConfig, configs: &[ToolConfig]) -> Ll
     }
 }
 
-/// Re-derive config-sourced fields on a cached tool, keeping its probed
-/// `path`/`version` (no version re-spawn). Health is always recomputed - a
-/// cached `health_ok` is never trusted - so an uninstalled binary or a newly
-/// failing health command demotes the tool on the next startup. Also repairs
-/// partial entries written by external detectors (e.g. the VS Code extension
-/// caches only name/path/version).
+/// Re-derive config-sourced fields on a cached tool and re-probe `path` /
+/// `version`. Health is always recomputed - a cached `health_ok` is never
+/// trusted - so an uninstalled binary or a newly failing health command
+/// demotes the tool on the next startup. Also repairs partial entries written
+/// by external detectors (e.g. the VS Code extension caches only name/path/version).
 fn refresh_cached_tool(cached: &DetectedTool, config: &ToolConfig) -> DetectedTool {
+    let mode = config.detection_mode();
+    let probed_path = match mode {
+        DetectionMode::Which => get_binary_path(&config.tool_name),
+        DetectionMode::Always => Some(config.tool_name.clone()),
+    };
+    let presence_verified = mode == DetectionMode::Which && probed_path.is_some();
+    let path = probed_path.unwrap_or_else(|| cached.path.clone());
+    let version = get_version(&config.version_command).unwrap_or_else(|| cached.version.clone());
     let version_ok = match &config.min_version {
-        Some(min_ver) => check_version_meets_minimum(&cached.version, min_ver),
+        Some(min_ver) => check_version_meets_minimum(&version, min_ver),
         None => true,
     };
-    let presence_verified = config.detection_mode() == DetectionMode::Which
-        && get_binary_path(&config.tool_name).is_some();
     DetectedTool {
         name: config.tool_name.clone(),
-        path: cached.path.clone(),
-        version: cached.version.clone(),
+        path,
+        version,
         min_version: config.min_version.clone(),
         version_ok,
         model_aliases: config.model_aliases.clone(),
@@ -399,8 +404,9 @@ mod tests {
 
         let refreshed = refresh_with_configs(&existing, &[config]);
         let tool = &refreshed.detected[0];
-        // Probed fields kept, config-sourced fields re-derived
-        assert_eq!(tool.path, "/usr/bin/toolx");
+        // Always-mode path is the tool name; version stays cached when the
+        // version command cannot run.
+        assert_eq!(tool.path, "toolx");
         assert_eq!(tool.version, "1.0.0");
         assert_eq!(tool.model_aliases, vec!["a", "b"]);
         assert!(!tool.command_template.is_empty());
@@ -451,6 +457,29 @@ mod tests {
         let refreshed = refresh_with_configs(&existing, &configs);
         assert_eq!(refreshed.detected.len(), 1);
         assert!(!refreshed.detected[0].health_ok);
+    }
+
+    #[test]
+    fn test_refresh_reprobes_path_and_version_on_cached_tool() {
+        let mut cached = make_cached_tool("true");
+        cached.path = "/stale/true".to_string();
+        cached.version = "stale-version".to_string();
+        let existing = LlmToolsConfig {
+            detected: vec![cached],
+            detection_complete: true,
+            ..Default::default()
+        };
+        let configs = vec![make_tool_config("true", DetectionMode::Which, None)];
+
+        let refreshed = refresh_with_configs(&existing, &configs);
+        assert_ne!(
+            refreshed.detected[0].path, "/stale/true",
+            "which-mode refresh must re-run PATH lookup"
+        );
+        assert_ne!(
+            refreshed.detected[0].version, "stale-version",
+            "refresh must re-run version_command"
+        );
     }
 
     #[test]

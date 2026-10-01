@@ -41,8 +41,7 @@ Operator already ships:
 
 ## Supported integrations
 
-- **[AGNT.gg](/getting-started/integrations/agnt/)** - export Operator workflows
-  as AGNT graphs, and drive Operator from AGNT workflows via the `operator-plugin`.
+- **[AGNT.gg](/getting-started/integrations/agnt/)** - interactive agents use Operator MCP against the Operator that holds the tickets; visual workflows use the `operator-plugin` nodes; `operator workflow export --format agnt` emits a runnable scaffold of a ticket's shape, not a lossless copy of Operator's sessions, gates, and ticket state.
 
 > Write/launch tools mutate your repositories. Only connect platforms you trust,
 > and gate Operator's MCP write tools with `[mcp].expose_ticket_write_tools`.

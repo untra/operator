@@ -194,9 +194,6 @@ All configuration can be overridden via environment variables using the `OPERATO
 | `OPERATOR_LLM_TOOLS__DENIED` | Comma-separated list of denied LLM tools |  |
 | `OPERATOR_LOGGING__LEVEL` | Log level (trace, debug, info, warn, error) | info |
 | `OPERATOR_LOGGING__TO_FILE` | Write logs to file in addition to stderr | true |
-| `OPERATOR_LICENSE_PUBLIC_KEYS` | JSON map of key id to base64 Ed25519 public key used to verify Premium licences. Compile-time only | {} |
-| `OPERATOR_LICENSE_ISSUER` | Expected `iss` claim on a Premium licence. Compile-time only | operator-licensing |
-| `OPERATOR_PURCHASE_URL` | External destination shown by the Premium paywall. Compile-time only | - |
 
 ### Authentication
 
@@ -279,12 +276,4 @@ All configuration can be overridden via environment variables using the `OPERATO
 | --- | --- | --- |
 | `OPERATOR_LOGGING__LEVEL` | Log level (trace, debug, info, warn, error) | info |
 | `OPERATOR_LOGGING__TO_FILE` | Write logs to file in addition to stderr | true |
-
-### Licensing (build-time)
-
-| Variable | Description | Default |
-| --- | --- | --- |
-| `OPERATOR_LICENSE_PUBLIC_KEYS` | JSON map of key id to base64 Ed25519 public key used to verify Premium licences. Compile-time only | {} |
-| `OPERATOR_LICENSE_ISSUER` | Expected `iss` claim on a Premium licence. Compile-time only | operator-licensing |
-| `OPERATOR_PURCHASE_URL` | External destination shown by the Premium paywall. Compile-time only | - |
 

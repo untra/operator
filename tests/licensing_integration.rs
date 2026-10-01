@@ -5,8 +5,6 @@
 //! `status_with` / `install_with` entry points the bundled path uses. Nothing
 //! here depends on how the shipped binary was configured.
 
-use std::collections::BTreeMap;
-
 use base64::{engine::general_purpose::STANDARD, Engine};
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use ring::signature::{Ed25519KeyPair, KeyPair};
@@ -17,9 +15,16 @@ use operator::licensing::{
     install_with, status_with, LicenseStatus, LicenseTerms, Verifier, LICENSE_AUDIENCE,
     LICENSE_VERSION, PREMIUM_TIER,
 };
+use operator::trust_verify::{
+    AttestationClaims, Envelope, RootKeyring, ATTESTATION_AUDIENCE, ATTESTATION_ISSUER,
+    ATTESTATION_VERSION, PURPOSE_LICENSE_SIGNING,
+};
 
 const KID: &str = "test-key";
+const ROOT_KID: &str = "root-test";
 const ISSUER: &str = "operator-licensing-test";
+const ATTESTATION_NBF: i64 = 1_000;
+const ATTESTATION_EXP: i64 = 2_000;
 
 /// A configuration rooted in `directory`, bound to `profile`.
 fn config_for(directory: &std::path::Path, profile: Uuid) -> Config {
@@ -33,16 +38,42 @@ fn config_for(directory: &std::path::Path, profile: Uuid) -> Config {
 struct Issuer {
     verifier: Verifier,
     encoding: EncodingKey,
+    attestation: String,
+}
+
+fn generate_ed25519() -> (Ed25519KeyPair, Vec<u8>) {
+    let document = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new()).unwrap();
+    let bytes = document.as_ref().to_vec();
+    let pair = Ed25519KeyPair::from_pkcs8(&bytes).unwrap();
+    (pair, bytes)
 }
 
 impl Issuer {
     fn new() -> Self {
-        let document = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new()).unwrap();
-        let pair = Ed25519KeyPair::from_pkcs8(document.as_ref()).unwrap();
-        let keys = BTreeMap::from([(KID.to_string(), STANDARD.encode(pair.public_key().as_ref()))]);
+        let (root, root_pkcs8) = generate_ed25519();
+        let (signing, signing_pkcs8) = generate_ed25519();
+        let root_b64 = STANDARD.encode(root.public_key().as_ref());
+        let roots = RootKeyring::from_json(&format!(r#"{{"{ROOT_KID}":"{root_b64}"}}"#)).unwrap();
+        let claims = AttestationClaims {
+            version: ATTESTATION_VERSION,
+            iss: ATTESTATION_ISSUER.into(),
+            aud: ATTESTATION_AUDIENCE.into(),
+            sub: "operator".into(),
+            purpose: PURPOSE_LICENSE_SIGNING.into(),
+            kid: KID.into(),
+            public_key: STANDARD.encode(signing.public_key().as_ref()),
+            iat: ATTESTATION_NBF,
+            nbf: ATTESTATION_NBF,
+            exp: ATTESTATION_EXP,
+        };
+        let mut header = Header::new(Algorithm::EdDSA);
+        header.kid = Some(ROOT_KID.into());
+        let attestation =
+            jsonwebtoken::encode(&header, &claims, &EncodingKey::from_ed_der(&root_pkcs8)).unwrap();
         Self {
-            verifier: Verifier::from_keys(keys, ISSUER.to_string()),
-            encoding: EncodingKey::from_ed_der(document.as_ref()),
+            verifier: Verifier::from_keys(roots, ISSUER.to_string()),
+            encoding: EncodingKey::from_ed_der(&signing_pkcs8),
+            attestation,
         }
     }
 
@@ -53,7 +84,8 @@ impl Issuer {
     fn sign_with(&self, terms: &LicenseTerms, alg: Algorithm, kid: Option<String>) -> String {
         let mut header = Header::new(alg);
         header.kid = kid;
-        STANDARD.encode(jsonwebtoken::encode(&header, terms, &self.encoding).unwrap())
+        let license = jsonwebtoken::encode(&header, terms, &self.encoding).unwrap();
+        Envelope::new(license, self.attestation.clone()).encode()
     }
 }
 
@@ -200,9 +232,10 @@ fn a_symmetric_algorithm_is_refused() {
     let mut header = Header::new(Algorithm::HS256);
     header.kid = Some(KID.to_string());
     let hmac = EncodingKey::from_secret(b"not-the-signing-key");
-    let token = jsonwebtoken::encode(&header, &terms_for(profile), &hmac).unwrap();
+    let license = jsonwebtoken::encode(&header, &terms_for(profile), &hmac).unwrap();
+    let key = Envelope::new(license, issuer.attestation.clone()).encode();
 
-    let (accepted, status) = install_then_status(&issuer, &STANDARD.encode(token), 1_500);
+    let (accepted, status) = install_then_status(&issuer, &key, 1_500);
 
     assert!(!accepted, "an HS256 licence must not install");
     assert_eq!(status, LicenseStatus::Missing);
@@ -228,26 +261,25 @@ fn a_tampered_payload_is_refused() {
     let profile = Uuid::new_v4();
     let signed = issuer.sign(&terms_for(profile));
 
-    // Re-encode the token with one payload byte changed.
-    let token = String::from_utf8(STANDARD.decode(&signed).unwrap()).unwrap();
-    let mut parts: Vec<String> = token.split('.').map(str::to_string).collect();
+    let envelope = Envelope::decode(&signed).unwrap();
+    let mut parts: Vec<String> = envelope.lic.split('.').map(str::to_string).collect();
     let payload = parts[1].clone();
     parts[1] = payload
         .chars()
         .enumerate()
-        .map(|(i, c)| {
-            if i == 4 {
-                if c == 'A' {
+        .map(|(index, character)| {
+            if index == 4 {
+                if character == 'A' {
                     'B'
                 } else {
                     'A'
                 }
             } else {
-                c
+                character
             }
         })
         .collect();
-    let tampered = STANDARD.encode(parts.join("."));
+    let tampered = Envelope::new(parts.join("."), envelope.att).encode();
 
     let (accepted, status) = install_then_status(&issuer, &tampered, 1_500);
 

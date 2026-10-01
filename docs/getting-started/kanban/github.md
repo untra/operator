@@ -274,6 +274,6 @@ Either your token genuinely has no project access, or the projects you expected 
 
 ## See Also
 
-- [Jira Cloud setup](./jira.md)
-- [Linear setup](./linear.md)
-- [Kanban workflow overview](../../kanban/index.md)
+- [Jira Cloud setup](/getting-started/kanban/jira/)
+- [Linear setup](/getting-started/kanban/linear/)
+- [Kanban workflow overview](/getting-started/kanban/)

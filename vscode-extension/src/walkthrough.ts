@@ -77,8 +77,8 @@ export function findEnvVar(keys: readonly string[]): string | undefined {
   return undefined;
 }
 
-/** LLM tools to detect */
-export const LLM_TOOLS = ["claude", "codex", "gemini"] as const;
+/** LLM tools to detect. Must match `shipped_llm_tools()` binaries in src/config/llm_tools.rs. */
+export const LLM_TOOLS = ["claude", "codex", "gemini", "grok"] as const;
 
 /** Minimal detected tool info (mirrors Rust DetectedTool subset) */
 export interface DetectedToolResult {
@@ -94,6 +94,7 @@ const TOOL_META: Record<string, { versionCmd: string; minVersion: string }> = {
   claude: { versionCmd: "claude --version", minVersion: "2.1.0" },
   codex: { versionCmd: "codex --version", minVersion: "0.1.0" },
   gemini: { versionCmd: "gemini --version", minVersion: "0.1.0" },
+  grok: { versionCmd: "grok --version", minVersion: "0.1.0" },
 };
 
 function parseVersion(value: string): number[] {

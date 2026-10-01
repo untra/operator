@@ -83,12 +83,12 @@ impl DocGenerator for SchemaIndexDocGenerator {
                 "REST API specification (generated via utoipa)".to_string(),
             ],
             vec![
-                "[collections/schema.json](../collections/schema.json)".to_string(),
+                "[collections/schema.json](/collections/schema.json)".to_string(),
                 "JSON Schema".to_string(),
                 "Hosted issuetype collection manifest format (collection.json)".to_string(),
             ],
             vec![
-                "[collections/index.json](../collections/index.json)".to_string(),
+                "[collections/index.json](/collections/index.json)".to_string(),
                 "JSON".to_string(),
                 "Index of hosted issuetype collections (fetched during setup)".to_string(),
             ],

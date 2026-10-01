@@ -1803,7 +1803,7 @@ fn test_launch_provider_from_delegator_determines_tool() {
         "Command should use codex tool, got: {script_content}"
     );
     assert!(
-        script_content.contains("--model o3"),
+        script_content.contains("-m o3"),
         "Command should use o3 model, got: {script_content}"
     );
 }

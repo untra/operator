@@ -332,5 +332,9 @@ suite("Walkthrough Test Suite", () => {
     test("includes gemini", () => {
       assert.ok((LLM_TOOLS as readonly string[]).includes("gemini"));
     });
+
+    test("includes grok", () => {
+      assert.ok((LLM_TOOLS as readonly string[]).includes("grok"));
+    });
   });
 });

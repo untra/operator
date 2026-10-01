@@ -25,6 +25,16 @@
             "placeholder": "http://localhost:7008",
             "default": "http://localhost:7008"
           },
+          "operatorApiToken": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Bearer token override. Prefer OPERATOR_API_TOKEN. AGNT stores node parameters in the workflow file."
+          },
+          "operatorAccessKey": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Service access key override. Prefer OPERATOR_ACCESS_KEY. Exchanged for a 15-minute bearer. AGNT stores node parameters in the workflow file."
+          },
           "template": {
             "type": "string",
             "inputType": "select",
@@ -86,6 +96,16 @@
             "description": "Base URL of the Operator REST API",
             "placeholder": "http://localhost:7008",
             "default": "http://localhost:7008"
+          },
+          "operatorApiToken": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Bearer token override. Prefer OPERATOR_API_TOKEN. AGNT stores node parameters in the workflow file."
+          },
+          "operatorAccessKey": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Service access key override. Prefer OPERATOR_ACCESS_KEY. Exchanged for a 15-minute bearer. AGNT stores node parameters in the workflow file."
           },
           "id": {
             "type": "string",
@@ -151,6 +171,16 @@
             "placeholder": "http://localhost:7008",
             "default": "http://localhost:7008"
           },
+          "operatorApiToken": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Bearer token override. Prefer OPERATOR_API_TOKEN. AGNT stores node parameters in the workflow file."
+          },
+          "operatorAccessKey": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Service access key override. Prefer OPERATOR_ACCESS_KEY. Exchanged for a 15-minute bearer. AGNT stores node parameters in the workflow file."
+          },
           "ticket": {
             "type": "string",
             "inputType": "text",
@@ -203,6 +233,16 @@
             "description": "Base URL of the Operator REST API",
             "placeholder": "http://localhost:7008",
             "default": "http://localhost:7008"
+          },
+          "operatorApiToken": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Bearer token override. Prefer OPERATOR_API_TOKEN. AGNT stores node parameters in the workflow file."
+          },
+          "operatorAccessKey": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Service access key override. Prefer OPERATOR_ACCESS_KEY. Exchanged for a 15-minute bearer. AGNT stores node parameters in the workflow file."
           }
         },
         "outputs": {
@@ -238,6 +278,16 @@
             "description": "Base URL of the Operator REST API",
             "placeholder": "http://localhost:7008",
             "default": "http://localhost:7008"
+          },
+          "operatorApiToken": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Bearer token override. Prefer OPERATOR_API_TOKEN. AGNT stores node parameters in the workflow file."
+          },
+          "operatorAccessKey": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Service access key override. Prefer OPERATOR_ACCESS_KEY. Exchanged for a 15-minute bearer. AGNT stores node parameters in the workflow file."
           },
           "id": {
             "type": "string",
@@ -290,6 +340,16 @@
             "description": "Base URL of the Operator REST API",
             "placeholder": "http://localhost:7008",
             "default": "http://localhost:7008"
+          },
+          "operatorApiToken": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Bearer token override. Prefer OPERATOR_API_TOKEN. AGNT stores node parameters in the workflow file."
+          },
+          "operatorAccessKey": {
+            "type": "string",
+            "inputType": "text",
+            "description": "Service access key override. Prefer OPERATOR_ACCESS_KEY. Exchanged for a 15-minute bearer. AGNT stores node parameters in the workflow file."
           },
           "source": {
             "type": "string",

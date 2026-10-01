@@ -2,8 +2,8 @@
 
 /**
  * Where a pipeline's iterated items come from. The variant determines *when*
- * the list resolves: export-time (a literal array → static fan-out width in
- * the compiled graph) vs runtime (an identifier → symbolic width).
+ * the list resolves: export-time (a literal array -> static fan-out width in
+ * the compiled graph) vs runtime (an identifier -> symbolic width).
  */
 export type ItemSource = { "type": "projects" } | { "type": "from_step", 
 /**

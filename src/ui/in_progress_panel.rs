@@ -96,6 +96,7 @@ impl InProgressPanel {
                     Some("claude") => ("A", Color::Rgb(224, 93, 68)),
                     Some("gemini") => ("G", Color::Rgb(111, 66, 193)),
                     Some("codex") => ("O", Color::Green),
+                    Some("grok") => ("X", Color::Gray),
                     _ => (" ", Color::Reset),
                 };
 

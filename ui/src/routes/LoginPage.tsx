@@ -2,47 +2,33 @@
 // has no sections to show in the sidebar, and every API call the shell makes
 // would 401.
 
-import { useEffect, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useHost } from "../host";
-import { OperatorApi, ApiError } from "../api-client";
+import { useState, useCallback } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { ApiError } from "../api-client";
+import { useApiMutation, useApiQuery, useResetSession } from "../api";
+import { bootstrapStatusQuery, loginMutation, setupStatusQuery } from "../api/definitions";
 import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH } from "../auth-constraints";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function LoginPage() {
-  const host = useHost();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  // A server with no admin account yet needs setup, not login.
-  useEffect(() => {
-    const api = new OperatorApi(host);
-    api
-      .bootstrapStatus()
-      .then((status) => {
-        if (status.state !== "complete") {
-          void navigate("/setup", { replace: true });
-        }
-        return undefined;
-      })
-      .catch(() => {
-        /* Unreachable server: let the login attempt report it. */
-      });
-  }, [host, navigate]);
+  const bootstrap = useApiQuery(bootstrapStatusQuery());
+  const login = useApiMutation(loginMutation);
+  const setup = useApiQuery(setupStatusQuery(), { enabled: false });
+  const resetSession = useResetSession();
 
   const submit = useCallback(
     async (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
       setError(null);
-      setBusy(true);
       try {
-        const api = new OperatorApi(host);
-        await api.login(username, password);
-        const setup = await api.setupStatus();
-        void navigate(setup.initialized ? "/" : "/onboarding", { replace: true });
+        await login.mutateAsync({ username, password });
+        const status = await setup.refetch();
+        resetSession();
+        void navigate(status.initialized ? "/" : "/onboarding", { replace: true });
       } catch (e) {
         const status = e instanceof ApiError ? e.status : 0;
         setError(
@@ -50,12 +36,26 @@ export function LoginPage() {
             ? "Too many attempts. Wait a moment and try again."
             : "Incorrect username or password.",
         );
-      } finally {
-        setBusy(false);
       }
     },
-    [host, username, password, navigate],
+    [login, username, password, navigate, resetSession, setup],
   );
+
+  if (bootstrap.data && bootstrap.data.state !== "complete") {
+    return <Navigate to="/setup" replace />;
+  }
+
+  if (bootstrap.isLoading) {
+    return <AuthCard title="Sign in to Operator">Checking server status…</AuthCard>;
+  }
+
+  if (bootstrap.error) {
+    return (
+      <AuthCard title="Sign in to Operator" error={bootstrap.error.message}>
+        The Operator server status could not be loaded. Check the server and reload this page.
+      </AuthCard>
+    );
+  }
 
   return (
     <AuthCard
@@ -64,7 +64,11 @@ export function LoginPage() {
       error={error}
       onSubmit={submit}
       actions={
-        <AuthSubmit busy={busy} busyLabel="Signing in…" disabled={!username || !password}>
+        <AuthSubmit
+          busy={login.isPending}
+          busyLabel="Signing in…"
+          disabled={!username || !password}
+        >
           Sign in
         </AuthSubmit>
       }

@@ -45,7 +45,7 @@ impl LinearProvider {
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
-            client: Client::new(),
+            client: crate::http_client::default_client(),
         }
     }
 

@@ -9,6 +9,9 @@
 use anyhow::Result;
 
 use super::{format_header, DocGenerator};
+use crate::integrations::support_catalog::{
+    compatibility, llm_tool_supports, model_supports, Compatibility,
+};
 use crate::integrations::{all_integrations, SupportStatus, Vertical};
 
 /// Generator for the feature-maturity page.
@@ -89,7 +92,132 @@ impl DocGenerator for MaturityDocGenerator {
             }
         }
 
+        content.push_str(&write_llm_capability_section());
+        content.push_str(&write_model_capability_section());
+        content.push_str(&compat_matrix_section());
+
         Ok(content)
+    }
+}
+
+fn write_llm_capability_section() -> String {
+    let mut out = String::from(
+        "\n## LLM tool capabilities\n\n\
+         Advertising status (GA/Beta/Alpha) is not the same as a live connection probe. \
+         LLM tool **health** is `path-version`: the binary is on PATH. That is weaker than a \
+         model provider's `/models` probe, which proves an API key is accepted.\n\n\
+         | Tool | Health | Auth | Native protocol | Sessions | Headless | YOLO | Relay |\n\
+         |---|---|---|---|---|---|---|---|\n",
+    );
+    let entries = all_integrations();
+    for (slug, support) in llm_tool_supports() {
+        let label = entries
+            .iter()
+            .find(|e| e.vertical == Vertical::LlmTool && e.slug == *slug)
+            .map(|e| e.label)
+            .unwrap_or(*slug);
+        let protocols: Vec<&str> = support.native_protocols.iter().map(|p| p.slug()).collect();
+        out.push_str(&format!(
+            "| {label} | {health} | {auth} | {protocols} | {sessions} | {headless} | {yolo} | {relay} |\n",
+            health = support.health.slug(),
+            auth = support.auth.slug(),
+            protocols = protocols.join(", "),
+            sessions = yn(support.sessions),
+            headless = yn(support.headless),
+            yolo = yn(support.yolo),
+            relay = support.relay.slug(),
+        ));
+    }
+    out
+}
+
+fn write_model_capability_section() -> String {
+    let mut out = String::from(
+        "\n## Model provider capabilities\n\n\
+         A model provider is **connected** when its model-list probe succeeds. \
+         Gateways (Ollama, OpenRouter, OpenAI-compatible) speak the OpenAI protocol; \
+         first-party Anthropic and Google do not.\n\n\
+         | Provider | Protocol | Class | Probe | Key injectable | Implicit for |\n\
+         |---|---|---|---|---|---|\n",
+    );
+    let entries = all_integrations();
+    for (slug, support) in model_supports() {
+        let Some(entry) = entries
+            .iter()
+            .find(|e| e.vertical == Vertical::Model && e.slug == *slug)
+        else {
+            continue;
+        };
+        if !entry.is_public() {
+            continue;
+        }
+        out.push_str(&format!(
+            "| {label} | {protocol} | {class} | {probe} | {key} | {implicit} |\n",
+            label = entry.label,
+            protocol = support.protocol.slug(),
+            class = support.class.slug(),
+            probe = yn(support.probe),
+            key = support.key_injectable.slug(),
+            implicit = support.implicit_for.unwrap_or("-"),
+        ));
+    }
+    out
+}
+
+fn compat_matrix_section() -> String {
+    let entries = all_integrations();
+    let tools: Vec<_> = llm_tool_supports()
+        .iter()
+        .filter_map(|(slug, _)| {
+            entries
+                .iter()
+                .find(|e| e.vertical == Vertical::LlmTool && e.slug == *slug && e.is_public())
+                .map(|e| (e.slug, e.label))
+        })
+        .collect();
+    let models: Vec<_> = model_supports()
+        .iter()
+        .filter_map(|(slug, _)| {
+            entries
+                .iter()
+                .find(|e| e.vertical == Vertical::Model && e.slug == *slug && e.is_public())
+                .map(|e| (e.slug, e.label))
+        })
+        .collect();
+
+    let mut out = String::from(
+        "\n## LLM tool × model provider\n\n\
+         **Native** — the CLI speaks this provider's protocol. \
+         **Bridge** — a protocol-preserving front (claude-code-router, litellm, …) is required. \
+         **Incompatible** — this first-party API is the wrong protocol for the CLI.\n\n\
+         Operator does not currently block incompatible delegators at launch; \
+         this matrix is the catalog fact.\n\n| Tool |",
+    );
+    for (_, label) in &models {
+        out.push_str(&format!(" {label} |"));
+    }
+    out.push('\n');
+    out.push('|');
+    out.push_str(&"---|".repeat(models.len() + 1));
+    out.push('\n');
+    for (tool_slug, tool_label) in &tools {
+        out.push_str(&format!("| {tool_label} |"));
+        for (model_slug, _) in &models {
+            let cell = compatibility(tool_slug, model_slug)
+                .map(Compatibility::label)
+                .unwrap_or("-");
+            out.push_str(&format!(" {cell} |"));
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn yn(value: bool) -> &'static str {
+    if value {
+        "yes"
+    } else {
+        "no"
     }
 }
 
@@ -127,6 +255,14 @@ mod tests {
         assert!(!content.contains("| Cursor |"));
         // A known row with a docs link.
         assert!(content.contains("[Jira](https://operator.untra.io/getting-started/kanban/jira/)"));
+        assert!(content.contains("## LLM tool capabilities"));
+        assert!(content.contains("## Model provider capabilities"));
+        assert!(content.contains("## LLM tool × model provider"));
+        assert!(content.contains("path-version"));
+        assert!(content.contains("| Claude |"));
+        assert!(content.contains("Native"));
+        assert!(content.contains("Bridge"));
+        assert!(content.contains("Incompatible"));
         // AUTO-GENERATED header present.
         assert!(content.contains("AUTO-GENERATED FROM"));
     }

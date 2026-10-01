@@ -1630,7 +1630,11 @@ status: SupportStatus, premium: boolean,
 /**
  * Implemented session controllers for an IDE; absent for other categories.
  */
-session_wrappers: Array<string> | null, };
+session_wrappers: Array<string> | null, 
+/**
+ * Vertical-specific structural support (not the advertising `status` ramp).
+ */
+support: unknown, };
 
 export type KanbanProviderCatalogEntry = { 
 /**

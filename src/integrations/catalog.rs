@@ -159,6 +159,8 @@ pub struct CatalogEntry {
     /// Official support / maturity status.
     pub status: SupportStatus,
     pub premium: bool,
+    /// Vertical-specific structural support (not the advertising ramp).
+    pub support: crate::integrations::VerticalSupport,
 }
 
 impl CatalogEntry {
@@ -262,6 +264,15 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "Google",
             Some("getting-started/model-servers/google"),
             Some("google"),
+            true,
+            Alpha,
+        ),
+        entry(
+            Model,
+            "xai-api",
+            "xAI",
+            Some("getting-started/model-servers/xai"),
+            Some("xai"),
             true,
             Alpha,
         ),
@@ -414,6 +425,15 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "Gemini CLI",
             Some("getting-started/agents/gemini-cli"),
             Some("gemini"),
+            true,
+            Alpha,
+        ),
+        entry(
+            LlmTool,
+            "grok",
+            "Grok",
+            Some("getting-started/agents/grok"),
+            Some("xai"),
             true,
             Alpha,
         ),
@@ -574,6 +594,7 @@ fn entry(
         readme_badge,
         status,
         premium: false,
+        support: crate::integrations::support_for(vertical, slug),
     }
 }
 
@@ -584,6 +605,30 @@ mod tests {
     #[test]
     fn test_catalog_non_empty() {
         assert!(!all_integrations().is_empty());
+    }
+
+    #[test]
+    fn test_llm_tool_and_model_rows_carry_matching_support() {
+        use crate::integrations::VerticalSupport;
+        for e in all_integrations() {
+            match e.vertical {
+                Vertical::LlmTool => {
+                    assert!(
+                        matches!(e.support, VerticalSupport::LlmTool(_)),
+                        "{} should have LlmTool support",
+                        e.slug
+                    );
+                }
+                Vertical::Model => {
+                    assert!(
+                        matches!(e.support, VerticalSupport::Model(_)),
+                        "{} should have Model support",
+                        e.slug
+                    );
+                }
+                _ => {}
+            }
+        }
     }
 
     #[test]
@@ -686,6 +731,7 @@ mod tests {
     fn test_onboardable_model_excludes_proto_entries() {
         let model = slugs(Vertical::Model);
         assert!(model.contains(&"anthropic-api"));
+        assert!(model.contains(&"xai-api"));
         assert!(model.contains(&"ollama"));
         assert!(!model.contains(&"openai-compat"), "openai-compat is Proto");
         assert!(!model.contains(&"lmstudio"), "lmstudio is Proto");

@@ -7,8 +7,7 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * Agent delegator configuration for autonomous ticket launching
  *
- * A delegator is a named {tool, model} pairing with optional launch configuration
- * that can be used to launch agents for tickets.
+ * A delegator is a named {tool, model} pairing with optional launch configuration.
  */
 export type Delegator = { 
 /**

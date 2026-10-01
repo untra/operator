@@ -54,3 +54,35 @@ curl "http://localhost:7008/api/v1/workflow-formats"
 
 In the TUI, web UI, and VS Code, the **Workflows** section lists the formats and
 links to preview/export.
+
+## Voting and judging
+
+Fan-out steps run several agents and then keep one answer. How that answer is chosen at runtime:
+
+| Step | Setting | Runtime selection |
+|---|---|---|
+| `multi_model` | `voting_mode = "single_judge"` (default) | Deterministic rule (LLM judge planned) |
+| `multi_model` | `voting_mode = "multi_voter"` | Deterministic rule (voting round not yet run) |
+| `multi_prompt` | `selection_strategy = "model_choice"` | First variation (LLM judge planned) |
+| `multi_prompt` | `selection_strategy = "scored"` | First variation |
+| `matrixed` | - | No aggregation yet (`value` is `null`) |
+
+The **deterministic rule** is: first delegator with output for `majority` /
+`ranked`, the longest answer for `unanimous`.
+
+**Planned: LLM judge.** A judge that picks the winner with a single typed API
+call from the Operator daemon (not an agent session), guided by `voting_prompt`
+or `selection_prompt`, is implemented but not yet included in release builds.
+The configuration it will read is already accepted:
+
+```toml
+[native_llm.judge]
+model_server = "anthropic-api"   # any declared or implicit model server
+model = "claude-sonnet-5"         # full API model id, not a CLI alias
+timeout_secs = 120                # optional
+```
+
+Until the judge ships, a configured judge is reported as unavailable in the
+ticket history and the deterministic rule applies.
+
+Exports render the same prompts as a vote/select `agent(...)` call instead.

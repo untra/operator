@@ -1,16 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { KanbanTicketCard } from "@operator/bindings/KanbanTicketCard";
-import type { ConfigurationResponse } from "@operator/bindings/ConfigurationResponse";
-import type { DelegatorResponse } from "@operator/bindings/DelegatorResponse";
-import type { LaunchTicketResponse } from "@operator/bindings/LaunchTicketResponse";
 import { LaunchForm, TicketDetailView } from "@operator/webcomponents";
 import type { LaunchFormValue } from "@operator/webcomponents";
-import { OperatorApi } from "../api-client";
+import { useApiMutation, useApiQuery } from "../api";
+import {
+  configurationQuery,
+  delegatorsQuery,
+  executionTargetsQuery,
+  focusSessionMutation,
+  issueTypeDocumentQuery,
+  launchTicketMutation,
+} from "../api/definitions";
 import { useHost } from "../host";
 import { useRightPanel } from "../right-panel";
 import { wrapperSessionLink } from "../session-links";
-import type { IssueType } from "@operator/bindings/IssueType";
 import styles from "./TicketDetailPanel.module.css";
 
 /**
@@ -24,84 +28,27 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   const host = useHost();
   const navigate = useNavigate();
   const { close } = useRightPanel();
-  const [api] = useState(() => new OperatorApi(host));
 
-  // Launch form state.
-  const [delegator, setDelegator] = useState<string>(""); // '' = default chain
-  const [wrapper, setWrapper] = useState<string>(""); // '' = configured default
-  const [target, setTarget] = useState<string>(""); // '' = delegator's target
+  const [delegator, setDelegator] = useState<string>("");
+  const [wrapper, setWrapper] = useState<string>("");
+  const [target, setTarget] = useState<string>("");
   const [yolo, setYolo] = useState(false);
-
-  const [config, setConfig] = useState<ConfigurationResponse | null>(null);
-  const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
-  const [targets, setTargets] = useState<string[]>([]);
-  const [workflow, setWorkflow] = useState<IssueType | null>(null);
-  const [workflowError, setWorkflowError] = useState<string | null>(null);
-
-  const [launching, setLaunching] = useState(false);
-  const [result, setResult] = useState<LaunchTicketResponse | null>(null);
-  const [launchError, setLaunchError] = useState<string | null>(null);
-
-  // Focus action state (cmux: calls the control-plane focus endpoint).
-  const [focusBusy, setFocusBusy] = useState(false);
-  const [focusError, setFocusError] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
-  const launchRequest = useRef(0);
-  const focusRequest = useRef(0);
 
-  useEffect(
-    () => () => {
-      launchRequest.current += 1;
-      focusRequest.current += 1;
-    },
-    [],
-  );
+  const config = useApiQuery(configurationQuery());
+  const delegators = useApiQuery(delegatorsQuery());
+  const targets = useApiQuery(executionTargetsQuery());
+  const workflow = useApiQuery(issueTypeDocumentQuery(ticket.ticket_type));
+  const launch = useApiMutation(launchTicketMutation);
+  const focus = useApiMutation(focusSessionMutation);
 
-  // Config (delegator names + the configured control wrapper) for the dropdowns.
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([api.getConfiguration(), api.listDelegators(), api.executionTargets()])
-      .then(([configuration, delegatorResponse, targetResponse]) => {
-        if (!cancelled) {
-          setConfig(configuration);
-          setDelegators(delegatorResponse.delegators);
-          setTargets(
-            targetResponse.targets.filter((item) => item.available).map((item) => item.name),
-          );
-        }
-        return undefined;
-      })
-      .catch(() => !cancelled && setConfig(null));
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
-
-  // The Operator workflow this ticket's issue type defines. Rendered from the
-  // native document, so this graph matches the one on the docs site exactly.
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getIssueTypeDocument(ticket.ticket_type)
-      .then((doc) => !cancelled && setWorkflow(doc))
-      .catch((e) => {
-        if (!cancelled) {
-          setWorkflowError(e instanceof Error ? e.message : "Failed to load workflow");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, ticket.ticket_type]);
-
-  const defaultWrapperLabel = config?.launch.session_wrapper ?? "configured";
+  const defaultWrapperLabel = config.data?.launch.session_wrapper ?? "configured";
+  const result = launch.data;
 
   const onLaunch = useCallback(() => {
-    const request = ++launchRequest.current;
-    setLaunching(true);
-    setLaunchError(null);
-    api
-      .launchTicket(ticket.id, {
+    launch.mutate({
+      ticketId: ticket.id,
+      options: {
         delegator: delegator || null,
         provider: null,
         model: null,
@@ -111,51 +58,9 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
         retry_reason: null,
         resume_session_id: null,
         target: target || null,
-      })
-      .then((response) => {
-        if (request === launchRequest.current) {
-          setResult(response);
-        }
-        return undefined;
-      })
-      .catch((e) => {
-        if (request === launchRequest.current) {
-          setLaunchError(e instanceof Error ? e.message : "Launch failed");
-        }
-      })
-      .finally(() => {
-        if (request === launchRequest.current) {
-          setLaunching(false);
-        }
-      });
-  }, [api, delegator, target, ticket.id, wrapper, yolo]);
-
-  const onFocus = useCallback(
-    (agentId: string) => {
-      const request = ++focusRequest.current;
-      setFocusBusy(true);
-      setFocusError(null);
-      api
-        .focusSession(agentId)
-        .then(() => {
-          if (request === focusRequest.current) {
-            setFocused(true);
-          }
-          return undefined;
-        })
-        .catch((e) => {
-          if (request === focusRequest.current) {
-            setFocusError(e instanceof Error ? e.message : "Focus failed");
-          }
-        })
-        .finally(() => {
-          if (request === focusRequest.current) {
-            setFocusBusy(false);
-          }
-        });
-    },
-    [api],
-  );
+      },
+    });
+  }, [delegator, launch, target, ticket.id, wrapper, yolo]);
 
   const handleFormChange = useCallback((value: LaunchFormValue) => {
     setDelegator(value.delegator);
@@ -178,14 +83,43 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
     }
   }, [host, link]);
   const focusSession = useCallback(() => {
-    if (result) {
-      onFocus(result.agent_id);
+    if (!result) {
+      return;
     }
-  }, [onFocus, result]);
-  // A completed ticket opens read-only: there is nothing left to launch.
+    focus.mutate(
+      { agentId: result.agent_id },
+      {
+        onSuccess: () => {
+          setFocused(true);
+        },
+      },
+    );
+  }, [focus, result]);
   const isFinished = ticket.status === "completed";
-
   const formValue: LaunchFormValue = { delegator, wrapper, target, yolo };
+  const launchLoading = config.isLoading || delegators.isLoading || targets.isLoading;
+  const launchError =
+    config.error?.message ?? delegators.error?.message ?? targets.error?.message ?? null;
+
+  const launchControls = launchLoading ? (
+    <div className={styles.loading}>Loading launch configuration…</div>
+  ) : launchError ? (
+    <div className={styles.error}>Launch options unavailable: {launchError}</div>
+  ) : (
+    <LaunchForm
+      value={formValue}
+      delegators={delegators.data?.delegators ?? []}
+      targets={(targets.data?.targets ?? [])
+        .filter((item) => item.available)
+        .map((item) => item.name)}
+      defaultWrapperLabel={defaultWrapperLabel}
+      busy={launch.isPending}
+      error={launch.error?.message ?? null}
+      onChange={handleFormChange}
+      onSubmit={onLaunch}
+    />
+  );
+
   const launchActions = result ? (
     <>
       <button type="button" className={styles.linkBtn} onClick={openAgentDetail}>
@@ -202,11 +136,11 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
             type="button"
             className={styles.linkBtn}
             onClick={focusSession}
-            disabled={focusBusy}
+            disabled={focus.isPending}
           >
-            {focusBusy ? "Focusing…" : focused ? `${link.label} ✓` : link.label}
+            {focus.isPending ? "Focusing…" : focused ? `${link.label} ✓` : link.label}
           </button>
-          {focusError && <div className={styles.error}>{focusError}</div>}
+          {focus.error && <div className={styles.error}>{focus.error.message}</div>}
         </>
       )}
       {link?.kind === "display" && (
@@ -221,27 +155,14 @@ export function TicketDetailPanel({ ticket }: { ticket: KanbanTicketCard }) {
   return (
     <TicketDetailView
       ticket={ticket}
-      launchControls={
-        result || isFinished ? undefined : (
-          <LaunchForm
-            value={formValue}
-            delegators={delegators}
-            targets={targets}
-            defaultWrapperLabel={defaultWrapperLabel}
-            busy={launching}
-            error={launchError}
-            onChange={handleFormChange}
-            onSubmit={onLaunch}
-          />
-        )
-      }
+      launchControls={result || isFinished ? undefined : launchControls}
       launchedTicketId={result?.ticket_id}
       launchActions={launchActions}
       workflow={
-        workflowError
-          ? { status: "error", message: workflowError }
-          : workflow
-            ? { status: "ready", data: workflow }
+        workflow.error
+          ? { status: "error", message: workflow.error.message }
+          : workflow.data
+            ? { status: "ready", data: workflow.data }
             : { status: "loading", message: "Loading workflow…" }
       }
     />

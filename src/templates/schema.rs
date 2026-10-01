@@ -497,7 +497,7 @@ pub struct MultiModelConfig {
     /// Whether to share all answers with all models in the voting round
     #[serde(default = "default_true")]
     pub share_answers: bool,
-    /// Prompt for the voting round (Handlebars, receives {{ answers }} array)
+    /// Instruction prompt for the judge that picks the winner (Handlebars, rendered with the ticket context)
     #[serde(default)]
     pub voting_prompt: Option<String>,
     /// How the voting round executes
@@ -523,10 +523,12 @@ pub enum VotingStrategy {
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum VotingMode {
-    /// One agent reviews all answers and picks winner (uses 1 slot)
+    /// An LLM judge (`[native_llm.judge]`, not yet in release builds) picks the
+    /// winner; the voting strategy's deterministic rule applies until then
     #[default]
     SingleJudge,
-    /// All original delegators re-run with shared answers, each votes (uses N slots)
+    /// All original delegators re-run with shared answers, each votes (uses N
+    /// slots). Not yet run: the deterministic rule applies
     MultiVoter,
 }
 
@@ -543,7 +545,8 @@ pub struct MultiPromptConfig {
     /// Agent/delegator to use for all variations
     #[serde(default)]
     pub agent: Option<String>,
-    /// Prompt for the selection/review round
+    /// Instruction for the judge that picks the best variation with
+    /// `model_choice` (Handlebars, rendered with the ticket context)
     #[serde(default)]
     pub selection_prompt: Option<String>,
 }
@@ -553,7 +556,8 @@ pub struct MultiPromptConfig {
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum SelectionStrategy {
-    /// Model reviews all outputs and picks the best
+    /// An LLM judge (`[native_llm.judge]`, not yet in release builds) picks the
+    /// best; the first variation is used until then
     ModelChoice,
     /// Model scores each and highest wins
     Scored,
@@ -629,8 +633,8 @@ pub struct PipelineStage {
 }
 
 /// Where a pipeline's iterated items come from. The variant determines *when*
-/// the list resolves: export-time (a literal array → static fan-out width in
-/// the compiled graph) vs runtime (an identifier → symbolic width).
+/// the list resolves: export-time (a literal array -> static fan-out width in
+/// the compiled graph) vs runtime (an identifier -> symbolic width).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 #[serde(tag = "type", rename_all = "snake_case")]

@@ -7,6 +7,7 @@ import type {
   ModelServerKindEntry,
   ModelServerModelsResponse,
   DelegatorResponse,
+  NavigationPrefill,
 } from "../../types/messages";
 
 const BRAND_ICONS = new Set(["anthropic", "google", "ollama", "openrouter"]);
@@ -14,6 +15,7 @@ const BRAND_ICONS = new Set(["anthropic", "google", "ollama", "openrouter"]);
 interface ModelProvidersSectionProps {
   detectedTools: string[];
   apiReachable: boolean;
+  delegatorPrefill?: NavigationPrefill;
 }
 
 type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
@@ -46,7 +48,11 @@ function DismissableAlert({
   );
 }
 
-export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProvidersSectionProps) {
+export function ModelProvidersSection({
+  detectedTools,
+  apiReachable,
+  delegatorPrefill,
+}: ModelProvidersSectionProps) {
   const [kinds, setKinds] = useState<ModelServerKindEntry[]>([]);
   const [probes, setProbes] = useState<ProbeMap>({});
   const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
@@ -79,6 +85,7 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
           load();
           break;
         case "modelProvidersError":
+        case "delegatorCreateError":
           setError(msg.error);
           break;
         case "apiHealthResult":
@@ -104,6 +111,7 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
         case "kanbanStatusesLoaded":
         case "linearValidationResult":
         case "llmToolsDetected":
+        case "navigateTo":
         case "projectsError":
         case "projectsLoaded":
           break;
@@ -148,7 +156,13 @@ export function ModelProvidersSection({ detectedTools, apiReachable }: ModelProv
       <ProviderGroup heading="First-party" kinds={firstParty} probes={probes} />
       <ProviderGroup heading="Gateways" kinds={gateways} probes={probes} />
 
-      <CreateDelegatorForm kinds={kinds} probes={probes} detectedTools={detectedTools} />
+      <CreateDelegatorForm
+        kinds={kinds}
+        probes={probes}
+        detectedTools={detectedTools}
+        prefill={delegatorPrefill}
+        onInvalid={setError}
+      />
 
       <p className="op-body2 op-text-secondary op-mt-2 op-mb-05">Delegators</p>
       {delegators.length === 0 ? (
@@ -236,25 +250,90 @@ function CreateDelegatorForm({
   kinds,
   probes,
   detectedTools,
+  prefill,
+  onInvalid,
 }: {
   kinds: ModelServerKindEntry[];
   probes: ProbeMap;
   detectedTools: string[];
+  prefill?: NavigationPrefill;
+  onInvalid: (message: string) => void;
 }) {
-  const [tool, setTool] = useState("");
+  const [tool, setTool] = useState(prefill?.tool ?? "");
   const [provider, setProvider] = useState("");
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(prefill?.model ?? "");
   const [name, setName] = useState("");
+  const [pending, setPending] = useState(false);
+  const [appliedPrefill, setAppliedPrefill] = useState(prefill);
+  if (prefill !== appliedPrefill) {
+    setAppliedPrefill(prefill);
+    if (prefill) {
+      setTool(prefill.tool ?? "");
+      setModel(prefill.model ?? "");
+    }
+  }
 
   const selectedTool = tool || detectedTools[0] || "";
 
   const probe = provider ? probes[provider] : undefined;
   const liveModels = probe?.reachable ? probe.models : [];
 
+  useEffect(
+    () =>
+      onMessage((msg: ExtensionToWebviewMessage) => {
+        switch (msg.type) {
+          case "delegatorCreated":
+            setPending(false);
+            setName("");
+            setModel("");
+            break;
+          case "delegatorCreateError":
+            setPending(false);
+            break;
+          case "apiHealthResult":
+          case "assessTicketCreated":
+          case "assessTicketError":
+          case "browseResult":
+          case "collectionActivated":
+          case "collectionsError":
+          case "collectionsLoaded":
+          case "configError":
+          case "configLoaded":
+          case "configUpdated":
+          case "externalIssueTypesError":
+          case "externalIssueTypesLoaded":
+          case "issueTypeCreated":
+          case "issueTypeDeleted":
+          case "issueTypeError":
+          case "issueTypeLoaded":
+          case "issueTypeUpdated":
+          case "issueTypesLoaded":
+          case "jiraValidationResult":
+          case "kanbanStatusesError":
+          case "kanbanStatusesLoaded":
+          case "linearValidationResult":
+          case "llmToolsDetected":
+          case "modelProvidersError":
+          case "modelProvidersLoaded":
+          case "navigateTo":
+          case "projectsError":
+          case "projectsLoaded":
+          case "providerProbed":
+            break;
+        }
+      }),
+    [],
+  );
+
   const submit = useCallback(() => {
     if (!selectedTool || !provider || !model) {
+      onInvalid("Pick a tool, a provider, and a model.");
       return;
     }
+    if (pending) {
+      return;
+    }
+    setPending(true);
     postMessage({
       type: "createDelegator",
       request: {
@@ -268,9 +347,7 @@ function CreateDelegatorForm({
         remote_agent: null,
       },
     });
-    setName("");
-    setModel("");
-  }, [model, name, provider, selectedTool]);
+  }, [model, name, onInvalid, pending, provider, selectedTool]);
   const handleToolChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => setTool(event.target.value),
     [setTool],
@@ -308,6 +385,7 @@ function CreateDelegatorForm({
         </SelectInput>
 
         <SelectInput label="Provider" value={provider} onChange={handleProviderChange}>
+          <option value="">Select…</option>
           {kinds.map((k) => (
             <option key={k.slug} value={k.slug}>
               {k.display_name} {probes[k.slug]?.reachable ? "●" : "○"}
@@ -317,6 +395,7 @@ function CreateDelegatorForm({
 
         {liveModels.length > 0 ? (
           <SelectInput label="Model" value={model} onChange={handleModelChange}>
+            <option value="">Select…</option>
             {liveModels.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.display_name ?? m.id}
@@ -343,9 +422,10 @@ function CreateDelegatorForm({
           variant="outlined"
           size="small"
           onClick={submit}
+          disabled={pending}
           style={{ alignSelf: "flex-start" }}
         >
-          Create delegator
+          {pending ? "Creating…" : "Create delegator"}
         </Button>
       </div>
     </div>

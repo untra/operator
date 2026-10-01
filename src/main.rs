@@ -9,9 +9,12 @@ mod collections;
 mod config;
 mod editors;
 mod git;
+mod http_client;
 mod issuetypes;
 mod licensing;
 mod profiles;
+#[allow(dead_code)] // generated; the bin reaches it through licensing
+mod trust_verify;
 // Vertical catalog + capability inventory: consumed by the lib's REST/docs
 // layers and the external parity tests; several items read as unused in the bin.
 #[allow(dead_code, unused_imports)]
@@ -320,6 +323,14 @@ enum Commands {
     },
 }
 
+impl Commands {
+    /// Stdio protocol servers are spawned by editors, often sandboxed away from
+    /// the user config directory. They serve unregistered rather than not at all.
+    fn tolerates_unregistered(&self) -> bool {
+        matches!(self, Commands::Acp | Commands::Mcp)
+    }
+}
+
 #[derive(Subcommand)]
 enum AuthAction {
     /// Reset the admin password, revoking every issued credential.
@@ -383,8 +394,23 @@ async fn main() -> Result<()> {
     } else {
         Config::load(cli.config.as_deref())?
     };
+    let mut registration_error = None;
     if !matches!(cli.command, Some(Commands::Docs { .. })) && cli.profile.is_none() {
-        profiles::register_legacy(&mut config)?;
+        // Registration mutates as it goes; adopt it only whole, so a failure
+        // midway never leaves a half-registered config behind.
+        let mut registered = config.clone();
+        match profiles::register_legacy(&mut registered) {
+            Ok(()) => config = registered,
+            Err(error)
+                if cli
+                    .command
+                    .as_ref()
+                    .is_some_and(Commands::tolerates_unregistered) =>
+            {
+                registration_error = Some(error);
+            }
+            Err(error) => return Err(error),
+        }
     }
 
     // Determine if we're running in TUI mode (no subcommand)
@@ -392,6 +418,12 @@ async fn main() -> Result<()> {
 
     // Initialize logging (file-based for TUI, stderr for CLI)
     let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
+    if let Some(error) = registration_error {
+        tracing::warn!(
+            error = format!("{error:#}"),
+            "Profile registry unavailable; continuing as an unregistered configuration"
+        );
+    }
 
     // Inject the status-section provider into the REST layer. The section logic
     // lives in `ui` (which `rest` can't depend on - see rest::dto::sections), so
@@ -598,9 +630,7 @@ async fn cmd_launch(
     // Named model_server must exist among declared servers or implicit builtins.
     if let Some(ref name) = overrides.model_server {
         let declared = config.model_servers.iter().any(|s| &s.name == name);
-        let implicit = ["claude", "codex", "gemini"]
-            .iter()
-            .any(|t| &config::implicit_model_server_for_tool(t).name == name);
+        let implicit = config::is_implicit_model_server_name(name);
         if !declared && !implicit {
             anyhow::bail!(
                 "Unknown model-server '{name}'. Declare it under [[model_servers]] in your config."
@@ -979,7 +1009,12 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
                 "new_password": password,
             });
 
-            let response = reqwest::Client::new().post(&url).json(&body).send().await?;
+            let response = crate::http_client::client_builder()
+                .build()?
+                .post(&url)
+                .json(&body)
+                .send()
+                .await?;
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
 
@@ -1456,8 +1491,7 @@ mod tests {
     #[test]
     fn test_detect_llm_tools_returns_vec() {
         let tools = detect_llm_tools();
-        // Just verify it returns a Vec, actual content depends on environment
-        assert!(tools.len() <= 3);
+        assert!(tools.len() <= crate::config::llm_tools::shipped_llm_tools().len());
     }
 
     #[test]

@@ -19,12 +19,18 @@ use anyhow::{Context, Result};
 use super::monitor::{HealthCheckResult, SessionMonitor};
 use super::tmux::TmuxClient;
 use super::visual_review::VisualReviewHandler;
+use crate::agents::judge::{
+    default_judge_factory, judging_step, run_judge, JudgeFactory, JudgingStep,
+};
 use crate::agents::launcher::worktree_setup::cleanup_ticket_worktree;
 use crate::agents::ProofResult;
 use crate::config::Config;
+use crate::llm::native::JudgeVerdict;
 use crate::queue::{Queue, StepAdvanceResult, Ticket};
-use crate::state::{AgentState, State};
-use crate::templates::schema::ReviewType;
+use crate::state::{AgentState, MultiAgentGroup, State};
+use crate::steps::manager::StepManager;
+use crate::templates::schema::{ReviewType, StepSchema};
+use crate::templates::step_type;
 
 /// Status message for a finished proof run - mirrors the strings the
 /// `complete_step` proof hook (`rest/routes/launch.rs`) produces, so the
@@ -52,6 +58,49 @@ fn read_proof_result_message(result_path: &std::path::Path, proof_ref: &str) -> 
     let contents = std::fs::read_to_string(result_path).ok()?;
     let result: ProofResult = serde_json::from_str(&contents).ok()?;
     Some(proof_result_message(&result, proof_ref))
+}
+
+/// Deterministic aggregation of a finished group's outputs by step type.
+fn aggregate_outputs(
+    group: &MultiAgentGroup,
+    step_schema: Option<&StepSchema>,
+) -> serde_json::Value {
+    let outputs = &group.individual_outputs;
+    match group.step_type.as_str() {
+        "multi_model" => step_schema
+            .and_then(|s| s.multi_model_config.as_ref())
+            .map_or(serde_json::Value::Null, |cfg| {
+                step_type::aggregate_multi_model(outputs, cfg)
+            }),
+        "multi_prompt" => step_schema
+            .and_then(|s| s.multi_prompt_config.as_ref())
+            .map_or(serde_json::Value::Null, |cfg| {
+                step_type::aggregate_multi_prompt(outputs, cfg)
+            }),
+        "matrixed" => step_schema
+            .and_then(|s| s.matrixed_config.as_ref())
+            .map_or(serde_json::Value::Null, |cfg| {
+                step_type::aggregate_matrixed(outputs, cfg, &group.step_name)
+            }),
+        other => {
+            tracing::warn!(
+                step_type = other,
+                "unknown multi-agent step_type, skipping aggregation"
+            );
+            serde_json::Value::Null
+        }
+    }
+}
+
+fn note_history(ticket: &mut Ticket, message: &str, result: &mut SyncResult) {
+    if let Err(e) = ticket.append_history(&format!(
+        "- **{}** - {message}",
+        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+    )) {
+        result
+            .errors
+            .push(format!("Failed to add history for {}: {e}", ticket.id));
+    }
 }
 
 /// Result of a sync cycle
@@ -96,6 +145,7 @@ pub struct TicketSessionSync {
     tmux: Arc<dyn TmuxClient>,
     last_sync: Instant,
     sync_interval: Duration,
+    judge_factory: JudgeFactory,
 }
 
 impl TicketSessionSync {
@@ -108,7 +158,14 @@ impl TicketSessionSync {
                 .checked_sub(Duration::from_secs(config.agents.sync_interval))
                 .unwrap_or_else(Instant::now),
             sync_interval: Duration::from_secs(config.agents.sync_interval),
+            judge_factory: default_judge_factory(),
         }
+    }
+
+    #[cfg(test)]
+    fn with_judge_factory(mut self, judge_factory: JudgeFactory) -> Self {
+        self.judge_factory = judge_factory;
+        self
     }
 
     /// Check if it's time to run a sync
@@ -510,8 +567,6 @@ impl TicketSessionSync {
         result: &mut SyncResult,
     ) -> Result<()> {
         use crate::state::MultiAgentPhase;
-        use crate::steps::manager::StepManager;
-        use crate::templates::step_type;
 
         // Snapshot the group so we can iterate without holding a borrow on state.
         let group = state
@@ -522,9 +577,19 @@ impl TicketSessionSync {
         let group_id = group.group_id.clone();
         let step_name = group.step_name.clone();
 
-        // Only process sub-agents while the group is still in fan-out phase.
-        if group.phase != MultiAgentPhase::FanOut {
-            return Ok(());
+        match group.phase {
+            MultiAgentPhase::FanOut => {}
+            MultiAgentPhase::Voting => {
+                let step_schema = ticket.current_step_schema();
+                return self.sync_judging_group(
+                    ticket,
+                    state,
+                    &group,
+                    step_schema.as_ref(),
+                    result,
+                );
+            }
+            MultiAgentPhase::Complete | MultiAgentPhase::Failed => return Ok(()),
         }
 
         // Process each launched sub-agent's health-check action.
@@ -563,105 +628,16 @@ impl TicketSessionSync {
                                     anyhow::anyhow!("group {group_id} missing after all_done")
                                 })?;
 
-                        // Load the step schema to get the config for aggregation.
                         let step_schema = ticket.current_step_schema();
-                        let aggregated = match group.step_type.as_str() {
-                            "multi_model" => step_schema
-                                .as_ref()
-                                .and_then(|s| s.multi_model_config.as_ref())
-                                .map_or(serde_json::Value::Null, |cfg| {
-                                    step_type::aggregate_multi_model(
-                                        &finished.individual_outputs,
-                                        cfg,
-                                    )
-                                }),
-                            "multi_prompt" => step_schema
-                                .as_ref()
-                                .and_then(|s| s.multi_prompt_config.as_ref())
-                                .map_or(serde_json::Value::Null, |cfg| {
-                                    step_type::aggregate_multi_prompt(
-                                        &finished.individual_outputs,
-                                        cfg,
-                                    )
-                                }),
-                            "matrixed" => step_schema
-                                .as_ref()
-                                .and_then(|s| s.matrixed_config.as_ref())
-                                .map_or(serde_json::Value::Null, |cfg| {
-                                    step_type::aggregate_matrixed(
-                                        &finished.individual_outputs,
-                                        cfg,
-                                        &step_name,
-                                    )
-                                }),
-                            other => {
-                                tracing::warn!(
-                                    step_type = other,
-                                    "unknown multi-agent step_type, skipping aggregation"
-                                );
-                                serde_json::Value::Null
-                            }
-                        };
-
-                        // Persist the aggregated artifact for the next step to read.
-                        StepManager::write_step_output_artifact(ticket, &step_name, &aggregated)?;
-
-                        // Mark the group complete with the aggregated result.
-                        state.complete_group(&group_id, aggregated)?;
-
-                        // Advance the ticket's step exactly once for the group.
-                        let step_display = ticket.current_step_display_name();
-                        match ticket.advance_step() {
-                            Ok(StepAdvanceResult::Advanced { step, .. }) => {
-                                if let Err(e) = ticket.append_history(&format!(
-                                    "- **{}** - Multi-agent step \"{}\" completed, advancing to \"{}\"",
-                                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                                    step_display,
-                                    step,
-                                )) {
-                                    result.errors.push(format!(
-                                        "Failed to add history for {}: {e}",
-                                        ticket.id
-                                    ));
-                                }
-                                tracing::info!(
-                                    ticket_id = %ticket.id,
-                                    step = %step_display,
-                                    next = %step,
-                                    "Multi-agent step aggregated, advanced"
-                                );
-                            }
-                            Ok(StepAdvanceResult::FinalStep) => {
-                                tracing::info!(
-                                    ticket_id = %ticket.id,
-                                    step = %step_display,
-                                    "Multi-agent final step completed"
-                                );
-                            }
-                            Err(e) => {
-                                result
-                                    .errors
-                                    .push(format!("Failed to advance step for {}: {e}", ticket.id));
-                            }
-                        }
-
-                        // Remove all sub-agent records now that the group is done.
-                        // Coder targets: stop each finished workspace first.
-                        for aid in &agent_ids {
-                            if let Some(agent) = state.agents.iter().find(|a| &a.id == aid).cloned()
-                            {
-                                crate::agents::launcher::coder::stop_on_complete_for_agent(
-                                    &self.config,
-                                    &agent,
-                                );
-                            }
-                            state.remove_agent(aid)?;
-                        }
-                        state.cleanup_finished_groups()?;
-
-                        result.completed.push(ticket.id.clone());
+                        self.aggregate_or_start_judging(
+                            ticket,
+                            state,
+                            &finished,
+                            step_schema.as_ref(),
+                            result,
+                        )?;
                         // Other sub-agents (if any) were already completing;
-                        // we've recorded the aggregation, exit the loop.
+                        // the group is now judging or finalized, exit the loop.
                         break;
                     }
                 }
@@ -683,6 +659,196 @@ impl TicketSessionSync {
             }
         }
 
+        Ok(())
+    }
+
+    /// All sub-agents reported. Start the LLM judge when the step asks for
+    /// model-based selection and a judge is usable; otherwise finalize now
+    /// with the deterministic rule.
+    fn aggregate_or_start_judging(
+        &mut self,
+        ticket: &mut Ticket,
+        state: &mut State,
+        group: &MultiAgentGroup,
+        step_schema: Option<&StepSchema>,
+        result: &mut SyncResult,
+    ) -> Result<()> {
+        let plan = match (step_schema, ticket.worktree_path.clone()) {
+            (Some(schema), Some(worktree)) => {
+                let render = |t: &str| {
+                    StepManager::render_ticket_template(t, ticket).unwrap_or_else(|_| t.to_string())
+                };
+                step_type::judge_plan(schema, &group.individual_outputs, &render)
+                    .map(|plan| (plan, worktree))
+            }
+            _ => None,
+        };
+        let Some((plan, worktree)) = plan else {
+            return self.finalize_group(ticket, state, group, step_schema, None, result);
+        };
+
+        let judge = match (self.judge_factory)(&self.config) {
+            Ok(Some(judge)) => judge,
+            Ok(None) => {
+                return self.finalize_group(ticket, state, group, step_schema, None, result)
+            }
+            Err(e) => {
+                note_history(
+                    ticket,
+                    &format!("Judge unavailable ({e}); used deterministic selection"),
+                    result,
+                );
+                return self.finalize_group(ticket, state, group, step_schema, None, result);
+            }
+        };
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            note_history(
+                ticket,
+                "Judge unavailable (no async runtime); used deterministic selection",
+                result,
+            );
+            return self.finalize_group(ticket, state, group, step_schema, None, result);
+        };
+
+        let attempt = state.begin_judging(&group.group_id, judge.timeout_secs)?;
+        let step_name = group.step_name.clone();
+        let ticket_id = ticket.id.clone();
+        tracing::info!(
+            ticket_id = %ticket_id,
+            step = %step_name,
+            attempt = %attempt.attempt_id,
+            "Multi-agent step judging"
+        );
+        runtime.spawn(async move {
+            let outcome = run_judge(judge.llm, plan, attempt.timeout_secs).await;
+            if let Err(e) = StepManager::write_judge_outcome(
+                &worktree,
+                &step_name,
+                &attempt.attempt_id,
+                &outcome,
+            ) {
+                // The sync loop's deadline fallback still finalizes the group.
+                tracing::warn!(ticket_id = %ticket_id, error = %e, "Failed to write judge outcome");
+            }
+        });
+        Ok(())
+    }
+
+    /// Poll a judging group: finalize on a verdict, on a failure, or once the
+    /// attempt's deadline passes (covers a daemon restart mid-judge).
+    fn sync_judging_group(
+        &mut self,
+        ticket: &mut Ticket,
+        state: &mut State,
+        group: &MultiAgentGroup,
+        step_schema: Option<&StepSchema>,
+        result: &mut SyncResult,
+    ) -> Result<()> {
+        let step = match group.judge_attempt.as_ref() {
+            Some(attempt) => judging_step(
+                attempt,
+                StepManager::read_judge_outcome(ticket, &group.step_name, &attempt.attempt_id),
+                chrono::Utc::now(),
+            ),
+            None => JudgingStep::Fallback("judging phase without an attempt".to_string()),
+        };
+        match step {
+            JudgingStep::Wait => Ok(()),
+            JudgingStep::Apply(verdict) => {
+                self.finalize_group(ticket, state, group, step_schema, Some(&verdict), result)
+            }
+            JudgingStep::Fallback(reason) => {
+                note_history(
+                    ticket,
+                    &format!("Judge fell back to deterministic selection: {reason}"),
+                    result,
+                );
+                self.finalize_group(ticket, state, group, step_schema, None, result)
+            }
+        }
+    }
+
+    /// Aggregate (applying the judge's pick if any), write the step artifact,
+    /// complete the group, advance the ticket once, and retire the sub-agents.
+    fn finalize_group(
+        &mut self,
+        ticket: &mut Ticket,
+        state: &mut State,
+        group: &MultiAgentGroup,
+        step_schema: Option<&StepSchema>,
+        judged: Option<&JudgeVerdict>,
+        result: &mut SyncResult,
+    ) -> Result<()> {
+        let mut aggregated = aggregate_outputs(group, step_schema);
+        if let (Some(verdict), Some(schema)) = (judged, step_schema) {
+            let message = if step_type::apply_judge_verdict(
+                &mut aggregated,
+                schema,
+                verdict.winner_index,
+                &verdict.rationale,
+            ) {
+                format!(
+                    "Judge selected candidate {}: {}",
+                    verdict.winner_index, verdict.rationale
+                )
+            } else {
+                format!(
+                    "Judge verdict {} did not fit the step; used deterministic selection",
+                    verdict.winner_index
+                )
+            };
+            note_history(ticket, &message, result);
+        }
+
+        // Persist the aggregated artifact for the next step to read.
+        StepManager::write_step_output_artifact(ticket, &group.step_name, &aggregated)?;
+
+        // Mark the group complete with the aggregated result.
+        state.complete_group(&group.group_id, aggregated)?;
+
+        // Advance the ticket's step exactly once for the group.
+        let step_display = ticket.current_step_display_name();
+        match ticket.advance_step() {
+            Ok(StepAdvanceResult::Advanced { step, .. }) => {
+                note_history(
+                    ticket,
+                    &format!(
+                        "Multi-agent step \"{step_display}\" completed, advancing to \"{step}\""
+                    ),
+                    result,
+                );
+                tracing::info!(
+                    ticket_id = %ticket.id,
+                    step = %step_display,
+                    next = %step,
+                    "Multi-agent step aggregated, advanced"
+                );
+            }
+            Ok(StepAdvanceResult::FinalStep) => {
+                tracing::info!(
+                    ticket_id = %ticket.id,
+                    step = %step_display,
+                    "Multi-agent final step completed"
+                );
+            }
+            Err(e) => {
+                result
+                    .errors
+                    .push(format!("Failed to advance step for {}: {e}", ticket.id));
+            }
+        }
+
+        // Remove all sub-agent records now that the group is done.
+        // Coder targets: stop each finished workspace first.
+        for aid in &group.agent_ids {
+            if let Some(agent) = state.agents.iter().find(|a| &a.id == aid).cloned() {
+                crate::agents::launcher::coder::stop_on_complete_for_agent(&self.config, &agent);
+            }
+            state.remove_agent(aid)?;
+        }
+        state.cleanup_finished_groups()?;
+
+        result.completed.push(ticket.id.clone());
         Ok(())
     }
 
@@ -1410,5 +1576,300 @@ mod tests {
         // Test that it's different from other actions
         assert_ne!(action, SyncAction::NoChange);
         assert_ne!(action, SyncAction::MovedToAwaiting);
+    }
+
+    // ── multi-agent judge phase ─────────────────────────────────────
+
+    mod judge_phase {
+        use super::*;
+        use crate::agents::judge::ConfiguredJudge;
+        use crate::llm::native::fake::FakeNativeLlm;
+        use crate::llm::native::{JudgeOutcome, NativeLlmError};
+        use crate::state::MultiAgentPhase;
+
+        struct Fixture {
+            _dir: TempDir,
+            config: Config,
+            worktree: String,
+            ticket: Ticket,
+            state: State,
+            group_id: String,
+        }
+
+        fn multi_model_schema() -> StepSchema {
+            serde_json::from_value(serde_json::json!({
+                "name": "review",
+                "prompt": "Review it",
+                "outputs": [],
+                "type": "multi_model",
+                "multi_model_config": {
+                    "delegators": ["a", "b"],
+                    "voting_strategy": "majority",
+                    "voting_mode": "single_judge"
+                }
+            }))
+            .unwrap()
+        }
+
+        fn fixture() -> Fixture {
+            let dir = TempDir::new().unwrap();
+            let config = make_test_config(&dir);
+            let worktree = dir.path().join("wt").to_string_lossy().to_string();
+            std::fs::create_dir_all(&worktree).unwrap();
+            let ticket_path = dir.path().join("FEAT-1.md");
+            std::fs::write(&ticket_path, "# FEAT-1").unwrap();
+            let ticket = Ticket {
+                filename: "FEAT-1.md".to_string(),
+                filepath: ticket_path.to_string_lossy().to_string(),
+                timestamp: "20241221-1430".to_string(),
+                ticket_type: "FEAT".to_string(),
+                project: "test".to_string(),
+                id: "FEAT-1".to_string(),
+                summary: "t".to_string(),
+                priority: "P2-medium".to_string(),
+                status: "running".to_string(),
+                step: "review".to_string(),
+                content: "# FEAT-1".to_string(),
+                sessions: std::collections::HashMap::new(),
+                step_delegators: std::collections::HashMap::new(),
+                llm_task: crate::queue::LlmTask::default(),
+                worktree_path: Some(worktree.clone()),
+                branch: None,
+                external_id: None,
+                external_url: None,
+                external_provider: None,
+                collection: None,
+            };
+            let mut state = State::load(&config).unwrap();
+            let group_id = state
+                .create_multi_agent_group("FEAT-1", "review", "multi_model", Vec::new())
+                .unwrap();
+            let group = state
+                .multi_agent_groups
+                .iter_mut()
+                .find(|g| g.group_id == group_id)
+                .unwrap();
+            group
+                .individual_outputs
+                .insert("a".to_string(), serde_json::json!("answer A"));
+            group
+                .individual_outputs
+                .insert("b".to_string(), serde_json::json!("answer B"));
+            state.save().unwrap();
+            Fixture {
+                _dir: dir,
+                config,
+                worktree,
+                ticket,
+                state,
+                group_id,
+            }
+        }
+
+        fn sync_with(config: &Config, factory: JudgeFactory) -> TicketSessionSync {
+            TicketSessionSync::new(config, Arc::new(MockTmuxClient::new()))
+                .with_judge_factory(factory)
+        }
+
+        fn judge_returning(result: Result<JudgeVerdict, NativeLlmError>) -> JudgeFactory {
+            Arc::new(move |_| {
+                Ok(Some(ConfiguredJudge {
+                    llm: Arc::new(FakeNativeLlm(result.clone())),
+                    timeout_secs: 5,
+                }))
+            })
+        }
+
+        fn group(f: &Fixture) -> MultiAgentGroup {
+            f.state
+                .multi_agent_groups
+                .iter()
+                .find(|g| g.group_id == f.group_id)
+                .cloned()
+                .unwrap()
+        }
+
+        fn artifact(f: &Fixture) -> serde_json::Value {
+            let path = std::path::Path::new(&f.worktree).join(".tickets/steps/review.output.json");
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+        }
+
+        fn verdict(i: usize) -> JudgeVerdict {
+            JudgeVerdict {
+                winner_index: i,
+                rationale: "more thorough".to_string(),
+            }
+        }
+
+        #[test]
+        fn no_judge_configured_finalizes_deterministically() {
+            let mut f = fixture();
+            let mut sync = sync_with(&f.config, Arc::new(|_| Ok(None)));
+            let schema = multi_model_schema();
+            let mut result = SyncResult::default();
+            let g = group(&f);
+
+            sync.aggregate_or_start_judging(
+                &mut f.ticket,
+                &mut f.state,
+                &g,
+                Some(&schema),
+                &mut result,
+            )
+            .unwrap();
+
+            assert_eq!(artifact(&f)["winner_delegator"], "a");
+            assert!(artifact(&f).get("judge").is_none());
+            assert!(f.state.multi_agent_groups.is_empty());
+            assert_eq!(result.completed, vec!["FEAT-1".to_string()]);
+        }
+
+        #[test]
+        fn unusable_judge_finalizes_with_history_note() {
+            let mut f = fixture();
+            let mut sync = sync_with(
+                &f.config,
+                Arc::new(|_| Err(NativeLlmError::Config("no key".to_string()))),
+            );
+            let schema = multi_model_schema();
+            let mut result = SyncResult::default();
+            let g = group(&f);
+
+            sync.aggregate_or_start_judging(
+                &mut f.ticket,
+                &mut f.state,
+                &g,
+                Some(&schema),
+                &mut result,
+            )
+            .unwrap();
+
+            assert_eq!(artifact(&f)["winner_delegator"], "a");
+            assert!(f.ticket.content.contains("Judge unavailable"));
+            assert!(f.state.multi_agent_groups.is_empty());
+        }
+
+        #[tokio::test]
+        async fn judge_verdict_is_applied_on_next_tick() {
+            let mut f = fixture();
+            let mut sync = sync_with(&f.config, judge_returning(Ok(verdict(1))));
+            let schema = multi_model_schema();
+            let mut result = SyncResult::default();
+            let g = group(&f);
+
+            sync.aggregate_or_start_judging(
+                &mut f.ticket,
+                &mut f.state,
+                &g,
+                Some(&schema),
+                &mut result,
+            )
+            .unwrap();
+            let judging = group(&f);
+            assert_eq!(judging.phase, MultiAgentPhase::Voting);
+            let attempt = judging.judge_attempt.clone().unwrap();
+
+            // Let the spawned judge task write its outcome.
+            for _ in 0..100 {
+                if StepManager::read_judge_outcome(&f.ticket, "review", &attempt.attempt_id)
+                    .is_some()
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+
+            sync.sync_judging_group(
+                &mut f.ticket,
+                &mut f.state,
+                &judging,
+                Some(&schema),
+                &mut result,
+            )
+            .unwrap();
+
+            let out = artifact(&f);
+            assert_eq!(out["winner_delegator"], "b");
+            assert_eq!(out["value"], "answer B");
+            assert_eq!(out["judge"]["rationale"], "more thorough");
+            assert!(f.ticket.content.contains("Judge selected candidate 1"));
+            assert!(f.state.multi_agent_groups.is_empty());
+        }
+
+        #[test]
+        fn judging_group_waits_for_outcome_and_ignores_stale_attempts() {
+            let mut f = fixture();
+            let mut sync = sync_with(&f.config, Arc::new(|_| Ok(None)));
+            let schema = multi_model_schema();
+            f.state.begin_judging(&f.group_id, 60).unwrap();
+            StepManager::write_judge_outcome(
+                &f.worktree,
+                "review",
+                "some-older-attempt",
+                &JudgeOutcome::Verdict(verdict(1)),
+            )
+            .unwrap();
+            let mut result = SyncResult::default();
+            let g = group(&f);
+
+            sync.sync_judging_group(&mut f.ticket, &mut f.state, &g, Some(&schema), &mut result)
+                .unwrap();
+
+            assert_eq!(group(&f).phase, MultiAgentPhase::Voting);
+            assert!(result.completed.is_empty());
+        }
+
+        #[test]
+        fn judge_failure_falls_back_with_history_note() {
+            let mut f = fixture();
+            let mut sync = sync_with(&f.config, Arc::new(|_| Ok(None)));
+            let schema = multi_model_schema();
+            let attempt = f.state.begin_judging(&f.group_id, 60).unwrap();
+            StepManager::write_judge_outcome(
+                &f.worktree,
+                "review",
+                &attempt.attempt_id,
+                &JudgeOutcome::Failed {
+                    reason: "HTTP 401".to_string(),
+                },
+            )
+            .unwrap();
+            let mut result = SyncResult::default();
+            let g = group(&f);
+
+            sync.sync_judging_group(&mut f.ticket, &mut f.state, &g, Some(&schema), &mut result)
+                .unwrap();
+
+            assert_eq!(artifact(&f)["winner_delegator"], "a");
+            assert!(f.ticket.content.contains("fell back"));
+            assert!(f.ticket.content.contains("HTTP 401"));
+            assert!(f.state.multi_agent_groups.is_empty());
+        }
+
+        #[test]
+        fn orphaned_attempt_past_deadline_falls_back() {
+            // e.g. the daemon restarted while judging: nothing will write the file
+            let mut f = fixture();
+            let mut sync = sync_with(&f.config, Arc::new(|_| Ok(None)));
+            let schema = multi_model_schema();
+            f.state.begin_judging(&f.group_id, 60).unwrap();
+            let g = f
+                .state
+                .multi_agent_groups
+                .iter_mut()
+                .find(|g| g.group_id == f.group_id)
+                .unwrap();
+            g.judge_attempt.as_mut().unwrap().started_at =
+                chrono::Utc::now() - chrono::Duration::hours(1);
+            let g = g.clone();
+            let mut result = SyncResult::default();
+
+            sync.sync_judging_group(&mut f.ticket, &mut f.state, &g, Some(&schema), &mut result)
+                .unwrap();
+
+            assert_eq!(artifact(&f)["winner_delegator"], "a");
+            assert!(f.ticket.content.contains("no verdict by deadline"));
+            assert!(f.state.multi_agent_groups.is_empty());
+        }
     }
 }

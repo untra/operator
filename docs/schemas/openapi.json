@@ -8581,7 +8581,8 @@
           "label",
           "readme_badge",
           "status",
-          "premium"
+          "premium",
+          "support"
         ],
         "properties": {
           "docs_url": {
@@ -8619,6 +8620,9 @@
           "status": {
             "$ref": "#/components/schemas/SupportStatus",
             "description": "Official support / maturity status."
+          },
+          "support": {
+            "description": "Vertical-specific structural support (not the advertising `status` ramp)."
           },
           "vertical": {
             "type": "string",
@@ -11234,10 +11238,8 @@
           "model-server",
           "git-provider",
           "collection-source",
-          "hosted-collections",
           "task-field-config",
           "session-wrapper-choice",
-          "execution-target",
           "worktree-preference",
           "admin-password",
           "tmux-onboarding",
@@ -11246,6 +11248,8 @@
           "zellij-setup",
           "acceptance-criteria",
           "startup-tickets",
+          "hosted-collections",
+          "execution-target",
           "confirm"
         ]
       },
@@ -11628,6 +11632,19 @@
           },
           "reachable": {
             "type": "boolean"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetToolProbe"
+            },
+            "description": "LLM CLIs reported by `opr8r tools --json` on the target. Empty if unreachable/unknown."
+          },
+          "tools_error": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -11656,6 +11673,27 @@
             }
           }
         ]
+      },
+      "TargetToolProbe": {
+        "type": "object",
+        "required": [
+          "name",
+          "health_ok"
+        ],
+        "properties": {
+          "health_ok": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       },
       "TargetsResponse": {
         "type": "object",

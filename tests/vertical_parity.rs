@@ -23,7 +23,9 @@ use std::path::{Path, PathBuf};
 
 use operator::api::providers::kanban::KanbanProviderType;
 use operator::api::providers::model_server::ModelServerKind;
+use operator::config::shipped_llm_tools;
 use operator::config::SessionWrapperType;
+use operator::integrations::support_catalog::{model_supports, VerticalSupport};
 use operator::integrations::{all_integrations, CatalogEntry, SupportStatus, Vertical};
 use operator::types::pr::GitProvider;
 use operator::workflow_gen::WorkflowFormat;
@@ -96,6 +98,70 @@ fn test_every_provider_enum_variant_has_catalog_entry() {
             "workflows '{}'",
             f.slug()
         );
+    }
+}
+
+/// Shipped LLM CLI identity (binary, catalog slug, marker) must stay aligned
+/// with the advertised LlmTool catalog and the VS Code detector list.
+#[test]
+fn test_shipped_llm_tools_match_catalog_and_vscode() {
+    let shipped = shipped_llm_tools();
+    let catalog_slugs: HashSet<&str> = all_integrations()
+        .iter()
+        .filter(|e| e.vertical == Vertical::LlmTool)
+        .map(|e| e.slug)
+        .collect();
+    let shipped_slugs: HashSet<&str> = shipped.iter().map(|t| t.catalog_slug).collect();
+    assert_eq!(
+        catalog_slugs, shipped_slugs,
+        "every LlmTool catalog entry needs a shipped identity row and vice versa"
+    );
+
+    let walkthrough = include_str!("../vscode-extension/src/walkthrough.ts");
+    let tools_line = walkthrough
+        .lines()
+        .find(|line| line.contains("export const LLM_TOOLS"))
+        .expect("vscode walkthrough exports LLM_TOOLS");
+    let expected: Vec<&str> = shipped.iter().map(|t| t.tool_name).collect();
+    for name in &expected {
+        assert!(
+            tools_line.contains(&format!("\"{name}\"")),
+            "vscode LLM_TOOLS missing '{name}': {tools_line}"
+        );
+    }
+    assert_eq!(
+        expected.len(),
+        tools_line.matches('"').count() / 2,
+        "vscode LLM_TOOLS must list exactly the shipped binaries: {tools_line}"
+    );
+}
+
+#[test]
+fn test_model_implicit_for_matches_shipped_binaries() {
+    let binaries: HashSet<&str> = shipped_llm_tools().iter().map(|t| t.tool_name).collect();
+    for (slug, support) in model_supports() {
+        if let Some(tool) = support.implicit_for {
+            assert!(
+                binaries.contains(tool),
+                "model '{slug}' implicit_for '{tool}' is not a shipped binary"
+            );
+        }
+    }
+    for e in all_integrations() {
+        if e.vertical == Vertical::LlmTool {
+            assert!(
+                matches!(e.support, VerticalSupport::LlmTool(_)),
+                "{} missing LlmTool support",
+                e.slug
+            );
+        }
+        if e.vertical == Vertical::Model {
+            assert!(
+                matches!(e.support, VerticalSupport::Model(_)),
+                "{} missing Model support",
+                e.slug
+            );
+        }
     }
 }
 

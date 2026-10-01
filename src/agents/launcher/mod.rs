@@ -493,6 +493,16 @@ impl Launcher {
                 .map_or("claude", |p| p.tool.as_str());
             let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
             remote::run_preflight(&host, tool, git_provider)?;
+            if let Some(provider) = &options.provider {
+                let missing = prompt::missing_env_refs(&provider.env);
+                if !missing.is_empty() {
+                    anyhow::bail!(
+                        "Cannot launch on remote host '{}': Operator is missing {} (needed for the model server). Set it in the control-plane environment.",
+                        host.name,
+                        missing.join(", ")
+                    );
+                }
+            }
         }
 
         // Dispatch based on session wrapper type
@@ -1741,6 +1751,16 @@ impl Launcher {
                 .map_or("claude", |p| p.tool.as_str());
             let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
             remote::run_preflight(&host, tool, git_provider)?;
+            if let Some(provider) = &options.launch_options.provider {
+                let missing = prompt::missing_env_refs(&provider.env);
+                if !missing.is_empty() {
+                    anyhow::bail!(
+                        "Cannot launch on remote host '{}': Operator is missing {} (needed for the model server). Set it in the control-plane environment.",
+                        host.name,
+                        missing.join(", ")
+                    );
+                }
+            }
         }
 
         // Dispatch based on session wrapper type

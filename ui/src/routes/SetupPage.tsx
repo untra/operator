@@ -2,37 +2,27 @@
 // account; once bootstrap completes this redirects to login, so it cannot be
 // used to re-claim the account.
 
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useHost } from "../host";
-import { OperatorApi, ApiError } from "../api-client";
+import { useState, useCallback } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { ApiError } from "../api-client";
+import { useApiMutation, useApiQuery, useResetSession } from "../api";
+import { bootstrapMutation, bootstrapStatusQuery, loginMutation } from "../api/definitions";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "../auth-constraints";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function SetupPage() {
-  const host = useHost();
   const navigate = useNavigate();
-  const [needsTemporary, setNeedsTemporary] = useState(false);
   const [temporary, setTemporary] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const bootstrap = useApiQuery(bootstrapStatusQuery());
+  const submitBootstrap = useApiMutation(bootstrapMutation);
+  const login = useApiMutation(loginMutation);
+  const resetSession = useResetSession();
+  const needsTemporary = bootstrap.data?.requires_temporary_password ?? false;
 
-  useEffect(() => {
-    const api = new OperatorApi(host);
-    api
-      .bootstrapStatus()
-      .then((status) => {
-        if (status.state === "complete") {
-          void navigate("/login", { replace: true });
-        } else {
-          setNeedsTemporary(status.requires_temporary_password);
-        }
-        return undefined;
-      })
-      .catch(() => setError("Cannot reach the Operator server."));
-  }, [host, navigate]);
+  const displayError = error ?? (bootstrap.error ? "Cannot reach the Operator server." : null);
 
   const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
   const mismatch = confirm.length > 0 && password !== confirm;
@@ -45,15 +35,13 @@ export function SetupPage() {
     async (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
       setError(null);
-      setBusy(true);
       try {
-        const api = new OperatorApi(host);
-        const result = await api.bootstrap({
+        const result = await submitBootstrap.mutateAsync({
           temporary_password: needsTemporary ? temporary : null,
           new_password: password,
         });
-        // Bootstrap creates the account but does not sign you in.
-        await api.login(result.username, password);
+        await login.mutateAsync({ username: result.username, password });
+        resetSession();
         void navigate("/onboarding", { replace: true });
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) {
@@ -65,18 +53,32 @@ export function SetupPage() {
         } else {
           setError(e instanceof ApiError ? e.message : "Setup failed.");
         }
-      } finally {
-        setBusy(false);
       }
     },
-    [host, needsTemporary, temporary, password, navigate],
+    [needsTemporary, temporary, password, navigate, submitBootstrap, login, resetSession],
   );
+
+  if (bootstrap.data?.state === "complete") {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (bootstrap.isLoading) {
+    return <AuthCard title="Set up Operator">Checking server status…</AuthCard>;
+  }
+
+  if (bootstrap.error) {
+    return (
+      <AuthCard title="Set up Operator" error={bootstrap.error.message}>
+        The Operator server status could not be loaded. Check the server and reload this page.
+      </AuthCard>
+    );
+  }
 
   return (
     <AuthCard
       title="Set up Operator"
       subtitle="Choose the admin password for this workspace. Operator has a single human account."
-      error={error}
+      error={displayError}
       notice={
         needsTemporary
           ? "This server was started with a bootstrap secret. Enter it to claim the admin account."
@@ -84,7 +86,11 @@ export function SetupPage() {
       }
       onSubmit={submit}
       actions={
-        <AuthSubmit busy={busy} busyLabel="Creating…" disabled={!ready}>
+        <AuthSubmit
+          busy={submitBootstrap.isPending || login.isPending}
+          busyLabel="Creating…"
+          disabled={!ready}
+        >
           Create admin account
         </AuthSubmit>
       }

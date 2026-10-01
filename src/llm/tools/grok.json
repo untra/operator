@@ -1,0 +1,24 @@
+{
+  "$schema": "tool_config.schema.json",
+  "tool_name": "grok",
+  "display_name": "Grok",
+  "version_command": "grok --version",
+  "capabilities": {
+    "supports_sessions": true,
+    "supports_headless": true,
+    "supports_config_override": true,
+    "supports_permission_mode": false
+  },
+  "model_aliases": ["grok-4"],
+  "arg_mapping": {
+    "prompt": "",
+    "model": "-m",
+    "session_id": "--session-id"
+  },
+  "command_template": "grok {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
+  "yolo_flags": ["--always-approve"],
+  "skill_directories": {
+    "global": [],
+    "project": ["AGENTS.md"]
+  }
+}

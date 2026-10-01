@@ -5,7 +5,28 @@
 
 use anyhow::Result;
 
+use crate::config::shipped_llm_tool_by_name;
+use crate::llm::tool_config::load_all_tool_configs_with;
+
 use super::{format_header, DocGenerator};
+
+fn supported_tools_table() -> String {
+    let mut table = String::from(
+        "| Tool | Binary | Catalog slug | Models |\n|------|--------|--------------|--------|\n",
+    );
+    for config in load_all_tool_configs_with(None) {
+        let slug = shipped_llm_tool_by_name(&config.tool_name)
+            .map(|tool| tool.catalog_slug)
+            .unwrap_or(config.tool_name.as_str());
+        let models = config.model_aliases.join(", ");
+        table.push_str(&format!(
+            "| {} | `{}` | `{slug}` | {models} |\n",
+            config.display_name(),
+            config.tool_name
+        ));
+    }
+    table
+}
 
 /// Generator for LLM tools documentation
 pub struct LlmToolsDocGenerator;
@@ -24,21 +45,22 @@ impl DocGenerator for LlmToolsDocGenerator {
     }
 
     fn generate(&self) -> Result<String> {
-        let mut content = format_header("LLM Tools Configuration", self.source());
+        let mut content = format_header("LLM Tools", self.source());
 
         content.push_str(
-            r#"# LLM Tools Configuration
+            r#"# LLM Tools
 
-Operator supports multiple LLM CLI tools through a plugin-like configuration system. Each tool is defined by a JSON configuration file that tells Operator how to detect, invoke, and manage the tool.
+Operator supports multiple LLM CLI tools through a plugin-like configuration system.
+Each tool is defined by a JSON configuration file that tells Operator how to detect, invoke, and manage the tool.
+An LLM tool is the **agentic CLI** (the process Operator launches). It is not the model provider: a delegator pairs a tool with a model server. `health_ok` means the binary is present on **this host**.
 
 ## Supported Tools
 
-| Tool | Binary | Display Name | Models |
-|------|--------|--------------|--------|
-| Claude Code | `claude` | Claude Code | opus, sonnet, haiku |
-| Google Gemini | `gemini` | Google Gemini | pro, flash, ultra |
-| OpenAI Codex | `codex` | OpenAI Codex | gpt-4o, o1, o3 |
-
+"#,
+        );
+        content.push_str(&supported_tools_table());
+        content.push_str(
+            r#"
 ## Adding a New Tool
 
 To add support for a new LLM CLI tool, drop a JSON configuration file into your
@@ -67,8 +89,8 @@ user tool-config directory - no rebuild required:
 }
 ```
 
-Configs are loaded fresh on every startup. A user config whose `tool_name` matches a builtin (claude, gemini, codex) **fully replaces** that builtin - it
-is not merged field-by-field. Malformed files are skipped with a logged warning. Runtime-loaded tools work everywhere the builtins do, including
+Configs are loaded fresh on every startup. A user config whose `tool_name` matches a builtin (claude, gemini, codex) **fully replaces** that builtin.
+Malformed files are skipped with a logged warning. Runtime-loaded tools work everywhere the builtins do, including
 remote (SSH) launches, where the tool's presence on the remote host is verified by a `command -v` preflight.
 
 > **Security note:** `command_template` is arbitrary shell executed at launch.
@@ -76,9 +98,9 @@ remote (SSH) launches, where the tool's presence on the remote host is verified 
 > never from repository-local paths - so a cloned repo cannot inject a tool
 > config.
 
-New *builtin* tools (shipped with Operator) are instead added as embedded JSONs
-in `src/llm/tools/` and registered in the `BUILTIN_TOOL_CONFIGS` list in
-`src/llm/tool_config.rs`.
+New *builtin* tools (shipped with Operator) are added as embedded JSONs in
+`src/llm/tools/`, registered in `BUILTIN_TOOL_CONFIGS`, and given a row in
+`shipped_llm_tools()` (catalog slug, binary, implicit model server, marker).
 
 ## Detection Modes
 
@@ -105,8 +127,7 @@ Health is **earned, never assumed**, and re-verified on every startup:
 
 An unhealthy tool stays listed in the detected tools (so you can see it and why),
 but launching a local agent with it fails until it is healthy again. Remote (SSH)
-launches are unaffected - they are gated by their own `command -v` preflight on
-the remote host. An `always`-mode tool should therefore define a `health_command`
+launches are unaffected. An `always`-mode tool should therefore define a `health_command`
 that proves reachability, e.g. `ssh gpu-vm command -v agy`.
 
 ## Configuration Schema
@@ -226,10 +247,9 @@ On every startup, Operator:
 
 Already-detected tools keep their cached `path`/`version` across restarts (no
 version re-probing); config-sourced fields like the command template and model
-aliases are re-derived from the loaded configs each startup. Health is never
-carried over from a previous run - presence and the `health_command` are
-re-checked every startup, so an uninstalled binary or a newly failing health
-command demotes the tool on the next launch of Operator.
+aliases are re-derived from the loaded configs each startup.
+
+Presence and the `health_command` are re-checked every startup, so an uninstalled binary or a newly failing health command demotes the tool on the next launch of Operator.
 
 ## Troubleshooting
 
@@ -277,9 +297,10 @@ mod tests {
     fn test_llm_tools_generator_content() {
         let gen = LlmToolsDocGenerator;
         let content = gen.generate().unwrap();
-        assert!(content.contains("LLM Tools Configuration"));
+        assert!(content.contains("# LLM Tools"));
         assert!(content.contains("Claude Code"));
         assert!(content.contains("tool_name"));
         assert!(content.contains("yolo_flags"));
+        assert!(content.contains("health_ok"));
     }
 }

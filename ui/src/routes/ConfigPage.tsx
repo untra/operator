@@ -1,40 +1,32 @@
-import { useEffect, useState } from "react";
-import { OperatorApi } from "../api-client";
-import type { StatusResponse, CollectionResponse, ProjectSummary } from "../api-client";
-import { useHost } from "../host";
+import { useApiMutation, useApiQuery } from "../api";
+import {
+  activateCollectionMutation,
+  collectionsQuery,
+  projectsQuery,
+  statusQuery,
+} from "../api/definitions";
 import { CONCEPTS } from "../concepts";
 import { PageHeader } from "../components/PageHeader";
+import { ProfileSelector } from "../profiles-context";
 import styles from "./ConfigPage.module.css";
 
 const CONFIG = CONCEPTS.config;
 
 export function ConfigPage() {
-  const host = useHost();
-  const [api] = useState(() => new OperatorApi(host));
-  const [status, setStatus] = useState<StatusResponse | null>(null);
-  const [collections, setCollections] = useState<CollectionResponse[]>([]);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const status = useApiQuery(statusQuery());
+  const collections = useApiQuery(collectionsQuery());
+  const projects = useApiQuery(projectsQuery());
+  const activate = useApiMutation(activateCollectionMutation);
+  const loading = status.isLoading || collections.isLoading || projects.isLoading;
+  const error =
+    status.error?.message ??
+    collections.error?.message ??
+    projects.error?.message ??
+    activate.error?.message ??
+    null;
 
-  useEffect(() => {
-    Promise.all([
-      api.status().then(setStatus),
-      api.listCollections().then(setCollections),
-      api.listProjects().then(setProjects),
-    ])
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [api]);
-
-  const handleActivateCollection = async (name: string) => {
-    try {
-      await api.activateCollection(name);
-      const updated = await api.listCollections();
-      setCollections(updated);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to activate collection");
-    }
+  const handleActivateCollection = (name: string) => {
+    activate.mutate({ name });
   };
 
   if (loading) {
@@ -52,29 +44,34 @@ export function ConfigPage() {
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {status && (
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Configurations</h2>
+        <ProfileSelector />
+      </section>
+
+      {status.data && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Status</h2>
           <div className={styles.kvGrid}>
             <span className={styles.label}>Version</span>
-            <span>{status.version}</span>
+            <span>{status.data.version}</span>
             <span className={styles.label}>Issue Types</span>
-            <span>{status.issuetype_count}</span>
+            <span>{status.data.issuetype_count}</span>
             <span className={styles.label}>Collections</span>
-            <span>{status.collection_count}</span>
+            <span>{status.data.collection_count}</span>
             <span className={styles.label}>Active Collection</span>
-            <span>{status.active_collection}</span>
+            <span>{status.data.active_collection}</span>
           </div>
         </section>
       )}
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Collections</h2>
-        {collections.length === 0 ? (
+        {(collections.data ?? []).length === 0 ? (
           <p className={styles.empty}>No collections configured.</p>
         ) : (
           <div className={styles.collectionList}>
-            {collections.map((c) => (
+            {(collections.data ?? []).map((c) => (
               <div
                 key={c.name}
                 className={`${styles.collectionCard} ${c.is_active ? styles.activeCollection : ""}`}
@@ -107,8 +104,8 @@ export function ConfigPage() {
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Projects ({projects.length})</h2>
-        {projects.length === 0 ? (
+        <h2 className={styles.sectionTitle}>Projects ({(projects.data ?? []).length})</h2>
+        {(projects.data ?? []).length === 0 ? (
           <p className={styles.empty}>No projects discovered.</p>
         ) : (
           <table className={styles.table}>
@@ -121,7 +118,7 @@ export function ConfigPage() {
               </tr>
             </thead>
             <tbody>
-              {projects.map((p) => (
+              {(projects.data ?? []).map((p) => (
                 <tr key={p.project_name}>
                   <td>{p.project_name}</td>
                   <td>{p.kind ?? "-"}</td>

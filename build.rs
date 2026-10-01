@@ -51,26 +51,26 @@ fn walk_dir_size(dir: &Path) -> u64 {
     total
 }
 
-/// A release build must carry the Premium verification keys.
+/// A release build must carry the Premium root keyring.
 ///
-/// `src/licensing.rs` reads them with `option_env!`, so they are baked in at
-/// compile time. Without them every licence is rejected as "unknown license
-/// signing key" - the right default for a source build, and a silent, total
-/// Premium outage if it ever reaches a release artifact.
+/// `src/licensing.rs` reads it with `option_env!`, so it is baked in at
+/// compile time. Without it every licence is rejected as an untrusted root -
+/// the right default for a source build, and a silent, total Premium outage
+/// if it ever reaches a release artifact.
 fn check_license_keys() {
     println!("cargo:rerun-if-env-changed=OPERATOR_RELEASE");
-    println!("cargo:rerun-if-env-changed=OPERATOR_LICENSE_PUBLIC_KEYS");
+    println!("cargo:rerun-if-env-changed=OPERATOR_LICENSE_ROOT_KEYS");
     println!("cargo:rerun-if-env-changed=OPERATOR_LICENSE_ISSUER");
     println!("cargo:rerun-if-env-changed=OPERATOR_PURCHASE_URL");
 
     if std::env::var("OPERATOR_RELEASE").as_deref() != Ok("1") {
         return;
     }
-    let keys = std::env::var("OPERATOR_LICENSE_PUBLIC_KEYS").unwrap_or_default();
+    let keys = std::env::var("OPERATOR_LICENSE_ROOT_KEYS").unwrap_or_default();
     let keys = keys.trim();
     assert!(
         !(keys.is_empty() || keys == "{}"),
-        "OPERATOR_RELEASE=1 but OPERATOR_LICENSE_PUBLIC_KEYS is unset or empty - \
+        "OPERATOR_RELEASE=1 but OPERATOR_LICENSE_ROOT_KEYS is unset or empty - \
          this build would reject every Premium licence"
     );
 }

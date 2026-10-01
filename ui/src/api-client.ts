@@ -156,11 +156,11 @@ export class ApiError extends Error {
   constructor(
     status: number,
     message: string,
-    details?: { code?: string; feature?: string; required_tier?: string },
+    details?: { error?: string; feature?: string; required_tier?: string },
   ) {
     super(message);
     this.status = status;
-    this.code = details?.code;
+    this.code = details?.error;
     this.feature = details?.feature;
     this.requiredTier = details?.required_tier;
   }
@@ -174,17 +174,35 @@ export class ApiError extends Error {
  * - `credentials: 'same-origin'` so the session cookie is actually sent. The
  *   cookie is `HttpOnly`, so script cannot read or attach it by hand.
  * - The CSRF header on mutations. The cookie rides along automatically, so a
- *   mutation needs proof the request was intended.
+ *   mutation needs proof the request was intended. The token is fetched lazily
+ *   (a page reload leaves none in memory) and a rejected one is refreshed and
+ *   retried exactly once.
  * - A `401` handler that redirects to login (or setup, on a server with no
  *   admin account yet) instead of surfacing an error the user cannot act on.
  */
 const CSRF_HEADER = "x-operator-csrf";
+const CSRF_PATH = "/api/v1/auth/csrf";
+const CSRF_FAILED = "csrf_failed";
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_FORBIDDEN = 403;
+
+/** Public mutations: no session exists yet, so there is no CSRF token to fetch. */
+const SESSIONLESS_MUTATION_PATHS: ReadonlySet<string> = new Set([
+  "/api/v1/auth/bootstrap",
+  "/api/v1/auth/login",
+  "/api/v1/auth/forgot-password",
+  "/api/v1/auth/reset-password",
+]);
 
 /** In-memory only: a CSRF token in localStorage outlives the session it belongs to. */
 let csrfToken: string | null = null;
 
+/** The one in-flight token fetch, shared so concurrent mutations issue a single request. */
+let csrfRefresh: Promise<string> | null = null;
+
 export function setCsrfToken(token: string | null): void {
   csrfToken = token;
+  csrfRefresh = null;
 }
 
 export function getCsrfToken(): string | null {
@@ -229,12 +247,59 @@ export function toJson(value: unknown): string {
   return JSON.stringify(value, (_key, v) => (typeof v === "bigint" ? Number(v) : (v as unknown)));
 }
 
-function authInit(init?: RequestInit): RequestInit {
+function authInit(init: RequestInit | undefined, csrf: string | null): RequestInit {
   const headers = new Headers(init?.headers);
-  if (isMutation(init?.method) && csrfToken) {
-    headers.set(CSRF_HEADER, csrfToken);
+  if (csrf) {
+    headers.set(CSRF_HEADER, csrf);
   }
   return { ...init, headers, credentials: "same-origin" };
+}
+
+/**
+ * The current token, fetching one if none is held.
+ *
+ * Deliberately not tied to any caller's abort signal: the fetch is shared, so
+ * one caller aborting must not fail the others waiting on it.
+ */
+function ensureCsrf(origin: string): Promise<string> {
+  if (csrfToken) {
+    return Promise.resolve(csrfToken);
+  }
+  if (!csrfRefresh) {
+    const refresh: Promise<string> = request<CsrfTokenResponse>(origin, CSRF_PATH)
+      .then(({ csrf_token }) => {
+        // A logout (or login) while this was in flight owns the token now.
+        if (csrfRefresh === refresh) {
+          csrfToken = csrf_token;
+        }
+        return csrf_token;
+      })
+      .finally(() => {
+        if (csrfRefresh === refresh) {
+          csrfRefresh = null;
+        }
+      });
+    csrfRefresh = refresh;
+  }
+  return csrfRefresh;
+}
+
+/** Drop `rejected` unless another request already replaced it. */
+function discardCsrf(rejected: string): void {
+  if (csrfToken === rejected) {
+    csrfToken = null;
+  }
+}
+
+async function isCsrfRejection(res: Response): Promise<boolean> {
+  if (res.status !== HTTP_FORBIDDEN) {
+    return false;
+  }
+  const body = (await res
+    .clone()
+    .json()
+    .catch(() => null)) as { error?: string } | null;
+  return body?.error === CSRF_FAILED;
 }
 
 type ApiConnection = { origin: string; profileId?: string; signal?: AbortSignal };
@@ -257,13 +322,27 @@ async function send(
     path,
     typeof connection === "string" ? undefined : connection.profileId,
   );
-  signal?.throwIfAborted();
-  const res = await fetch(
-    `${base}${scopedPath}`,
-    authInit({ ...init, signal: signal ?? init?.signal }),
-  );
-  signal?.throwIfAborted();
-  if (res.status === 401) {
+  const needsCsrf = isMutation(init?.method) && !SESSIONLESS_MUTATION_PATHS.has(path);
+
+  const attempt = async (): Promise<{ res: Response; csrf: string | null }> => {
+    signal?.throwIfAborted();
+    const csrf = needsCsrf ? await ensureCsrf(base) : null;
+    signal?.throwIfAborted();
+    const res = await fetch(
+      `${base}${scopedPath}`,
+      authInit({ ...init, signal: signal ?? init?.signal }, csrf),
+    );
+    signal?.throwIfAborted();
+    return { res, csrf };
+  };
+
+  const first = await attempt();
+  let res = first.res;
+  if (first.csrf && (await isCsrfRejection(res))) {
+    discardCsrf(first.csrf);
+    res = (await attempt()).res;
+  }
+  if (res.status === HTTP_UNAUTHORIZED) {
     await redirectToAuth(base);
   }
   if (!res.ok) {
@@ -416,13 +495,6 @@ export class OperatorApi {
 
   currentSession(): Promise<CurrentSessionResponse> {
     return request(this.base, "/api/v1/auth/session");
-  }
-
-  /** Re-issue a CSRF token, e.g. after a page reload where the cookie survived. */
-  async refreshCsrf(): Promise<string> {
-    const res = await request<CsrfTokenResponse>(this.base, "/api/v1/auth/csrf");
-    setCsrfToken(res.csrf_token);
-    return res.csrf_token;
   }
 
   listSessions(): Promise<SessionListResponse> {

@@ -1,16 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import type { SetupStatusResponse } from "../../api-client";
-import { ApiError, OperatorApi } from "../../api-client";
-import { useHost } from "../../host";
-import { STEP_COMPONENTS, visibleSteps } from "./steps";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { ApiError, type SetupStepResponse } from "../../api-client";
+import { useApiMutation, useApiQuery } from "../../api";
+import {
+  initializeSetupMutation,
+  integrationsQuery,
+  licenseQuery,
+  renameProfileMutation,
+  setupCollectionsQuery,
+  setupStatusQuery,
+  setupStepsQuery,
+} from "../../api/definitions";
+import { STEP_COMPONENTS, stepRows, visibleSteps } from "./steps";
 import type { SetupStep } from "@operator/bindings/SetupStep";
-import type { WizardDraft } from "./types";
+import type { StepRow, WizardDraft } from "./types";
 import { useProfiles } from "../../profiles-context";
 import styles from "./OnboardingPage.module.css";
 
 const WIZARD_DRAFT_VERSION = 1;
 const WIZARD_DRAFT_PREFIX = "operator.onboarding-draft";
+const EMPTY_STEPS: SetupStepResponse[] = [];
+
+type SavedDraft = {
+  version?: number;
+  draft?: Partial<WizardDraft>;
+  currentSlug?: SetupStep;
+};
 
 function emptyDraft(configurationName: string, acceptanceCriteria = ""): WizardDraft {
   return {
@@ -33,174 +48,135 @@ function draftStorageKey(profileId: string): string {
   return `${WIZARD_DRAFT_PREFIX}.${profileId}`;
 }
 
-export function OnboardingPage() {
-  const { selected } = useProfiles();
-  const [params] = useSearchParams();
-  return !selected || params.get("new") === "1" ? <NewConfiguration /> : <OnboardingWizard />;
-}
-
-function NewConfiguration() {
-  const { create, selected } = useProfiles();
-  const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const onCancel = () => {
-    void navigate(selected?.initialized ? "/" : "/onboarding");
-  };
+/**
+ * The one trainstop for the whole of setup. Numbered rows are the steps this
+ * draft will actually walk; a `number: null` row is an optional step the draft
+ * currently skips, shown dimmed so the numbering never shifts under the user.
+ */
+function SetupProgress({
+  rows,
+  steps,
+  currentSlug,
+}: {
+  rows: StepRow[];
+  steps: { slug: SetupStep; name: string }[];
+  currentSlug: SetupStep;
+}) {
+  const currentRow = rows.findIndex((row) => row.slug === currentSlug);
   return (
-    <main className={styles.page}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>Operator</div>
-        <p>1. Name configuration</p>
-        <p>2. Operator Premium</p>
-        <p>3. Execution mode</p>
-      </aside>
-      <section className={styles.content}>
-        <header>
-          <p>Step 1</p>
-          <h1>Welcome to Operator</h1>
-          <p>Name this configuration.</p>
-        </header>
-        <form
-          className={styles.body}
-          onSubmit={(event) => {
-            event.preventDefault();
-            setBusy(true);
-            setError(null);
-            void create(name)
-              .then(() => navigate("/onboarding?step=license", { replace: true }))
-              .catch((cause: unknown) => {
-                setError(cause instanceof Error ? cause.message : "Could not create configuration");
-                setBusy(false);
-              });
-          }}
-        >
-          <label className={styles.form}>
-            Configuration name
-            <input
-              required
-              pattern="[a-z0-9_-]+"
-              maxLength={64}
-              value={name}
-              disabled={busy}
-              onChange={(event) => setName(event.target.value)}
-            />
-            <span>Use lowercase letters, numbers, hyphens, and underscores.</span>
-          </label>
-          {error && <p role="alert">{error}</p>}
-          <button type="submit" disabled={busy}>
-            {busy ? "Creating…" : "Continue"}
-          </button>
-          {selected && (
-            <button type="button" disabled={busy} onClick={onCancel}>
-              Cancel
-            </button>
-          )}
-        </form>
-      </section>
-    </main>
+    <aside className={styles.sidebar}>
+      <div className={styles.brand}>Operator</div>
+      <ol>
+        {rows.map((row, index) => (
+          <li
+            key={row.slug}
+            className={
+              row.number === null
+                ? styles.pending
+                : index === currentRow
+                  ? styles.active
+                  : index < currentRow
+                    ? styles.complete
+                    : ""
+            }
+          >
+            <span>{row.number ?? "·"}</span>
+            <div>
+              {steps.find((step) => step.slug === row.slug)?.name ?? row.slug}
+              {row.hint && <small>{row.hint}</small>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </aside>
   );
 }
 
-function OnboardingWizard() {
-  const host = useHost();
-  const { selected, refresh } = useProfiles();
+export function OnboardingPage() {
+  const { selected, create, refresh } = useProfiles();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [api] = useState(() => new OperatorApi(host));
-  const [status, setStatus] = useState<SetupStatusResponse | null>(null);
-  const [steps, setSteps] = useState<Awaited<ReturnType<typeof api.setupSteps>>>([]);
-  const [integrations, setIntegrations] = useState<Awaited<ReturnType<typeof api.integrations>>>(
-    [],
-  );
-  const [collections, setCollections] = useState<Awaited<ReturnType<typeof api.setupCollections>>>(
-    [],
-  );
-  const [draft, setDraft] = useState<WizardDraft>(() => emptyDraft(selected?.name ?? ""));
-  const [currentSlug, setCurrentSlug] = useState<SetupStep>(
-    params.get("step") === "license" ? "license" : "welcome",
-  );
+  const statusQuery = useApiQuery(setupStatusQuery());
+  const stepsQuery = useApiQuery(setupStepsQuery());
+  const integrationsQueryResult = useApiQuery(integrationsQuery());
+  const collectionsQueryResult = useApiQuery(setupCollectionsQuery());
+  const license = useApiQuery(licenseQuery(), { enabled: false });
+  const rename = useApiMutation(renameProfileMutation);
+  const initialize = useApiMutation(initializeSetupMutation);
+  const [creating] = useState(() => !selected || params.get("new") === "1");
+  const [initialStepParam] = useState(() => params.get("step"));
+  const [draft, setDraft] = useState<WizardDraft>(() => emptyDraft(""));
+  const [currentSlug, setCurrentSlug] = useState<SetupStep>("welcome");
   const [exports, setExports] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [creatingBusy, setCreatingBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  const status = statusQuery.data;
+  const steps = stepsQuery.data ?? EMPTY_STEPS;
+  const integrations = integrationsQueryResult.data ?? [];
+  const collections = collectionsQueryResult.data ?? [];
+  const busy = creatingBusy || rename.isPending || initialize.isPending;
+  const nextStatus = statusQuery.data;
+  const nextSteps = stepsQuery.data;
+
+  if (!hydrated && nextStatus && nextSteps && !(nextStatus.initialized && !creating)) {
+    const initial = emptyDraft(
+      creating ? "" : (selected?.name ?? ""),
+      nextStatus.default_acceptance_criteria,
+    );
+    const known = new Set(nextSteps.map((step) => step.slug));
+    let saved: SavedDraft | null = null;
+    if (selected && !creating) {
+      try {
+        saved = JSON.parse(
+          sessionStorage.getItem(draftStorageKey(selected.id)) ?? "null",
+        ) as SavedDraft | null;
+      } catch {
+        sessionStorage.removeItem(draftStorageKey(selected.id));
+      }
+    }
+    setHydrated(true);
+    setDraft(
+      saved?.version === WIZARD_DRAFT_VERSION && saved.draft
+        ? { ...initial, ...saved.draft }
+        : initial,
+    );
+    const fromUrl = initialStepParam as SetupStep | null;
+    setCurrentSlug(
+      fromUrl && known.has(fromUrl)
+        ? fromUrl
+        : saved?.currentSlug && known.has(saved.currentSlug)
+          ? saved.currentSlug
+          : "welcome",
+    );
+  }
 
   useEffect(() => {
-    let active = true;
-    Promise.all([
-      api.refreshCsrf(),
-      api.setupStatus(),
-      api.setupSteps(),
-      api.integrations(),
-      api.setupCollections(),
-    ])
-      .then(([, nextStatus, nextSteps, nextIntegrations, nextCollections]) => {
-        if (!active) {
-          return undefined;
-        }
-        if (nextStatus.initialized) {
-          void navigate("/", { replace: true });
-          return undefined;
-        }
-        setStatus(nextStatus);
-        setSteps(nextSteps);
-        setIntegrations(nextIntegrations);
-        setCollections(nextCollections);
-        const initial = emptyDraft(selected?.name ?? "", nextStatus.default_acceptance_criteria);
-        if (selected) {
-          try {
-            const saved = JSON.parse(
-              sessionStorage.getItem(draftStorageKey(selected.id)) ?? "null",
-            ) as {
-              version?: number;
-              draft?: Partial<WizardDraft>;
-              currentSlug?: SetupStep;
-            } | null;
-            if (saved?.version === WIZARD_DRAFT_VERSION && saved.draft) {
-              setDraft({ ...initial, ...saved.draft });
-              if (saved.currentSlug) {
-                setCurrentSlug(saved.currentSlug);
-              }
-            } else {
-              setDraft(initial);
-            }
-          } catch {
-            sessionStorage.removeItem(draftStorageKey(selected.id));
-            setDraft(initial);
-          }
-        } else {
-          setDraft(initial);
-        }
-        return undefined;
-      })
-      .catch(
-        (cause: unknown) =>
-          active && setError(cause instanceof Error ? cause.message : "Could not load setup"),
-      );
-    return () => {
-      active = false;
-    };
-  }, [api, navigate, selected]);
+    if (!status || (status.initialized && !creating)) {
+      return;
+    }
+    void navigate(`/onboarding?step=${currentSlug}`, { replace: true });
+  }, [creating, currentSlug, navigate, status]);
 
   useEffect(() => {
-    if (!selected || !status || status.initialized) {
+    if (!selected || !status || status.initialized || creating) {
       return;
     }
     sessionStorage.setItem(
       draftStorageKey(selected.id),
       JSON.stringify({ version: WIZARD_DRAFT_VERSION, draft, currentSlug }),
     );
-  }, [currentSlug, draft, selected, status]);
+  }, [creating, currentSlug, draft, selected, status]);
 
-  const walk = useMemo(
-    () =>
-      visibleSteps(
-        steps.map((step) => step.slug),
-        draft,
-      ),
-    [draft, steps],
-  );
+  const slugs = useMemo(() => steps.map((step) => step.slug), [steps]);
+  const walk = useMemo(() => visibleSteps(slugs, draft), [draft, slugs]);
+  const rows = useMemo(() => stepRows(slugs, draft), [draft, slugs]);
+  if (walk.length > 0 && !walk.includes(currentSlug)) {
+    setCurrentSlug(walk[0]);
+  }
   const currentIndex = Math.max(0, walk.indexOf(currentSlug));
+
   const current = steps.find((step) => step.slug === walk[currentIndex]);
   const Step = current ? STEP_COMPONENTS[current.slug] : null;
 
@@ -213,32 +189,63 @@ function OnboardingWizard() {
     [setExports],
   );
 
+  /**
+   * Create the configuration the welcome step just named, hand the draft over
+   * under its id, and point the URL at the next step. `create` selects the new
+   * profile, which remounts this wizard through `ProfileScope`; both writes
+   * have to land before that commit for the handoff to survive.
+   */
+  async function createConfiguration(nextSlug: SetupStep): Promise<boolean> {
+    setCreatingBusy(true);
+    try {
+      const profile = await create(draft.configurationName);
+      sessionStorage.setItem(
+        draftStorageKey(profile.id),
+        JSON.stringify({
+          version: WIZARD_DRAFT_VERSION,
+          draft: { ...draft, configurationName: profile.name },
+          currentSlug: nextSlug,
+        }),
+      );
+      void navigate(`/onboarding?step=${nextSlug}`, { replace: true });
+      return true;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not create configuration");
+      return false;
+    } finally {
+      setCreatingBusy(false);
+    }
+  }
+
   async function next() {
     if (!current) {
       return;
     }
+    const nextSlug = walk[Math.min(currentIndex + 1, walk.length - 1)];
     if (current.slug === "welcome") {
       if (!/^[a-z0-9_-]{1,64}$/.test(draft.configurationName)) {
         setError("Use 1-64 lowercase letters, numbers, hyphens, or underscores.");
         return;
       }
+      if (creating) {
+        setError(null);
+        await createConfiguration(nextSlug);
+        return;
+      }
       if (selected && selected.name !== draft.configurationName) {
-        setBusy(true);
         try {
-          await api.renameProfile(selected.id, draft.configurationName);
+          await rename.mutateAsync({ id: selected.id, name: draft.configurationName });
           await refresh();
         } catch (cause) {
           setError(cause instanceof Error ? cause.message : "Could not rename configuration");
           return;
-        } finally {
-          setBusy(false);
         }
       }
     }
     if (current.slug === "execution-mode" && draft.executionMode === "remote") {
       try {
-        const license = await api.license();
-        if (!license.premium) {
+        const licenseValue = await license.refetch();
+        if (!licenseValue.premium) {
           setError("A valid Premium license is required for remote targets.");
           return;
         }
@@ -271,11 +278,10 @@ function OnboardingWizard() {
       }
     }
     setError(null);
-    setCurrentSlug(walk[Math.min(currentIndex + 1, walk.length - 1)]);
+    setCurrentSlug(nextSlug);
   }
 
-  async function initialize() {
-    setBusy(true);
+  async function onInitialize() {
     setError(null);
     try {
       const executionTarget: WizardDraft["executionTarget"] =
@@ -287,7 +293,7 @@ function OnboardingWizard() {
               ),
             }
           : draft.executionTarget;
-      await api.initializeSetup({
+      await initialize.mutateAsync({
         preset: draft.preset,
         task_fields: draft.taskFields,
         wrapper: draft.wrapper,
@@ -316,8 +322,6 @@ function OnboardingWizard() {
             ? cause.message
             : "Initialization failed",
       );
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -325,35 +329,26 @@ function OnboardingWizard() {
     void next();
   };
 
+  const loadError =
+    statusQuery.error?.message ??
+    stepsQuery.error?.message ??
+    integrationsQueryResult.error?.message ??
+    collectionsQueryResult.error?.message ??
+    null;
+
+  if (statusQuery.data?.initialized && !creating) {
+    return <Navigate to="/" replace />;
+  }
+
   if (!status || !current || !Step) {
-    return <main className={styles.loading}>{error ?? "Loading workspace setup…"}</main>;
+    return (
+      <main className={styles.loading}>{error ?? loadError ?? "Loading workspace setup…"}</main>
+    );
   }
 
   return (
     <main className={styles.page}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>Operator</div>
-        <ol>
-          {walk.map((slug, index) => {
-            const metadata = steps.find((step) => step.slug === slug);
-            return (
-              <li
-                key={slug}
-                className={
-                  index === currentIndex
-                    ? styles.active
-                    : index < currentIndex
-                      ? styles.complete
-                      : ""
-                }
-              >
-                <span>{index + 1}</span>
-                {metadata?.name ?? slug}
-              </li>
-            );
-          })}
-        </ol>
-      </aside>
+      <SetupProgress rows={rows} steps={steps} currentSlug={currentSlug} />
       <section className={styles.content}>
         <header>
           <p>
@@ -365,10 +360,10 @@ function OnboardingWizard() {
         {error && <div className={styles.error}>{error}</div>}
         <div className={styles.body}>
           <Step
-            api={api}
             status={status}
             integrations={integrations}
             collections={collections}
+            creating={creating}
             draft={draft}
             setDraft={setDraft}
             exports={exports}
@@ -387,7 +382,7 @@ function OnboardingWizard() {
             Back
           </button>
           {currentIndex === walk.length - 1 ? (
-            <button type="button" className={styles.primary} disabled={busy} onClick={initialize}>
+            <button type="button" className={styles.primary} disabled={busy} onClick={onInitialize}>
               {busy ? "Initializing…" : "Initialize workspace"}
             </button>
           ) : (

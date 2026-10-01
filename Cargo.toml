@@ -75,7 +75,12 @@ sysinfo = "0.39"
 sha2 = "0.11"
 
 # HTTP client for API calls
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "blocking"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "blocking", "query", "charset", "http2", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+
+# Native (in-daemon) LLM calls via Rig; isolated in src/llm/native/rig/.
+# re-enable together with the `native-llm` feature below once further Rig capabilities
+# rig-core = { version = "=0.42.0", default-features = false, optional = true }
 
 # Async traits
 async-trait = "0.1"
@@ -114,14 +119,18 @@ utoipa-axum = "0.2"
 [features]
 default = ["embed-ui"]
 embed-ui = ["dep:rust-embed", "dep:mime_guess"]
+# native-llm = ["dep:rig-core"]
 
 [dev-dependencies]
 operator-relay = { path = "crates/relay" }
+tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
 flate2 = "1"
 
 [lints.rust]
 unsafe_code = "deny"
+# `native-llm` is paused (see rig-core above); its cfg gates stay in the source.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("native-llm"))'] }
 
 [lints.clippy]
 all = { level = "warn", priority = -2 }
@@ -168,7 +177,7 @@ unnecessary_wraps = "allow"
 unused_async = "allow"
 # Doc links with quotes are fine
 doc_link_with_quotes = "allow"
-# Allow cast_possible_wrap for u64→i64 in timestamps
+# Allow cast_possible_wrap for u64->i64 in timestamps
 cast_possible_wrap = "allow"
 # Match arms kept separate for readability in TUI event handlers
 match_same_arms = "allow"

@@ -3,16 +3,23 @@
 // one's connection state (a live /models probe), and lets you create a delegator
 // by picking a connected provider + one of its live models.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { OperatorApi } from "../api-client";
+import { useCallback, useMemo, useState } from "react";
 import type {
   ModelServerKindEntry,
   ModelServerModelsResponse,
-  LlmToolsResponse,
   DelegatorResponse,
 } from "../api-client";
 import type { GitExecutionConfig } from "@operator/bindings/GitExecutionConfig";
-import { useHost } from "../host";
+import { useApiMutation, useApiQuery } from "../api";
+import {
+  createDelegatorMutation,
+  createModelServerMutation,
+  delegatorsQuery,
+  llmToolsQuery,
+  providerKindsQuery,
+  providerModelsQuery,
+  updateDelegatorMutation,
+} from "../api/definitions";
 import { CONCEPTS } from "../concepts";
 import { PageHeader } from "../components/PageHeader";
 import { BrandIcon } from "../components/BrandIcon";
@@ -20,9 +27,7 @@ import { ConceptIcon } from "../components/ConceptIcon";
 import styles from "./ModelProvidersPage.module.css";
 
 const CONCEPT = CONCEPTS["model-servers"];
-
-/** Live connection probe per provider slug. `undefined` = still loading. */
-type ProbeMap = Record<string, ModelServerModelsResponse | undefined>;
+const EMPTY_KINDS: ModelServerKindEntry[] = [];
 
 /** A detected llm tool offered in the delegator form; unhealthy ones can't launch. */
 type DetectedToolOption = { name: string; healthOk: boolean };
@@ -51,93 +56,48 @@ function serializeGitDraft(draft: GitExecutionDraft | null): GitExecutionConfig 
 }
 
 export function ModelProvidersPage() {
-  const host = useHost();
-  const [api] = useState(() => new OperatorApi(host));
-  const [kinds, setKinds] = useState<ModelServerKindEntry[]>([]);
-  const [probes, setProbes] = useState<ProbeMap>({});
-  const [detectedTools, setDetectedTools] = useState<DetectedToolOption[]>([]);
-  const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const kindsQuery = useApiQuery(providerKindsQuery());
+  const toolsQuery = useApiQuery(llmToolsQuery());
+  const delegatorsQueryResult = useApiQuery(delegatorsQuery());
+  const connect = useApiMutation(createModelServerMutation);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
-  const refreshDelegators = useCallback(() => {
-    api
-      .listDelegators()
-      .then((r) => setDelegators(r.delegators))
-      .catch(() => {
-        /* non-fatal */
-      });
-  }, [api]);
-
-  // Load the catalog + detected tools, then probe each provider for connection.
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([api.listProviderKinds(), api.listLlmTools()])
-      .then(([catalog, tools]: [ModelServerKindEntry[], LlmToolsResponse]) => {
-        if (!cancelled) {
-          setKinds(catalog);
-          setDetectedTools(tools.tools.map((t) => ({ name: t.name, healthOk: t.health_ok })));
-          // Probe each provider concurrently; fill the map as results land.
-          for (const k of catalog) {
-            api
-              .providerModels(k.slug)
-              .then((r) => !cancelled && setProbes((p) => ({ ...p, [k.slug]: r })))
-              .catch(
-                () =>
-                  !cancelled &&
-                  setProbes((p) => ({
-                    ...p,
-                    [k.slug]: {
-                      server: k.slug,
-                      reachable: false,
-                      models: [],
-                      error: "probe failed",
-                    },
-                  })),
-              );
-          }
-        }
-        return undefined;
-      })
-      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Failed to load"))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
-
-  useEffect(refreshDelegators, [refreshDelegators]);
+  const kinds = kindsQuery.data ?? EMPTY_KINDS;
+  const detectedTools: DetectedToolOption[] = (toolsQuery.data?.tools ?? []).map((t) => ({
+    name: t.name,
+    healthOk: t.health_ok,
+  }));
+  const delegators = delegatorsQueryResult.data?.delegators ?? [];
+  const loading = kindsQuery.isLoading || toolsQuery.isLoading || delegatorsQueryResult.isLoading;
 
   const connectGateway = useCallback(
-    async (kind: ModelServerKindEntry) => {
+    (kind: ModelServerKindEntry) => {
       setError(null);
-      try {
-        await api.createModelServer({
+      connect.mutate(
+        {
           name: kind.slug,
           kind: kind.slug,
           base_url: kind.default_base_url ?? null,
           api_key_env: kind.default_api_key_env ?? null,
           extra_env: {},
           display_name: kind.display_name,
-        });
-        setNotice(`Declared "${kind.slug}". Re-probing…`);
-        const r = await api.providerModels(kind.slug);
-        setProbes((p) => ({ ...p, [kind.slug]: r }));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to connect provider");
-      }
+        },
+        {
+          onSuccess: () => {
+            setNotice(`Declared "${kind.slug}". Re-probing…`);
+          },
+          onError: (cause) => {
+            setError(cause.message);
+          },
+        },
+      );
     },
-    [api],
+    [connect],
   );
 
-  const handleDelegatorCreated = useCallback(
-    (name: string) => {
-      setNotice(`Created delegator "${name}".`);
-      refreshDelegators();
-    },
-    [refreshDelegators],
-  );
+  const handleDelegatorCreated = useCallback((name: string) => {
+    setNotice(`Created delegator "${name}".`);
+  }, []);
 
   const firstParty = useMemo(() => kinds.filter((k) => k.category === "first-party"), [kinds]);
   const gateways = useMemo(() => kinds.filter((k) => k.category === "gateway"), [kinds]);
@@ -155,28 +115,34 @@ export function ModelProvidersPage() {
         icon={CONCEPT.icon}
       />
 
-      {error && <div className={styles.error}>{error}</div>}
+      {(error ??
+        kindsQuery.error?.message ??
+        toolsQuery.error?.message ??
+        delegatorsQueryResult.error?.message) && (
+        <div className={styles.error}>
+          {error ??
+            kindsQuery.error?.message ??
+            toolsQuery.error?.message ??
+            delegatorsQueryResult.error?.message}
+        </div>
+      )}
       {notice && <div className={styles.notice}>{notice}</div>}
 
       <ProviderGroup
         heading="First-party"
         blurb="Vendors that produce their own models. Set the key env to connect."
         kinds={firstParty}
-        probes={probes}
         onConnect={connectGateway}
       />
       <ProviderGroup
         heading="Gateways"
         blurb="Hosts and aggregators that front many models behind one endpoint."
         kinds={gateways}
-        probes={probes}
         onConnect={connectGateway}
       />
 
       <CreateDelegatorForm
-        api={api}
         kinds={kinds}
-        probes={probes}
         detectedTools={detectedTools}
         onCreated={handleDelegatorCreated}
         onError={setError}
@@ -195,12 +161,7 @@ export function ModelProvidersPage() {
                   {d.llm_tool}:{d.model}
                   {d.model_server ? ` @ ${d.model_server}` : ""}
                 </span>
-                <DelegatorGitEditor
-                  key={`${d.name}:${JSON.stringify(d.git)}`}
-                  api={api}
-                  delegator={d}
-                  onSaved={refreshDelegators}
-                />
+                <DelegatorGitEditor key={d.name} delegator={d} />
               </li>
             ))}
           </ul>
@@ -227,14 +188,12 @@ function ProviderGroup({
   heading,
   blurb,
   kinds,
-  probes,
   onConnect,
 }: {
   heading: string;
   blurb: string;
   kinds: ModelServerKindEntry[];
-  probes: ProbeMap;
-  onConnect: (k: ModelServerKindEntry) => Promise<void>;
+  onConnect: (k: ModelServerKindEntry) => void;
 }) {
   if (kinds.length === 0) {
     return null;
@@ -244,76 +203,85 @@ function ProviderGroup({
       <h2 className={styles.groupHeading}>{heading}</h2>
       <p className={styles.groupBlurb}>{blurb}</p>
       <ul className={styles.providerList}>
-        {kinds.map((k) => {
-          const probe = probes[k.slug];
-          const conn = connectionLabel(probe);
-          return (
-            <li key={k.slug} className={styles.providerRow}>
-              <span className={styles.providerIcon}>
-                {k.brand_icon ? <BrandIcon name={k.brand_icon} /> : <ConceptIcon name={k.icon} />}
-              </span>
-              <span className={styles.providerName}>{k.display_name}</span>
-              <span className={styles.providerDesc}>{k.description}</span>
-              <span className={`${styles.dot} ${styles[conn.state]}`} />
-              <span className={styles.connText}>{conn.text}</span>
-              {conn.state === "disconnected" && k.connectable && !k.is_builtin && (
-                <button className={styles.connectBtn} onClick={() => onConnect(k)}>
-                  Connect
-                </button>
-              )}
-              {conn.state === "disconnected" && k.default_api_key_env && (
-                <span className={styles.hint}>set {k.default_api_key_env}</span>
-              )}
-              {!k.connectable && (
-                <a className={styles.hint} href={k.setup_url} target="_blank" rel="noreferrer">
-                  needs base_url
-                </a>
-              )}
-            </li>
-          );
-        })}
+        {kinds.map((k) => (
+          <ProviderRow key={k.slug} kind={k} onConnect={onConnect} />
+        ))}
       </ul>
     </section>
   );
 }
 
+function ProviderRow({
+  kind,
+  onConnect,
+}: {
+  kind: ModelServerKindEntry;
+  onConnect: (k: ModelServerKindEntry) => void;
+}) {
+  const query = useApiQuery(providerModelsQuery(kind.slug));
+  const probe = query.error
+    ? { server: kind.slug, reachable: false, models: [], error: "probe failed" }
+    : (query.data ?? undefined);
+  const conn = connectionLabel(probe);
+  return (
+    <li className={styles.providerRow}>
+      <span className={styles.providerIcon}>
+        {kind.brand_icon ? <BrandIcon name={kind.brand_icon} /> : <ConceptIcon name={kind.icon} />}
+      </span>
+      <span className={styles.providerName}>{kind.display_name}</span>
+      <span className={styles.providerDesc}>{kind.description}</span>
+      <span className={`${styles.dot} ${styles[conn.state]}`} />
+      <span className={styles.connText}>{conn.text}</span>
+      {conn.state === "disconnected" && kind.connectable && !kind.is_builtin && (
+        <button className={styles.connectBtn} onClick={() => onConnect(kind)}>
+          Connect
+        </button>
+      )}
+      {conn.state === "disconnected" && kind.default_api_key_env && (
+        <span className={styles.hint}>set {kind.default_api_key_env}</span>
+      )}
+      {!kind.connectable && (
+        <a className={styles.hint} href={kind.setup_url} target="_blank" rel="noreferrer">
+          needs base_url
+        </a>
+      )}
+    </li>
+  );
+}
+
 function CreateDelegatorForm({
-  api,
   kinds,
-  probes,
   detectedTools,
   onCreated,
   onError,
 }: {
-  api: OperatorApi;
   kinds: ModelServerKindEntry[];
-  probes: ProbeMap;
   detectedTools: DetectedToolOption[];
   onCreated: (name: string) => void;
   onError: (msg: string) => void;
 }) {
+  const create = useApiMutation(createDelegatorMutation);
   const [tool, setTool] = useState("");
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
   const [name, setName] = useState("");
   const [git, setGit] = useState<GitExecutionDraft | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const selectedModels = useApiQuery(providerModelsQuery(provider), { enabled: Boolean(provider) });
 
   const preferredTool = detectedTools.find((candidate) => candidate.healthOk) ?? detectedTools[0];
   const selectedTool = tool || preferredTool?.name || "";
 
-  const probe = provider ? probes[provider] : undefined;
-  const liveModels = probe?.reachable ? probe.models : [];
+  const liveModels =
+    !selectedModels.error && selectedModels.data?.reachable ? selectedModels.data.models : [];
 
-  const submit = async () => {
+  const submit = () => {
     if (!selectedTool || !provider || !model) {
       onError("Pick a tool, a provider, and a model.");
       return;
     }
-    setSubmitting(true);
-    try {
-      const delegatorName = name.trim() || `${selectedTool}-${model}`;
-      await api.createDelegator({
+    const delegatorName = name.trim() || `${selectedTool}-${model}`;
+    create.mutate(
+      {
         name: delegatorName,
         llm_tool: selectedTool,
         model,
@@ -323,15 +291,18 @@ function CreateDelegatorForm({
         git: serializeGitDraft(git),
         launch_config: null,
         remote_agent: null,
-      });
-      setName("");
-      setModel("");
-      onCreated(delegatorName);
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "Failed to create delegator");
-    } finally {
-      setSubmitting(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          setName("");
+          setModel("");
+          onCreated(delegatorName);
+        },
+        onError: (cause) => {
+          onError(cause.message);
+        },
+      },
+    );
   };
 
   return (
@@ -368,15 +339,11 @@ function CreateDelegatorForm({
             className={styles.select}
           >
             <option value="">Select…</option>
-            {kinds.map((k) => {
-              const connected = probes[k.slug]?.reachable;
-              return (
-                <option key={k.slug} value={k.slug}>
-                  {k.display_name}
-                  {connected ? " ●" : " ○"}
-                </option>
-              );
-            })}
+            {kinds.map((k) => (
+              <option key={k.slug} value={k.slug}>
+                {k.display_name}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -396,8 +363,6 @@ function CreateDelegatorForm({
               ))}
             </select>
           ) : (
-            // Provider not connected (or no models) - fall back to free-text so
-            // the form still works offline / pre-auth.
             <input
               className={styles.input}
               value={model}
@@ -417,9 +382,9 @@ function CreateDelegatorForm({
           />
         </label>
 
-        <GitFields value={git} onChange={setGit} disabled={submitting} />
-        <button className={styles.submitBtn} onClick={submit} disabled={submitting}>
-          {submitting ? "Creating…" : "Create delegator"}
+        <GitFields value={git} onChange={setGit} disabled={create.isPending} />
+        <button className={styles.submitBtn} onClick={submit} disabled={create.isPending}>
+          {create.isPending ? "Creating…" : "Create delegator"}
         </button>
       </div>
     </section>
@@ -601,49 +566,46 @@ function GitFields({
   );
 }
 
-function DelegatorGitEditor({
-  api,
-  delegator,
-  onSaved,
-}: {
-  api: OperatorApi;
-  delegator: DelegatorResponse;
-  onSaved: () => void;
-}) {
+function DelegatorGitEditor({ delegator }: { delegator: DelegatorResponse }) {
+  const update = useApiMutation(updateDelegatorMutation);
   const [git, setGit] = useState<GitExecutionDraft | null>(() =>
     createGitDraft(delegator.git ?? null),
   );
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const save = async () => {
-    setBusy(true);
+  const save = () => {
     setError("");
-    try {
-      await api.updateDelegator(delegator.name, {
+    update.mutate(
+      {
         name: delegator.name,
-        llm_tool: delegator.llm_tool,
-        model: delegator.model,
-        display_name: delegator.display_name ?? null,
-        model_properties: delegator.model_properties,
-        model_server: delegator.model_server ?? null,
-        launch_config: delegator.launch_config ?? null,
-        remote_agent: delegator.remote_agent ?? null,
-        git: serializeGitDraft(git),
-      });
-      onSaved();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save Git settings");
-    } finally {
-      setBusy(false);
-    }
+        request: {
+          name: delegator.name,
+          llm_tool: delegator.llm_tool,
+          model: delegator.model,
+          display_name: delegator.display_name ?? null,
+          model_properties: delegator.model_properties,
+          model_server: delegator.model_server ?? null,
+          launch_config: delegator.launch_config ?? null,
+          remote_agent: delegator.remote_agent ?? null,
+          git: serializeGitDraft(git),
+        },
+      },
+      {
+        onSuccess: (saved) => {
+          setGit(createGitDraft(saved.git ?? null));
+        },
+        onError: (cause) => {
+          setError(cause.message);
+        },
+      },
+    );
   };
   return (
     <details>
       <summary>Git settings</summary>
-      <GitFields value={git} onChange={setGit} disabled={busy} />
+      <GitFields value={git} onChange={setGit} disabled={update.isPending} />
       {error && <p role="alert">{error}</p>}
-      <button type="button" onClick={save} disabled={busy}>
-        {busy ? "Saving…" : "Save Git settings"}
+      <button type="button" onClick={save} disabled={update.isPending}>
+        {update.isPending ? "Saving…" : "Save Git settings"}
       </button>
     </details>
   );

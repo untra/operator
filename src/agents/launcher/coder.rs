@@ -304,7 +304,7 @@ fn download_coder_cli(base_url: &str, dest: &Path) -> Result<PathBuf> {
         )
     })?;
 
-    let client = reqwest::blocking::Client::builder()
+    let client = crate::http_client::blocking_client_builder()
         .timeout(std::time::Duration::from_secs(
             CODER_CLI_DOWNLOAD_TIMEOUT_SECS,
         ))

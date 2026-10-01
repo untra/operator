@@ -96,6 +96,10 @@ pub struct Config {
     /// Agent Client Protocol (ACP) agent configuration
     #[serde(default)]
     pub acp: AcpConfig,
+    /// In-daemon LLM calls (judge). Accepted but inert until the `native-llm`
+    /// build feature ships; a configured judge falls back to the deterministic rule.
+    #[serde(default)]
+    pub native_llm: NativeLlmConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -999,6 +1003,7 @@ impl Default for Config {
             relay: RelayConfig::default(),
             mcp: McpConfig::default(),
             acp: AcpConfig::default(),
+            native_llm: NativeLlmConfig::default(),
         }
     }
 }

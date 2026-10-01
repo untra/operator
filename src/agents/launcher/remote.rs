@@ -233,6 +233,7 @@ pub(crate) fn build_remote_wrapper_script(
     local_prompt: &Path,
     local_payload: &Path,
     api_port: u16,
+    local_env: Option<&Path>,
 ) -> String {
     let alias = shell_escape(&host.ssh_alias);
     let f_flag = ssh_config_flag(host);
@@ -250,8 +251,23 @@ pub(crate) fn build_remote_wrapper_script(
         shell_escape(&format!("bash {}", shell_escape(&r_payload))),
     );
 
+    let env_ship = local_env
+        .map(|path| {
+            format!(
+                "ssh {f}{alias} {cat_env} < {local_env}\n",
+                f = f_flag,
+                alias = alias,
+                cat_env = shell_escape(&format!(
+                    "cat > {}",
+                    shell_escape(&format!("{r_payload}.env"))
+                )),
+                local_env = shell_escape(&path.display().to_string()),
+            )
+        })
+        .unwrap_or_default();
+
     format!(
-        "#!/bin/bash\nset -e\nssh {f}{alias} {mkdir}\nssh {f}{alias} {cat_prompt} < {local_prompt}\nssh {f}{alias} {cat_payload} < {local_payload}\nexec ssh -t {f}-R {port}:localhost:{port} -o ExitOnForwardFailure=yes {alias} {tmux}\n",
+        "#!/bin/bash\nset -e\nssh {f}{alias} {mkdir}\nssh {f}{alias} {cat_prompt} < {local_prompt}\nssh {f}{alias} {cat_payload} < {local_payload}\n{env_ship}exec ssh -t {f}-R {port}:localhost:{port} -o ExitOnForwardFailure=yes {alias} {tmux}\n",
         f = f_flag,
         alias = alias,
         mkdir = shell_escape(&mkdir_cmd),
@@ -349,6 +365,7 @@ pub(crate) fn launch_remote_in_session(
         Some(operator_env),
         Some(&provider_env),
     )?;
+    let secret_env = super::prompt::write_secret_env_file(&payload_file, &provider_env)?;
 
     reconcile_git_runtime(config, host);
     let runtime_pointer = payload_file.with_extension("git-runtime");
@@ -370,6 +387,7 @@ pub(crate) fn launch_remote_in_session(
         prompt_file,
         &payload_file,
         operator_env.ui_port,
+        secret_env.as_deref(),
     );
     let wrapper_file = write_remote_wrapper_file(config, session_uuid, &wrapper_content)?;
 
@@ -604,6 +622,7 @@ mod tests {
             Path::new("/local/.tickets/operator/prompts/uuid-1.txt"),
             Path::new("/local/.tickets/operator/commands/uuid-1.sh"),
             7008,
+            None,
         );
         assert!(script.starts_with("#!/bin/bash\nset -e\n"));
         // Ships both files via `cat >` before the exec line.
@@ -635,6 +654,7 @@ mod tests {
             Path::new("/l/p.txt"),
             Path::new("/l/c.sh"),
             7008,
+            None,
         );
         // The workdir must never appear unquoted (space-split) in any remote command.
         assert!(!script.contains(" /srv/agent workdir/proj/"));
@@ -652,6 +672,7 @@ mod tests {
             Path::new("/l/p.txt"),
             Path::new("/l/c.sh"),
             7008,
+            None,
         );
         assert!(
             script.contains("-F '/local/.tickets/operator/ssh/ws.config'"),

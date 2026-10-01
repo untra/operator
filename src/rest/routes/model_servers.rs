@@ -11,7 +11,7 @@ use axum::{
 };
 
 use crate::api::providers::model_server::{probe_models, ModelServerKind};
-use crate::config::{implicit_model_server_for_tool, Config, ModelServer};
+use crate::config::{implicit_model_servers, is_implicit_model_server_name, Config, ModelServer};
 use crate::rest::dto::{
     CreateModelServerRequest, ModelEntry, ModelServerKindEntry, ModelServerModelsResponse,
     ModelServerResponse, ModelServersResponse, UpdateModelServerRequest,
@@ -19,16 +19,13 @@ use crate::rest::dto::{
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 
-const IMPLICIT_TOOL_NAMES: &[&str] = &["claude", "codex", "gemini"];
-
 /// Find a server by name among user-declared servers, then implicit builtins.
 fn find_server(config: &Config, name: &str) -> Option<(ModelServer, bool)> {
     if let Some(s) = config.model_servers.iter().find(|s| s.name == name) {
         return Some((s.clone(), true));
     }
-    IMPLICIT_TOOL_NAMES
-        .iter()
-        .map(|t| implicit_model_server_for_tool(t))
+    implicit_model_servers()
+        .into_iter()
         .find(|s| s.name == name)
         .map(|s| (s, false))
 }
@@ -63,8 +60,7 @@ pub async fn list(State(state): State<ApiState>) -> Json<ModelServersResponse> {
         .map(|s| server_to_response(s, true))
         .collect();
 
-    for tool in IMPLICIT_TOOL_NAMES {
-        let implicit = implicit_model_server_for_tool(tool);
+    for implicit in implicit_model_servers() {
         if !servers.iter().any(|s| s.name == implicit.name) {
             servers.push(server_to_response(&implicit, false));
         }
@@ -95,11 +91,11 @@ pub async fn get_one(
     if let Some(server) = state.config().model_servers.iter().find(|s| s.name == name) {
         return Ok(Json(server_to_response(server, true)));
     }
-    for tool in IMPLICIT_TOOL_NAMES {
-        let implicit = implicit_model_server_for_tool(tool);
-        if implicit.name == name {
-            return Ok(Json(server_to_response(&implicit, false)));
-        }
+    if let Some(implicit) = implicit_model_servers()
+        .into_iter()
+        .find(|server| server.name == name)
+    {
+        return Ok(Json(server_to_response(&implicit, false)));
     }
     Err(ApiError::NotFound(format!(
         "Model server '{name}' not found"
@@ -122,10 +118,7 @@ pub async fn create(
     State(state): State<ApiState>,
     Json(req): Json<CreateModelServerRequest>,
 ) -> Result<Json<ModelServerResponse>, ApiError> {
-    if IMPLICIT_TOOL_NAMES
-        .iter()
-        .any(|t| implicit_model_server_for_tool(t).name == req.name)
-    {
+    if is_implicit_model_server_name(&req.name) {
         return Err(ApiError::Conflict(format!(
             "'{}' is a reserved implicit builtin name",
             req.name
@@ -182,10 +175,7 @@ pub async fn delete(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<ModelServerResponse>, ApiError> {
-    if IMPLICIT_TOOL_NAMES
-        .iter()
-        .any(|t| implicit_model_server_for_tool(t).name == name)
-    {
+    if is_implicit_model_server_name(&name) {
         return Err(ApiError::Conflict(format!(
             "'{name}' is an implicit builtin and cannot be deleted"
         )));
@@ -227,10 +217,7 @@ pub async fn update(
     Path(name): Path<String>,
     Json(req): Json<UpdateModelServerRequest>,
 ) -> Result<Json<ModelServerResponse>, ApiError> {
-    if IMPLICIT_TOOL_NAMES
-        .iter()
-        .any(|t| implicit_model_server_for_tool(t).name == name)
-    {
+    if is_implicit_model_server_name(&name) {
         return Err(ApiError::Conflict(format!(
             "'{name}' is an implicit builtin and cannot be updated"
         )));
@@ -405,8 +392,7 @@ mod tests {
         let state = ApiState::new(config, PathBuf::from("/tmp/test-ms"));
         let resp = list(State(state)).await;
 
-        // At minimum, one implicit server for each known tool.
-        assert!(resp.total >= IMPLICIT_TOOL_NAMES.len());
+        assert!(resp.total >= crate::config::shipped_llm_tools().len());
         assert!(resp.servers.iter().any(|s| s.name == "anthropic-api"));
         assert!(resp.servers.iter().any(|s| s.name == "openai-api"));
         assert!(resp.servers.iter().any(|s| s.name == "google-api"));

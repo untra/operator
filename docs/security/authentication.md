@@ -78,6 +78,10 @@ The cookie is named `__Host-operator_session` and is set `Secure`, `HttpOnly`, `
 
 Because a cookie is sent automatically, cookie-authenticated **mutations** additionally require a CSRF token and a matching `Origin`.
 
+The dashboard holds its CSRF token in memory only, so a page reload leaves it without one. It fetches a token lazily, on the first mutation that needs it, and concurrent mutations share that single fetch. If a mutation is rejected with `csrf_failed`, the dashboard fetches a fresh token and retries **once**; a second rejection surfaces as an error.
+
+Issuing a token rotates it. The server keeps exactly **one previous token** valid alongside the current one, so a reload in one tab does not break mutations from another tab still holding the old token. A second rotation retires it. Revoking or logging out a session invalidates both tokens at once.
+
 Logging out deletes the session server-side. The cookie becoming invalid is a consequence, not the mechanism, so a copied cookie dies with the session.
 
 ## Access tokens and refresh tokens

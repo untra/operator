@@ -61,6 +61,16 @@ pub enum Cmd {
     /// relay_ask, relay_reply, relay_broadcast, relay_rename) to LLM agents
     /// via the MCP stdio protocol.
     Relay,
+    /// Report LLM CLIs on this host.
+    ///
+    /// Reads a JSON array of `{name, version_command, health_command?}` from
+    /// stdin and writes a JSON array of probe results to stdout. Operator owns
+    /// the catalog; this command is only the sensor.
+    Tools {
+        /// JSON in on stdin, JSON out on stdout (required for the machine API).
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 impl Args {
@@ -104,6 +114,12 @@ mod tests {
         assert!(result.is_ok(), "relay subcommand should parse successfully");
         let args = result.unwrap();
         assert!(matches!(args.subcommand, Some(Cmd::Relay)));
+    }
+
+    #[test]
+    fn test_tools_json_subcommand_parses() {
+        let args = Args::try_parse_from(["opr8r", "tools", "--json"]).unwrap();
+        assert!(matches!(args.subcommand, Some(Cmd::Tools { json: true })));
     }
 
     #[test]

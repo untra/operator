@@ -77,8 +77,7 @@ fn build_llm_command_impl(
         );
     }
 
-    // Build model flag based on tool's arg_mapping
-    let model_flag = format!("--model {model} ");
+    let model_flag = model_flag_for(tool_name, model);
 
     // Generate config flags from permissions
     let config_flags = if let (Some(ticket), Some(project_path)) = (ticket, project_path) {
@@ -692,6 +691,22 @@ fn locate_relay_command() -> Option<(PathBuf, Vec<String>)> {
     None
 }
 
+/// Build `{{model_flag}}` from the tool config's `arg_mapping.model`.
+///
+/// Falls back to `--model` only when the tool has no config (or an empty mapping),
+/// so a cached DetectedTool without a JSON still produces a usable command.
+fn model_flag_for(tool_name: &str, model: &str) -> String {
+    let flag = crate::llm::tool_config::load_all_tool_configs()
+        .into_iter()
+        .find(|config| config.tool_name == tool_name)
+        .map(|config| config.arg_mapping.model)
+        .filter(|flag| !flag.is_empty());
+    match flag.as_deref() {
+        Some(flag) => format!("{flag} {model} "),
+        None => format!("--model {model} "),
+    }
+}
+
 /// Get the detected tool for a given provider
 fn get_detected_tool<'a>(config: &'a Config, tool_name: &str) -> Option<&'a DetectedTool> {
     config
@@ -1297,6 +1312,82 @@ mod tests {
             "Live verification should override a stale health_ok, got: {:?}",
             result.err()
         );
+    }
+
+    #[test]
+    fn test_build_llm_command_uses_tool_arg_mapping_for_model_flag() {
+        // Codex's builtin arg_mapping.model is `-m`. A template that uses
+        // {{model_flag}} must not get the hardcoded `--model` the local path
+        // used to inject.
+        let tool = DetectedTool {
+            name: "codex".to_string(),
+            path: "/usr/bin/codex".to_string(),
+            version: "0.1.0".to_string(),
+            min_version: None,
+            version_ok: true,
+            model_aliases: vec!["gpt-4o".to_string()],
+            command_template: "codex {{model_flag}}exec \"$(cat {{prompt_file}})\"".to_string(),
+            capabilities: crate::config::ToolCapabilities::default(),
+            yolo_flags: vec![],
+            health_ok: true,
+        };
+        let config = make_test_config_with_tool(tool);
+
+        let cmd = build_llm_command_impl(
+            &config,
+            "codex",
+            "gpt-4o",
+            "sess-1",
+            Path::new("/tmp/prompt.md"),
+            None,
+            None,
+            None,
+            &|_| true,
+        )
+        .expect("codex is detected and healthy");
+
+        assert!(
+            cmd.contains("-m gpt-4o"),
+            "model flag should come from arg_mapping, got: {cmd}"
+        );
+        assert!(
+            !cmd.contains("--model gpt-4o"),
+            "must not hardcode --model, got: {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_build_llm_command_grok_uses_dash_m_and_session_id() {
+        let tool = DetectedTool {
+            name: "grok".to_string(),
+            path: "/usr/bin/grok".to_string(),
+            version: "0.1.0".to_string(),
+            min_version: None,
+            version_ok: true,
+            model_aliases: vec!["grok-4".to_string()],
+            command_template:
+                "grok {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\""
+                    .to_string(),
+            capabilities: crate::config::ToolCapabilities::default(),
+            yolo_flags: vec!["--always-approve".to_string()],
+            health_ok: true,
+        };
+        let config = make_test_config_with_tool(tool);
+        let cmd = build_llm_command_impl(
+            &config,
+            "grok",
+            "grok-4",
+            "sess-g",
+            Path::new("/tmp/prompt.md"),
+            None,
+            None,
+            None,
+            &|_| true,
+        )
+        .expect("grok is detected");
+        assert!(cmd.contains("-m grok-4"), "got: {cmd}");
+        assert!(cmd.contains("--session-id sess-g"), "got: {cmd}");
+        assert!(cmd.starts_with("grok "), "got: {cmd}");
     }
 
     #[test]

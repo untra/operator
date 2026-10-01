@@ -203,6 +203,14 @@ impl StepManager {
         serde_json::Value::Object(data)
     }
 
+    /// Render a template (e.g. a step's `voting_prompt`) against the ticket context.
+    pub fn render_ticket_template(template: &str, ticket: &Ticket) -> Result<String> {
+        let mut hbs = Handlebars::new();
+        hbs.set_strict_mode(false);
+        hbs.render_template(template, &Self::build_ticket_context(ticket, None))
+            .context("Failed to render ticket template")
+    }
+
     /// Render a prompt template with ticket data
     fn render_prompt(
         &self,
@@ -265,6 +273,46 @@ impl StepManager {
         let contents = serde_json::to_string_pretty(output)?;
         std::fs::write(&path, contents).with_context(|| format!("write {}", path.display()))?;
         Ok(())
+    }
+
+    fn judge_outcome_path(worktree: &str, step_name: &str, attempt_id: &str) -> std::path::PathBuf {
+        std::path::PathBuf::from(worktree)
+            .join(".tickets")
+            .join("steps")
+            .join(step_name)
+            .join(format!("judge-{attempt_id}.json"))
+    }
+
+    /// Atomically write a judge attempt's outcome (temp file + rename)
+    pub fn write_judge_outcome(
+        worktree: &str,
+        step_name: &str,
+        attempt_id: &str,
+        outcome: &crate::llm::native::JudgeOutcome,
+    ) -> anyhow::Result<()> {
+        let path = Self::judge_outcome_path(worktree, step_name, attempt_id);
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)
+                .with_context(|| format!("create_dir_all {}", dir.display()))?;
+        }
+        let temp = path.with_extension("json.tmp");
+        std::fs::write(&temp, serde_json::to_string_pretty(outcome)?)
+            .with_context(|| format!("write {}", temp.display()))?;
+        std::fs::rename(&temp, &path).with_context(|| format!("rename to {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Read a judge attempt's outcome; `None` until the judge task has written it.
+    pub fn read_judge_outcome(
+        ticket: &Ticket,
+        step_name: &str,
+        attempt_id: &str,
+    ) -> Option<crate::llm::native::JudgeOutcome> {
+        let worktree = ticket.worktree_path.as_deref()?;
+        let contents =
+            std::fs::read_to_string(Self::judge_outcome_path(worktree, step_name, attempt_id))
+                .ok()?;
+        serde_json::from_str(&contents).ok()
     }
 
     /// Write the aggregated step output artifact at
@@ -647,5 +695,47 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.to_string().contains("worktree_path"));
+    }
+
+    #[test]
+    fn test_judge_outcome_roundtrip_is_keyed_by_attempt() {
+        use crate::llm::native::{JudgeOutcome, JudgeVerdict};
+        let tmp = tempfile::tempdir().unwrap();
+        let worktree = tmp.path().to_string_lossy().to_string();
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(worktree.clone());
+
+        assert!(StepManager::read_judge_outcome(&ticket, "review", "att-1").is_none());
+
+        let outcome = JudgeOutcome::Verdict(JudgeVerdict {
+            winner_index: 1,
+            rationale: "clearer".to_string(),
+        });
+        StepManager::write_judge_outcome(&worktree, "review", "att-1", &outcome).unwrap();
+
+        assert_eq!(
+            StepManager::read_judge_outcome(&ticket, "review", "att-1"),
+            Some(outcome)
+        );
+        assert!(StepManager::read_judge_outcome(&ticket, "review", "att-2").is_none());
+        assert!(!tmp
+            .path()
+            .join(".tickets/steps/review/judge-att-1.json.tmp")
+            .exists());
+    }
+
+    #[test]
+    fn test_judge_outcome_file_does_not_leak_into_step_outputs() {
+        use crate::llm::native::JudgeOutcome;
+        let tmp = tempfile::tempdir().unwrap();
+        let worktree = tmp.path().to_string_lossy().to_string();
+        let mut ticket = make_test_ticket("FEAT", "plan");
+        ticket.worktree_path = Some(worktree.clone());
+
+        let failed = JudgeOutcome::Failed {
+            reason: "timeout".to_string(),
+        };
+        StepManager::write_judge_outcome(&worktree, "review", "att-1", &failed).unwrap();
+        assert!(StepManager::load_step_outputs(&ticket).is_empty());
     }
 }

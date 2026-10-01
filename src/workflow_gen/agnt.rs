@@ -39,6 +39,12 @@ use crate::queue::Ticket;
 use crate::steps::manager::StepManager;
 use crate::templates::schema::{RagSource, ReviewType, StepSchema, StepTypeTag};
 
+const SCAFFOLD_NOTE: &str = "Operator exports AGNT workflows as runnable visual scaffolds of a ticket's execution shape, not as lossless equivalents of Operator's internal workflow semantics.";
+
+fn agnt_description(it: &IssueType) -> String {
+    format!("{}\n\n{SCAFFOLD_NOTE}", meta_description(it))
+}
+
 /// The node type every exported step maps to. Defined by the companion AGNT
 /// plugin (`agnt-plugin/run-step.js`), whose `execute()` reads `config.ticket`
 /// and calls Operator's REST API to run the ticket for that step. Distinct from
@@ -141,7 +147,7 @@ pub fn export_workflow_agnt(
 
     let wf = AgntWorkflow {
         name: meta_name(ticket, issuetype),
-        description: meta_description(issuetype),
+        description: agnt_description(issuetype),
         nodes,
         edges,
     };
@@ -439,6 +445,14 @@ mod tests {
 
         assert!(v["name"].is_string(), "missing name");
         assert!(v["description"].is_string(), "missing description");
+        assert!(
+            v["description"]
+                .as_str()
+                .unwrap()
+                .contains("runnable visual scaffolds of a ticket's execution shape"),
+            "export must say it is a scaffold: {}",
+            v["description"]
+        );
 
         let nodes = v["nodes"].as_array().expect("nodes array");
         assert_eq!(nodes.len(), feat.steps.len(), "one node per step expected");

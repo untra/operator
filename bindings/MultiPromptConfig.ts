@@ -18,6 +18,7 @@ selection_strategy: SelectionStrategy,
  */
 agent?: string | null, 
 /**
- * Prompt for the selection/review round
+ * Instruction for the judge that picks the best variation with
+ * `model_choice` (Handlebars, rendered with the ticket context)
  */
 selection_prompt?: string | null, };

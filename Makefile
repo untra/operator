@@ -75,7 +75,7 @@ lint-ts:
 	bun run lint:coder-module
 
 lint-shell:
-	shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*
+	shellcheck -S warning scripts/*.sh scripts/ci/*.sh
 
 lint-helm:
 	helm lint charts/operator
@@ -98,6 +98,7 @@ test-ts:
 	bun install --frozen-lockfile
 	cd webcomponents && bun install --frozen-lockfile && bun run test
 	cd coder-module && bun test
+	bun test agnt-plugin
 
 # Every gate for one module, for when only that module changed.
 relay:
@@ -163,8 +164,3 @@ docs: webcomponents
 	# The collection bundle is excluded from Jekyll (see docs/_config.yml) and
 	# copied in verbatim, so the bytes operator fetches match their checksums.
 	cp -R docs/collections docs/_site/
-
-# One-time per clone: route git hooks at the committed .githooks/ directory.
-install-hooks:
-	git config core.hooksPath .githooks
-	@echo "pre-push hook installed (runs 'make fmt-check clippy')"

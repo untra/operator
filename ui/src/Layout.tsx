@@ -2,11 +2,11 @@ import { useCallback, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   AppShell,
+  AccountFooter,
   BrandName,
   NavGroup,
   NavRow,
   RightPanel as RightPanelView,
-  SignOutButton,
   ThemeToggle,
 } from "@operator/webcomponents";
 import { useTheme } from "./theme";
@@ -15,16 +15,14 @@ import { CONCEPTS, STATUS_KEYS, PAGE_KEYS } from "./concepts";
 import { SectionsProvider, useSections } from "./sections-context";
 import { RightPanelProvider, useRightPanel } from "./right-panel";
 import type { SectionDto } from "./api-client";
-import { OperatorApi, setCsrfToken } from "./api-client";
-import { useHost } from "./host";
-import { ProfileSelector } from "./profiles-context";
+import { useApiMutation, useApiQuery, useResetSession } from "./api";
+import { currentSessionQuery, logoutMutation } from "./api/definitions";
+import { useProfiles } from "./profiles-context";
 
 // The "Status" group mirrors the canonical section order shared with the TUI and
 // VS Code extension (the SectionId enum in src/ui/status_panel.rs) and reflects
 // each section's live health from GET /api/v1/sections. A section whose
-// prerequisites aren't met yet is shown disabled with a tooltip naming what it
-// needs - the user sees it exists and why it isn't reachable. "Pages" are
-// web-only views (Dashboard, Queue) with no section analog.
+// prerequisites aren't met yet is shown disabled with a tooltip naming what it needs.
 
 function ConceptNavRow({ concept, section }: { concept: Concept; section?: SectionDto }) {
   const renderLink = useCallback(
@@ -85,26 +83,24 @@ function RightPanelController() {
 
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
-  const host = useHost();
+  const { selected } = useProfiles();
   const navigate = useNavigate();
-  const [signingOut, setSigningOut] = useState(false);
+  const session = useApiQuery(currentSessionQuery());
+  const logout = useApiMutation(logoutMutation);
+  const resetSession = useResetSession();
+  const username = session.error ? "Account unavailable" : (session.data?.subject ?? null);
   const [signOutError, setSignOutError] = useState(false);
 
   const signOut = useCallback(async () => {
-    setSigningOut(true);
     setSignOutError(false);
     try {
-      const api = new OperatorApi(host);
-      await api.refreshCsrf();
-      await api.logout();
-      setCsrfToken(null);
+      await logout.mutateAsync({});
+      resetSession();
       void navigate("/login", { replace: true });
     } catch {
       setSignOutError(true);
-    } finally {
-      setSigningOut(false);
     }
-  }, [host, navigate]);
+  }, [logout, navigate, resetSession]);
 
   return (
     <SectionsProvider>
@@ -118,12 +114,19 @@ export function Layout() {
           }
           groups={
             <>
-              <ProfileSelector />
               <ConceptNavGroup label="Status" keys={STATUS_KEYS} />
               <ConceptNavGroup label="Pages" keys={PAGE_KEYS} />
             </>
           }
-          footer={<SignOutButton busy={signingOut} failed={signOutError} onClick={signOut} />}
+          footer={
+            <AccountFooter
+              username={username ?? "Loading account…"}
+              configurationName={selected?.name ?? "No configuration"}
+              busy={logout.isPending}
+              failed={signOutError}
+              onSignOut={signOut}
+            />
+          }
           panel={<RightPanelController />}
         >
           <Outlet />

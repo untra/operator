@@ -1,8 +1,8 @@
-# CLAUDE.md - operator
+# AGENTS.md - operator
 
 ## Project Overview
 
-`operator` is a Rust TUI application for orchestrating Claude Code agents across multi-project codebases. It manages ticket queues, launches agents, tracks progress, and provides notifications.
+`operator` is a Rust TUI application for orchestrating Claude/Codex/Gemini/Grok CLI agents across multi-project codebases. It manages ticket queues, launches agents, tracks progress, and provides notifications.
 
 ## Tech Stack
 
@@ -76,14 +76,6 @@ excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
 > `cargo clippy` misses test-target and feature-gated lints (e.g. a dependency
 > deprecation that only surfaces under `--all-targets`), which is how a clippy
 > failure can pass locally yet break CI. Always use the full command above.
-
-Install the pre-push hook once per clone so the fast gate (`fmt-check` +
-root `clippy`, no tests) runs automatically before every push; the full `make check` remains
-the expectation before opening a PR:
-
-```bash
-make install-hooks   # sets core.hooksPath=.githooks
-```
 
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
 
@@ -241,7 +233,7 @@ webhooks.
 
 ## Project Discovery
 
-On startup, operator scans the configured projects directory for subdirectories containing an agent marker file (`CLAUDE.md`, `GEMINI.md`, `CODEX.md`).
+On startup, operator scans the configured projects directory for subdirectories containing an agent marker file (`AGENTS.md`, plus vendor backups `CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `GROK.md`).
 These are presented as available projects when creating tickets.
 
 ## Working a Ticket
@@ -291,8 +283,7 @@ cargo run -- docs --only openapi
 cargo run -- docs --only config
 
 # `--only` accepts any key from docs_gen::all_generators(); an unknown key
-# prints the full list. `llm-tools` is opt-in only: it is excluded from a full
-# run because docs/llm-tools/index.md is currently maintained by hand.
+# prints the full list.
 ```
 
 ### Auto-Generated File Headers
@@ -314,25 +305,18 @@ All generated files include a header warning:
 
 ## Design & UI Consistency
 
-Operator presents one brand (terracotta + cornflower + cream over a green
-scale) across **four rendering surfaces**. Keep them consistent by following the
-rule that fits each surface - they are deliberately *not* all styled the same
-way. Full details and swatches live in `docs/design-system/` (`/design-system/`).
+Operator presents one brand (terracotta + cornflower + cream over a green scale) across **four rendering surfaces**. Keep them consistent by following the rule that fits each surface - they are deliberately *not* all styled the same way. Full details and swatches live in `docs/design-system/` (`/design-system/`).
 
-**Brand source of truth:** `docs/assets/css/tokens.css` - the only place the
-brand hex values + dark-mode overrides are declared. Both web surfaces consume
-it; never re-declare a brand color elsewhere.
+**Brand source of truth:** `docs/assets/css/tokens.css` - the only place the brand hex values + dark-mode overrides are declared. Both web surfaces consume it; never re-declare a brand color elsewhere.
 
 | Surface | Where | Rule |
 |---------|-------|------|
 | Docs site (Jekyll) | `docs/assets/css/main.css` | Links `tokens.css` (via `_includes/head.html`); style components with `var(--...)`, never raw hex. |
 | Embedded SPA (Vite/React) | `ui/src/index.css` + `*.module.css` | Imports `tokens.css`; layers app-only semantic tokens (`--surface`, `--border`, `--danger`, …) on top. Components reference semantic tokens, not raw hex. |
-| Ratatui TUI | `src/ui/*.rs` | Terminal can't render hex - match a **semantic role to ANSI** (danger→Red, success→Green, warning→Yellow, focus→Cyan). Reuse `color_for_key`/`glyph_for_key` from `src/templates/mod.rs`; don't re-hardcode issuetype/priority colors. |
+| Ratatui TUI | `src/ui/*.rs` | Terminal can't render hex - match a **semantic role to ANSI** (danger=Red, success=Green, warning=Yellow, focus=Cyan). Reuse `color_for_key`/`glyph_for_key` from `src/templates/mod.rs`; don't re-hardcode issuetype/priority colors. |
 | VS Code webview | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme**: style with raw `var(--vscode-*)` custom properties (`styles/webview.css` + `components/primitives/`). Apply brand only as accents via the `--op-*` variables; never override the user's editor theme wholesale. No MUI/CSS-in-JS - enforced by `tests/ui_packaging.rs`. |
 
-When adding or changing UI: change a brand color in `tokens.css` (web surfaces
-follow automatically); reference semantic tokens in new web CSS; map a role to
-ANSI in the TUI; and leave the webview deferring to the editor theme.
+When adding or changing UI: change a brand color in `tokens.css` (web surfaces follow automatically); reference semantic tokens in new web CSS; map a role to ANSI in the TUI; and leave the webview deferring to the editor theme.
 
 **Icons.** Every SVG icon follows the Operator icon standard - a single monochrome `<path>` on a 24×24 canvas with no `fill`/`stroke`/`width`/`height`, so it tints from `currentColor` and sizes to its container on all four surfaces. Governed directories: `icons/`, `docs/assets/icons/`, `ui/public/icons/`, and each collection's `icon.svg`.
 Enforced by `cargo test --test svg_icon_standard`; the rules and rationale are in `docs/design-system/`.

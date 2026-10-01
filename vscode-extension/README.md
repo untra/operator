@@ -50,6 +50,7 @@ This extension also runs in [Cursor](https://www.cursor.com). Install it from th
 - **Operator: Show Server Status** - Display server status and terminal count
 - **Operator: Sign In** - Authorize this editor with a remote Operator daemon through the browser (a local daemon needs no sign-in)
 - **Operator: Sign Out** - Forget the stored credential for the current daemon
+- **Operator: Connect MCP Server** - Register Operator in workspace MCP settings, workspace `.mcp.json`, and optionally Copilot Global
 
 ## API Endpoints
 
@@ -69,7 +70,7 @@ The extension exposes a local HTTP API for Operator to manage terminals:
 
 ## Requirements
 
-- VS Code 1.85.0 or later
+- VS Code 1.140.0 or later
 - Operator CLI (for full functionality)
 
 ## Development

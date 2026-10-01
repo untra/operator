@@ -167,7 +167,6 @@ needs_vscode()     { has_changes '^(vscode-extension/|icons/|\.oxlintrc\.jsonc$)
 needs_zed()        { has_changes '^zed-extension/'; }
 needs_relay()      { has_changes '^crates/relay/'; }
 needs_charts()     { has_changes '^(charts/|\.github/workflows/build\.yaml$)'; }
-needs_shell()      { has_changes '^(scripts/|\.githooks/)'; }
 needs_coder()      { has_changes '^(coder-module/|\.github/workflows/coder-module\.yaml$|scripts/ci/check-coder-module\.sh$)'; }
 needs_docs()       { has_changes '^(docs/|src/docs_gen/|src/taxonomy/taxonomy\.toml|src/templates/.*\.json|src/collections/|collections/|src/schemas/|webcomponents/|src/workflow_gen/)'; }
 
@@ -237,7 +236,7 @@ if needs_shell; then
   section "Shell scripts"
   require_tool shellcheck "shell script lint"
 
-  run_step "shellcheck" bash -c 'shellcheck -S warning scripts/*.sh scripts/ci/*.sh .githooks/*'
+  run_step "shellcheck" bash -c 'shellcheck -S warning scripts/*.sh scripts/ci/*.sh'
 else
   skip "Shell scripts"
 fi

@@ -1,6 +1,6 @@
 //! Welcome step rendering
 
-use crate::projects::TOOL_MARKERS;
+use crate::projects::tool_markers;
 use crate::ui::dialogs::centered_rect;
 use crate::ui::setup::SetupScreen;
 use ratatui::{
@@ -108,14 +108,14 @@ impl SetupScreen {
         ))];
 
         // Show each known tool with detection status
-        for (tool_name, _marker) in TOOL_MARKERS {
-            let detected = self.detected_tools.iter().find(|t| t.name == *tool_name);
+        for (tool_name, _marker) in tool_markers() {
+            let detected = self.detected_tools.iter().find(|t| t.name == tool_name);
 
             let line = if let Some(tool) = detected {
                 Line::from(vec![
                     Span::styled("  + ", Style::default().fg(Color::Green)),
                     Span::styled(
-                        (*tool_name).to_string(),
+                        tool_name.to_string(),
                         Style::default()
                             .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
@@ -128,10 +128,7 @@ impl SetupScreen {
             } else {
                 Line::from(vec![
                     Span::styled("  - ", Style::default().fg(Color::DarkGray)),
-                    Span::styled(
-                        (*tool_name).to_string(),
-                        Style::default().fg(Color::DarkGray),
-                    ),
+                    Span::styled(tool_name.to_string(), Style::default().fg(Color::DarkGray)),
                     Span::styled(" - not installed", Style::default().fg(Color::DarkGray)),
                 ])
             };
@@ -148,8 +145,8 @@ impl SetupScreen {
         ))];
 
         let mut has_any_projects = false;
-        for (tool_name, _marker) in TOOL_MARKERS {
-            if let Some(projects) = self.projects_by_tool.get(*tool_name) {
+        for (tool_name, _marker) in tool_markers() {
+            if let Some(projects) = self.projects_by_tool.get(tool_name) {
                 if !projects.is_empty() {
                     has_any_projects = true;
                     let project_list = projects.join(", ");

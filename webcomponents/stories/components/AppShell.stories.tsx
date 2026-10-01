@@ -1,15 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  AccountFooter,
   AppShell,
   BrandName,
   NavGroup,
   NavRow,
-  SignOutButton,
   ThemeToggle,
 } from "../../src/components/AppShell";
 import { PageHeader } from "../../src/components/PageHeader";
 
 const NOOP = () => undefined;
+const STORY_USERNAME = "operator";
+const STORY_CONFIGURATION = "default";
 
 const STATUS_ROWS = [
   { label: "Model Providers", icon: "server", health: "green" },
@@ -70,7 +72,13 @@ const meta = {
       </>
     ),
     groups: <Groups />,
-    footer: <SignOutButton onClick={NOOP} />,
+    footer: (
+      <AccountFooter
+        username={STORY_USERNAME}
+        configurationName={STORY_CONFIGURATION}
+        onSignOut={NOOP}
+      />
+    ),
     children: (
       <PageHeader
         title="Dashboard"
@@ -87,14 +95,38 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-/** A section whose prerequisites are unmet: a disabled span naming what it needs. */
+/** A focusable disabled section with its unmet prerequisites shown inline. */
 export const PrerequisiteLocked: Story = {
-  args: { groups: <Groups lockedReason="Requires: Model Providers, Projects" /> },
+  args: {
+    groups: <Groups lockedReason="Requires: Model Providers, Projects" />,
+  },
 };
 
-export const SigningOut: Story = { args: { footer: <SignOutButton busy onClick={NOOP} /> } };
+export const SigningOut: Story = {
+  args: {
+    footer: (
+      <AccountFooter
+        username={STORY_USERNAME}
+        configurationName={STORY_CONFIGURATION}
+        busy
+        onSignOut={NOOP}
+      />
+    ),
+  },
+};
 
-export const SignOutFailed: Story = { args: { footer: <SignOutButton failed onClick={NOOP} /> } };
+export const SignOutFailed: Story = {
+  args: {
+    footer: (
+      <AccountFooter
+        username={STORY_USERNAME}
+        configurationName={STORY_CONFIGURATION}
+        failed
+        onSignOut={NOOP}
+      />
+    ),
+  },
+};
 
 export const DarkTheme: Story = {
   args: {

@@ -469,32 +469,42 @@ impl AuthStore {
         })
     }
 
-    /// Whether `csrf` matches the session's stored CSRF hash.
+    /// Whether `csrf` matches the session's current or immediately previous
+    /// CSRF hash.
     pub fn verify_csrf(&self, session_id: &str, csrf: &str) -> Result<bool> {
         let provided = hash_secret(csrf);
         self.with_conn(|conn| {
-            let stored: Option<String> = conn
+            let stored: Option<(String, Option<String>)> = conn
                 .query_row(
-                    "SELECT csrf_hash FROM session WHERE id = ?1 AND revoked_at IS NULL",
+                    "SELECT csrf_hash, csrf_prev_hash FROM session \
+                     WHERE id = ?1 AND revoked_at IS NULL",
                     [session_id],
-                    |r| r.get(0),
+                    |r| Ok((r.get(0)?, r.get(1)?)),
                 )
                 .optional()?;
-            Ok(stored.is_some_and(|s| crate::auth::secret::hashes_equal(&s, &provided)))
+            Ok(stored.is_some_and(|(current, previous)| {
+                let matches_current = crate::auth::secret::hashes_equal(&current, &provided);
+                let matches_previous =
+                    previous.is_some_and(|p| crate::auth::secret::hashes_equal(&p, &provided));
+                matches_current || matches_previous
+            }))
         })
     }
 
-    /// Issue a fresh CSRF token for an existing session, replacing the old one.
+    /// Issue a fresh CSRF token for an existing session.
     ///
     /// The SPA needs this after a page reload: the session cookie survives, but
     /// the CSRF token was only ever held in memory. Rotating rather than
-    /// returning the existing one means the stored value stays hash-only.
+    /// returning the existing one means the stored value stays hash-only. The
+    /// superseded hash is kept for exactly one more rotation, so another tab
+    /// holding it is not broken by this one reloading.
     pub fn rotate_csrf(&self, session_id: &str) -> Result<Option<String>> {
         let csrf = generate_secret()?;
         let hash = hash_secret(&csrf);
         self.with_conn(|conn| {
             let n = conn.execute(
-                "UPDATE session SET csrf_hash = ?1 WHERE id = ?2 AND revoked_at IS NULL",
+                "UPDATE session SET csrf_prev_hash = csrf_hash, csrf_hash = ?1 \
+                 WHERE id = ?2 AND revoked_at IS NULL",
                 rusqlite::params![hash, session_id],
             )?;
             Ok((n > 0).then_some(csrf))
@@ -1365,24 +1375,55 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_rotating_csrf_invalidates_the_previous_token() {
-        let s = store();
-        let (token, first_csrf, _) = s.create_session().unwrap();
-        let id = s
-            .authenticate_session(&token)
+    fn session_id_for(s: &AuthStore, token: &str) -> String {
+        s.authenticate_session(token)
             .unwrap()
             .unwrap()
             .session_id
-            .unwrap();
+            .unwrap()
+    }
+
+    #[test]
+    fn test_rotating_csrf_keeps_the_previous_token_valid() {
+        let s = store();
+        let (token, first_csrf, _) = s.create_session().unwrap();
+        let id = session_id_for(&s, &token);
 
         let second_csrf = s.rotate_csrf(&id).unwrap().expect("session exists");
         assert_ne!(first_csrf, second_csrf);
         assert!(s.verify_csrf(&id, &second_csrf).unwrap());
         assert!(
-            !s.verify_csrf(&id, &first_csrf).unwrap(),
-            "the superseded CSRF token must stop working"
+            s.verify_csrf(&id, &first_csrf).unwrap(),
+            "another tab still holding the previous token must keep working"
         );
+    }
+
+    #[test]
+    fn test_rotating_csrf_twice_invalidates_the_oldest_token() {
+        let s = store();
+        let (token, first_csrf, _) = s.create_session().unwrap();
+        let id = session_id_for(&s, &token);
+
+        let second_csrf = s.rotate_csrf(&id).unwrap().expect("session exists");
+        let third_csrf = s.rotate_csrf(&id).unwrap().expect("session exists");
+        assert!(s.verify_csrf(&id, &third_csrf).unwrap());
+        assert!(s.verify_csrf(&id, &second_csrf).unwrap());
+        assert!(
+            !s.verify_csrf(&id, &first_csrf).unwrap(),
+            "only one superseded CSRF token is honoured"
+        );
+    }
+
+    #[test]
+    fn test_revoked_session_rejects_current_and_previous_csrf() {
+        let s = store();
+        let (token, first_csrf, _) = s.create_session().unwrap();
+        let id = session_id_for(&s, &token);
+        let second_csrf = s.rotate_csrf(&id).unwrap().expect("session exists");
+
+        s.revoke_session(&id).unwrap();
+        assert!(!s.verify_csrf(&id, &second_csrf).unwrap());
+        assert!(!s.verify_csrf(&id, &first_csrf).unwrap());
     }
 
     #[test]

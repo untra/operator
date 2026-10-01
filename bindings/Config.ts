@@ -10,6 +10,7 @@ import type { LlmToolsConfig } from "./LlmToolsConfig";
 import type { LoggingConfig } from "./LoggingConfig";
 import type { McpConfig } from "./McpConfig";
 import type { ModelServer } from "./ModelServer";
+import type { NativeLlmConfig } from "./NativeLlmConfig";
 import type { NotificationsConfig } from "./NotificationsConfig";
 import type { PathsConfig } from "./PathsConfig";
 import type { ProfileIdentity } from "./ProfileIdentity";
@@ -70,4 +71,9 @@ mcp: McpConfig,
 /**
  * Agent Client Protocol (ACP) agent configuration
  */
-acp: AcpConfig, };
+acp: AcpConfig, 
+/**
+ * In-daemon LLM calls (judge). Accepted but inert until the `native-llm`
+ * build feature ships; a configured judge falls back to the deterministic rule.
+ */
+native_llm: NativeLlmConfig, };

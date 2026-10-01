@@ -22,6 +22,11 @@
   background: var(--danger-bg);
   border-radius: var(--radius-lg);
 }
+.loading {
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
 .statusBanner {
   padding: 0.25rem 0.75rem;
   color: var(--success);

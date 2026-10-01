@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from "react";
 import { Alert, Button, Card, CardContent, Chip, Spinner, TextInput, Toggle } from "../primitives";
 import { ProjectRow } from "./ProjectRow";
+import { useDraftField } from "../../hooks/useDraftField";
+import { addProject } from "../../state/addProject";
 import type { JiraConfig } from "../../../src/generated/JiraConfig";
 import type { LinearConfig } from "../../../src/generated/LinearConfig";
 import type {
@@ -15,7 +17,7 @@ interface ProviderCardProps {
   type: "jira" | "linear";
   domain: string;
   config: JiraConfig | LinearConfig;
-  onUpdate: (section: string, key: string, value: unknown) => void;
+  onUpdate: (section: string, key: string, value: unknown, instanceKey?: string) => void;
   onValidate: (...args: string[]) => void;
   validationResult: JiraValidationInfo | LinearValidationInfo | null;
   validating: boolean;
@@ -56,28 +58,31 @@ export function ProviderCard({
 
   const isConnected = validationResult?.valid === true;
   const projectCount = projectEntries.length;
+  const updateProvider = useCallback(
+    (key: string, value: unknown) => onUpdate(sectionKey, key, value, domain),
+    [domain, onUpdate, sectionKey],
+  );
   const handleEnabledChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate(sectionKey, "enabled", event.target.checked),
-    [onUpdate, sectionKey],
+    (event: React.ChangeEvent<HTMLInputElement>) => updateProvider("enabled", event.target.checked),
+    [updateProvider],
   );
   const showCredentialFields = useCallback(() => setShowCredentials(true), [setShowCredentials]);
   const hideCredentialFields = useCallback(() => setShowCredentials(false), [setShowCredentials]);
-  const handleDomainChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate(sectionKey, isJira ? "domain" : "team_id", event.target.value),
-    [isJira, onUpdate, sectionKey],
+  const commitDomain = useCallback(
+    (next: string) => updateProvider(isJira ? "domain" : "team_id", next),
+    [isJira, updateProvider],
   );
-  const handleEmailChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate(sectionKey, "email", event.target.value),
-    [onUpdate, sectionKey],
+  const commitEmail = useCallback(
+    (next: string) => updateProvider("email", next),
+    [updateProvider],
   );
-  const handleApiKeyEnvChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate(sectionKey, "api_key_env", event.target.value),
-    [onUpdate, sectionKey],
+  const commitApiKeyEnv = useCallback(
+    (next: string) => updateProvider("api_key_env", next),
+    [updateProvider],
   );
+  const domainDraft = useDraftField(domain, commitDomain);
+  const emailDraft = useDraftField(jiraConfig?.email ?? "", commitEmail);
+  const apiKeyEnvDraft = useDraftField(config.api_key_env, commitApiKeyEnv);
   const handleApiTokenChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => setApiToken(event.target.value),
     [setApiToken],
@@ -90,8 +95,13 @@ export function ProviderCard({
     }
   }, [apiToken, domain, isJira, jiraConfig?.email, onValidate]);
   const handleAddProject = useCallback(
-    (key: string) => onUpdate(sectionKey, `projects.${key}.collection_name`, ""),
-    [onUpdate, sectionKey],
+    (key: string) => {
+      const projects = addProject(config.projects, key);
+      if (projects !== config.projects) {
+        updateProvider("projects", projects);
+      }
+    },
+    [config.projects, updateProvider],
   );
 
   return (
@@ -142,40 +152,23 @@ export function ProviderCard({
                 <>
                   <TextInput
                     label="Domain"
-                    value={domain}
-                    onChange={handleDomainChange}
+                    {...domainDraft}
                     placeholder="your-org.atlassian.net"
                     disabled={!enabled}
                     helperText="Jira Cloud instance domain"
                   />
                   <TextInput
                     label="Email"
-                    value={jiraConfig?.email ?? ""}
-                    onChange={handleEmailChange}
+                    {...emailDraft}
                     placeholder="you@example.com"
                     disabled={!enabled}
                   />
-                  <TextInput
-                    label="API Key Env Var"
-                    value={config.api_key_env}
-                    onChange={handleApiKeyEnvChange}
-                    disabled={!enabled}
-                  />
+                  <TextInput label="API Key Env Var" {...apiKeyEnvDraft} disabled={!enabled} />
                 </>
               ) : (
                 <>
-                  <TextInput
-                    label="Team ID"
-                    value={domain}
-                    onChange={handleDomainChange}
-                    disabled={!enabled}
-                  />
-                  <TextInput
-                    label="API Key Env Var"
-                    value={config.api_key_env}
-                    onChange={handleApiKeyEnvChange}
-                    disabled={!enabled}
-                  />
+                  <TextInput label="Team ID" {...domainDraft} disabled={!enabled} />
+                  <TextInput label="API Key Env Var" {...apiKeyEnvDraft} disabled={!enabled} />
                 </>
               )}
 
@@ -233,11 +226,10 @@ export function ProviderCard({
                   issueTypes={issueTypes}
                   externalTypes={externalIssueTypes.get(`${type}/${key}`)}
                   statuses={kanbanStatuses.get(`${type}/${key}`)}
-                  onUpdate={onUpdate}
+                  onUpdate={updateProvider}
                   onGetExternalIssueTypes={onGetExternalIssueTypes}
                   onGetKanbanStatuses={onGetKanbanStatuses}
                   onViewIssueType={onViewIssueType}
-                  sectionKey={sectionKey}
                 />
               ))
             )}

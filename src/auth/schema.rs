@@ -138,6 +138,11 @@ const MIGRATIONS: &[&str] = &[
         retry_after   TEXT
     );
     "#,
+    // v2 - one-previous-token CSRF grace window, so rotating the token from
+    // one tab does not break mutations already in flight from another.
+    r"
+    ALTER TABLE session ADD COLUMN csrf_prev_hash TEXT;
+    ",
 ];
 
 /// Apply any migrations the database has not seen.

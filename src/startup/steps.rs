@@ -54,18 +54,12 @@ pub enum SetupStep {
     /// Choose which issue type collection to use
     #[serde(rename = "collection-source")]
     CollectionSource,
-    /// Browse and multi-select hosted collections
-    #[serde(rename = "hosted-collections")]
-    HostedCollectionFetch,
     /// Configure optional TASK fields
     #[serde(rename = "task-field-config")]
     TaskFieldConfig,
     /// Select the session wrapper agents launch into
     #[serde(rename = "session-wrapper-choice")]
     SessionWrapperChoice,
-    /// Choose where agent commands execute
-    #[serde(rename = "execution-target")]
-    ExecutionTarget,
     /// Choose in-place branches or per-ticket worktrees
     #[serde(rename = "worktree-preference")]
     WorktreePreference,
@@ -90,6 +84,12 @@ pub enum SetupStep {
     /// Optionally create bootstrap tickets
     #[serde(rename = "startup-tickets")]
     StartupTickets,
+    /// Browse and multi-select hosted collections
+    #[serde(rename = "hosted-collections")]
+    HostedCollectionFetch,
+    /// Choose where agent commands execute
+    #[serde(rename = "execution-target")]
+    ExecutionTarget,
     /// Review and confirm initialization
     #[serde(rename = "confirm")]
     Confirm,
@@ -97,8 +97,15 @@ pub enum SetupStep {
 
 #[allow(dead_code)] // Used via binary and docs_gen, not reachable from lib.rs
 impl SetupStep {
-    /// Every step, in the order the wizard walks them. Conditional steps
+    /// Every step, in the order the wizard presents them. Conditional steps
     /// (the per-wrapper ones) appear here even though a given run skips most.
+    ///
+    /// The two steps a run may skip outright - `HostedCollectionFetch` and
+    /// `ExecutionTarget` - are gathered just before `Confirm` so that answering
+    /// an earlier question never renumbers the steps already shown. The web
+    /// wizard walks this order directly; `src/ui/setup/mod.rs` is a hand-written
+    /// state machine that still visits both inline, a known divergence pending
+    /// its realignment.
     pub const ALL: [SetupStep; 20] = [
         SetupStep::Welcome,
         SetupStep::License,
@@ -107,10 +114,8 @@ impl SetupStep {
         SetupStep::ModelServer,
         SetupStep::GitProvider,
         SetupStep::CollectionSource,
-        SetupStep::HostedCollectionFetch,
         SetupStep::TaskFieldConfig,
         SetupStep::SessionWrapperChoice,
-        SetupStep::ExecutionTarget,
         SetupStep::WorktreePreference,
         SetupStep::AdminPassword,
         SetupStep::TmuxOnboarding,
@@ -119,6 +124,8 @@ impl SetupStep {
         SetupStep::ZellijSetup,
         SetupStep::AcceptanceCriteria,
         SetupStep::StartupTickets,
+        SetupStep::HostedCollectionFetch,
+        SetupStep::ExecutionTarget,
         SetupStep::Confirm,
     ];
 
@@ -132,10 +139,8 @@ impl SetupStep {
             SetupStep::ModelServer => "model-server",
             SetupStep::GitProvider => "git-provider",
             SetupStep::CollectionSource => "collection-source",
-            SetupStep::HostedCollectionFetch => "hosted-collections",
             SetupStep::TaskFieldConfig => "task-field-config",
             SetupStep::SessionWrapperChoice => "session-wrapper-choice",
-            SetupStep::ExecutionTarget => "execution-target",
             SetupStep::WorktreePreference => "worktree-preference",
             SetupStep::AdminPassword => "admin-password",
             SetupStep::TmuxOnboarding => "tmux-onboarding",
@@ -144,6 +149,8 @@ impl SetupStep {
             SetupStep::ZellijSetup => "zellij-setup",
             SetupStep::AcceptanceCriteria => "acceptance-criteria",
             SetupStep::StartupTickets => "startup-tickets",
+            SetupStep::HostedCollectionFetch => "hosted-collections",
+            SetupStep::ExecutionTarget => "execution-target",
             SetupStep::Confirm => "confirm",
         }
     }
@@ -183,7 +190,8 @@ impl SetupStep {
                     - **This machine**: agents and local containers run beside Operator.\n\
                     - **Remote targets**: agents run on SSH hosts or Coder workspaces and \
                     report back to this Operator server. Requires Premium.\n\n\
-                    Choosing remote leads to target registration; choosing this machine skips it.",
+                    Choosing remote adds a target-registration step at the end of setup; \
+                    choosing this machine skips it.",
                 navigation: "↑/↓ to select, Enter to continue, Esc to go back",
             },
             SetupStep::KanbanInfo => SetupStepInfo {
@@ -253,14 +261,6 @@ impl SetupStep {
                     - **Custom Selection**: Choose individual issue types",
                 navigation: "↑/↓ or j/k to navigate, Enter to select, Esc to go back",
             },
-            SetupStep::HostedCollectionFetch => SetupStepInfo {
-                name: "Hosted Collections",
-                description: "Browse and select hosted collections (only shown if Browse chosen)",
-                help_text: "Pick one or more curated collections published at             operator.untra.io.\n\n\
-                    The list is fetched from the collections manifest; if it cannot be             reached, the collections bundled with Operator are offered instead.             Each collection brings its own issue types and workflow steps.\n\n\
-                    Selections are additive - choose as many as apply.",
-                navigation: "↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back",
-            },
             SetupStep::TaskFieldConfig => SetupStepInfo {
                 name: "Task Field Config",
                 description: "Configure optional fields for TASK issue type",
@@ -283,12 +283,6 @@ impl SetupStep {
                     - **Zellij**: Modern terminal workspace with built-in layouts\n\n\
                     Your choice determines which setup steps follow.",
                 navigation: "↑/↓ or j/k to navigate, Enter to select, Esc to go back",
-            },
-            SetupStep::ExecutionTarget => SetupStepInfo {
-                name: "Execution Target",
-                description: "Choose whether agents run locally or in Coder workspaces",
-                help_text: "Local runs agent commands on the same machine as Operator. Coder creates or starts a per-ticket workspace and launches there over SSH.\n\nCoder configuration stores only environment variable names for the deployment URL and session token. Secret values remain in the process environment.\n\nCoder targets disable git worktrees and relay injection, and cannot be combined with Zellij.",
-                navigation: "↑/↓ to select, Tab to switch fields, Enter to continue, Esc to go back",
             },
             SetupStep::WorktreePreference => SetupStepInfo {
                 name: "Worktree Preference",
@@ -367,6 +361,20 @@ impl SetupStep {
                     These tickets are optional and help automate common setup tasks.",
                 navigation: "↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back",
             },
+            SetupStep::HostedCollectionFetch => SetupStepInfo {
+                name: "Hosted Collections",
+                description: "Browse and select hosted collections (only shown if Browse chosen)",
+                help_text: "Pick one or more curated collections published at             operator.untra.io.\n\n\
+                    The list is fetched from the collections manifest; if it cannot be             reached, the collections bundled with Operator are offered instead.             Each collection brings its own issue types and workflow steps.\n\n\
+                    Selections are additive - choose as many as apply.",
+                navigation: "↑/↓ or j/k to navigate, Space to toggle, Enter to continue, Esc to go back",
+            },
+            SetupStep::ExecutionTarget => SetupStepInfo {
+                name: "Execution Target",
+                description: "Choose whether agents run locally or in Coder workspaces",
+                help_text: "Local runs agent commands on the same machine as Operator. Coder creates or starts a per-ticket workspace and launches there over SSH.\n\nCoder configuration stores only environment variable names for the deployment URL and session token. Secret values remain in the process environment.\n\nCoder targets disable git worktrees and relay injection, and cannot be combined with Zellij.",
+                navigation: "↑/↓ to select, Tab to switch fields, Enter to continue, Esc to go back",
+            },
             SetupStep::Confirm => SetupStepInfo {
                 name: "Confirm",
                 description: "Review settings and confirm initialization",
@@ -421,8 +429,9 @@ mod tests {
         assert_eq!(unique.len(), SetupStep::ALL.len());
     }
 
-    /// Slugs key docs URLs and the web renderer's component map, so a rename is
-    /// a breaking change and must be deliberate.
+    /// Slugs key docs URLs and the web renderer's component map, and the order
+    /// is what the wizard's sidebar numbers, so both a rename and a reorder are
+    /// breaking changes and must be deliberate.
     #[test]
     fn test_slugs_match_frozen_snapshot() {
         let slugs: Vec<&str> = SetupStep::ALL.iter().map(|s| s.slug()).collect();
@@ -436,10 +445,8 @@ mod tests {
                 "model-server",
                 "git-provider",
                 "collection-source",
-                "hosted-collections",
                 "task-field-config",
                 "session-wrapper-choice",
-                "execution-target",
                 "worktree-preference",
                 "admin-password",
                 "tmux-onboarding",
@@ -448,6 +455,8 @@ mod tests {
                 "zellij-setup",
                 "acceptance-criteria",
                 "startup-tickets",
+                "hosted-collections",
+                "execution-target",
                 "confirm",
             ]
         );

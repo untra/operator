@@ -86,6 +86,7 @@ async fn test_operator_acp_stdio_initialize_roundtrip() {
         .write_all(INITIALIZE_REQUEST)
         .await
         .expect("write request");
+    stdin.write_all(b"\n").await.expect("terminate request");
     stdin.flush().await.expect("flush request");
 
     let line = read_line(&mut reader).await;
@@ -129,6 +130,7 @@ async fn test_acp_initialize_survives_unwritable_registry() {
     let mut reader = BufReader::new(stdout).lines();
 
     stdin.write_all(INITIALIZE_REQUEST).await.unwrap();
+    stdin.write_all(b"\n").await.unwrap();
     stdin.flush().await.unwrap();
 
     let response: serde_json::Value =

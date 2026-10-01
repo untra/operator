@@ -235,6 +235,7 @@ jobs:
 
   # Probes Apple notary + signing credentials without notarizing.
   preflight-apple:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v7
@@ -251,7 +252,7 @@ jobs:
   # Compute the next version once, before anything is built, so the compiled
   # binaries embed the same version that the release tag + Docker tag will use.
   version:
-    needs: lint-test
+    needs: [lint-test, preflight-apple]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:

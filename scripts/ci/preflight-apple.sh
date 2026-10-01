@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Validates Apple notary + Developer ID signing credentials without notarizing
-# anything, so an expired agreement/key/cert fails a PR instead of a release.
+# anything, so an expired agreement/key/cert fails before release builds fan out.
 # Usage: preflight-apple.sh
 #
 # Environment variables (same as notarize.sh / codesign.sh):

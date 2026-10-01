@@ -49,6 +49,7 @@ docs/_site/
 
 # generated types copied from bindings/ (bindings/ itself is committed)
 vscode-extension/src/generated/
+vscode-extension/.nyc_output/
 webcomponents/src/generated/
 vscode-extension/out/
 vscode-extension/.vscode-test/

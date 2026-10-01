@@ -1,6 +1,6 @@
 @font-face {
     font-family: "operator-icons";
-    src: url("./operator-icons.woff?173f3284801b532eebc3a5569872bf66") format("woff");
+    src: url("./operator-icons.woff?9f799214e04923a1c16f6ee3f717bebf") format("woff");
 }
 
 i[class^="opi-"]:before, i[class*=" opi-"]:before {
@@ -20,57 +20,63 @@ i[class^="opi-"]:before, i[class*=" opi-"]:before {
 .opi-zedindustries:before {
     content: "\f102";
 }
-.opi-webhook:before {
+.opi-xai:before {
     content: "\f103";
 }
-.opi-vscode:before {
+.opi-webhook:before {
     content: "\f104";
 }
-.opi-tmux:before {
+.opi-vscode:before {
     content: "\f105";
 }
-.opi-openrouter:before {
+.opi-tmux:before {
     content: "\f106";
 }
-.opi-ollama:before {
+.opi-operator:before {
     content: "\f107";
 }
-.opi-notification:before {
+.opi-openrouter:before {
     content: "\f108";
 }
-.opi-linear:before {
+.opi-ollama:before {
     content: "\f109";
 }
-.opi-google:before {
+.opi-notification:before {
     content: "\f10a";
 }
-.opi-gitlab:before {
+.opi-linear:before {
     content: "\f10b";
 }
-.opi-github:before {
+.opi-google:before {
     content: "\f10c";
 }
-.opi-gitea:before {
+.opi-gitlab:before {
     content: "\f10d";
 }
-.opi-gemini:before {
+.opi-github:before {
     content: "\f10e";
 }
-.opi-codex:before {
+.opi-gitea:before {
     content: "\f10f";
 }
-.opi-coder:before {
+.opi-gemini:before {
     content: "\f110";
 }
-.opi-cmux:before {
+.opi-codex:before {
     content: "\f111";
 }
-.opi-claude:before {
+.opi-coder:before {
     content: "\f112";
 }
-.opi-atlassian:before {
+.opi-cmux:before {
     content: "\f113";
 }
-.opi-anthropic:before {
+.opi-claude:before {
     content: "\f114";
+}
+.opi-atlassian:before {
+    content: "\f115";
+}
+.opi-anthropic:before {
+    content: "\f116";
 }

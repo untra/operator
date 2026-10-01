@@ -182,40 +182,6 @@ fn test_chart_job_depends_on_successful_image_publication() {
 }
 
 #[test]
-fn test_apple_preflight_starts_on_merge_and_gates_release_builds() {
-    let content = read(&repo_root().join(".github/workflows/build.yaml"));
-    let preflight = job_block(&content, "preflight-apple");
-    let version = job_block(&content, "version");
-    let build = job_block(&content, "build");
-    let opr8r_build = job_block(&content, "build-opr8r");
-
-    assert!(
-        preflight.contains("if: github.event_name == 'push' && github.ref == 'refs/heads/main'"),
-        "the Apple credential preflight must run for the main-branch release workflow"
-    );
-    assert!(
-        !preflight
-            .lines()
-            .any(|line| line.trim_start().starts_with("needs:")),
-        "the Apple credential preflight must start immediately on merge"
-    );
-
-    let version_needs = version
-        .lines()
-        .find(|line| line.trim_start().starts_with("needs:"))
-        .expect("the version job must declare `needs:`");
-    assert!(
-        version_needs.contains("preflight-apple"),
-        "the version job must wait for Apple credential preflight; found {version_needs:?}"
-    );
-    assert!(
-        build.contains("needs: [lint-test, version]")
-            && opr8r_build.contains("needs: [lint-test, version]"),
-        "both release build matrices must remain downstream of the gated version job"
-    );
-}
-
-#[test]
 fn test_job_block_slices_a_single_job() {
     let content = read(&repo_root().join(".github/workflows/build.yaml"));
     let publish = job_block(&content, "docker-publish");

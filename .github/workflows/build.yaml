@@ -74,6 +74,7 @@ jobs:
           (cd webcomponents && bun install --frozen-lockfile && bun run copy-types)
           (cd ui && bun install --frozen-lockfile)
           (cd vscode-extension && npm ci && npm run copy-types)
+          (cd e2e && bun install --frozen-lockfile)
 
       - name: Build shared web components
         run: |
@@ -91,6 +92,7 @@ jobs:
           bun run lint:vscode
           bun run lint:agnt
           bun run lint:coder-module
+          bun run lint:e2e
 
       - name: Webview unit tests
         run: bun run test:webview
@@ -396,6 +398,78 @@ jobs:
         env:
           OPERATOR_RELAY_INTEGRATION_TEST_ENABLED: 'true'
         run: cargo test --locked --test relay_integration -- --nocapture --test-threads=1
+
+  # Playwright against a release binary on x64. The license suite asks the prod issuer for a
+  # test-mode key, so it skips until OPERATOR_E2E_LICENSE_TOKEN is set; the arm64 twin is .forgejo/workflows/pr.yaml.
+  e2e:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@1.95
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-e2e-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-e2e-
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Build UI for embedding
+        run: |
+          (cd webcomponents && bun install --frozen-lockfile && bun run build)
+          (cd ui && bun install --frozen-lockfile && bun run build)
+
+      - name: Build operator
+        run: cargo build --release --locked --bin operator
+        env:
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+
+      - name: Start operator
+        run: |
+          workspace="$(mktemp -d)"
+          od -An -tx1 -N16 /dev/urandom | tr -d ' \n' > "$RUNNER_TEMP/bootstrap"
+          echo "OPERATOR_E2E_BOOTSTRAP_PASSWORD=$(cat "$RUNNER_TEMP/bootstrap")" >> "$GITHUB_ENV"
+          cd "$workspace"
+          OPERATOR_BOOTSTRAP_PASSWORD_FILE="$RUNNER_TEMP/bootstrap" \
+            nohup "$GITHUB_WORKSPACE/target/release/operator" api > "$RUNNER_TEMP/operator.log" 2>&1 &
+
+      - name: Install Playwright
+        run: |
+          cd e2e
+          bun install --frozen-lockfile
+          bunx playwright install --with-deps chromium
+
+      - name: Run e2e
+        run: cd e2e && bunx playwright test
+        env:
+          CI: 'true'
+          OPERATOR_E2E_ISSUER_URL: https://webhook.operator.untra.app
+          OPERATOR_E2E_LICENSE_TOKEN: ${{ secrets.OPERATOR_E2E_LICENSE_TOKEN }}
+
+      - name: Operator log
+        if: always()
+        run: cat "$RUNNER_TEMP/operator.log" || true
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
 
   build:
     needs: [lint-test, version]

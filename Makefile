@@ -6,7 +6,7 @@
 # hook, which runs the fast gate (root fmt-check + clippy, no tests).
 
 .PHONY: check fmt fmt-check lint test clippy build run install-hooks bindings \
-	webcomponents storybook ui docs vscode-extension relay opr8r \
+	webcomponents storybook ui docs vscode-extension relay opr8r e2e \
 	fmt-rust fmt-ts fmt-tf fmt-check-rust fmt-check-ts fmt-check-tf \
 	lint-rust lint-ts lint-shell lint-helm lint-tf test-rust test-ts
 
@@ -73,6 +73,8 @@ lint-ts:
 	bun run lint:vscode
 	bun run lint:agnt
 	bun run lint:coder-module
+	cd e2e && bun install --frozen-lockfile
+	bun run lint:e2e
 
 lint-shell:
 	shellcheck -S warning scripts/*.sh scripts/ci/*.sh
@@ -110,6 +112,12 @@ opr8r:
 	cd opr8r && cargo fmt -- --check
 	cd opr8r && cargo clippy --locked --all-targets --all-features -- -D warnings
 	cd opr8r && cargo test --locked --all-features
+
+# Playwright suites against a fresh Dockerfile.local image, run the way the Forgejo PR check runs them.
+# The license suite skips unless OPERATOR_E2E_ISSUER_URL and OPERATOR_E2E_LICENSE_TOKEN are set.
+e2e:
+	docker build --file Dockerfile.local --tag operator-e2e:local .
+	scripts/ci/e2e.sh operator-e2e:local
 
 # Optimized release binary at target/release/operator.
 build:

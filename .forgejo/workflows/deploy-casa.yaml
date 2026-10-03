@@ -25,6 +25,7 @@ jobs:
     runs-on: docker
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - name: License secrets present
         run: |
@@ -55,6 +56,7 @@ jobs:
       # Default docker driver: a docker-container builder would not trust the home CA.
       # OPERATOR_RELEASE=1 makes build.rs fail on an empty keyring or issuer instead of shipping one that rejects every license.
       - name: Build and push
+        id: push
         run: |
           docker buildx build \
             --file Dockerfile.local \
@@ -66,8 +68,10 @@ jobs:
             --cache-from "type=registry,ref=$REGISTRY_IMAGE:buildcache" \
             --cache-to "type=registry,ref=$REGISTRY_IMAGE:buildcache,mode=max" \
             --tag "$REGISTRY_IMAGE:${{ steps.meta.outputs.tag }}" \
+            --metadata-file meta.json \
             --push \
             .
+          echo "digest=$(node -p "require('./meta.json')['containerimage.digest']")" >> "$GITHUB_OUTPUT"
         env:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
           OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
@@ -90,13 +94,15 @@ jobs:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
 
       # Helmfile owns the release: keep its chart version and values, and swap only the image.
+      # The tag carries the digest: a re-run on the same commit pushes a new image under the same
+      # tag, and a bare tag would leave the StatefulSet unchanged (and IfNotPresent on the old one).
       - name: Helm upgrade
         run: |
           version=$(helm get metadata operator -n operator | awk '/^VERSION:/ {print $2}')
           helm upgrade operator "oci://${REGISTRY_IMAGE%/*}/charts/operator" --version "$version" -n operator \
             --reset-then-reuse-values \
             --set image.repository="$REGISTRY_IMAGE" \
-            --set image.tag="${{ needs.build.outputs.tag }}" \
+            --set image.tag="${{ needs.build.outputs.tag }}@${{ needs.build.outputs.digest }}" \
             --wait
         env:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}

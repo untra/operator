@@ -1,13 +1,16 @@
-# Forgejo Actions: deploy-casa runbook
+# Forgejo Actions runbook
 
 `workflows/deploy-casa.yaml` builds `Dockerfile.local` with the dev license keyring and swaps the image on the
-`operator` release at `operator.<devhost>`. Runners have no standing internet access: everything they pull
-comes from Forgejo mirrors that these commands refresh, run from a workstation that does have it.
+`operator` release at `operator.<devhost>`. `workflows/pr.yaml` is the required check on `main`: it builds the
+same arm64 image without pushing it, then runs the `e2e/` Playwright suites against it (`scripts/ci/e2e.sh`).
+Runners have no standing internet access: everything they pull comes from Forgejo mirrors that these commands
+refresh, run from a workstation that does have it.
 
-| Job | Runner label | Reaches |
+| Workflow / job | Runner label | Reaches |
 | --- | --- | --- |
-| `build` | `docker` | Forgejo registry; egress allowlist `deb.debian.org`, `registry.npmjs.org`, `index.crates.io`, `static.crates.io` |
-| `deploy` | `helmfile` | Forgejo registry, cluster API; no internet |
+| `deploy-casa` / `build` | `docker` | Forgejo registry; egress allowlist `deb.debian.org`, `registry.npmjs.org`, `index.crates.io`, `static.crates.io` |
+| `deploy-casa` / `deploy` | `helmfile` | Forgejo registry, cluster API; no internet |
+| `pr` / `arm64` | `docker` | as `build`, plus `webhook.operator.untra.casa` for the license suite |
 
 Common shell setup:
 
@@ -34,12 +37,13 @@ api "$FORGEJO/api/v1/repos/$REPO/actions/secrets" | jq -r '.[].name'   # names o
 
 ## Base image mirror
 
-Re-run whenever a `FROM` in `Dockerfile.local` changes. Digest-pinned refs copy whole, so the pin still resolves; the rest copy arm64 only. `--jobs 1` keeps large layer uploads under the ingress timeout.
+Re-run whenever a `FROM` in `Dockerfile.local` or `e2e/Dockerfile` changes; the Playwright tag tracks
+`@playwright/test` in `e2e/package.json`. Digest-pinned refs copy whole, so the pin still resolves; the rest copy arm64 only. `--jobs 1` keeps large layer uploads under the ingress timeout.
 
 ```sh
 : "${MIRROR:?run the common shell setup first}"
 crane auth login forgejo.<devhost> -u <registry-user> --password-stdin <<<"$FORGEJO_TOKEN"
-sed -n 's/^FROM \${BASE_REGISTRY}\([^ ]*\).*/\1/p' Dockerfile.local | while read -r ref; do
+sed -n 's/^FROM \${BASE_REGISTRY}\([^ ]*\).*/\1/p' Dockerfile.local e2e/Dockerfile | sort -u | while read -r ref; do
   case $ref in
     *@*) crane copy --jobs 1 "$ref" "$MIRROR/${ref%@*}" ;;
     *) crane copy --jobs 1 --platform linux/arm64 "$ref" "$MIRROR/$ref" ;;
@@ -71,6 +75,36 @@ api -X POST "$FORGEJO/api/v1/orgs" -d '{"username":"actions","visibility":"publi
 api -X POST "$FORGEJO/api/v1/repos/migrate" -d '{"clone_addr":"https://code.forgejo.org/actions/checkout",
   "repo_owner":"actions","repo_name":"checkout","mirror":true,"service":"git"}'          # once
 api -X POST "$FORGEJO/api/v1/repos/actions/checkout/mirror-sync"                        # refresh
+```
+
+## E2E suites
+
+`pr` runs both projects in `e2e/playwright.config.ts`: `workspace` (admin setup and onboarding on a fresh server)
+and `license` (a test-mode key from the platform webhook's `GET /e2e/license`, applied to that server's
+configuration). The license suite skips while `OPERATOR_E2E_LICENSE_TOKEN` is unset, so leave it unset until the
+casa webhook serves the route. Its value is the casa webhook's `E2E_LICENSE_TOKEN`.
+
+```sh
+api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_E2E_LICENSE_TOKEN" \
+  -d "$(jq -cn --arg v "$E2E_LICENSE_TOKEN" '{data: $v}')"
+api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_E2E_CA_CERT" \
+  -d "$(jq -cn --arg v "$(cat casa-root-ca.pem)" '{data: $v}')"   # only if the runner does not already trust the casa CA
+```
+
+Run the same thing locally with `make e2e`; pass the two `OPERATOR_E2E_*` variables to include the license suite.
+
+## Required check on main
+
+The status context is `<workflow name> / <job name> (<event>)`. Confirm it on the first PR's commit status
+before requiring it, because a misspelled context blocks every merge.
+
+```sh
+api "$FORGEJO/api/v1/repos/$REPO/commits/<pr-head-sha>/statuses" | jq -r '.[].context'   # expect: pr / arm64 (pull_request)
+api -X POST "$FORGEJO/api/v1/repos/$REPO/branch_protections" -d '{"rule_name":"main",
+  "enable_status_check":true,"status_check_contexts":["pr / arm64 (pull_request)"]}'
+# rule already exists:
+api -X PATCH "$FORGEJO/api/v1/repos/$REPO/branch_protections/main" -d '{"enable_status_check":true,
+  "status_check_contexts":["pr / arm64 (pull_request)"]}'
 ```
 
 ## Dispatch, status and rollback

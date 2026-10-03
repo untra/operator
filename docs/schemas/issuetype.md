@@ -410,7 +410,9 @@ step; iteration is an intra-step concern, never a step-to-step edge.
 
 ### Definition: ItemSource
 
-Where a pipeline's iterated items come from. The variant determines *when* the list resolves: export-time vs runtime.
+Where a pipeline's iterated items come from. The variant determines *when*
+the list resolves: export-time (a literal array -> static fan-out width in
+the compiled graph) vs runtime (an identifier -> symbolic width).
 
 ### Definition: PipelineStage
 

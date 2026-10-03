@@ -12,7 +12,6 @@
 //!   matching, so adoption never cross-wires two repos that share a basename.
 //!   The full path is never exposed over the wire.
 
-use std::fmt::Write as _;
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
@@ -38,13 +37,8 @@ pub fn directory_identity(tickets_path: &Path) -> (String, String) {
 
     let mut hasher = Sha256::new();
     hasher.update(canonical.to_string_lossy().as_bytes());
-    let digest = hasher.finalize();
-    // First 6 bytes -> 12 hex chars. Enough to make accidental collisions
-    // between distinct absolute paths negligible without pulling in `hex`.
-    let mut directory_id = String::with_capacity(12);
-    for byte in digest.iter().take(6) {
-        let _ = write!(directory_id, "{byte:02x}");
-    }
+    // First 6 bytes -> 12 hex chars; collisions between distinct paths are negligible.
+    let directory_id = hex::encode(&hasher.finalize()[..6]);
 
     (directory_name, directory_id)
 }

@@ -532,7 +532,7 @@ impl SessionMonitor {
 fn hash_content(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
-    crate::agents::hex_encode(&hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 #[cfg(test)]

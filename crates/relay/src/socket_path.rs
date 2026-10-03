@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 /// Returns the Unix socket path for the relay hub.
 ///
-/// Priority: `$RELAY_HUB_SOCKET` → `$CLAUDE_PLUGIN_DATA/hub.sock` → `~/.claude-relay/hub.sock`
+/// Priority: `$RELAY_HUB_SOCKET` > `$CLAUDE_PLUGIN_DATA/hub.sock` > `~/.claude-relay/hub.sock`
 ///
 /// This matches claude-relay's `data-dir.ts` so existing deployments find the hub
 /// at the same path regardless of whether the TS or Rust hub is running.

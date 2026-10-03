@@ -18,13 +18,7 @@ use crate::collections::{get_embedded_collection, EmbeddedCollection, EMBEDDED_C
 
 /// Compute the lowercase-hex SHA-256 of `bytes`.
 pub fn sha256_hex(bytes: &[u8]) -> String {
-    let digest = Sha256::digest(bytes);
-    let mut out = String::with_capacity(64);
-    for b in digest {
-        use std::fmt::Write as _;
-        let _ = write!(out, "{b:02x}");
-    }
-    out
+    hex::encode(Sha256::digest(bytes))
 }
 
 /// Derive a manifest-level checksum from the per-issuetype file checksums.

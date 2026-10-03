@@ -1374,7 +1374,7 @@
       ]
     },
     "ItemSource": {
-      "description": "Where a pipeline's iterated items come from. The variant determines *when*\nthe list resolves: export-time (a literal array → static fan-out width in\nthe compiled graph) vs runtime (an identifier → symbolic width).",
+      "description": "Where a pipeline's iterated items come from. The variant determines *when*\nthe list resolves: export-time (a literal array -> static fan-out width in\nthe compiled graph) vs runtime (an identifier -> symbolic width).",
       "oneOf": [
         {
           "description": "The configured/relevant projects (`config.discover_projects()`),\nresolved to a literal array at export time. The \"plan work across many\nprojects\" mechanism.",

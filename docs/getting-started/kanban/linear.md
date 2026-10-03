@@ -103,7 +103,7 @@ done = "Done"           # State pushed when a ticket completes
 `status_mapping` declares which Linear workflow state corresponds to each of
 operator's strict todo/doing/done states. Issues are pulled from the `todo`
 (and `doing`) states; with `bidirectional = true`, ticket transitions are
-pushed back to the mapped states (requeue → `todo` only fires when `todo` is
+pushed back to the mapped states (requeue > `todo` only fires when `todo` is
 mapped; unmapped `doing`/`done` fall back to `"In Progress"`/`"Done"`).
 
 Discover the team's real state names via `POST /api/v1/kanban/statuses`

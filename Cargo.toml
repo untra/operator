@@ -108,6 +108,8 @@ jsonwebtoken = "9"
 ring = "0.17"
 rand = "0.9"
 base64 = "0.22"
+hex = "0.4"
+fnv = "1"
 subtle = "2"
 url = "2"
 

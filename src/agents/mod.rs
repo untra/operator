@@ -75,18 +75,6 @@ pub use cmux::{
     SystemCmuxClient, MIN_SUPPORTED_CMUX_VERSION,
 };
 
-/// Lowercase-hex encode bytes (e.g. a SHA-256 digest) without pulling in a
-/// dedicated hex crate. Used for content-change detection hashes.
-pub(crate) fn hex_encode(bytes: &[u8]) -> String {
-    use std::fmt::Write;
-    bytes
-        .iter()
-        .fold(String::with_capacity(bytes.len() * 2), |mut acc, byte| {
-            let _ = write!(acc, "{byte:02x}");
-            acc
-        })
-}
-
 pub use tmux_config::{generate_status_script, generate_tmux_conf};
 
 // Zellij implementation

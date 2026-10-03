@@ -83,6 +83,7 @@ If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)
 
 Linting is strictly enforced; the rules are tighter than other software. Linting warnings are errors; address them as part of design.
 Always running lint step when finished working in a directory. Fix all found linting problems before declaring work done.
+Don't hand-roll encodings or hashes with bitwise operators; use a crate or std API.
 
 ### Subproject Validation
 

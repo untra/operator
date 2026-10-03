@@ -4,7 +4,7 @@
 //!
 //! When a step transition occurs and the next step specifies a different agent
 //! (delegator), the current agent is gracefully exited using a 3-tier escalation
-//! (`/exit` → `Ctrl+C` → `Ctrl+D`) and the new one is launched in the same terminal session.
+//! (`/exit` > `Ctrl+C` > `Ctrl+D`) and the new one is launched in the same terminal session.
 //!
 //! Supports tmux and cmux backends via the `TerminalOps` trait.
 

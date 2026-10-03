@@ -13,10 +13,12 @@
 //! to and nothing has to be baked into the Operator image.
 
 use std::ffi::OsStr;
+use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
+use fnv::FnvHasher;
 
 use crate::config::{CoderConfig, Config, RemoteHost};
 
@@ -70,7 +72,7 @@ pub fn workspace_name(prefix: &str, project: &str, ticket_id: &str) -> String {
     }
     let hash = fnv1a(&full);
     let truncated = full[..TRUNCATED_KEY_LEN].trim_end_matches('-');
-    format!("{truncated}-{:06x}", hash & 0xFF_FFFF)
+    format!("{truncated}-{:06x}", hash % 0x0100_0000)
 }
 
 fn sanitize(s: &str) -> String {
@@ -89,12 +91,9 @@ fn sanitize(s: &str) -> String {
 }
 
 fn fnv1a(s: &str) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in s.bytes() {
-        hash ^= u64::from(b);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash
+    let mut hasher = FnvHasher::default();
+    hasher.write(s.as_bytes());
+    hasher.finish()
 }
 
 /// The provisioned ssh alias for a workspace.
@@ -679,6 +678,18 @@ mod tests {
         // Distinct long keys must not collide after truncation.
         let other = workspace_name("op", "a-very-long-project-name-here", "FEATURE-12346");
         assert_ne!(name, other);
+    }
+
+    #[test]
+    fn test_workspace_name_truncated_suffix_is_stable() {
+        assert_eq!(
+            workspace_name("op", "a-very-long-project-name-here", "FEATURE-12345"),
+            "op-a-very-long-project-na-81f238"
+        );
+        assert_eq!(
+            workspace_name("op", "a-very-long-project-name-here", "FEATURE-12346"),
+            "op-a-very-long-project-na-81f751"
+        );
     }
 
     /// Create an executable stub at `path`, parent dirs included.

@@ -89,7 +89,7 @@ struct AgntNode {
     parameters: Value,
 }
 
-/// A directed edge. AGNT's engine traverses `start.id` → `end.id` and tracks the
+/// A directed edge. AGNT's engine traverses `start.id` > `end.id` and tracks the
 /// edge by `id`, so all three are required (a bare `{source,target}` won't run).
 #[derive(Debug, Serialize)]
 struct AgntEdge {

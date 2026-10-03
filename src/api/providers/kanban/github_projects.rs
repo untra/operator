@@ -86,9 +86,8 @@ struct StatusFieldCache {
 /// Resolved (project, item) pair for a given external `issue_key`.
 ///
 /// Populated by `list_issues` so `update_issue_status` can resolve the
-/// human-readable key (e.g. `octocat/hello#42`) back to the `GraphQL` IDs
-/// it needs for the mutation. Cache miss → `update_issue_status` returns
-/// a clear error asking the caller to run `list_issues` first.
+/// human-readable key (e.g. `octocat/hello#42`) back to the `GraphQL` IDs it needs for the mutation.
+// Cache miss `update_issue_status` returns a clear error asking the caller to run `list_issues` first.
 #[derive(Debug, Clone)]
 struct ItemLookup {
     project_id: String,

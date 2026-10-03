@@ -82,13 +82,6 @@ impl JiraProvider {
         format!("https://{}/rest/api/3", self.domain)
     }
 
-    /// Get Basic Auth header value (simple Base64 encoding)
-    fn auth_header(&self) -> String {
-        let credentials = format!("{}:{}", self.email, self.api_token);
-        let encoded = simple_base64_encode(credentials.as_bytes());
-        format!("Basic {encoded}")
-    }
-
     /// Make an authenticated GET request
     async fn get<T: for<'de> Deserialize<'de>>(&self, path: &str) -> Result<T, ApiError> {
         let url = format!("{}{}", self.base_url(), path);
@@ -97,7 +90,7 @@ impl JiraProvider {
         let response = self
             .client
             .get(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .send()
             .await
@@ -137,7 +130,7 @@ impl JiraProvider {
         let response = self
             .client
             .post(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(body)
@@ -175,7 +168,7 @@ impl JiraProvider {
         let response = self
             .client
             .put(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(body)
@@ -209,7 +202,7 @@ impl JiraProvider {
         let response = self
             .client
             .post(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(body)
@@ -285,57 +278,13 @@ impl JiraProvider {
     }
 }
 
-/// Simple Base64 encoding implementation (for Basic Auth only)
-fn simple_base64_encode(data: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-    let mut result = String::new();
-    let (chunks, remainder) = data.as_chunks::<3>();
-
-    for chunk in chunks {
-        let n = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
-        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
-        result.push(ALPHABET[(n & 0x3F) as usize] as char);
-    }
-
-    if remainder.len() == 1 {
-        let n = (remainder[0] as u32) << 16;
-        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
-        result.push_str("==");
-    } else if remainder.len() == 2 {
-        let n = ((remainder[0] as u32) << 16) | ((remainder[1] as u32) << 8);
-        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
-        result.push('=');
-    }
-
-    result
-}
-
-/// Simple URL encoding for JQL queries
-fn simple_url_encode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len() * 3);
-    for c in s.chars() {
-        match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => result.push(c),
-            ' ' => result.push_str("%20"),
-            '"' => result.push_str("%22"),
-            '=' => result.push_str("%3D"),
-            '(' => result.push_str("%28"),
-            ')' => result.push_str("%29"),
-            ',' => result.push_str("%2C"),
-            _ => {
-                for b in c.to_string().as_bytes() {
-                    result.push_str(&format!("%{b:02X}"));
-                }
-            }
-        }
-    }
-    result
+/// Search path for a JQL query, with the query string form-encoded.
+fn search_path(jql: &str) -> String {
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("jql", jql)
+        .append_pair("maxResults", "100")
+        .finish();
+    format!("/search/jql?{query}")
 }
 
 // Jira API response types
@@ -646,10 +595,7 @@ impl KanbanProvider for JiraProvider {
 
         let jql =
             format!("project = \"{project_key}\" AND assignee = \"{user_id}\"{status_clause}");
-        let encoded_jql = simple_url_encode(&jql);
-        let path = format!("/search/jql?jql={encoded_jql}&maxResults=100");
-
-        let response: JiraSearchResponse = self.get(&path).await?;
+        let response: JiraSearchResponse = self.get(&search_path(&jql)).await?;
 
         Ok(response
             .issues
@@ -888,15 +834,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_base64_encode() {
-        assert_eq!(simple_base64_encode(b"Hello"), "SGVsbG8=");
+    fn test_search_path_round_trips_jql() {
+        let jql = r#"project = "OPS" AND status IN ("To Do","In Progress")"#;
+        let path = search_path(jql);
+        let query = path.strip_prefix("/search/jql?").unwrap();
+        let pairs: Vec<(String, String)> = url::form_urlencoded::parse(query.as_bytes())
+            .into_owned()
+            .collect();
         assert_eq!(
-            simple_base64_encode(b"Hello, World!"),
-            "SGVsbG8sIFdvcmxkIQ=="
+            pairs,
+            vec![
+                ("jql".to_string(), jql.to_string()),
+                ("maxResults".to_string(), "100".to_string()),
+            ]
         );
-        assert_eq!(simple_base64_encode(b"abc"), "YWJj");
-        assert_eq!(simple_base64_encode(b"ab"), "YWI=");
-        assert_eq!(simple_base64_encode(b"a"), "YQ==");
     }
 
     #[test]

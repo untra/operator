@@ -118,7 +118,7 @@ impl TmuxActivityDetector {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        crate::agents::hex_encode(&hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 }
 
@@ -196,7 +196,7 @@ pub struct CmuxActivityDetector {
     idle_detector: IdleDetector,
     /// Content hashes for change detection
     content_hashes: Mutex<HashMap<String, String>>,
-    /// Map of `session_id` → `workspace_ref` (for routing cmux `read_screen` calls)
+    /// Map of `session_id` > `workspace_ref` (for routing cmux `read_screen` calls)
     workspace_refs: Mutex<HashMap<String, String>>,
 }
 
@@ -225,7 +225,7 @@ impl CmuxActivityDetector {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        crate::agents::hex_encode(&hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 
     fn get_workspace_ref(&self, session_id: &str) -> Option<String> {
@@ -300,7 +300,7 @@ pub struct ZellijActivityDetector {
     idle_detector: IdleDetector,
     /// Content hashes for change detection
     content_hashes: Mutex<HashMap<String, String>>,
-    /// Map of `session_id` → `tab_name` (for routing zellij `read_screen` calls)
+    /// Map of `session_id` > `tab_name` (for routing zellij `read_screen` calls)
     tab_names: Mutex<HashMap<String, String>>,
 }
 
@@ -329,7 +329,7 @@ impl ZellijActivityDetector {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        crate::agents::hex_encode(&hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 
     fn get_tab_name(&self, session_id: &str) -> Option<String> {

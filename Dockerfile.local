@@ -1,7 +1,11 @@
 # Cargo.toml sets default = ["embed-ui"], and build.rs silently substitutes a
 # placeholder index.html when ui/dist is missing, which would produce an image
 # with no dashboard. Building the SPA here is required, not optional.
-FROM oven/bun:1.3.14 AS web
+
+# Registry mirror prefix for the base images, e.g. registry.example/org/mirror/; empty pulls from Docker Hub.
+ARG BASE_REGISTRY=""
+
+FROM ${BASE_REGISTRY}oven/bun:1.3.14 AS web
 
 # webcomponents' own build script shells out to `npm run copy-types`, which runs
 # `node scripts/copy-types.mjs`. The oven/bun image ships bun only; CI gets away
@@ -22,7 +26,7 @@ COPY ui/ ./ui/
 RUN cd ui && bun install --frozen-lockfile && bun run build
 
 # rusqlite is features = ["bundled"], so a C toolchain is required.
-FROM rust:1.98 AS build
+FROM ${BASE_REGISTRY}rust:1.98 AS build
 
 WORKDIR /src
 COPY . .
@@ -41,7 +45,7 @@ RUN cd opr8r && cargo build --release --locked
 
 # Mirrors Dockerfile; only the operator/opr8r binary source differs.
 # glibc 2.41 >= the ubuntu-24.04 build runners' 2.39, so the GNU binary runs.
-FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
+FROM ${BASE_REGISTRY}debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132
 
 LABEL org.opencontainers.image.title="Operator" \
       org.opencontainers.image.description="Agent orchestration server and CLI (local build)" \

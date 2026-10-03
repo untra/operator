@@ -60,8 +60,7 @@ impl App {
                                     project: ticket.project.clone(),
                                     ticket_id: ticket_id.clone(),
                                     pr_number,
-                                })
-                                .await;
+                                });
                         }
                     }
 
@@ -97,8 +96,7 @@ impl App {
                                 project: String::new(), // Project unknown in this context
                                 ticket_id: ticket_id.clone(),
                                 pr_number,
-                            })
-                            .await;
+                            });
                     }
 
                     // Untrack the PR
@@ -121,8 +119,7 @@ impl App {
                             project: String::new(), // Project unknown in this context
                             ticket_id: ticket_id.clone(),
                             pr_number,
-                        })
-                        .await;
+                        });
                 }
                 PrStatusEvent::Approved {
                     ticket_id,
@@ -155,8 +152,7 @@ impl App {
                             project: String::new(), // Project unknown in this context
                             ticket_id: ticket_id.clone(),
                             pr_number,
-                        })
-                        .await;
+                        });
                 }
                 PrStatusEvent::ReadyForReview {
                     ticket_id,
@@ -300,8 +296,7 @@ impl App {
                             ticket_id: ticket.id.clone(),
                             pr_url: pr.url.clone(),
                             pr_number: pr.number,
-                        })
-                        .await;
+                        });
                 }
                 Err(e) => {
                     tracing::error!(
@@ -329,8 +324,7 @@ impl App {
                             project: ticket.project.clone(),
                             ticket_id: ticket.id.clone(),
                             error: format!("Failed to create PR: {e}"),
-                        })
-                        .await;
+                        });
                 }
             }
         }

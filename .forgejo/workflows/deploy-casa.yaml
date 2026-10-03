@@ -10,9 +10,11 @@ on:
 # Builds Dockerfile.local with the dev license keyring and rolls it out to operator.kube.untra.casa.
 #   build   runs-on: docker    native arm64 buildx push to the Forgejo registry, tagged by commit sha
 #   deploy  runs-on: helmfile  swaps the image on the helmfile-owned release, at its deployed chart version and values
+# Base images, the chart and the checkout action come from Forgejo mirrors; see .forgejo/README.md.
 #
-# Variables: REGISTRY_IMAGE, OPERATOR_LICENSE_ROOT_KEYS (dev root only), OPERATOR_PURCHASE_URL
-# Secrets:   REGISTRY_USERNAME, REGISTRY_TOKEN, KUBECONFIG
+# Variables: REGISTRY_IMAGE
+# Secrets:   REGISTRY_USERNAME, REGISTRY_TOKEN, KUBECONFIG,
+#            OPERATOR_LICENSE_ROOT_KEYS (dev root only), OPERATOR_LICENSE_ISSUER, OPERATOR_PURCHASE_URL
 
 concurrency:
   group: deploy-casa
@@ -24,7 +26,21 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
     steps:
-      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: License secrets present
+        run: |
+          missing=0
+          for name in OPERATOR_LICENSE_ROOT_KEYS OPERATOR_LICENSE_ISSUER; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "::error::repository secret $name is unset or empty"
+              missing=1
+            fi
+          done
+          exit "$missing"
+        env:
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+
+      - uses: https://forgejo.kube.untra.casa/actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
 
@@ -37,12 +53,14 @@ jobs:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
 
       # Default docker driver: a docker-container builder would not trust the home CA.
-      # OPERATOR_RELEASE=1 makes build.rs fail on an empty keyring instead of shipping one that rejects every license.
+      # OPERATOR_RELEASE=1 makes build.rs fail on an empty keyring or issuer instead of shipping one that rejects every license.
       - name: Build and push
         run: |
           docker buildx build \
             --file Dockerfile.local \
+            --build-arg BASE_REGISTRY="${REGISTRY_IMAGE%/*}/mirror/" \
             --build-arg OPERATOR_RELEASE=1 \
+            --build-arg OPERATOR_LICENSE_ISSUER="$OPERATOR_LICENSE_ISSUER" \
             --build-arg OPERATOR_LICENSE_ROOT_KEYS="$OPERATOR_LICENSE_ROOT_KEYS" \
             --build-arg OPERATOR_PURCHASE_URL="$OPERATOR_PURCHASE_URL" \
             --cache-from "type=registry,ref=$REGISTRY_IMAGE:buildcache" \
@@ -52,8 +70,9 @@ jobs:
             .
         env:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
-          OPERATOR_LICENSE_ROOT_KEYS: ${{ vars.OPERATOR_LICENSE_ROOT_KEYS }}
-          OPERATOR_PURCHASE_URL: ${{ vars.OPERATOR_PURCHASE_URL }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          OPERATOR_PURCHASE_URL: ${{ secrets.OPERATOR_PURCHASE_URL }}
 
   deploy:
     needs: build
@@ -65,11 +84,16 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
 
+      - name: Registry login
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | helm registry login "${REGISTRY_IMAGE%%/*}" -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+
       # Helmfile owns the release: keep its chart version and values, and swap only the image.
       - name: Helm upgrade
         run: |
           version=$(helm get metadata operator -n operator | awk '/^VERSION:/ {print $2}')
-          helm upgrade operator oci://ghcr.io/untra/charts/operator --version "$version" -n operator \
+          helm upgrade operator "oci://${REGISTRY_IMAGE%/*}/charts/operator" --version "$version" -n operator \
             --reset-then-reuse-values \
             --set image.repository="$REGISTRY_IMAGE" \
             --set image.tag="${{ needs.build.outputs.tag }}" \

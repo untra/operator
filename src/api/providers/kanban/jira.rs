@@ -290,9 +290,9 @@ fn simple_base64_encode(data: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     let mut result = String::new();
-    let mut chunks = data.chunks_exact(3);
+    let (chunks, remainder) = data.as_chunks::<3>();
 
-    for chunk in chunks.by_ref() {
+    for chunk in chunks {
         let n = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
         result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
         result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
@@ -300,7 +300,6 @@ fn simple_base64_encode(data: &[u8]) -> String {
         result.push(ALPHABET[(n & 0x3F) as usize] as char);
     }
 
-    let remainder = chunks.remainder();
     if remainder.len() == 1 {
         let n = (remainder[0] as u32) << 16;
         result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);

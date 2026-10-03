@@ -239,10 +239,7 @@ impl ApiClient {
     /// Discover the API endpoint: explicit `--api-url`, then the
     /// `OPERATOR_API_URL` env var (set by remote launches so callbacks route
     /// through the SSH reverse tunnel), then api-session.json, then default.
-    pub async fn discover(
-        api_url: Option<&str>,
-        profile_id: Option<&str>,
-    ) -> Result<Self, ApiError> {
+    pub fn discover(api_url: Option<&str>, profile_id: Option<&str>) -> Result<Self, ApiError> {
         let env_url = std::env::var("OPERATOR_API_URL").ok();
         let env_profile = std::env::var(PROFILE_ID_ENV).ok();
 

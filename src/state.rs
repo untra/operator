@@ -1486,7 +1486,7 @@ mod tests {
 
         // UUID v4 format: 8-4-4-4-12 hex chars
         assert_eq!(id.len(), 36);
-        assert!(id.chars().filter(|c| *c == '-').count() == 4);
+        assert_eq!(id.chars().filter(|c| *c == '-').count(), 4);
     }
 
     #[test]

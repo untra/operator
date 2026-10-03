@@ -470,16 +470,16 @@ jobs:
           cargo update --workspace
 
       # Compile license material into the release binary. These are not
-      # runtime settings. build.rs refuses an empty root keyring when
-      # OPERATOR_RELEASE=1, so a missing repository variable fails this job
+      # runtime settings. build.rs refuses an empty root keyring or issuer when
+      # OPERATOR_RELEASE=1, so a missing repository secret fails this job
       # instead of publishing a binary that rejects every license.
       - name: Build release
         run: cargo build --locked --release --features embed-ui --target ${{ matrix.target }}
         env:
           OPERATOR_RELEASE: "1"
-          OPERATOR_LICENSE_ISSUER: operator-licensing
-          OPERATOR_LICENSE_ROOT_KEYS: ${{ vars.OPERATOR_LICENSE_ROOT_KEYS }}
-          OPERATOR_PURCHASE_URL: ${{ vars.OPERATOR_PURCHASE_URL }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          OPERATOR_PURCHASE_URL: ${{ secrets.OPERATOR_PURCHASE_URL }}
 
       - name: Rename binary
         shell: bash

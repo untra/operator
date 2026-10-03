@@ -72,13 +72,11 @@ fn parse_checklist_item(line: &str) -> Option<TaskItem> {
         .or_else(|| trimmed.strip_prefix("* "))?;
     let (checked, text) = if let Some(t) = rest.strip_prefix("[ ]") {
         (false, t)
-    } else if let Some(t) = rest
-        .strip_prefix("[x]")
-        .or_else(|| rest.strip_prefix("[X]"))
-    {
-        (true, t)
     } else {
-        return None;
+        let t = rest
+            .strip_prefix("[x]")
+            .or_else(|| rest.strip_prefix("[X]"))?;
+        (true, t)
     };
     Some(TaskItem {
         checked,

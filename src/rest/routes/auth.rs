@@ -24,7 +24,7 @@ use crate::rest::dto::auth::{
     OAuthErrorResponse, ResetPasswordRequest, ResetPasswordResponse, RevokeAccessKeyResponse,
     Scope, SessionListResponse, TokenRequest, TokenResponse,
 };
-use crate::rest::error::ApiError;
+use crate::rest::error::{ApiError, Rejection};
 use crate::rest::middleware::auth::{enforce_backoff, Authenticated, SESSION_COOKIE};
 use crate::rest::state::ApiState;
 
@@ -146,15 +146,13 @@ pub async fn bootstrap_status(
 pub async fn bootstrap_submit(
     State(state): State<ApiState>,
     Json(req): Json<BootstrapSubmitRequest>,
-) -> Result<Json<BootstrapSubmitResponse>, Response> {
+) -> Result<Json<BootstrapSubmitResponse>, Rejection> {
     if let Some(limited) = enforce_backoff(&state, BUCKET_BOOTSTRAP).await {
-        return Err(limited);
+        return Err(limited.into());
     }
 
     let s = store(&state);
-    let current = blocking(move || s.bootstrap_state())
-        .await
-        .map_err(IntoResponse::into_response)?;
+    let current = blocking(move || s.bootstrap_state()).await?;
 
     let mounted = mounted_bootstrap_password();
 
@@ -162,7 +160,7 @@ pub async fn bootstrap_submit(
         BootstrapState::Complete => Err(ApiError::Conflict(
             "the admin account already exists; use login".to_string(),
         )
-        .into_response()),
+        .into()),
 
         BootstrapState::Uninitialized => {
             // When a bootstrap secret is mounted, it must be presented. That is
@@ -180,19 +178,17 @@ pub async fn bootstrap_submit(
                     return Err(ApiError::Unauthorized(
                         "the temporary password is incorrect".to_string(),
                     )
-                    .into_response());
+                    .into());
                 }
             }
 
             if let Some(rejected) = rejected_password(&req.new_password) {
-                return Err(rejected);
+                return Err(rejected.into());
             }
 
             let password = req.new_password.clone();
             let s = store(&state);
-            let created = blocking(move || s.create_admin(&password, false))
-                .await
-                .map_err(IntoResponse::into_response)?;
+            let created = blocking(move || s.create_admin(&password, false)).await?;
 
             let s = store(&state);
             if !created {
@@ -200,7 +196,7 @@ pub async fn bootstrap_submit(
                 return Err(ApiError::Conflict(
                     "the admin account was created concurrently".to_string(),
                 )
-                .into_response());
+                .into());
             }
             let _ = blocking(move || {
                 s.clear_rate_limit(BUCKET_BOOTSTRAP)?;
@@ -219,9 +215,7 @@ pub async fn bootstrap_submit(
             // proving possession of it.
             let provided = req.temporary_password.clone().unwrap_or_default();
             let s = store(&state);
-            let ok = blocking(move || s.verify_admin_password(&provided))
-                .await
-                .map_err(IntoResponse::into_response)?;
+            let ok = blocking(move || s.verify_admin_password(&provided)).await?;
             if !ok {
                 let s = store(&state);
                 let _ = blocking(move || {
@@ -232,11 +226,11 @@ pub async fn bootstrap_submit(
                 return Err(ApiError::Unauthorized(
                     "the temporary password is incorrect".to_string(),
                 )
-                .into_response());
+                .into());
             }
 
             if let Some(rejected) = rejected_password(&req.new_password) {
-                return Err(rejected);
+                return Err(rejected.into());
             }
 
             let password = req.new_password.clone();
@@ -246,8 +240,7 @@ pub async fn bootstrap_submit(
                 s.clear_rate_limit(BUCKET_BOOTSTRAP)?;
                 s.audit("bootstrap", Some("password set"), true)
             })
-            .await
-            .map_err(IntoResponse::into_response)?;
+            .await?;
 
             Ok(Json(BootstrapSubmitResponse {
                 state: BootstrapState::Complete,
@@ -286,26 +279,24 @@ fn session_cookie(token: &str) -> String {
 pub async fn login(
     State(state): State<ApiState>,
     Json(req): Json<LoginRequest>,
-) -> Result<Response, Response> {
+) -> Result<Response, Rejection> {
     if let Some(limited) = enforce_backoff(&state, BUCKET_LOGIN).await {
-        return Err(limited);
+        return Err(limited.into());
     }
 
     if !valid_username(&req.username)
         || req.password.chars().count() > crate::auth::password::MAX_PASSWORD_LENGTH
     {
-        return Err(reject_login(&state, "invalid credentials").await);
+        return Err(reject_login(&state, "invalid credentials").await.into());
     }
 
     let username = req.username.clone();
     let password = req.password.clone();
     let s = store(&state);
-    let ok = blocking(move || s.verify_credentials(&username, &password))
-        .await
-        .map_err(IntoResponse::into_response)?;
+    let ok = blocking(move || s.verify_credentials(&username, &password)).await?;
 
     if !ok {
-        return Err(reject_login(&state, "invalid credentials").await);
+        return Err(reject_login(&state, "invalid credentials").await.into());
     }
 
     let s = store(&state);
@@ -315,8 +306,7 @@ pub async fn login(
         s.audit("login", None, true)?;
         Ok(session)
     })
-    .await
-    .map_err(IntoResponse::into_response)?;
+    .await?;
 
     let body = LoginResponse {
         scopes: Scope::ALL.to_vec(),
@@ -375,25 +365,24 @@ pub async fn forgot_password(
 pub async fn reset_password(
     State(state): State<ApiState>,
     Json(req): Json<ResetPasswordRequest>,
-) -> Result<Json<ResetPasswordResponse>, Response> {
+) -> Result<Json<ResetPasswordResponse>, Rejection> {
     if let Some(limited) = enforce_backoff(&state, BUCKET_PASSWORD_RESET).await {
-        return Err(limited);
+        return Err(limited.into());
     }
     if !valid_username(&req.username)
         || req.current_password.chars().count() > crate::auth::password::MAX_PASSWORD_LENGTH
     {
-        return Err(reject_password_reset(&state).await);
+        return Err(reject_password_reset(&state).await.into());
     }
     crate::auth::password::validate_password(&req.new_password)
-        .map_err(|error| ApiError::ValidationError(error.to_string()).into_response())?;
+        .map_err(|error| ApiError::ValidationError(error.to_string()))?;
 
     let s = store(&state);
     let changed =
         blocking(move || s.reset_password(&req.username, &req.current_password, &req.new_password))
-            .await
-            .map_err(IntoResponse::into_response)?;
+            .await?;
     if !changed {
-        return Err(reject_password_reset(&state).await);
+        return Err(reject_password_reset(&state).await.into());
     }
 
     let s = store(&state);
@@ -566,9 +555,9 @@ pub async fn device_code(
     State(state): State<ApiState>,
     headers: HeaderMap,
     Json(req): Json<DeviceAuthorizationRequest>,
-) -> Result<Json<DeviceAuthorizationResponse>, Response> {
+) -> Result<Json<DeviceAuthorizationResponse>, Rejection> {
     if let Some(limited) = enforce_backoff(&state, BUCKET_DEVICE_CODE).await {
-        return Err(limited);
+        return Err(limited.into());
     }
     if !valid_client_id(&req.client_id) {
         record_bucket_failure(&state, BUCKET_DEVICE_CODE).await;
@@ -576,7 +565,7 @@ pub async fn device_code(
             StatusCode::BAD_REQUEST,
             OAuthErrorCode::InvalidClient,
             "client_id must contain 1 to 128 letters, numbers, periods, underscores, colons, or hyphens",
-        ));
+        ).into());
     }
 
     // An IDE client acts as the human admin, so it receives every scope. A
@@ -596,8 +585,7 @@ pub async fn device_code(
         s.record_failure(BUCKET_DEVICE_CODE)?;
         Ok(pair)
     })
-    .await
-    .map_err(IntoResponse::into_response)?;
+    .await?;
 
     let host = headers
         .get(header::HOST)
@@ -668,9 +656,9 @@ pub async fn device_approve(
 pub async fn token(
     State(state): State<ApiState>,
     Json(req): Json<TokenRequest>,
-) -> Result<Json<TokenResponse>, Response> {
+) -> Result<Json<TokenResponse>, Rejection> {
     if let Some(limited) = enforce_backoff(&state, BUCKET_TOKEN).await {
-        return Err(limited);
+        return Err(limited.into());
     }
 
     let (scopes, refresh_token) = match req {
@@ -684,20 +672,18 @@ pub async fn token(
                     OAuthErrorCode::InvalidClient,
                     "client_id is invalid",
                 )
-                .await);
+                .await
+                .into());
             }
             let s = store(&state);
-            let outcome = blocking(move || s.poll_device(&code, &client_id))
-                .await
-                .map_err(IntoResponse::into_response)?;
+            let outcome = blocking(move || s.poll_device(&code, &client_id)).await?;
 
             match outcome {
                 DevicePollOutcome::Approved { client_id, scopes } => {
                     let s = store(&state);
                     let owned = scopes.clone();
-                    let refresh = blocking(move || s.create_refresh_family(&client_id, &owned))
-                        .await
-                        .map_err(IntoResponse::into_response)?;
+                    let refresh =
+                        blocking(move || s.create_refresh_family(&client_id, &owned)).await?;
                     (scopes, Some(refresh))
                 }
                 DevicePollOutcome::Pending => {
@@ -705,14 +691,16 @@ pub async fn token(
                         StatusCode::BAD_REQUEST,
                         OAuthErrorCode::AuthorizationPending,
                         "the user has not yet approved this device",
-                    ))
+                    )
+                    .into())
                 }
                 DevicePollOutcome::SlowDown => {
                     return Err(oauth_error(
                         StatusCode::BAD_REQUEST,
                         OAuthErrorCode::SlowDown,
                         "polling faster than the advertised interval",
-                    ))
+                    )
+                    .into())
                 }
                 DevicePollOutcome::Denied => {
                     return Err(reject_token(
@@ -720,7 +708,8 @@ pub async fn token(
                         OAuthErrorCode::AccessDenied,
                         "the user declined this device",
                     )
-                    .await)
+                    .await
+                    .into())
                 }
                 DevicePollOutcome::Expired => {
                     return Err(reject_token(
@@ -728,7 +717,8 @@ pub async fn token(
                         OAuthErrorCode::ExpiredToken,
                         "the device code has expired or was already used",
                     )
-                    .await)
+                    .await
+                    .into())
                 }
             }
         }
@@ -743,12 +733,11 @@ pub async fn token(
                     OAuthErrorCode::InvalidClient,
                     "client_id is invalid",
                 )
-                .await);
+                .await
+                .into());
             }
             let s = store(&state);
-            let outcome = blocking(move || s.redeem_refresh_token(&token, &client_id))
-                .await
-                .map_err(IntoResponse::into_response)?;
+            let outcome = blocking(move || s.redeem_refresh_token(&token, &client_id)).await?;
 
             match outcome {
                 RefreshOutcome::Rotated {
@@ -766,7 +755,8 @@ pub async fn token(
                         StatusCode::BAD_REQUEST,
                         OAuthErrorCode::InvalidGrant,
                         "this refresh token was already used; the token family has been revoked",
-                    ));
+                    )
+                    .into());
                 }
                 RefreshOutcome::Invalid => {
                     return Err(reject_token(
@@ -774,16 +764,15 @@ pub async fn token(
                         OAuthErrorCode::InvalidGrant,
                         "the refresh token is invalid, expired, or revoked",
                     )
-                    .await)
+                    .await
+                    .into())
                 }
             }
         }
 
         TokenRequest::AccessKey { access_key: key } => {
             let s = store(&state);
-            let scopes = blocking(move || s.redeem_access_key(&key))
-                .await
-                .map_err(IntoResponse::into_response)?;
+            let scopes = blocking(move || s.redeem_access_key(&key)).await?;
             let Some(scopes) = scopes else {
                 let s = store(&state);
                 let _ = blocking(move || {
@@ -795,7 +784,8 @@ pub async fn token(
                     StatusCode::BAD_REQUEST,
                     OAuthErrorCode::InvalidGrant,
                     "the access key is invalid, expired, or revoked",
-                ));
+                )
+                .into());
             };
             // An access key is re-presented on each exchange, so it produces no
             // refresh token - there is nothing to refresh.
@@ -813,7 +803,7 @@ pub async fn token(
         .auth
         .signing_key
         .sign(&claims)
-        .map_err(|e| ApiError::InternalError(e.to_string()).into_response())?;
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     let s = store(&state);
     let _ = blocking(move || s.clear_rate_limit(BUCKET_TOKEN)).await;
@@ -954,7 +944,7 @@ mod tests {
     use crate::auth::tokens::ACCESS_TOKEN_TTL;
     use crate::config::Config;
     use crate::rest::dto::auth::*;
-    use crate::rest::error::ApiError;
+    use crate::rest::error::{ApiError, Rejection};
     use crate::rest::middleware::auth::{Authenticated, CSRF_HEADER, SESSION_COOKIE};
     use crate::rest::state::ApiState;
 
@@ -1003,10 +993,10 @@ mod tests {
         (dir, state)
     }
 
-    fn settle<T: IntoResponse>(result: Result<T, Response>) -> Response {
+    fn settle<T: IntoResponse>(result: Result<T, Rejection>) -> Response {
         match result {
             Ok(body) => body.into_response(),
-            Err(response) => response,
+            Err(rejection) => rejection.into_response(),
         }
     }
 

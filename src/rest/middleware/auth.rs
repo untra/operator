@@ -19,7 +19,7 @@ use crate::auth::scope::{required_access, Access, Principal};
 use crate::auth::store::RateLimitDecision;
 use crate::auth::tokens::{AUDIENCE_API, AUDIENCE_CALLBACK};
 use crate::rest::dto::auth::{PrincipalKind, Scope};
-use crate::rest::error::ApiError;
+use crate::rest::error::{ApiError, Rejection};
 use crate::rest::state::ApiState;
 
 /// Name of the browser session cookie.
@@ -195,7 +195,7 @@ pub async fn authorize(
     State(state): State<ApiState>,
     request: Request,
     next: Next,
-) -> Result<Response, Response> {
+) -> Result<Response, Rejection> {
     let method = request.method().clone();
     let path = request.uri().path().to_string();
     let headers = request.headers().clone();
@@ -220,8 +220,7 @@ pub async fn authorize(
         // Unknown or unclassified: deny. `tests/route_scope_parity.rs` makes
         // this unreachable for mounted routes.
         return Err(
-            ApiError::Unauthorized("this endpoint requires authentication".to_string())
-                .into_response(),
+            ApiError::Unauthorized("this endpoint requires authentication".to_string()).into(),
         );
     };
 
@@ -231,15 +230,12 @@ pub async fn authorize(
     };
 
     let Some(principal) = resolve_principal(&state, &headers).await else {
-        return Err(
-            ApiError::Unauthorized("no valid credential was presented".to_string()).into_response(),
-        );
+        return Err(ApiError::Unauthorized("no valid credential was presented".to_string()).into());
     };
 
     if !principal.has_scope(required) {
         return Err(
-            ApiError::Forbidden(format!("this endpoint requires the `{required}` scope"))
-                .into_response(),
+            ApiError::Forbidden(format!("this endpoint requires the `{required}` scope")).into(),
         );
     }
 
@@ -249,15 +245,11 @@ pub async fn authorize(
     if principal.kind == PrincipalKind::Session && is_mutation(&method) {
         let config = state.config();
         if !origin_is_acceptable(&headers, &config.rest_api.cors_origins) {
-            return Err(
-                ApiError::CsrfFailed("request Origin is not allowed".to_string()).into_response(),
-            );
+            return Err(ApiError::CsrfFailed("request Origin is not allowed".to_string()).into());
         }
 
         let Some(session_id) = principal.session_id.clone() else {
-            return Err(
-                ApiError::CsrfFailed("session is not identifiable".to_string()).into_response(),
-            );
+            return Err(ApiError::CsrfFailed("session is not identifiable".to_string()).into());
         };
         let Some(csrf) = headers
             .get(CSRF_HEADER)
@@ -267,18 +259,16 @@ pub async fn authorize(
             return Err(ApiError::CsrfFailed(format!(
                 "cookie-authenticated mutations require the `{CSRF_HEADER}` header"
             ))
-            .into_response());
+            .into());
         };
 
         let store = state.auth.store.clone();
         let ok = tokio::task::spawn_blocking(move || store.verify_csrf(&session_id, &csrf))
             .await
-            .map_err(|_| {
-                ApiError::InternalError("CSRF verification task failed".to_string()).into_response()
-            })?
+            .map_err(|_| ApiError::InternalError("CSRF verification task failed".to_string()))?
             .unwrap_or(false);
         if !ok {
-            return Err(ApiError::CsrfFailed("CSRF token is invalid".to_string()).into_response());
+            return Err(ApiError::CsrfFailed("CSRF token is invalid".to_string()).into());
         }
     }
 
@@ -327,11 +317,11 @@ where
 {
     type Rejection = std::convert::Infallible;
 
-    async fn from_request_parts(
+    fn from_request_parts(
         parts: &mut axum::http::request::Parts,
         _state: &S,
-    ) -> Result<Self, Self::Rejection> {
-        Ok(Authenticated(
+    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> {
+        std::future::ready(Ok(Authenticated(
             parts
                 .extensions
                 .get::<Principal>()
@@ -345,7 +335,7 @@ where
                     ticket_id: None,
                     step: None,
                 }),
-        ))
+        )))
     }
 }
 

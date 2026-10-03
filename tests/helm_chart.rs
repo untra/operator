@@ -210,6 +210,28 @@ fn test_rendered_image_tag_matches_chart_app_version() {
     );
 }
 
+/// volumeClaimTemplates are immutable, so a label that changes per chart version
+/// makes every `helm upgrade` across versions fail.
+#[test]
+fn test_volume_claim_template_labels_are_version_independent() {
+    if !helm_available() {
+        eprintln!("skipping: helm not on PATH");
+        return;
+    }
+    let rendered = helm(&["template", "op", chart_dir().to_str().unwrap()]);
+    let claims = rendered
+        .split_once("volumeClaimTemplates:")
+        .map(|(_, rest)| rest)
+        .expect("the StatefulSet must render volumeClaimTemplates");
+
+    for label in ["helm.sh/chart", "app.kubernetes.io/version"] {
+        assert!(
+            !claims.contains(label),
+            "volumeClaimTemplates must not carry {label}; it changes on every chart release"
+        );
+    }
+}
+
 /// A chart path that does not exist must not silently pass as "helm unavailable".
 #[test]
 fn test_chart_directory_exists() {

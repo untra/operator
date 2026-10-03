@@ -46,7 +46,7 @@ impl DocGenerator for TaxonomyDocGenerator {
         output.push_str(&format!(
             "- {}: {}\n\n",
             bold("Description"),
-            &taxonomy.meta.description
+            taxonomy.meta.description
         ));
 
         // Quick reference table

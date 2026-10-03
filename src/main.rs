@@ -822,14 +822,12 @@ async fn cmd_alert(
 
     // Send notification
     let notification_service = notifications::NotificationService::from_config(config)?;
-    notification_service
-        .notify(notifications::NotificationEvent::InvestigationCreated {
-            source,
-            severity,
-            summary: ticket.summary.clone(),
-            ticket_id: ticket.id.clone(),
-        })
-        .await;
+    notification_service.notify(notifications::NotificationEvent::InvestigationCreated {
+        source,
+        severity,
+        summary: ticket.summary.clone(),
+        ticket_id: ticket.id,
+    });
 
     Ok(())
 }

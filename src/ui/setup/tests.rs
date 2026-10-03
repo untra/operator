@@ -887,6 +887,12 @@ fn test_wizard_walk_visits_every_catalog_step() {
                     .execution_target_state
                     .select(Some(super::CODER_TARGET_OPTION_INDEX));
             }
+            // Entering onboarding re-detects tmux on the host; pin it available.
+            if screen.step == SetupStep::TmuxOnboarding {
+                screen.tmux_status = TmuxDetectionStatus::Available {
+                    version: "3.4".to_string(),
+                };
+            }
             // `confirm` commits the highlighted wrapper, so steer the list.
             if screen.step == SetupStep::SessionWrapperChoice {
                 let i = SessionWrapperOption::all()

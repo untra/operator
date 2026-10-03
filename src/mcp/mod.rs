@@ -28,7 +28,10 @@ pub struct Host(pub String);
 impl<S: Send + Sync> FromRequestParts<S> for Host {
     type Rejection = std::convert::Infallible;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> {
         let host = parts
             .headers
             .get(axum::http::header::HOST)
@@ -36,7 +39,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Host {
             .map(str::to_string)
             .or_else(|| parts.uri.authority().map(ToString::to_string))
             .unwrap_or_default();
-        Ok(Host(host))
+        std::future::ready(Ok(Host(host)))
     }
 }
 

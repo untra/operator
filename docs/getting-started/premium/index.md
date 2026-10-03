@@ -70,8 +70,8 @@ issuer service, checkout, or revocation service; it only *consumes* licenses iss
 
 A release binary compiles three values in, and none of them are runtime settings:
 
-- the issuer, the literal `operator-licensing`
-- the root public keyring, from the `OPERATOR_LICENSE_ROOT_KEYS` repository variable
-- the purchase URL, from the `OPERATOR_PURCHASE_URL` repository variable
+- the issuer, from the `OPERATOR_LICENSE_ISSUER` repository secret
+- the root public keyring, from the `OPERATOR_LICENSE_ROOT_KEYS` repository secret
+- the purchase URL, from the `OPERATOR_PURCHASE_URL` repository secret
 
-The keyring is a JSON object of key id to standard-base64 of the raw 32-byte key, for example `{"root-2026":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}`. The release build sets `OPERATOR_RELEASE=1`. If that keyring variable is empty, the build fails instead of publishing a binary that rejects every license. A source build leaves `OPERATOR_RELEASE` unset, carries no roots, and rejects every license.
+The keyring is a JSON object of key id to standard-base64 of the raw 32-byte key, for example `{"root-2026":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}`. The release build sets `OPERATOR_RELEASE=1`. If the keyring or issuer secret is empty, the build fails instead of publishing a binary that rejects every license. A source build leaves `OPERATOR_RELEASE` unset, carries no roots, and rejects every license.

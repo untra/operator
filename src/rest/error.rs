@@ -112,6 +112,27 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Pre-built error response, boxed to keep handler `Result`s small.
+pub struct Rejection(Box<Response>);
+
+impl IntoResponse for Rejection {
+    fn into_response(self) -> Response {
+        *self.0
+    }
+}
+
+impl From<Response> for Rejection {
+    fn from(response: Response) -> Self {
+        Self(Box::new(response))
+    }
+}
+
+impl From<ApiError> for Rejection {
+    fn from(error: ApiError) -> Self {
+        Self(Box::new(error.into_response()))
+    }
+}
+
 impl From<std::io::Error> for ApiError {
     fn from(err: std::io::Error) -> Self {
         ApiError::InternalError(err.to_string())

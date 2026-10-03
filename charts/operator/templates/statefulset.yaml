@@ -134,7 +134,7 @@ spec:
     - metadata:
         name: workspace
         labels:
-          {{- include "operator.labels" . | nindent 10 }}
+          {{- include "operator.selectorLabels" . | nindent 10 }}
       spec:
         accessModes:
           - ReadWriteOnce

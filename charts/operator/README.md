@@ -30,6 +30,15 @@ Open `http://127.0.0.1:7008/setup`, set the admin password, and complete the wor
 
 `terminationGracePeriodSeconds` must be greater than the sum of the two shutdown intervals. A custom `lifecycle` hook consumes the same Kubernetes grace period.
 
+## Upgrading
+
+Charts up to 0.2.14 put version labels on the StatefulSet's immutable `volumeClaimTemplates`, so Kubernetes rejects an upgrade from them to any other chart version. Orphan-delete the StatefulSet once before that upgrade; the pod and the workspace PVC stay in place and the new StatefulSet adopts them:
+
+```bash
+kubectl -n operator delete statefulset operator --cascade=orphan
+helm upgrade operator oci://ghcr.io/untra/charts/operator --namespace operator --reuse-values
+```
+
 ## Custom trust and SSH material
 
 Mount a CA bundle that contains both public and internal roots, then configure each client that needs it:

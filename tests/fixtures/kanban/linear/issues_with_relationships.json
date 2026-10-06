@@ -1,0 +1,39 @@
+{
+  "issues": {
+    "nodes": [
+      {
+        "id": "issue-7",
+        "identifier": "ENG-7",
+        "title": "Ship the billing webhook",
+        "description": null,
+        "state": { "name": "Todo" },
+        "assignee": null,
+        "priority": 2,
+        "url": "https://linear.app/acme/issue/ENG-7",
+        "labels": { "nodes": [{ "id": "label-feat", "name": "Feature" }] },
+        "inverseRelations": {
+          "nodes": [
+            { "type": "blocks", "issue": { "identifier": "ENG-3" } },
+            { "type": "related", "issue": { "identifier": "ENG-4" } },
+            { "type": "duplicate", "issue": { "identifier": "ENG-5" } }
+          ]
+        },
+        "parent": { "identifier": "ENG-1" },
+        "children": { "nodes": [{ "identifier": "ENG-8" }, { "identifier": "ENG-9" }] },
+        "project": { "id": "proj-billing", "name": "Billing v2" }
+      },
+      {
+        "id": "issue-8",
+        "identifier": "ENG-8",
+        "title": "Child with only a parent issue",
+        "description": null,
+        "state": { "name": "Todo" },
+        "assignee": null,
+        "priority": 0,
+        "url": "https://linear.app/acme/issue/ENG-8",
+        "parent": { "identifier": "ENG-7" },
+        "project": null
+      }
+    ]
+  }
+}

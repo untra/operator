@@ -281,6 +281,9 @@ mod tests {
 
     fn make_test_ticket() -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "20241225-1200-FEAT-test-test.md".to_string(),
             filepath: "/tmp/tickets/queue/20241225-1200-FEAT-test-test.md".to_string(),
             timestamp: "20241225-1200".to_string(),

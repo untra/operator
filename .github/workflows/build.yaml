@@ -366,6 +366,11 @@ jobs:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
         run: cargo test --locked --test launch_integration -- --test-threads=1 --nocapture
 
+      - name: Run campaign launch integration tests
+        env:
+          OPERATOR_LAUNCH_TEST_ENABLED: 'true'
+        run: cargo test --locked --test campaign_launch_integration -- --test-threads=1 --nocapture
+
       - name: Cleanup sessions
         if: always()
         run: |

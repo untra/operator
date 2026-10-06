@@ -1,6 +1,15 @@
 import "./styles/semantic.css";
 
 export { PremiumPaywall, type PremiumPaywallProps } from "./components/PremiumPaywall";
+export { PremiumGate, type PremiumGateProps } from "./components/PremiumGate";
+export { MarkdownView, type MarkdownViewProps } from "./components/MarkdownView";
+export {
+  StepProgress,
+  stepStates,
+  type StepLike,
+  type StepProgressProps,
+  type StepState,
+} from "./components/StepProgress";
 
 export {
   AppShell,
@@ -77,3 +86,13 @@ export {
 } from "./shared/kanban-filters";
 export type { KanbanFacets, KanbanFilterState } from "./shared/kanban-filters";
 export { PRIORITY_KEY, PRIORITY_ORDER, STATUS_GLYPH } from "./shared/ticket-fields";
+export {
+  focusSessionUrl,
+  openTargets,
+  sessionTargets,
+  ticketFileTargets,
+  type EditorId,
+  type OpenTarget,
+  type SessionAgent,
+  type SessionTarget,
+} from "./shared/ticket-links";

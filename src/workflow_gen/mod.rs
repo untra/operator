@@ -40,6 +40,9 @@ mod tests {
     /// Build a ticket with the given id/project/summary; other fields fixed.
     fn ticket(id: &str, project: &str, summary: &str) -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "20241221-1430-FEAT-proj-test.md".to_string(),
             filepath: "/test/path".to_string(),
             timestamp: "20241221-1430".to_string(),

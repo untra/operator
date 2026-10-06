@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::PathBuf;
 use ts_rs::TS;
@@ -63,9 +63,47 @@ pub struct State {
     #[serde(default)]
     pub multi_agent_groups: Vec<MultiAgentGroup>,
 
+    /// Campaign id → runner bookkeeping
+    #[serde(default)]
+    pub campaign_runs: HashMap<String, CampaignRun>,
+
     #[serde(skip)]
     #[ts(skip)]
     state_path: PathBuf,
+}
+
+/// Runner bookkeeping for one campaign.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct CampaignRun {
+    /// Ticket id → launches made by the runner
+    #[serde(default)]
+    pub launches: BTreeMap<String, u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
+    /// Why the run paused, if it did
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pause_reason: Option<String>,
+}
+
+impl CampaignRun {
+    pub fn record_launch(&mut self, ticket_id: &str) {
+        *self.launches.entry(ticket_id.to_string()).or_default() += 1;
+    }
+
+    /// Launches across the whole run.
+    pub fn launched(&self) -> u32 {
+        self.launches.values().sum()
+    }
+
+    /// Relaunches of one ticket.
+    pub fn retries(&self, ticket_id: &str) -> u32 {
+        self.launches
+            .get(ticket_id)
+            .map_or(0, |n| n.saturating_sub(1))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -307,6 +345,7 @@ impl State {
                 project_llm_stats: HashMap::new(),
                 project_collection_prefs: HashMap::new(),
                 multi_agent_groups: Vec::new(),
+                campaign_runs: HashMap::new(),
                 state_path,
             })
         }
@@ -1410,6 +1449,31 @@ mod tests {
         assert!(state.agents.is_empty());
         assert!(state.completed.is_empty());
         assert!(state.project_llm_stats.is_empty());
+    }
+
+    #[test]
+    fn test_campaign_runs_default_when_absent_and_roundtrip() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        fs::write(
+            temp_dir.path().join("state.json"),
+            r#"{"paused":false,"agents":[],"completed":[]}"#,
+        )
+        .unwrap();
+        assert!(State::load(&config).unwrap().campaign_runs.is_empty());
+
+        State::mutate(&config, |s| {
+            let run = s.campaign_runs.entry("CAMP-0001".into()).or_default();
+            run.record_launch("FEAT-0001");
+            run.record_launch("FEAT-0001");
+            run.record_launch("FIX-0002");
+        })
+        .unwrap();
+        let run = &State::load(&config).unwrap().campaign_runs["CAMP-0001"];
+        assert_eq!(run.launched(), 3);
+        assert_eq!(run.retries("FEAT-0001"), 1);
+        assert_eq!(run.retries("FIX-0002"), 0);
+        assert_eq!(run.retries("TASK-0003"), 0);
     }
 
     #[test]

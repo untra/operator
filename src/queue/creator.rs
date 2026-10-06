@@ -8,13 +8,14 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+use super::ids;
 use crate::config::Config;
 use crate::templates::schema::TemplateSchema;
 use crate::templates::TemplateType;
 
 /// Creates new tickets from templates
 pub struct TicketCreator {
-    queue_path: PathBuf,
+    tickets_root: PathBuf,
     /// Active issuetype collection, stamped into created tickets' frontmatter
     collection: Option<String>,
 }
@@ -24,9 +25,33 @@ impl TicketCreator {
     pub fn new(config: &Config) -> Self {
         let tickets_path = config.tickets_path();
         Self {
-            queue_path: tickets_path.join("queue"),
+            tickets_root: tickets_path,
             collection: config.templates.active_collection.clone(),
         }
+    }
+
+    fn queue_path(&self) -> PathBuf {
+        self.tickets_root.join("queue")
+    }
+
+    /// Serializes id allocation and writes across single and batch creation.
+    pub fn creation_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        LOCK.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Ids of every ticket in queue, in-progress and completed.
+    fn existing_ids(&self) -> Vec<String> {
+        ["queue", "in-progress", "completed"]
+            .iter()
+            .filter_map(|dir| fs::read_dir(self.tickets_root.join(dir)).ok())
+            .flatten()
+            .filter_map(|entry| entry.ok().map(|e| e.path()))
+            .filter(|path| path.extension().is_some_and(|ext| ext == "md"))
+            .filter_map(|path| super::Ticket::from_file(&path).ok())
+            .map(|ticket| ticket.id)
+            .collect()
     }
 
     /// Create a new ticket from template with pre-filled values, without
@@ -46,14 +71,23 @@ impl TicketCreator {
             .cloned()
             .unwrap_or_else(|| "global".to_string());
 
-        let filename = format!("{timestamp}-{type_str}-{project}-new-ticket.md");
-        let filepath = self.queue_path.join(&filename);
+        let slug = values
+            .get("summary")
+            .map(|summary| ids::slugify(summary, 50))
+            .filter(|slug| !slug.is_empty())
+            .or_else(|| values.get("id").map(|id| ids::slugify(id, 50)))
+            .unwrap_or_else(|| "new-ticket".to_string());
+        let queue_path = self.queue_path();
+        let filepath = ids::unique_path(
+            &queue_path,
+            &format!("{timestamp}-{type_str}-{project}-{slug}"),
+        );
 
         let template = template_type.template_content();
         let content = render_template(template, values)?;
         let content = stamp_collection(&content, self.collection.as_deref());
 
-        fs::create_dir_all(&self.queue_path).context("Failed to create queue directory")?;
+        fs::create_dir_all(&queue_path).context("Failed to create queue directory")?;
         fs::write(&filepath, &content).context("Failed to write ticket file")?;
 
         Ok(filepath)
@@ -96,12 +130,13 @@ impl TicketCreator {
         let now = Utc::now();
         let date = now.format("%Y-%m-%d").to_string();
         let datetime = now.format("%Y-%m-%d %H:%M").to_string();
-        let id = format!("{:04}", now.timestamp() % 10000);
         let type_str = template_type.as_str();
+        let existing = self.existing_ids();
+        let id = ids::next_ticket_id(type_str, existing.iter().map(String::as_str));
         let branch_prefix = type_str.to_lowercase();
 
         let mut values = HashMap::new();
-        values.insert("id".to_string(), format!("{type_str}-{id}"));
+        values.insert("id".to_string(), id.clone());
         values.insert("created".to_string(), date.clone());
         values.insert("created_date".to_string(), date);
         values.insert("created_datetime".to_string(), datetime);
@@ -109,7 +144,7 @@ impl TicketCreator {
         values.insert("project".to_string(), project.to_string());
         values.insert(
             "branch".to_string(),
-            format!("{branch_prefix}/{type_str}-{id}-short-description"),
+            format!("{branch_prefix}/{id}-short-description"),
         );
         values.insert("step".to_string(), template_type.first_step().to_string());
 
@@ -237,7 +272,7 @@ mod tests {
     fn test_create_ticket_headless_stamps_collection() {
         let temp_dir = tempfile::tempdir().unwrap();
         let creator = TicketCreator {
-            queue_path: temp_dir.path().join("queue"),
+            tickets_root: temp_dir.path().to_path_buf(),
             collection: Some("dev_kanban".to_string()),
         };
         let mut values = HashMap::new();
@@ -286,18 +321,62 @@ mod tests {
 
     #[test]
     fn test_generate_default_values() {
+        let temp_dir = tempfile::tempdir().unwrap();
         let creator = TicketCreator {
-            queue_path: PathBuf::from("/tmp"),
+            tickets_root: temp_dir.path().to_path_buf(),
             collection: None,
         };
 
         let values = creator.generate_default_values(TemplateType::Feature, "myproject");
 
-        assert!(values.get("id").unwrap().starts_with("FEAT-"));
+        assert_eq!(values.get("id").unwrap(), "FEAT-0001");
         assert_eq!(values.get("project").unwrap(), "myproject");
         assert_eq!(values.get("status").unwrap(), "queued");
         assert!(values.get("branch").unwrap().starts_with("feat/FEAT-"));
         assert!(values.contains_key("created"));
+    }
+
+    #[test]
+    fn test_bulk_headless_creates_never_collide() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let creator = TicketCreator {
+            tickets_root: temp_dir.path().to_path_buf(),
+            collection: None,
+        };
+        for _ in 0..50 {
+            let mut values = creator.generate_default_values(TemplateType::Task, "demo");
+            values.insert("summary".to_string(), "same summary".to_string());
+            creator
+                .create_ticket_headless(TemplateType::Task, &values)
+                .unwrap();
+        }
+        let mut ids = creator.existing_ids();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), 50);
+        assert_eq!(ids.last().map(String::as_str), Some("TASK-0050"));
+        assert_eq!(
+            fs::read_dir(temp_dir.path().join("queue")).unwrap().count(),
+            50
+        );
+    }
+
+    #[test]
+    fn test_ids_continue_across_in_progress_and_completed() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let done = temp_dir.path().join("completed");
+        fs::create_dir_all(&done).unwrap();
+        fs::write(
+            done.join("20260101-1200-FEAT-demo-old.md"),
+            "---\nid: FEAT-0041\nstatus: completed\n---\n\n# Feature: old\n",
+        )
+        .unwrap();
+        let creator = TicketCreator {
+            tickets_root: temp_dir.path().to_path_buf(),
+            collection: None,
+        };
+        let values = creator.generate_default_values(TemplateType::Feature, "demo");
+        assert_eq!(values.get("id").unwrap(), "FEAT-0042");
     }
 
     #[test]

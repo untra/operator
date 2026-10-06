@@ -329,6 +329,9 @@ mod tests {
 
     fn make_ticket(id: &str, ticket_type: &str) -> crate::queue::Ticket {
         crate::queue::Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             id: id.to_string(),
             ticket_type: ticket_type.to_string(),
             filename: "test.md".to_string(),

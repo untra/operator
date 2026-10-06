@@ -1,0 +1,16 @@
+# An unknown dependency blocks only its ticket; the rest complete.
+[config]
+max_parallel = 4
+max_agents_per_repo = 2
+
+[expect]
+waves = [["FIX-0003", "FEAT-0001", "FEAT-0002"]]
+final_status = "running"
+blocked = { "FEAT-0001" = "unsynced" }
+
+[[tick]]
+launch = ["FIX-0003", "FEAT-0002"]
+status = "running"
+
+[[tick]]
+status = "running"

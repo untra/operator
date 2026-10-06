@@ -45,6 +45,14 @@
         "$ref": "#/$defs/MultiAgentGroup"
       },
       "default": []
+    },
+    "campaign_runs": {
+      "description": "Campaign id → runner bookkeeping",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/CampaignRun"
+      },
+      "default": {}
     }
   },
   "required": [
@@ -713,6 +721,18 @@
             "type": "string"
           },
           "default": {}
+        },
+        "judge_attempt": {
+          "description": "The in-flight LLM judge call (set when phase = Voting). Its verdict\narrives as a side file keyed by `attempt_id`, never through `State`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JudgeAttempt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -771,6 +791,65 @@
         "prompt",
         "variant_key"
       ]
+    },
+    "JudgeAttempt": {
+      "type": "object",
+      "properties": {
+        "attempt_id": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "timeout_secs": {
+          "description": "Judge timeout copied at start, so a config edit can't strand the attempt",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "attempt_id",
+        "started_at",
+        "timeout_secs"
+      ]
+    },
+    "CampaignRun": {
+      "description": "Runner bookkeeping for one campaign.",
+      "type": "object",
+      "properties": {
+        "launches": {
+          "description": "Ticket id → launches made by the runner",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "default": {}
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "last_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pause_reason": {
+          "description": "Why the run paused, if it did",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   }
 }

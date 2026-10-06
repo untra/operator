@@ -26,7 +26,7 @@ pub enum StepAdvanceResult {
 }
 
 /// LLM task metadata for delegate mode integration
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, JsonSchema, ToSchema, TS)]
 #[ts(export)]
 pub struct LlmTask {
     /// LLM task ID (e.g., Claude delegate mode task UUID)
@@ -200,6 +200,12 @@ pub struct Ticket {
     /// Delegator name used per completed step (`step_name` → `delegator_name`).
     /// Populated when a step is launched; used for bidirectional kanban activity logs.
     pub step_delegators: HashMap<String, String>,
+    /// Tickets that must complete first: local ids or `provider:key` refs.
+    pub depends_on: Vec<String>,
+    /// Campaign this ticket belongs to (e.g. `CAMP-0003`).
+    pub campaign: Option<String>,
+    /// Upstream epic, project or parent issue as a `provider:key` ref.
+    pub external_parent: Option<String>,
 }
 
 impl Ticket {
@@ -301,6 +307,16 @@ impl Ticket {
             )
         };
 
+        let (depends_on, campaign, external_parent) = parse_frontmatter_mapping(&content)
+            .map(|(map, _)| {
+                (
+                    string_list(&map, "depends_on"),
+                    scalar(&map, "campaign"),
+                    scalar(&map, "external_parent"),
+                )
+            })
+            .unwrap_or_default();
+
         Ok(Self {
             filename,
             filepath: path.to_string_lossy().to_string(),
@@ -322,6 +338,9 @@ impl Ticket {
             external_url,
             external_provider,
             collection,
+            depends_on,
+            campaign,
+            external_parent,
         })
     }
 
@@ -364,73 +383,64 @@ impl Ticket {
 
     /// Update a frontmatter field in the ticket file and save
     pub fn update_field(&mut self, field: &str, value: &str) -> Result<()> {
-        // Parse frontmatter
-        if let Some((mut frontmatter, sessions, step_delegators, llm_task, body)) =
-            extract_frontmatter(&self.content)
-        {
-            frontmatter.insert(field.to_string(), value.to_string());
-
-            // Rebuild the frontmatter
-            let mut yaml_lines = Vec::new();
-            for (k, v) in &frontmatter {
-                yaml_lines.push(format!("{k}: {v}"));
-            }
-
-            // Add sessions if present
-            if !sessions.is_empty() {
-                yaml_lines.push("sessions:".to_string());
-                for (step, session_id) in &sessions {
-                    yaml_lines.push(format!("  {step}: {session_id}"));
-                }
-            }
-
-            // Add step_delegators if present
-            if !step_delegators.is_empty() {
-                yaml_lines.push("step_delegators:".to_string());
-                for (step_name, delegator_name) in &step_delegators {
-                    yaml_lines.push(format!("  {step_name}: {delegator_name}"));
-                }
-            }
-
-            // Add llm_task if present
-            if llm_task.id.is_some() || llm_task.status.is_some() || !llm_task.blocked_by.is_empty()
-            {
-                yaml_lines.push("llm_task:".to_string());
-                if let Some(ref id) = llm_task.id {
-                    yaml_lines.push(format!("  id: {id}"));
-                }
-                if let Some(ref status) = llm_task.status {
-                    yaml_lines.push(format!("  status: {status}"));
-                }
-                if !llm_task.blocked_by.is_empty() {
-                    yaml_lines.push("  blocked_by:".to_string());
-                    for task_id in &llm_task.blocked_by {
-                        yaml_lines.push(format!("    - {task_id}"));
-                    }
-                }
-            }
-
-            yaml_lines.sort(); // Keep consistent order
-
-            let new_content = format!("---\n{}\n---{}", yaml_lines.join("\n"), body);
-            self.content = new_content.clone();
-
-            // Update the in-memory field
-            match field {
-                "step" => self.step = value.to_string(),
-                "status" => self.status = value.to_string(),
-                "priority" => self.priority = value.to_string(),
-                "worktree_path" => self.worktree_path = Some(value.to_string()),
-                "branch" => self.branch = Some(value.to_string()),
-                "external_id" => self.external_id = Some(value.to_string()),
-                "external_url" => self.external_url = Some(value.to_string()),
-                "external_provider" => self.external_provider = Some(value.to_string()),
-                _ => {}
-            }
-
-            // Write back to file
-            fs::write(&self.filepath, new_content).context("Failed to write ticket file")?;
+        self.set_frontmatter_value(field, serde_yaml::Value::String(value.to_string()))?;
+        match field {
+            "step" => self.step = value.to_string(),
+            "status" => self.status = value.to_string(),
+            "priority" => self.priority = value.to_string(),
+            "worktree_path" => self.worktree_path = Some(value.to_string()),
+            "branch" => self.branch = Some(value.to_string()),
+            "external_id" => self.external_id = Some(value.to_string()),
+            "external_url" => self.external_url = Some(value.to_string()),
+            "external_provider" => self.external_provider = Some(value.to_string()),
+            "campaign" => self.campaign = Some(value.to_string()),
+            "external_parent" => self.external_parent = Some(value.to_string()),
+            _ => {}
         }
+        Ok(())
+    }
+
+    /// Replace `depends_on`; an empty list removes the key.
+    pub fn set_depends_on(&mut self, refs: &[String]) -> Result<()> {
+        let value = if refs.is_empty() {
+            serde_yaml::Value::Null
+        } else {
+            serde_yaml::Value::Sequence(
+                refs.iter()
+                    .map(|r| serde_yaml::Value::String(r.clone()))
+                    .collect(),
+            )
+        };
+        self.set_frontmatter_value("depends_on", value)?;
+        self.depends_on = refs.to_vec();
+        Ok(())
+    }
+
+    /// Assign this ticket to a campaign, or remove it with `None`.
+    pub fn set_campaign(&mut self, campaign: Option<&str>) -> Result<()> {
+        let value = campaign.map_or(serde_yaml::Value::Null, |c| {
+            serde_yaml::Value::String(c.to_string())
+        });
+        self.set_frontmatter_value("campaign", value)?;
+        self.campaign = campaign.map(String::from);
+        Ok(())
+    }
+
+    /// Set one frontmatter key in place, preserving every other key; `Null` removes it.
+    fn set_frontmatter_value(&mut self, key: &str, value: serde_yaml::Value) -> Result<()> {
+        let Some((mut map, body)) = parse_frontmatter_mapping(&self.content) else {
+            return Ok(());
+        };
+        let key = serde_yaml::Value::String(key.to_string());
+        if value.is_null() {
+            map.remove(&key);
+        } else {
+            map.insert(key, value);
+        }
+        let yaml = serde_yaml::to_string(&map).context("Failed to serialize frontmatter")?;
+        let new_content = format!("---\n{yaml}---{body}");
+        fs::write(&self.filepath, &new_content).context("Failed to write ticket file")?;
+        self.content = new_content;
         Ok(())
     }
 
@@ -477,6 +487,22 @@ impl Ticket {
     pub fn current_step_schema(&self) -> Option<crate::templates::schema::StepSchema> {
         let schema = self.template_schema()?;
         schema.steps.into_iter().find(|s| s.name == self.step)
+    }
+
+    /// Markdown after the frontmatter.
+    pub fn body(&self) -> &str {
+        parse_frontmatter_mapping(&self.content).map_or(self.content.as_str(), |(_, body)| {
+            body.trim_start_matches('\n')
+        })
+    }
+
+    /// Board column the file sits in: `queue`, `in-progress` or `completed`.
+    pub fn column(&self) -> String {
+        Path::new(&self.filepath)
+            .parent()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
     }
 
     /// Get the display name of the current step
@@ -870,6 +896,29 @@ fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, serde_yaml::Value>) 
     } else {
         LlmTask::default()
     }
+}
+
+/// Split content into its frontmatter mapping and the body after the closing `---`.
+fn parse_frontmatter_mapping(content: &str) -> Option<(serde_yaml::Mapping, &str)> {
+    let after_open = content.trim_start().strip_prefix("---")?;
+    let end_idx = after_open.find("\n---")?;
+    let map = serde_yaml::from_str(after_open[..end_idx].trim()).ok()?;
+    Some((map, &after_open[end_idx + 4..]))
+}
+
+fn scalar(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
+    map.get(key)?.as_str().map(String::from)
+}
+
+fn string_list(map: &serde_yaml::Mapping, key: &str) -> Vec<String> {
+    map.get(key)
+        .and_then(serde_yaml::Value::as_sequence)
+        .map(|seq| {
+            seq.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Extract YAML frontmatter from markdown content
@@ -1712,5 +1761,91 @@ step: deploy
         assert_eq!(result, StepAdvanceResult::FinalStep);
         // Step should remain unchanged
         assert_eq!(ticket.step, "deploy");
+    }
+
+    fn write_dag_ticket(dir: &Path, frontmatter: &str) -> Ticket {
+        let path = dir.join("20260101-1200-FEAT-demo-dag.md");
+        fs::write(
+            &path,
+            format!("---\n{frontmatter}\n---\n\n# Feature: DAG\n"),
+        )
+        .unwrap();
+        Ticket::from_file(&path).unwrap()
+    }
+
+    #[test]
+    fn test_from_file_parses_dag_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let ticket = write_dag_ticket(
+            dir.path(),
+            "id: FEAT-0001\nstatus: queued\ncampaign: CAMP-0003\nexternal_parent: jira:PROJ-1\ndepends_on:\n  - FEAT-0002\n  - jira:PROJ-12",
+        );
+        assert_eq!(ticket.campaign.as_deref(), Some("CAMP-0003"));
+        assert_eq!(ticket.external_parent.as_deref(), Some("jira:PROJ-1"));
+        assert_eq!(ticket.depends_on, vec!["FEAT-0002", "jira:PROJ-12"]);
+    }
+
+    #[test]
+    fn test_update_field_preserves_lists_and_unknown_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut ticket = write_dag_ticket(
+            dir.path(),
+            "id: FEAT-0001\nstatus: queued\ndepends_on:\n  - FEAT-0002\ncustom:\n  nested: [a, b]",
+        );
+        ticket.update_field("status", "running").unwrap();
+        let reread = Ticket::from_file(Path::new(&ticket.filepath)).unwrap();
+        assert_eq!(reread.status, "running");
+        assert_eq!(reread.depends_on, vec!["FEAT-0002"]);
+        assert!(reread.content.contains("nested"), "{}", reread.content);
+        assert!(reread.content.contains("# Feature: DAG"));
+    }
+
+    #[test]
+    fn test_set_depends_on_round_trips_and_clears() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut ticket = write_dag_ticket(dir.path(), "id: FEAT-0001\nstatus: queued");
+        ticket
+            .set_depends_on(&["linear:ENG-7".to_string(), "FEAT-0009".to_string()])
+            .unwrap();
+        let reread = Ticket::from_file(Path::new(&ticket.filepath)).unwrap();
+        assert_eq!(reread.depends_on, vec!["linear:ENG-7", "FEAT-0009"]);
+        assert_eq!(reread.status, "queued");
+        let mut reread = reread;
+        reread.set_depends_on(&[]).unwrap();
+        let cleared = Ticket::from_file(Path::new(&reread.filepath)).unwrap();
+        assert!(cleared.depends_on.is_empty());
+        assert!(!cleared.content.contains("depends_on"));
+    }
+
+    #[test]
+    fn test_body_strips_frontmatter() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("20241221-1430-FEAT-operator-body.md");
+        std::fs::write(
+            &path,
+            "---\nid: FEAT-1\nstatus: queued\n---\n\n# Feature: Body\n\nText.\n",
+        )
+        .unwrap();
+        let ticket = Ticket::from_file(&path).unwrap();
+        assert_eq!(ticket.body(), "# Feature: Body\n\nText.\n");
+    }
+
+    #[test]
+    fn test_body_without_frontmatter_is_the_whole_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("20241221-1430-FEAT-operator-plain.md");
+        std::fs::write(&path, "# Feature: Plain\n").unwrap();
+        let ticket = Ticket::from_file(&path).unwrap();
+        assert_eq!(ticket.body(), "# Feature: Plain\n");
+    }
+
+    #[test]
+    fn test_column_is_the_parent_directory() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dir = temp_dir.path().join("in-progress");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("20241221-1430-FEAT-operator-col.md");
+        std::fs::write(&path, "---\nid: FEAT-2\n---\n# Feature: Col\n").unwrap();
+        assert_eq!(Ticket::from_file(&path).unwrap().column(), "in-progress");
     }
 }

@@ -1180,6 +1180,9 @@ mod tests {
 
         // Create a minimal ticket for testing
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1218,6 +1221,9 @@ mod tests {
         health.awaiting_input.push("op-FEAT-123".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1256,6 +1262,9 @@ mod tests {
         health.timed_out.push("op-FEAT-456".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1296,6 +1305,9 @@ mod tests {
         health.awaiting_input.push("op-FEAT-789".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1336,6 +1348,9 @@ mod tests {
         health.artifact_ready.push("op-FEAT-123".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1375,6 +1390,9 @@ mod tests {
         // artifact_ready is empty - agent is idle but no artifacts found
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1619,6 +1637,9 @@ mod tests {
             let ticket_path = dir.path().join("FEAT-1.md");
             std::fs::write(&ticket_path, "# FEAT-1").unwrap();
             let ticket = Ticket {
+                depends_on: Vec::new(),
+                campaign: None,
+                external_parent: None,
                 filename: "FEAT-1.md".to_string(),
                 filepath: ticket_path.to_string_lossy().to_string(),
                 timestamp: "20241221-1430".to_string(),

@@ -45,6 +45,10 @@ launch_config: DelegatorLaunchConfig | null,
  */
 model_server: string | null, 
 /**
+ * Name of a `[[governance]]` policy enforced on every launch by this delegator.
+ */
+governance?: string | null, 
+/**
  * Declarative reference to a remote, named agent on another platform
  * (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
  *

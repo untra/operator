@@ -20,10 +20,17 @@ pub use openspec::{
 };
 
 // Re-export Jira API response types for schema/binding generation
+#[cfg(test)]
+pub(crate) use jira::epic_fixture as jira_epic_fixture;
+#[cfg(test)]
+pub(crate) use jira::fixture_issues as jira_fixture_issues;
 pub use jira::{
-    JiraAvatarUrls, JiraDescription, JiraIssue, JiraIssueFields, JiraIssueTypeRef, JiraPriority,
-    JiraProjectStatus, JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
+    JiraAvatarUrls, JiraDescription, JiraIssue, JiraIssueFields, JiraIssueLink, JiraIssueLinkType,
+    JiraIssueTypeRef, JiraLinkedFields, JiraLinkedIssue, JiraPriority, JiraProjectStatus,
+    JiraSearchResponse, JiraStatus, JiraStatusRef, JiraUser,
 };
+#[cfg(test)]
+pub(crate) use linear::fixture_issues as linear_fixture_issues;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -76,6 +83,43 @@ pub struct ExternalIssue {
     pub url: String,
     /// Priority (if available)
     pub priority: Option<String>,
+    /// Keys of issues that block this one
+    #[serde(default)]
+    pub blocked_by: Vec<String>,
+    /// Epic, project or parent issue this issue belongs to
+    #[serde(default)]
+    pub parent: Option<ExternalParent>,
+    /// Keys of this issue's sub-tasks / sub-issues
+    #[serde(default)]
+    pub subtasks: Vec<String>,
+}
+
+/// An upstream container (epic, project, parent issue, change) and its member issues.
+#[derive(Debug, Clone)]
+pub struct ScopeContents {
+    /// Container key, e.g. `PROJ-1`
+    pub key: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub url: String,
+    pub issues: Vec<ExternalIssue>,
+}
+
+/// What kind of container an issue's parent is.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ParentKind {
+    Epic,
+    Project,
+    Issue,
+}
+
+/// An issue's upstream container (Jira epic, Linear project, GitHub parent issue).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ExternalParent {
+    /// Provider key of the parent (e.g. `PROJ-1`, a Linear project id, `owner/repo#3`)
+    pub key: String,
+    pub kind: ParentKind,
 }
 
 /// External issue type from a kanban provider
@@ -190,6 +234,19 @@ pub trait KanbanProvider: Send + Sync {
         user_id: &str,
         statuses: &[String],
     ) -> Result<Vec<ExternalIssue>, ApiError>;
+
+    /// Fetch an upstream container and all its member issues, regardless of assignee.
+    async fn list_scope(
+        &self,
+        scope: &crate::config::SyncScope,
+        _statuses: &[String],
+    ) -> Result<ScopeContents, ApiError> {
+        Err(ApiError::http(
+            self.name(),
+            400,
+            format!("{} cannot sync scope {scope:?}", self.name()),
+        ))
+    }
 
     // ─── CRUD Operations ─────────────────────────────────────────────────────
 
@@ -867,6 +924,9 @@ mod tests {
     #[test]
     fn test_external_issue() {
         let issue = ExternalIssue {
+            blocked_by: Vec::new(),
+            parent: None,
+            subtasks: Vec::new(),
             id: "issue-789".to_string(),
             key: "PROJ-123".to_string(),
             summary: "Fix login bug".to_string(),
@@ -894,6 +954,9 @@ mod tests {
     #[test]
     fn test_external_issue_unassigned() {
         let issue = ExternalIssue {
+            blocked_by: Vec::new(),
+            parent: None,
+            subtasks: Vec::new(),
             id: "issue-999".to_string(),
             key: "ENG-456".to_string(),
             summary: "Add dark mode".to_string(),

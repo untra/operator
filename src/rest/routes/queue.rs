@@ -10,6 +10,7 @@ use axum::{
 };
 use chrono::Utc;
 
+use crate::agents::connect;
 use crate::config::Config;
 use crate::queue::{Queue, Ticket, TicketStatus};
 use crate::rest::dto::{
@@ -18,7 +19,7 @@ use crate::rest::dto::{
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
-use crate::state::State as OperatorState;
+use crate::state::{AgentState, State as OperatorState};
 
 /// Convert a Ticket to a `KanbanTicketCard`
 fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
@@ -33,6 +34,19 @@ fn ticket_to_card(ticket: &Ticket) -> KanbanTicketCard {
         priority: ticket.priority_level(),
         timestamp: ticket.timestamp.clone(),
         filename: ticket.filename.clone(),
+        attention: None,
+    }
+}
+
+/// Attach each active card's agent attention reason.
+fn annotate_attention(agents: &[AgentState], column: &mut [KanbanTicketCard]) {
+    let now = Utc::now();
+    for card in column {
+        card.attention = agents
+            .iter()
+            .find(|a| a.ticket_id == card.id)
+            .and_then(|a| connect::attention(a, now))
+            .map(|a| a.reason);
     }
 }
 
@@ -112,6 +126,11 @@ pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardRes
     sort_active_column(&config, &mut queue_col);
     sort_active_column(&config, &mut running_col);
     sort_active_column(&config, &mut awaiting_col);
+    let agents = OperatorState::load(&config)
+        .map(|s| s.agents)
+        .unwrap_or_default();
+    annotate_attention(&agents, &mut running_col);
+    annotate_attention(&agents, &mut awaiting_col);
 
     // Done column: most recently completed first (reverse timestamp order)
     done_col.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -283,6 +302,8 @@ pub async fn sync(State(state): State<ApiState>) -> Result<Json<KanbanSyncRespon
     Ok(Json(KanbanSyncResponse {
         created: result.created,
         skipped: result.skipped,
+        updated: result.updated,
+        campaign: result.campaign,
         errors: result.errors,
         total_processed: result.total_processed,
     }))
@@ -321,6 +342,8 @@ pub async fn sync_collection(
     Ok(Json(KanbanSyncResponse {
         created: result.created,
         skipped: result.skipped,
+        updated: result.updated,
+        campaign: result.campaign,
         errors: result.errors,
         total_processed: result.total_processed,
     }))
@@ -592,6 +615,36 @@ step: plan
         assert_eq!(card.project, "operator");
         assert_eq!(card.status, TicketStatus::Queued);
         assert_eq!(card.priority, crate::queue::TicketPriority::P2Medium);
+    }
+
+    #[test]
+    fn test_annotate_attention_marks_awaiting_agent_card() {
+        let agent: AgentState = serde_json::from_value(serde_json::json!({
+            "id": "a", "ticket_id": "FEAT-1", "ticket_type": "FEAT", "project": "api",
+            "status": "awaiting_input", "started_at": "2026-01-01T00:00:00Z",
+            "last_activity": "2026-01-01T00:00:00Z", "last_message": null, "paired": false
+        }))
+        .unwrap();
+        let card = |id: &str| KanbanTicketCard {
+            id: id.to_string(),
+            summary: String::new(),
+            ticket_type: "FEAT".to_string(),
+            project: "api".to_string(),
+            status: TicketStatus::Running,
+            step: String::new(),
+            step_display_name: None,
+            priority: crate::queue::TicketPriority::P2Medium,
+            timestamp: String::new(),
+            filename: String::new(),
+            attention: None,
+        };
+        let mut column = vec![card("FEAT-1"), card("FEAT-2")];
+        annotate_attention(&[agent], &mut column);
+        assert_eq!(
+            column[0].attention,
+            Some(connect::AttentionReason::AwaitingInput)
+        );
+        assert_eq!(column[1].attention, None);
     }
 
     /// A status the schema does not know keeps the ticket in its directory's

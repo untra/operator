@@ -18,6 +18,7 @@ import type { SectionDto } from "./api-client";
 import { useApiMutation, useApiQuery, useResetSession } from "./api";
 import { currentSessionQuery, logoutMutation } from "./api/definitions";
 import { useProfiles } from "./profiles-context";
+import { useAttentionTitle } from "./attention-title";
 
 // The "Status" group mirrors the canonical section order shared with the TUI and
 // VS Code extension (the SectionId enum in src/ui/status_panel.rs) and reflects
@@ -84,6 +85,7 @@ function RightPanelController() {
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
   const { selected } = useProfiles();
+  useAttentionTitle();
   const navigate = useNavigate();
   const session = useApiQuery(currentSessionQuery());
   const logout = useApiMutation(logoutMutation);

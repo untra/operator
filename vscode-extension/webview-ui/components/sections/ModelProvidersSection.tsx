@@ -345,6 +345,7 @@ function CreateDelegatorForm({
         model_server: provider,
         launch_config: null,
         remote_agent: null,
+        governance: null,
       },
     });
   }, [model, name, onInvalid, pending, provider, selectedTool]);

@@ -35,6 +35,7 @@
     "onView:operator-in-progress",
     "onView:operator-queue",
     "onView:operator-completed",
+    "onView:operator-campaigns",
     "onCommand:operator.showStatus",
     "onCommand:operator.startOperatorServer",
     "onCommand:operator.launchTicket",
@@ -73,6 +74,12 @@
         {
           "id": "operator-completed",
           "name": "Completed",
+          "type": "tree",
+          "visibility": "collapsed"
+        },
+        {
+          "id": "operator-campaigns",
+          "name": "Campaigns",
           "type": "tree",
           "visibility": "collapsed"
         }
@@ -330,6 +337,26 @@
       {
         "command": "operator.startWebhookServer",
         "title": "Operator: Start Webhook Server"
+      },
+      {
+        "command": "operator.refreshCampaigns",
+        "title": "Refresh Campaigns",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "operator.launchCampaign",
+        "title": "Operator: Launch Campaign",
+        "icon": "$(play)"
+      },
+      {
+        "command": "operator.pauseCampaign",
+        "title": "Operator: Pause Campaign",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "operator.openCampaign",
+        "title": "Operator: Open Campaign in Operator UI",
+        "icon": "$(link-external)"
       }
     ],
     "keybindings": [
@@ -397,6 +424,21 @@
           "command": "operator.selectWorkingDirectory",
           "when": "view == operator-status && viewItem == workingDirConfigured",
           "group": "inline"
+        },
+        {
+          "command": "operator.launchCampaign",
+          "when": "view == operator-campaigns && viewItem == campaign-launchable",
+          "group": "inline"
+        },
+        {
+          "command": "operator.pauseCampaign",
+          "when": "view == operator-campaigns && viewItem == campaign-running",
+          "group": "inline"
+        },
+        {
+          "command": "operator.openCampaign",
+          "when": "view == operator-campaigns && viewItem =~ /^campaign/",
+          "group": "inline"
         }
       ],
       "editor/context": [
@@ -415,6 +457,18 @@
         {
           "command": "operator.startOperatorServer",
           "when": "operator.operatorAvailable && operator.ticketsParentFound"
+        },
+        {
+          "command": "operator.launchCampaign",
+          "when": "false"
+        },
+        {
+          "command": "operator.pauseCampaign",
+          "when": "false"
+        },
+        {
+          "command": "operator.openCampaign",
+          "when": "false"
         }
       ]
     },
@@ -583,7 +637,13 @@
           "fontCharacter": "\\F104"
         }
       }
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "operator-campaigns",
+        "contents": "Campaigns need a running Operator server.\n[Start Operator Server](command:operator.startOperatorServer)"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run generate:icons && npm run compile && npm run compile:webview",

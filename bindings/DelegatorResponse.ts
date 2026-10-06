@@ -36,6 +36,10 @@ model_properties: { [key in string]: string },
  */
 model_server: string | null, 
 /**
+ * Name of a `[[governance]]` policy enforced on this delegator's launches.
+ */
+governance: string | null, 
+/**
  * Optional launch configuration
  */
 launch_config: DelegatorLaunchConfigDto | null, 

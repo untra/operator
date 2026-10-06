@@ -24,6 +24,7 @@ export type OperatorUiRoute =
   | "config"
   | "workflows"
   | "remote-targets"
+  | "campaigns"
   | "license";
 
 const ROUTE_HASH: Record<OperatorUiRoute, string> = {
@@ -35,6 +36,7 @@ const ROUTE_HASH: Record<OperatorUiRoute, string> = {
   config: "#/config",
   workflows: "#/workflows",
   "remote-targets": "#/remote-targets",
+  campaigns: "#/campaigns",
   license: "#/settings/license",
 };
 
@@ -44,10 +46,12 @@ const ROUTE_HASH: Record<OperatorUiRoute, string> = {
  * @param ticketsDir the active `.tickets` directory, used to discover the
  *   daemon's dynamic port via `api-session.json`.
  * @param route the hosted-UI section to open.
+ * @param id an item within that section, e.g. a campaign id.
  */
 export async function openOperatorUi(
   ticketsDir: string | undefined,
   route: OperatorUiRoute,
+  id?: string,
 ): Promise<void> {
   const apiUrl = await discoverApiUrl(ticketsDir);
 
@@ -70,7 +74,8 @@ export async function openOperatorUi(
   // route is appended after mapping because asExternalUri can drop a fragment.
   const external = await vscode.env.asExternalUri(vscode.Uri.parse(apiUrl));
   const base = external.toString().replace(/\/+$/, "");
-  const url = `${base}/${ROUTE_HASH[route]}`;
+  const detail = id ? `/${encodeURIComponent(id)}` : "";
+  const url = `${base}/${ROUTE_HASH[route]}${detail}`;
 
   try {
     await vscode.commands.executeCommand("simpleBrowser.show", url);

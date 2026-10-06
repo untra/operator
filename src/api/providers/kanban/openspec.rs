@@ -264,6 +264,7 @@ impl OpenspecProvider {
         change_dir: &Path,
         proposal: &ProposalMeta,
         group: &TaskGroup,
+        blocker: Option<&TaskGroup>,
     ) -> ExternalIssue {
         let key = format!("{change_id}#{}", group.number);
         let status = if group.is_done() {
@@ -292,6 +293,14 @@ impl OpenspecProvider {
         ));
 
         ExternalIssue {
+            blocked_by: blocker
+                .map(|b| vec![format!("{change_id}#{}", b.number)])
+                .unwrap_or_default(),
+            parent: Some(super::ExternalParent {
+                key: change_id.to_string(),
+                kind: super::ParentKind::Project,
+            }),
+            subtasks: Vec::new(),
             id: key.clone(),
             key,
             summary: group.title.clone(),
@@ -303,6 +312,11 @@ impl OpenspecProvider {
             priority: None,
         }
     }
+}
+
+/// Groups run in order: each waits on the nearest earlier group that is still open.
+fn previous_open_group(earlier: &[TaskGroup]) -> Option<&TaskGroup> {
+    earlier.iter().rev().find(|g| !g.is_done())
 }
 
 #[async_trait]
@@ -367,12 +381,40 @@ impl KanbanProvider for OpenspecProvider {
             openspec_error(404, format!("cannot read {}: {e}", tasks_path.display()))
         })?;
         let proposal = self.proposal_meta(&change_dir);
-        let issues = parse_tasks_md(&content)
+        let groups = parse_tasks_md(&content);
+        let issues = groups
             .iter()
-            .map(|group| self.issue_for_group(project_key, &change_dir, &proposal, group))
+            .enumerate()
+            .map(|(i, group)| {
+                let blocker = previous_open_group(&groups[..i]);
+                self.issue_for_group(project_key, &change_dir, &proposal, group, blocker)
+            })
             .filter(|issue| statuses.is_empty() || statuses.contains(&issue.status))
             .collect();
         Ok(issues)
+    }
+
+    async fn list_scope(
+        &self,
+        scope: &crate::config::SyncScope,
+        statuses: &[String],
+    ) -> Result<super::ScopeContents, ApiError> {
+        let crate::config::SyncScope::OpenspecChange(change_id) = scope else {
+            return Err(openspec_error(
+                400,
+                format!("openspec cannot sync scope {scope:?}"),
+            ));
+        };
+        let issues = self.list_issues(change_id, "", statuses).await?;
+        let change_dir = self.change_dir(change_id)?;
+        let proposal = self.proposal_meta(&change_dir);
+        Ok(super::ScopeContents {
+            key: change_id.clone(),
+            title: proposal.title.unwrap_or_else(|| change_id.clone()),
+            description: proposal.why_excerpt,
+            url: format!("file://{}", change_dir.display()),
+            issues,
+        })
     }
 
     async fn create_issue(
@@ -538,6 +580,48 @@ Some prose without checkboxes.
         assert!(desc.contains("- [ ] 1.1 Create ThemeContext"));
         assert!(desc.contains("## Spec Context"));
         assert!(issues[0].url.starts_with("file://"));
+    }
+
+    #[tokio::test]
+    async fn test_openspec_list_scope_titles_from_proposal() {
+        let root = fixture_root();
+        let provider = OpenspecProvider::new("demo", root.path());
+        let scope = provider
+            .list_scope(
+                &crate::config::SyncScope::OpenspecChange("add-dark-mode".into()),
+                &[],
+            )
+            .await
+            .unwrap();
+        assert_eq!(scope.key, "add-dark-mode");
+        assert_eq!(scope.title, "Proposal: Add dark mode");
+        assert_eq!(scope.issues.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_openspec_groups_chain_on_nearest_open_group() {
+        let root = fixture_root();
+        let change = root.path().join("changes/add-dark-mode");
+        std::fs::write(
+            change.join("tasks.md"),
+            "## 1. A\n- [ ] open\n## 2. B\n- [x] done\n## 3. C\n- [ ] open\n",
+        )
+        .unwrap();
+        let provider = OpenspecProvider::new("demo", root.path());
+        let issues = provider
+            .list_issues("add-dark-mode", "", &[])
+            .await
+            .unwrap();
+        assert!(issues[0].blocked_by.is_empty());
+        assert_eq!(issues[1].blocked_by, vec!["add-dark-mode#1"]);
+        assert_eq!(issues[2].blocked_by, vec!["add-dark-mode#1"]);
+        assert_eq!(
+            issues[2].parent,
+            Some(super::super::ExternalParent {
+                key: "add-dark-mode".into(),
+                kind: super::super::ParentKind::Project,
+            })
+        );
     }
 
     #[tokio::test]

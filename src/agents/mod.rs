@@ -5,6 +5,7 @@ pub mod activity;
 pub mod agent_switcher;
 pub mod artifact_detector;
 pub mod cmux;
+pub mod connect;
 pub mod delegator_resolution;
 mod generator;
 pub mod hooks;

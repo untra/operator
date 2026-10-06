@@ -112,6 +112,10 @@ pub struct SessionsConfig {
     /// Zellij-specific configuration
     #[serde(default)]
     pub zellij: SessionsZellijConfig,
+
+    /// How the UI connects you to a launched agent's session
+    #[serde(default)]
+    pub connect: SessionsConnectConfig,
 }
 
 impl Default for SessionsConfig {
@@ -122,8 +126,66 @@ impl Default for SessionsConfig {
             vscode: SessionsVSCodeConfig::default(),
             cmux: SessionsCmuxConfig::default(),
             zellij: SessionsZellijConfig::default(),
+            connect: SessionsConnectConfig::default(),
         }
     }
+}
+
+/// Interface used to open a launched agent's session
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum ConnectInterface {
+    /// VS Code, via the Operator extension
+    Vscode,
+    /// Cursor, via the Operator extension
+    Cursor,
+    /// Zed (opens the folder only)
+    Zed,
+    /// Coder's VS Code extension
+    Coder,
+    /// cmux workspace focus
+    Cmux,
+    /// tmux attach
+    Tmux,
+    /// zellij attach
+    Zellij,
+    /// Plain SSH into the remote session
+    Ssh,
+    /// Native terminal running the attach or resume command
+    Terminal,
+}
+
+impl ConnectInterface {
+    /// Display label for links and buttons
+    pub fn label(&self) -> &'static str {
+        match self {
+            ConnectInterface::Vscode => "VS Code",
+            ConnectInterface::Cursor => "Cursor",
+            ConnectInterface::Zed => "Zed",
+            ConnectInterface::Coder => "Coder",
+            ConnectInterface::Cmux => "cmux",
+            ConnectInterface::Tmux => "tmux",
+            ConnectInterface::Zellij => "zellij",
+            ConnectInterface::Ssh => "ssh",
+            ConnectInterface::Terminal => "terminal",
+        }
+    }
+}
+
+/// Connect preferences; the offered interfaces are derived from what is configured and installed
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct SessionsConnectConfig {
+    /// Primary interface for connect links; unset follows the agent's session wrapper
+    #[serde(default)]
+    pub preferred: Option<ConnectInterface>,
+
+    /// Command that opens a native terminal running `{command}` (e.g. `open -na Ghostty --args -e {command}`); unset disables server-side terminal opening
+    #[serde(default)]
+    pub terminal_command: Option<String>,
 }
 
 /// Tmux-specific session configuration

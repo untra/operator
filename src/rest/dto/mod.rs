@@ -9,6 +9,7 @@
 
 pub mod agents;
 pub mod auth;
+pub mod campaigns;
 pub mod configuration;
 pub mod git_onboarding;
 pub mod integrations;
@@ -21,6 +22,7 @@ pub mod workflow;
 
 pub use agents::*;
 pub use auth::*;
+pub use campaigns::*;
 pub use configuration::*;
 pub use git_onboarding::*;
 pub use integrations::*;

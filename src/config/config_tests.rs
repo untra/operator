@@ -23,6 +23,7 @@ fn test_dev_kanban_has_three_issue_types() {
 #[test]
 fn test_delegator_serde_roundtrip() {
     let delegator = Delegator {
+        governance: None,
         git: None,
         name: "claude-opus-auto".to_string(),
         llm_tool: "claude".to_string(),

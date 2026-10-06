@@ -137,6 +137,7 @@ const DEFAULT_CONFIG: Config = {
   model_servers: [],
   hosts: [],
   targets: [],
+  governance: [],
   relay: { auto_inject_mcp: false },
   mcp: {
     http_enabled: true,

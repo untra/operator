@@ -23,7 +23,11 @@ use operator::integrations::{all_integrations, SupportStatus, Vertical};
 const NAV_DEFERRED: &[(&str, &str)] = &[("workflows", "claude"), ("workflows", "agnt")];
 
 /// Leaf URLs under a vertical section that are supporting pages rather than catalog integrations.
-const NAV_EXTRA_PAGES: &[&str] = &["/getting-started/git/provider-support/"];
+const NAV_EXTRA_PAGES: &[&str] = &[
+    "/getting-started/git/provider-support/",
+    "/getting-started/tickets/",
+    "/getting-started/concepts/kanban/",
+];
 
 /// Published pages intentionally not linked from the sidebar.
 const NAV_ORPHAN_ALLOWLIST: &[&str] = &[
@@ -302,7 +306,10 @@ fn test_catalog_icons_exist() {
         }
         if e.status >= SupportStatus::Alpha
             && e.docs_path.is_some()
-            && !matches!(e.vertical, Vertical::Transport | Vertical::RemoteTargets)
+            && !matches!(
+                e.vertical,
+                Vertical::Transport | Vertical::RemoteTargets | Vertical::Feature
+            )
         {
             assert!(
                 e.icon.is_some(),

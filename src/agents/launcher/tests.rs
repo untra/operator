@@ -307,6 +307,9 @@ fn test_generate_session_uuid_is_unique() {
 
 fn make_test_ticket(project: &str) -> Ticket {
     Ticket {
+        depends_on: Vec::new(),
+        campaign: None,
+        external_parent: None,
         filename: format!("20241225-1200-TASK-{project}-test.md"),
         filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{project}-test.md"),
         timestamp: "20241225-1200".to_string(),
@@ -1860,6 +1863,7 @@ use crate::state::{PendingSubAgent, State};
 fn add_delegators(config: &mut Config, names: &[&str]) {
     for name in names {
         config.delegators.push(Delegator {
+            governance: None,
             git: None,
             name: (*name).to_string(),
             llm_tool: "claude".to_string(),

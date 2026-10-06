@@ -544,6 +544,7 @@ create_timeout_secs = 600
     fn test_validate_targets_unknown_delegator_reference_error() {
         let mut config = config_with_targets(vec![]);
         config.delegators.push(crate::config::Delegator {
+            governance: None,
             git: None,
             name: "heavy".to_string(),
             llm_tool: "claude".to_string(),
@@ -589,6 +590,7 @@ create_timeout_secs = 600
         });
         for name in ["local", "docker", "gpu-vm", "legacy-host"] {
             config.delegators = vec![crate::config::Delegator {
+                governance: None,
                 git: None,
                 name: "d".to_string(),
                 llm_tool: "claude".to_string(),

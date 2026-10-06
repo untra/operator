@@ -245,6 +245,7 @@ pub enum VerticalSupport {
     Transport(RemoteTargetSupport),
     AgentRelay(SparseSupport),
     RemoteTargets(RemoteTargetSupport),
+    Feature(SparseSupport),
 }
 
 /// LLM tool × model server protocol relationship.
@@ -340,6 +341,7 @@ pub fn support_for(vertical: Vertical, slug: &str) -> VerticalSupport {
         (Vertical::Integration, _) => VerticalSupport::Integration(sparse_partial(None)),
         (Vertical::Workflows, _) => VerticalSupport::Workflows(sparse_partial(None)),
         (Vertical::Notification, _) => VerticalSupport::Notification(sparse_partial(None)),
+        (Vertical::Feature, _) => VerticalSupport::Feature(sparse_partial(None)),
         (Vertical::AgentRelay, _) => VerticalSupport::AgentRelay(sparse_partial(Some(
             "Relay MCP injection is Claude-first; Codex is partial.",
         ))),

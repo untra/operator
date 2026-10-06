@@ -986,6 +986,7 @@ mod tests {
     fn test_build_launch_options_delegator_propagates_all_fields() {
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            governance: None,
             git: None,
             name: "full-delegator".to_string(),
             llm_tool: "claude".to_string(),
@@ -1043,6 +1044,7 @@ mod tests {
     fn test_build_launch_options_delegator_none_overrides_inherit() {
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            governance: None,
             git: None,
             name: "minimal".to_string(),
             llm_tool: "claude".to_string(),
@@ -1094,6 +1096,7 @@ mod tests {
 
     fn make_delegator(name: &str, tool: &str, model: &str) -> crate::config::Delegator {
         crate::config::Delegator {
+            governance: None,
             git: None,
             name: name.to_string(),
             llm_tool: tool.to_string(),
@@ -1253,6 +1256,7 @@ mod tests {
     #[test]
     fn test_build_launch_options_step_agent_applies_launch_config() {
         let state = make_state_with_delegators(vec![crate::config::Delegator {
+            governance: None,
             git: None,
             name: "codex-auto".to_string(),
             llm_tool: "codex".to_string(),
@@ -1312,6 +1316,9 @@ mod tests {
         let worktree = temp_dir.path().join("worktree");
         std::fs::create_dir_all(&worktree).unwrap();
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "multi.md".to_string(),
             filepath: worktree.join("multi.md").to_string_lossy().to_string(),
             timestamp: "20241221-1430".to_string(),

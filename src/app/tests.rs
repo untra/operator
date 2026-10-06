@@ -759,6 +759,9 @@ Test content
 
         // Create ticket struct for return_to_queue
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: ticket_filename.to_string(),
             filepath: in_progress_path.to_string_lossy().to_string(),
             timestamp: "20241225-1200".to_string(),
@@ -1779,6 +1782,9 @@ mod key_dispatch {
 
     fn sample_ticket(project: &str) -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: format!("20240101-0000-TASK-{project}-sample.md"),
             filepath: format!("/tmp/missing-{project}.md"),
             timestamp: "20240101-0000".to_string(),

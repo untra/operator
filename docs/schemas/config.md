@@ -49,9 +49,11 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `model_servers` | `array` | No | User-declared model servers (ollama, lmstudio, any OpenAI-compat host). Implicit builtin servers exist for each `llm_tool`'s vendor API and do not need declaration. |
 | `hosts` | `array` | No | Remote machines agents can be launched on over SSH, referenced by name from `DelegatorLaunchConfig.host`. |
 | `targets` | `array` | No | Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`. |
+| `governance` | `array` | No | Named launch policies referenced by `Delegator.governance`. |
 | `relay` | → `RelayConfig` | No | Relay MCP injection configuration |
 | `mcp` | → `McpConfig` | No | Model Context Protocol (MCP) server configuration |
 | `acp` | → `AcpConfig` | No | Agent Client Protocol (ACP) agent configuration |
+| `native_llm` | → `NativeLlmConfig` | No | In-daemon LLM calls (judge). Accepted but inert until the `native-llm` build feature ships; a configured judge falls back to the deterministic rule. |
 
 ## Type Definitions
 
@@ -242,6 +244,7 @@ Four modes are supported:
 | `vscode` | → `SessionsVSCodeConfig` | No | VS Code-specific configuration |
 | `cmux` | → `SessionsCmuxConfig` | No | cmux-specific configuration |
 | `zellij` | → `SessionsZellijConfig` | No | Zellij-specific configuration |
+| `connect` | → `SessionsConnectConfig` | No | How the UI connects you to a launched agent's session |
 
 ### SessionWrapperType
 
@@ -299,6 +302,31 @@ Zellij terminal workspace manager session configuration
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `require_in_zellij` | `boolean` | No | Require running inside Zellij (ZELLIJ env var present) |
+
+### SessionsConnectConfig
+
+Connect preferences; the offered interfaces are derived from what is configured and installed
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `preferred` | object | No | Primary interface for connect links; unset follows the agent's session wrapper |
+| `terminal_command` | `string` \| `null` | No | Command that opens a native terminal running `{command}` (e.g. `open -na Ghostty --args -e {command}`); unset disables server-side terminal opening |
+
+### ConnectInterface
+
+Interface used to open a launched agent's session
+
+**Allowed Values:**
+
+- `vscode` - VS Code, via the Operator extension
+- `cursor` - Cursor, via the Operator extension
+- `zed` - Zed (opens the folder only)
+- `coder` - Coder's VS Code extension
+- `cmux` - cmux workspace focus
+- `tmux` - tmux attach
+- `zellij` - zellij attach
+- `ssh` - Plain SSH into the remote session
+- `terminal` - Native terminal running the attach or resume command
 
 ### LlmToolsConfig
 
@@ -494,6 +522,7 @@ Per-project/team sync configuration for a kanban provider
 | `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
 | `bidirectional` | `boolean` | No | When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo→doing, doing→done) and step completions with delegator info are reflected upstream. Default: false. |
 | `ticket_project` | `string` \| `null` | No | Operator project name stamped on tickets created from this source. Defaults to the external project key when unset. |
+| `scope` | object | No | Sync one upstream container into a campaign instead of the whole project (Premium). Scoped syncs pull every member regardless of assignee. |
 
 ### KanbanStatusMapping
 
@@ -511,6 +540,13 @@ back to `todo` when requeued. Unset fields fall back per-transition
 | `todo` | `string` \| `null` | No | External column for operator "todo" (queued work; also the pull source) |
 | `doing` | `string` \| `null` | No | External column for operator "doing" (claimed/launched tickets) |
 | `done` | `string` \| `null` | No | External column for operator "done" (completed tickets) |
+
+### SyncScope
+
+An upstream container synced as one campaign.
+
+**Allowed Values:**
+
 
 ### LinearConfig
 
@@ -572,8 +608,7 @@ Version check configuration for automatic update notifications
 
 Agent delegator configuration for autonomous ticket launching
 
-A delegator is a named {tool, model} pairing with optional launch configuration
-that can be used to launch agents for tickets.
+A delegator is a named {tool, model} pairing with optional launch configuration.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -585,6 +620,7 @@ that can be used to launch agents for tickets.
 | `model_properties` | `object` | No | Arbitrary model properties (e.g., `reasoning_effort`, sandbox) |
 | `launch_config` | object | No | Optional launch configuration |
 | `model_server` | `string` \| `null` | No | Name of a declared `ModelServer` (from `Config.model_servers`). `None` means use the `llm_tool`'s implicit vendor default (claude → anthropic-api, codex → openai-api, gemini → google-api). |
+| `governance` | `string` \| `null` | No | Name of a `[[governance]]` policy enforced on every launch by this delegator. |
 | `remote_agent` | object | No | Declarative reference to a remote, named agent on another platform (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).  Export-only: Operator has no runtime client for those platforms, so a delegator carrying this CANNOT be launched locally - resolution errors out (see `delegator_resolution`). It is stored, listed, serialized into an `AgentProfile`, and - for `platform == "agnt"` - surfaced in the `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the `id` must be the agent's UUID, not its display name). `None` = ordinary, locally launchable delegator. |
 | `x_agnt` | object | No | Opaque AGNT-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip so re-export is lossless (e.g. `memory`, `assignedWorkflows`, `creditLimit`). Operator never interprets this. |
 | `x_openai` | object | No | Opaque OpenAI-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`, `metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted. |
@@ -661,9 +697,7 @@ Model servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI
 (`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint
 (`model_server`, e.g. ollama-local, openai-api, a custom vllm host).
 
-Implicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are
-returned by [`implicit_model_server_for_tool`] and do not need to be declared
-in config.
+Implicit builtin servers are returned by [`implicit_model_server_for_tool`] for shipped tools.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -732,6 +766,24 @@ connection shape (`RemoteHost` minus identity).
 | `workdir` | `string` | Yes | Absolute project root on the remote machine |
 | `ssh_config_path` | `string` \| `null` | No | SSH config fragment passed with `-F` (used by provisioned coder aliases) |
 
+### GovernancePolicy
+
+A named launch policy. Every constraint is optional; an absent one is unconstrained.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Unique name, referenced by `Delegator.governance`. |
+| `allowed_delegators` | `array` \| `null` | No | Delegator names allowed to launch. Absent = any. |
+| `allowed_llm_tools` | `array` \| `null` | No | LLM tool names allowed to launch (e.g. `claude`). Absent = any. |
+| `allowed_model_servers` | `array` \| `null` | No | Model server names allowed (declared or implicit, e.g. `anthropic-api`). Absent = any. |
+| `allowed_targets` | `array` \| `null` | No | Execution target names allowed (e.g. `local`, `docker`, a `[[targets]]` name). Absent = any. |
+| `max_parallel` | `integer` \| `null` | No | Maximum concurrently running agents under this policy. |
+| `max_launches` | `integer` \| `null` | No | Maximum total launches under this policy (counted per campaign run). |
+| `max_retries` | `integer` \| `null` | No | Maximum relaunches of a failed ticket (counted per campaign run). |
+| `max_runtime_minutes` | `integer` \| `null` | No | Maximum wall-clock minutes per agent. |
+| `budget_usd` | `number` \| `null` | No | Spend ceiling in USD. Reserved: accepted and reported, not yet enforced. |
+| `require_confirmation` | `boolean` | No | Require operator confirmation before each launch. |
+
 ### RelayConfig
 
 Relay MCP injection configuration
@@ -785,4 +837,21 @@ maps to an in-progress ACP ticket and a delegator subprocess.
 | `stdio_advertised` | `boolean` | No | Whether the dashboard advertises the `operator acp` stdio entrypoint (and editor-config snippet actions). Set to false on machines that shouldn't be used as ACP agents. |
 | `default_delegator` | `string` \| `null` | No | Name of the delegator (from `[[delegators]]`) to use for ACP prompts. If unset or not found, falls back to the operator's default delegator resolution. |
 | `max_concurrent_sessions` | `integer` | No | Maximum number of concurrent ACP sessions. New `session/new` requests beyond this limit are rejected with a JSON-RPC error. |
+
+### NativeLlmConfig
+
+In-daemon LLM calls (built with the `native-llm` feature). Distinct from
+delegators: these are single typed API calls, not agent CLI sessions.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `judge` | object | No | Model that picks the winner of `multi_model` (`voting_mode = single_judge`) and `multi_prompt` (`selection_strategy = model_choice`) steps. Unset keeps the deterministic first/longest rule. |
+
+### JudgeConfig
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `model_server` | `string` | Yes | Name of a declared or implicit model server (e.g. "anthropic-api") |
+| `model` | `string` | Yes | Full API model id (e.g. "claude-sonnet-5"), not a CLI alias like "sonnet" |
+| `timeout_secs` | `integer` | No | Seconds before the judge is abandoned and the deterministic rule applies |
 

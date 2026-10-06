@@ -1,0 +1,33 @@
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+
+.step[data-state="current"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.step[data-state="done"] .glyph {
+  color: var(--color-green-l);
+}
+
+.step[data-state="current"] .glyph {
+  color: var(--accent);
+}
+
+.glyph {
+  width: 1rem;
+  text-align: center;
+}

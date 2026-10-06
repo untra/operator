@@ -22,6 +22,12 @@ import { IssueTypeService } from "./issuetype-service";
 import type { TicketInfo } from "./types";
 import { OperatorApiClient, discoverApiUrl } from "./api-client";
 import {
+  handleConnect,
+  openAgentTerminal,
+  resumePendingConnect,
+  type ConnectDeps,
+} from "./agent-connect";
+import {
   OperatorCredentials,
   clearCredentialProvider,
   setCredentialProvider,
@@ -51,6 +57,14 @@ import {
 import { startGitOnboarding, onboardGitHub, onboardGitLab } from "./git-onboarding";
 import { ConfigPanel } from "./config-panel";
 import { openOperatorUi } from "./open-operator-ui";
+import { CampaignTreeProvider, type CampaignNode } from "./campaign-provider";
+import { routeOperatorUri } from "./uri-handler";
+import {
+  launchCampaignCommand,
+  openCampaignCommand,
+  pauseCampaignCommand,
+  type CampaignCommandContext,
+} from "./campaign-commands";
 import { connectMcpServer } from "./mcp-connect";
 import { configFileExists } from "./config-paths";
 import { findParentTicketsDir, findTicketsDir, findOperatorServerDir } from "./tickets-dir";
@@ -319,6 +333,17 @@ function openTicketFile(filePath: string): void {
   void vscode.workspace.openTextDocument(filePath).then((doc) => {
     return vscode.window.showTextDocument(doc);
   });
+}
+
+/** Open a ticket by id, asking the Operator server where its file lives. */
+async function openTicketById(ticketId: string): Promise<void> {
+  try {
+    const client = new OperatorApiClient(await discoverApiUrl(currentTicketsDir));
+    openTicketFile((await client.getTicket(ticketId)).filepath);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    void vscode.window.showWarningMessage(`Operator: could not open ${ticketId}: ${msg}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -916,6 +941,10 @@ function openCreateDelegator(ctx: CommandContext, tool?: string, model?: string)
 // Extension activation
 // ---------------------------------------------------------------------------
 
+function warn(message: string): void {
+  void vscode.window.showWarningMessage(message);
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // Create output channel for logging
   const outputChannel = vscode.window.createOutputChannel("Operator");
@@ -934,6 +963,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const inProgressProvider = new TicketTreeProvider("in-progress", issueTypeService);
   const queueProvider = new TicketTreeProvider("queue", issueTypeService);
   const completedProvider = new TicketTreeProvider("completed", issueTypeService);
+  const campaignProvider = new CampaignTreeProvider();
 
   const statusTreeView = vscode.window.createTreeView("operator-status", {
     treeDataProvider: statusProvider,
@@ -943,6 +973,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.registerTreeDataProvider("operator-in-progress", inProgressProvider),
     vscode.window.registerTreeDataProvider("operator-queue", queueProvider),
     vscode.window.registerTreeDataProvider("operator-completed", completedProvider),
+    vscode.window.registerTreeDataProvider("operator-campaigns", campaignProvider),
   );
 
   // Synchronous object construction - these constructors do no I/O
@@ -950,28 +981,42 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   terminalManager.setIssueTypeService(issueTypeService);
   inProgressProvider.setTerminalManager(terminalManager);
 
+  const connectDeps: ConnectDeps = {
+    state: context.globalState,
+    fetchTerminal: async (agentId) =>
+      new OperatorApiClient(await discoverApiUrl(currentTicketsDir)).connectTerminal(agentId),
+    openTerminal: (terminal) => openAgentTerminal(terminalManager, terminal, warn),
+  };
+  void resumePendingConnect(connectDeps);
+
   // Handle deep-links from the Operator web UI / control plane:
   //   vscode://untra.operator-terminals/focus-session?name=<terminal>
+  //   vscode://untra.operator-terminals/connect?agent=<id>&authority=<ssh-remote+alias>&path=<dir>
   // focuses the agent's terminal tab by name. The web UI's launch panel emits this link after launching a ticket
   // when the operator control wrapper is VS Code, so the user can jump straight to the running agent's terminal.
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri(uri: vscode.Uri) {
-        if (uri.path !== "/focus-session") {
-          return;
-        }
-        const name = new URLSearchParams(uri.query).get("name");
-        if (!name) {
-          void vscode.window.showWarningMessage(
-            "Operator: focus-session link is missing a terminal name",
-          );
-          return;
-        }
-        if (terminalManager.exists(name)) {
-          terminalManager.focus(name);
-        } else {
-          void vscode.window.showWarningMessage(`Operator: no terminal named '${name}' to focus`);
-        }
+        routeOperatorUri(uri, {
+          focusSession: (name) => {
+            if (terminalManager.exists(name)) {
+              terminalManager.focus(name);
+            } else {
+              void vscode.window.showWarningMessage(
+                `Operator: no terminal named '${name}' to focus`,
+              );
+            }
+          },
+          openTicket: (id) => {
+            void openTicketById(id);
+          },
+          connect: (request) => {
+            handleConnect(request, connectDeps).catch((err: unknown) => {
+              warn(`Operator: could not connect to agent: ${String(err)}`);
+            });
+          },
+          warn,
+        });
       },
     }),
   );
@@ -1017,6 +1062,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await inProgressProvider.refresh();
       await queueProvider.refresh();
       await completedProvider.refresh();
+      await campaignProvider.refresh();
     },
     setTicketsDir: async (dir) => {
       credentials.setTicketsDir(dir);
@@ -1028,9 +1074,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
   };
 
+  const campaignCtx: CampaignCommandContext = {
+    getCurrentTicketsDir: () => currentTicketsDir,
+    refreshCampaigns: () => campaignProvider.refresh(),
+  };
+
   // Register all commands BEFORE any async work - ensures commands are
   // always available even if network/API initialization fails.
   context.subscriptions.push(
+    vscode.commands.registerCommand("operator.refreshCampaigns", () => campaignProvider.refresh()),
+    vscode.commands.registerCommand("operator.launchCampaign", (node?: CampaignNode) =>
+      launchCampaignCommand(campaignCtx, node),
+    ),
+    vscode.commands.registerCommand("operator.pauseCampaign", (node?: CampaignNode) =>
+      pauseCampaignCommand(campaignCtx, node),
+    ),
+    vscode.commands.registerCommand("operator.openCampaign", (node?: CampaignNode) =>
+      openCampaignCommand(campaignCtx, node),
+    ),
     vscode.commands.registerCommand("operator.showStatus", () => showStatus(ctx)),
     vscode.commands.registerCommand("operator.refreshTickets", () => ctx.refreshAllProviders()),
     vscode.commands.registerCommand("operator.focusTicket", (name: string, ticket?: TicketInfo) =>
@@ -1235,6 +1296,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       queueProvider.setApiClient(client);
       inProgressProvider.setApiClient(client);
       completedProvider.setApiClient(client);
+      campaignProvider.setApiClient(client);
+      void campaignProvider.refresh();
     } catch {
       ctx.attachedServer = undefined;
     }

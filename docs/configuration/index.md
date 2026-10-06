@@ -156,6 +156,7 @@ delegators = []
 model_servers = []
 hosts = []
 targets = []
+governance = []
 
 [profile]
 id = "00000000-0000-0000-0000-000000000000"
@@ -266,6 +267,8 @@ placement = "auto"
 
 [sessions.zellij]
 require_in_zellij = true
+
+[sessions.connect]
 
 [llm_tools]
 detected = []

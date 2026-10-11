@@ -1,0 +1,97 @@
+groups:
+  - id: event.operator.auth.bootstrap
+    type: "event"
+    name: "operator.auth.bootstrap"
+    brief: "Operator auth bootstrap."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.login
+    type: "event"
+    name: "operator.auth.login"
+    brief: "Operator auth login."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.logout
+    type: "event"
+    name: "operator.auth.logout"
+    brief: "Operator auth logout."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.password_reset
+    type: "event"
+    name: "operator.auth.password_reset"
+    brief: "Operator auth password reset."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.session_revoked
+    type: "event"
+    name: "operator.auth.session_revoked"
+    brief: "Operator auth session revoked."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.device_code_issued
+    type: "event"
+    name: "operator.auth.device_code_issued"
+    brief: "Operator auth device code issued."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.device_approved
+    type: "event"
+    name: "operator.auth.device_approved"
+    brief: "Operator auth device approved."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.refresh_token_reuse
+    type: "event"
+    name: "operator.auth.refresh_token_reuse"
+    brief: "Operator auth refresh token reuse."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.access_key_exchange
+    type: "event"
+    name: "operator.auth.access_key_exchange"
+    brief: "Operator auth access key exchange."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.access_key_created
+    type: "event"
+    name: "operator.auth.access_key_created"
+    brief: "Operator auth access key created."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.access_key_revoked
+    type: "event"
+    name: "operator.auth.access_key_revoked"
+    brief: "Operator auth access key revoked."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+  - id: event.operator.auth.admin_created
+    type: "event"
+    name: "operator.auth.admin_created"
+    brief: "Operator auth admin created."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail

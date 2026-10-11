@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use std::sync::RwLock as StdRwLock;
 
@@ -40,6 +40,8 @@ pub struct ApiState {
     pub kanban_sync: Option<Arc<KanbanBidirectionalSync>>,
     /// Authentication store and signing key.
     pub auth: Arc<AuthContext>,
+    /// OTLP ingest pipeline, built on first use so a disabled deployment pays nothing.
+    telemetry: Arc<OnceLock<Arc<crate::telemetry::TelemetryHub>>>,
     lifecycle: Arc<LifecycleState>,
 }
 
@@ -147,6 +149,7 @@ impl ApiState {
             mcp_sessions: Arc::new(Mutex::new(HashMap::new())),
             kanban_sync,
             auth,
+            telemetry: Arc::new(OnceLock::new()),
             lifecycle: Arc::new(LifecycleState {
                 phase: AtomicU8::new(PHASE_RUNNING),
                 in_flight: AtomicUsize::new(0),
@@ -256,6 +259,36 @@ impl ApiState {
             .map_err(|error| ApiError::InternalError(format!("Failed to save config: {error}")))?;
         self.replace_config(config);
         Ok(result)
+    }
+
+    /// The telemetry hub when telemetry is enabled in the live configuration.
+    ///
+    /// Policies and capacities are taken from the configuration at first use.
+    pub fn telemetry(&self) -> Result<Option<Arc<crate::telemetry::TelemetryHub>>, ApiError> {
+        let config = self.config();
+        if !config.telemetry.enabled {
+            return Ok(None);
+        }
+        if let Some(hub) = self.telemetry.get() {
+            return Ok(Some(Arc::clone(hub)));
+        }
+        let key = self
+            .auth
+            .store
+            .load_or_create_telemetry_key()
+            .map_err(|e| {
+                ApiError::InternalError(format!("loading the telemetry installation key: {e}"))
+            })?;
+        let hub = crate::telemetry::TelemetryHub::new(&config.telemetry, &key)
+            .map_err(|e| ApiError::InternalError(format!("building the telemetry hub: {e}")))?;
+        Ok(Some(Arc::clone(
+            self.telemetry.get_or_init(|| Arc::new(hub)),
+        )))
+    }
+
+    /// The telemetry hub if it has already been built, without building it.
+    pub fn telemetry_if_started(&self) -> Option<Arc<crate::telemetry::TelemetryHub>> {
+        self.telemetry.get().cloned()
     }
 
     /// Get the templates directory path

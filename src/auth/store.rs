@@ -399,6 +399,29 @@ impl AuthStore {
         Ok(key)
     }
 
+    /// The telemetry installation key, created on first use.
+    ///
+    /// `INSERT OR IGNORE` on the single pinned row means two processes starting
+    /// at once both read back the same key, so pseudonymous hashes stay stable.
+    pub fn load_or_create_telemetry_key(&self) -> Result<[u8; 32]> {
+        let candidate = crate::auth::secret::random_bytes::<32>()?;
+        let now = Utc::now().to_rfc3339();
+        let stored: Vec<u8> = self.with_conn(|conn| {
+            conn.execute(
+                "INSERT OR IGNORE INTO telemetry_key (id, key, created_at) VALUES (1, ?1, ?2)",
+                rusqlite::params![candidate.as_slice(), now],
+            )?;
+            Ok(
+                conn.query_row("SELECT key FROM telemetry_key WHERE id = 1", [], |r| {
+                    r.get(0)
+                })?,
+            )
+        })?;
+        stored
+            .try_into()
+            .map_err(|_| anyhow!("stored telemetry key is not 32 bytes"))
+    }
+
     // =========================================================================
     // Browser sessions
     // =========================================================================
@@ -465,6 +488,7 @@ impl AuthStore {
                 session_id: Some(id),
                 ticket_id: None,
                 step: None,
+                agent_session_id: None,
             }))
         })
     }
@@ -1301,6 +1325,40 @@ mod tests {
         let second = s.load_or_create_signing_key().unwrap();
         assert_eq!(first.kid, second.kid);
         assert_eq!(first.public_raw(), second.public_raw());
+    }
+
+    #[test]
+    fn test_telemetry_key_is_generated_once_and_then_reused() {
+        // A new key per start would change every personal-class hash.
+        let s = store();
+        let first = s.load_or_create_telemetry_key().unwrap();
+        let second = s.load_or_create_telemetry_key().unwrap();
+        assert_eq!(first, second);
+        assert_ne!(first, [0u8; 32]);
+    }
+
+    #[test]
+    fn test_telemetry_key_and_personal_hash_survive_store_reopen() {
+        use operator_telemetry::{RedactionPolicy, Redactor};
+        let directory = tempfile::tempdir().unwrap();
+        let first = AuthStore::open(directory.path()).unwrap();
+        let key = first.load_or_create_telemetry_key().unwrap();
+        let policy = RedactionPolicy {
+            enable_redaction: true,
+        };
+        let value = serde_json::json!("alice");
+        let before = Redactor::new(&key)
+            .unwrap()
+            .redact_attribute("user.name", &value, policy);
+        drop(first);
+        let second = AuthStore::open(directory.path()).unwrap();
+        let restored = second.load_or_create_telemetry_key().unwrap();
+        assert_eq!(key, restored);
+        let after = Redactor::new(&restored)
+            .unwrap()
+            .redact_attribute("user.name", &value, policy);
+        assert_eq!(before, after);
+        assert_eq!(after.stats.hashed, 1);
     }
 
     // --- sessions -----------------------------------------------------------

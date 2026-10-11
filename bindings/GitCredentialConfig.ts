@@ -5,15 +5,14 @@
  */
 export type GitCredentialConfig = { 
 /**
- * HTTPS repository URL the credential is bound to, with no embedded credentials, query or
- * fragment
+ * HTTPS repository URL this credential is bound to.
  */
 repository_url: string, 
 /**
- * HTTPS username sent with the token
+ * HTTPS username. The token is read from `token_env`.
  */
 username: string, 
 /**
- * Environment variable holding the token, read at launch
+ * Environment variable holding the HTTPS token. The secret is not stored here.
  */
 token_env: string, };

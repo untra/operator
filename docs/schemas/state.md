@@ -222,14 +222,3 @@ A sub-agent that has been planned but not yet launched (slot queue).
 | `started_at` | `string` | Yes |  |
 | `timeout_secs` | `integer` | Yes | Judge timeout copied at start, so a config edit can't strand the attempt |
 
-### CampaignRun
-
-Runner bookkeeping for one campaign.
-
-| Property | Type | Required | Description |
-| --- | --- | --- | --- |
-| `launches` | `object` | No | Ticket id → launches made by the runner |
-| `started_at` | `string` \| `null` | No |  |
-| `last_error` | `string` \| `null` | No |  |
-| `pause_reason` | `string` \| `null` | No | Why the run paused, if it did |
-

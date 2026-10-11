@@ -14,6 +14,8 @@ pub mod notifications_config;
 pub mod sessions;
 #[path = "config/targets.rs"]
 pub mod targets;
+#[path = "config/telemetry.rs"]
+pub mod telemetry;
 
 pub use agent_profile::*;
 pub use git_config::*;
@@ -23,6 +25,7 @@ pub use llm_tools::*;
 pub use notifications_config::*;
 pub use sessions::*;
 pub use targets::*;
+pub use telemetry::*;
 
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
@@ -34,40 +37,60 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct Config {
+    /// Active configuration profile (id and name).
     #[serde(default)]
     pub profile: crate::profiles::ProfileIdentity,
+    /// Config file this value was loaded from. Not serialized.
     #[serde(skip)]
     #[ts(skip)]
     pub config_file: Option<PathBuf>,
+    /// Profile registry database path. Not serialized.
     #[serde(skip)]
     #[ts(skip)]
     pub profile_registry: Option<PathBuf>,
+    /// Auth database path when it differs from `paths.state`. Not serialized.
     #[serde(skip)]
     #[ts(skip)]
     pub server_auth_path: Option<PathBuf>,
     /// List of projects operator can assign work to
     #[serde(default)]
     pub projects: Vec<String>,
+    /// Agent lifecycle, parallelism, and health monitoring.
     pub agents: AgentsConfig,
+    /// Notification integrations.
     pub notifications: NotificationsConfig,
+    /// Queue ordering and assignment.
     pub queue: QueueConfig,
+    /// Ticket, project, state, and worktree directories.
     pub paths: PathsConfig,
+    /// Terminal UI appearance and behavior.
     pub ui: UiConfig,
+    /// Launch confirmations and execution defaults.
     pub launch: LaunchConfig,
+    /// Issue type collections and presets.
     pub templates: TemplatesConfig,
+    /// Pull-request and rate-limit polling.
     #[serde(default)]
     pub api: ApiConfig,
+    /// Log level and output.
     #[serde(default)]
     pub logging: LoggingConfig,
+    /// OTLP ingest, session window, and export.
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
+    /// Tmux integration configuration.
     #[serde(default)]
     pub tmux: TmuxConfig,
     /// Session wrapper configuration (tmux, vscode, or cmux)
     #[serde(default)]
     pub sessions: SessionsConfig,
+    /// Detected LLM CLIs and provider preferences.
     #[serde(default)]
     pub llm_tools: LlmToolsConfig,
+    /// Embedded REST API server.
     #[serde(default)]
     pub rest_api: RestApiConfig,
+    /// Git provider, identity, and worktree settings.
     #[serde(default)]
     pub git: GitConfig,
     /// Kanban provider configuration for syncing issues from Jira, Linear, etc.
@@ -108,15 +131,20 @@ pub struct Config {
     pub native_llm: NativeLlmConfig,
 }
 
+/// Agent lifecycle, parallelism, and health monitoring.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct AgentsConfig {
+    /// Upper bound on concurrent agents (default: 5).
+    /// The effective cap is also limited by CPU cores minus `cores_reserved`.
     pub max_parallel: usize,
+    /// CPU cores kept free when computing the effective agent cap (default: 1).
     pub cores_reserved: usize,
     /// Maximum concurrent agents per project/repo (default: 1).
     /// Requires `git.use_worktrees` = true when > 1 to avoid conflicts.
     #[serde(default = "default_max_agents_per_repo")]
     pub max_agents_per_repo: usize,
+    /// Seconds between agent health checks (default: 30).
     pub health_check_interval: u64,
     /// Timeout in seconds for each agent generation (default: 300 = 5 min)
     #[serde(default = "default_generation_timeout")]
@@ -152,19 +180,27 @@ fn default_silence_threshold() -> u64 {
     6 // 6 seconds
 }
 
+/// Queue ordering and assignment.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct QueueConfig {
+    /// Assign the next ticket when an agent slot frees (default: true).
     pub auto_assign: bool,
+    /// Issue-type keys, highest priority first (default: INV, FIX, TASK, FEAT, SPIKE).
     pub priority_order: Vec<String>,
+    /// How often the queue is polled, in milliseconds (default: 1000).
     pub poll_interval_ms: u64,
 }
 
+/// Directories for tickets, projects, state, and worktrees.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct PathsConfig {
+    /// Ticket root, relative to the working directory or absolute (default: `.tickets`).
     pub tickets: String,
+    /// Projects root scanned for agent marker files (default: `.`).
     pub projects: String,
+    /// Operator state directory (default: `.tickets/operator`).
     pub state: String,
     /// Base directory for per-ticket worktrees (default: ~/.operator/worktrees)
     #[serde(default = "default_worktrees_dir")]
@@ -178,25 +214,35 @@ fn default_worktrees_dir() -> String {
     )
 }
 
+/// Terminal UI appearance and behavior.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct UiConfig {
+    /// TUI redraw interval in milliseconds (default: 250).
     pub refresh_rate_ms: u64,
+    /// Hours of completed tickets shown on the dashboard (default: 24).
     pub completed_history_hours: u64,
+    /// Maximum characters shown for a ticket summary (default: 40).
     pub summary_max_length: usize,
+    /// Custom titles for the dashboard panels.
     #[serde(default)]
     pub panel_names: PanelNamesConfig,
 }
 
+/// Custom titles for the dashboard panels.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct PanelNamesConfig {
+    /// Status panel title (default: `STATUS`).
     #[serde(default = "default_status_name")]
     pub status: String,
+    /// Queue panel title (default: `TODO QUEUE`).
     #[serde(default = "default_todo_name")]
     pub queue: String,
+    /// In-progress panel title (default: `IN PROGRESS`). The key `agents` is accepted as an alias.
     #[serde(default = "default_in_progress_name", alias = "agents")]
     pub in_progress: String,
+    /// Completed panel title (default: `DONE`).
     #[serde(default = "default_done_name")]
     pub completed: String,
 }
@@ -228,11 +274,15 @@ impl Default for PanelNamesConfig {
     }
 }
 
+/// Agent launch behavior and confirmations.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct LaunchConfig {
+    /// Ask before launching an autonomous ticket (default: true).
     pub confirm_autonomous: bool,
+    /// Ask before launching a paired ticket (default: true).
     pub confirm_paired: bool,
+    /// Milliseconds to wait after confirmation before the agent starts (default: 2000).
     pub launch_delay_ms: u64,
     /// Default named execution target. Per-launch and per-delegator choices take precedence.
     #[serde(default)]
@@ -295,6 +345,7 @@ pub struct YoloConfig {
     pub enabled: bool,
 }
 
+/// Tmux integration configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, TS)]
 #[ts(export)]
 pub struct TmuxConfig {
@@ -553,6 +604,7 @@ impl CollectionPreset {
     }
 }
 
+/// Issue type collections and presets.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct TemplatesConfig {
@@ -605,6 +657,18 @@ impl Default for TemplatesConfig {
     }
 }
 
+/// Console and file log line format.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+#[serde(rename_all = "lowercase")]
+pub enum LogFormat {
+    /// Human-readable lines.
+    #[default]
+    Text,
+    /// One JSON object per line, with `trace_id`/`span_id` when a trace is active.
+    Json,
+}
+
 /// Logging configuration
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
@@ -616,6 +680,13 @@ pub struct LoggingConfig {
     /// Whether to log to file in TUI mode (false = stderr for debugging)
     #[serde(default = "default_log_to_file")]
     pub to_file: bool,
+
+    /// Line format for console and file logs (default: text).
+    ///
+    /// `json` emits one JSON object per line with `trace_id` and `span_id`.
+    /// Override with `OPERATOR_LOGGING__FORMAT=json`.
+    #[serde(default)]
+    pub format: LogFormat,
 }
 
 fn default_log_level() -> String {
@@ -631,6 +702,7 @@ impl Default for LoggingConfig {
         Self {
             level: default_log_level(),
             to_file: default_log_to_file(),
+            format: LogFormat::default(),
         }
     }
 }
@@ -995,6 +1067,7 @@ impl Default for Config {
             templates: TemplatesConfig::default(),
             api: ApiConfig::default(),
             logging: LoggingConfig::default(),
+            telemetry: TelemetryConfig::default(),
             tmux: TmuxConfig::default(),
             sessions: SessionsConfig::default(),
             llm_tools: LlmToolsConfig::default(),
@@ -1018,6 +1091,44 @@ impl Default for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn undocumented_schema_fields(owner: &str, def: &serde_json::Value, missing: &mut Vec<String>) {
+        let Some(properties) = def.get("properties").and_then(|p| p.as_object()) else {
+            return;
+        };
+        for (field, prop) in properties {
+            let description = prop
+                .get("description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("")
+                .trim();
+            if description.is_empty() {
+                missing.push(format!("{owner}.{field}"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_config_schema_properties_have_descriptions() {
+        let schema = serde_json::to_value(schemars::schema_for!(Config)).unwrap();
+        let mut missing = Vec::new();
+        undocumented_schema_fields("Config", &schema, &mut missing);
+        if let Some(defs) = schema
+            .get("$defs")
+            .or_else(|| schema.get("definitions"))
+            .and_then(|defs| defs.as_object())
+        {
+            for (name, def) in defs {
+                undocumented_schema_fields(name, def, &mut missing);
+            }
+        }
+        missing.sort();
+        assert!(
+            missing.is_empty(),
+            "config schema fields missing descriptions:\n{}",
+            missing.join("\n")
+        );
+    }
 
     #[test]
     fn test_default_generation_timeout_is_300() {
@@ -1092,6 +1203,26 @@ mod tests {
     fn test_env_override_leaves_unset_fields_at_default() {
         let cfg = config_from_env(&[("OPERATOR_REST_API__HOST", "0.0.0.0")]);
         assert_eq!(cfg.rest_api.port, default_rest_port());
+    }
+
+    #[test]
+    fn test_env_override_applies_to_nested_telemetry_fields() {
+        let cfg = config_from_env(&[
+            ("OPERATOR_TELEMETRY__ENABLED", "true"),
+            (
+                "OPERATOR_TELEMETRY__EXPORT__ENDPOINT",
+                "http://collector:4318",
+            ),
+            ("OPERATOR_TELEMETRY__ENABLE_REDACTION", "true"),
+            ("OPERATOR_TELEMETRY__INGEST__QUEUE_CAPACITY", "8"),
+        ]);
+        assert!(cfg.telemetry.enabled);
+        assert_eq!(
+            cfg.telemetry.export.endpoint.as_deref(),
+            Some("http://collector:4318")
+        );
+        assert!(cfg.telemetry.enable_redaction);
+        assert_eq!(cfg.telemetry.ingest.queue_capacity, 8);
     }
 
     // --- Save destination ---

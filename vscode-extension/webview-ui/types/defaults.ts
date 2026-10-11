@@ -73,6 +73,29 @@ const DEFAULT_CONFIG: Config = {
   logging: {
     level: "info",
     to_file: false,
+    format: "text",
+  },
+  telemetry: {
+    enabled: false,
+    enable_redaction: false,
+    ingest: {
+      max_body_bytes: BigInt(64 * 1024 * 1024),
+      queue_capacity: 1024,
+      inject_agent_env: true,
+    },
+    export: {
+      endpoint: null,
+      protocol: "http/protobuf",
+      headers_env: null,
+      compression: "gzip",
+      timeout_secs: BigInt(10),
+      self_telemetry: true,
+    },
+    window: {
+      max_sessions: 64,
+      records_per_session: 2048,
+      grace_secs: BigInt(300),
+    },
   },
   tmux: {
     config_generated: false,

@@ -6,9 +6,30 @@
 use anyhow::Result;
 use std::path::PathBuf;
 use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::layer::Layer;
+use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::Config;
+use crate::config::{Config, LogFormat};
+
+pub(crate) fn fmt_layer<S, W>(
+    format: LogFormat,
+    writer: W,
+    ansi: bool,
+) -> Box<dyn Layer<S> + Send + Sync>
+where
+    S: tracing::Subscriber + for<'a> LookupSpan<'a>,
+    W: for<'w> tracing_subscriber::fmt::MakeWriter<'w> + Send + Sync + 'static,
+{
+    let base = tracing_subscriber::fmt::layer()
+        .with_target(false)
+        .with_ansi(ansi)
+        .with_writer(writer);
+    match format {
+        LogFormat::Text => base.boxed(),
+        LogFormat::Json => base.json().with_current_span(true).boxed(),
+    }
+}
 
 /// Result of logging initialization
 pub struct LoggingHandle {
@@ -58,12 +79,7 @@ pub fn init_logging(
 
         tracing_subscriber::registry()
             .with(filter)
-            .with(
-                tracing_subscriber::fmt::layer()
-                    .with_target(false)
-                    .with_ansi(false) // No ANSI codes in log files
-                    .with_writer(non_blocking),
-            )
+            .with(fmt_layer(config.logging.format, non_blocking, false))
             .init();
 
         Ok(LoggingHandle {
@@ -72,13 +88,10 @@ pub fn init_logging(
         })
     } else {
         // CLI mode or TUI with file logging disabled: log to stderr
+        let ansi = config.logging.format == LogFormat::Text;
         tracing_subscriber::registry()
             .with(filter)
-            .with(
-                tracing_subscriber::fmt::layer()
-                    .with_target(false)
-                    .with_writer(std::io::stderr),
-            )
+            .with(fmt_layer(config.logging.format, std::io::stderr, ansi))
             .init();
 
         Ok(LoggingHandle {
@@ -91,7 +104,44 @@ pub fn init_logging(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{self, Write};
+    use std::sync::{Arc, Mutex};
     use tempfile::TempDir;
+
+    #[derive(Clone)]
+    struct BufWriter(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for BufWriter {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().expect("log buffer").extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for BufWriter {
+        type Writer = Self;
+
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    #[test]
+    fn test_json_format_writes_one_object_per_line() {
+        let buf = Arc::new(Mutex::new(Vec::new()));
+        let writer = BufWriter(buf.clone());
+        let subscriber = tracing_subscriber::registry().with(fmt_layer(LogFormat::Json, writer, false));
+        tracing::subscriber::with_default(subscriber, || tracing::info!(answer = 42, "hello"));
+        let out = String::from_utf8(buf.lock().expect("log buffer").clone()).unwrap();
+        let line: serde_json::Value = serde_json::from_str(out.lines().next().unwrap()).unwrap();
+        assert_eq!(line["fields"]["message"], "hello");
+        assert_eq!(line["fields"]["answer"], 42);
+        assert_eq!(line["level"], "INFO");
+    }
 
     fn test_config(temp_dir: &TempDir) -> Config {
         let mut config = Config::default();

@@ -275,6 +275,16 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // MCP descriptor - always mounted so non-HTTP MCP clients can still
         // discover the stdio entrypoint.
         .routes(routes!(crate::mcp::descriptor::descriptor))
+        .merge(telemetry_router())
+}
+
+/// OTLP ingest (outside `/api/v1`, at the paths OTLP exporters derive) and the session window.
+fn telemetry_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(routes::telemetry::ingest_traces))
+        .routes(routes!(routes::telemetry::ingest_metrics))
+        .routes(routes!(routes::telemetry::ingest_logs))
+        .routes(routes!(routes::telemetry::get_session))
 }
 
 /// The canonical OpenAPI spec for the documented API surface.

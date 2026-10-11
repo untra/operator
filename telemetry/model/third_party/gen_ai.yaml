@@ -1,0 +1,89 @@
+groups:
+  - id: registry.operator.gen_ai
+    type: "attribute_group"
+    brief: "Reviewed telemetry attributes."
+    attributes:
+      - id: gen_ai.operation.name
+        type: "string"
+        brief: "Gen ai operation name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: gen_ai.provider.name
+        type: "string"
+        brief: "Gen ai provider name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: gen_ai.system
+        type: "string"
+        brief: "Gen ai system."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: gen_ai.request.model
+        type: "string"
+        brief: "Gen ai request model."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: gen_ai.response.model
+        type: "string"
+        brief: "Gen ai response model."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: gen_ai.conversation.id
+        type: "string"
+        brief: "Gen ai conversation id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: gen_ai.response.id
+        type: "string"
+        brief: "Gen ai response id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: gen_ai.input.messages
+        type: "any"
+        brief: "Gen ai input messages."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: gen_ai.output.messages
+        type: "any"
+        brief: "Gen ai output messages."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: gen_ai.system_instructions
+        type: "any"
+        brief: "Gen ai system instructions."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: gen_ai.tool.call.arguments
+        type: "any"
+        brief: "Gen ai tool call arguments."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: gen_ai.tool.call.result
+        type: "any"
+        brief: "Gen ai tool call result."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: gen_ai.usage.input_tokens
+        type: "int"
+        brief: "Gen ai usage input tokens."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: gen_ai.usage.output_tokens
+        type: "int"
+        brief: "Gen ai usage output tokens."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}

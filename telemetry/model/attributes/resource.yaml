@@ -1,0 +1,95 @@
+groups:
+  - id: registry.operator.resource
+    type: "attribute_group"
+    brief: "Reviewed telemetry attributes."
+    attributes:
+      - id: service.name
+        type: "string"
+        brief: "Service name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: service.version
+        type: "string"
+        brief: "Service version."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: telemetry.sdk.name
+        type: "string"
+        brief: "Telemetry sdk name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: telemetry.sdk.language
+        type: "string"
+        brief: "Telemetry sdk language."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: telemetry.sdk.version
+        type: "string"
+        brief: "Telemetry sdk version."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: k8s.pod.name
+        type: "string"
+        brief: "K8s pod name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: k8s.namespace.name
+        type: "string"
+        brief: "K8s namespace name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: service.instance.id
+        type: "string"
+        brief: "Service instance id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: user.email
+        type: "string"
+        brief: "User email."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "personal"}}
+      - id: user.name
+        type: "string"
+        brief: "User name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "personal"}}
+      - id: user.id
+        type: "string"
+        brief: "User id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "personal"}}
+      - id: process.owner
+        type: "string"
+        brief: "Process owner."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "personal"}}
+      - id: process.executable.path
+        type: "string"
+        brief: "Process executable path."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "personal"}}
+      - id: http.request.header.authorization
+        type: "string"
+        brief: "Http request header authorization."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "secret"}}
+      - id: http.request.header.cookie
+        type: "string"
+        brief: "Http request header cookie."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "secret"}}

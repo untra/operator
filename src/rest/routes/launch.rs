@@ -716,6 +716,13 @@ pub async fn complete_step(
         }
     }
 
+    if let (Some(session), Some(hub)) = (
+        principal.agent_session_id.as_deref(),
+        state.telemetry_if_started(),
+    ) {
+        hub.end_session(session);
+    }
+
     // Create a queue to find the ticket
     let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
 

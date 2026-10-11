@@ -6152,6 +6152,63 @@
         "x-operator-scope": "admin"
       }
     },
+    "/api/v1/telemetry/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Read an agent session's telemetry window",
+        "operationId": "telemetry_get_session",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "description": "Agent session id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session's retained records, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetrySessionWindow"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled, or the session has no retained records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
     "/api/v1/tickets": {
       "post": {
         "tags": [
@@ -6916,6 +6973,282 @@
           }
         },
         "security": []
+      }
+    },
+    "/otlp/v1/logs": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP logs",
+        "operationId": "telemetry_ingest_logs",
+        "requestBody": {
+          "description": "ExportLogsServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportLogsServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
+      }
+    },
+    "/otlp/v1/metrics": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP metrics",
+        "operationId": "telemetry_ingest_metrics",
+        "requestBody": {
+          "description": "ExportMetricsServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportMetricsServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
+      }
+    },
+    "/otlp/v1/traces": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP traces",
+        "operationId": "telemetry_ingest_traces",
+        "requestBody": {
+          "description": "ExportTraceServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportTraceServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
       }
     },
     "/readyz": {
@@ -9895,7 +10228,7 @@
       },
       "GitConfigEntry": {
         "type": "object",
-        "description": "One `git config` entry applied to delegated work.",
+        "description": "One `git config` key and value.",
         "required": [
           "key",
           "value"
@@ -9903,11 +10236,11 @@
         "properties": {
           "key": {
             "type": "string",
-            "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected"
+            "description": "`git config` key (for example `user.name`)."
           },
           "value": {
             "type": "string",
-            "description": "Config value"
+            "description": "`git config` value."
           }
         }
       },
@@ -9922,15 +10255,15 @@
         "properties": {
           "repository_url": {
             "type": "string",
-            "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment"
+            "description": "HTTPS repository URL this credential is bound to."
           },
           "token_env": {
             "type": "string",
-            "description": "Environment variable holding the token, read at launch"
+            "description": "Environment variable holding the HTTPS token. The secret is not stored here."
           },
           "username": {
             "type": "string",
-            "description": "HTTPS username sent with the token"
+            "description": "HTTPS username. The token is read from `token_env`."
           }
         }
       },
@@ -9945,7 +10278,7 @@
               },
               {
                 "$ref": "#/components/schemas/GitCredentialConfig",
-                "description": "HTTPS credential for the ticket's repository"
+                "description": "HTTPS credential bound to one repository."
               }
             ]
           },
@@ -9956,7 +10289,7 @@
               },
               {
                 "$ref": "#/components/schemas/GitIdentityConfig",
-                "description": "Commit identity; falls back to the global `git.identity`"
+                "description": "Commit identity override for this delegator."
               }
             ]
           },
@@ -9965,7 +10298,7 @@
             "items": {
               "$ref": "#/components/schemas/GitConfigEntry"
             },
-            "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected"
+            "description": "Extra `git config` entries applied for this delegator."
           }
         }
       },
@@ -9979,11 +10312,11 @@
         "properties": {
           "email": {
             "type": "string",
-            "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
+            "description": "Git author email applied to delegated commits."
           },
           "name": {
             "type": "string",
-            "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
+            "description": "Git author name applied to delegated commits."
           }
         }
       },
@@ -12154,7 +12487,8 @@
           "session",
           "access_token",
           "local_process",
-          "agent_callback"
+          "agent_callback",
+          "telemetry_ingest"
         ]
       },
       "ProfileNameRequest": {
@@ -13601,250 +13935,96 @@
           }
         }
       },
-      "TickReport": {
+      "TelemetryRecord": {
         "type": "object",
-        "description": "What one tick did, or would do when assessed.",
+        "description": "One span, log record or metric from an agent session, after the shared ingest policy.",
         "required": [
-          "status",
-          "launched",
-          "awaiting_operator",
-          "stalled",
-          "blocked"
+          "signal",
+          "name",
+          "time_unix_nano",
+          "attributes"
         ],
         "properties": {
-          "awaiting_operator": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "blocked": {
+          "attributes": {
             "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/BlockReason"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
+            "description": "Record attributes merged over resource attributes"
           },
-          "launched": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          "body": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Log body retained with secret scrubbing only when optional redaction is disabled"
           },
-          "pause_reason": {
+          "name": {
+            "type": "string",
+            "description": "Span name, log event name, or metric name"
+          },
+          "signal": {
+            "$ref": "#/components/schemas/TelemetrySignal",
+            "description": "Identifies the OTLP signal that supplied this record."
+          },
+          "span_id": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Lowercase hex span id, when the record is trace-correlated"
           },
-          "stalled": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          "time_unix_nano": {
+            "type": "string",
+            "description": "Nanoseconds since the Unix epoch, as a decimal string (OTLP JSON convention)"
           },
-          "status": {
-            "$ref": "#/components/schemas/CampaignStatus"
+          "trace_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Lowercase hex trace id, when the record is trace-correlated"
           }
         }
       },
-      "TicketAgent": {
+      "TelemetrySessionWindow": {
         "type": "object",
-        "description": "The agent working a ticket, as shown on the ticket page.",
+        "description": "The bounded in-memory telemetry window for one agent session.",
         "required": [
-          "id",
-          "status",
-          "paired",
-          "started_at",
-          "completed_steps"
+          "session_id",
+          "ended",
+          "evicted_records",
+          "records"
         ],
         "properties": {
-          "attach_command": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Shell command that attaches to the session (tmux)"
-          },
-          "completed_steps": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Workflow steps already completed"
-          },
-          "current_step": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Current workflow step (e.g. \"plan\", \"implement\", \"test\")"
-          },
-          "id": {
-            "type": "string",
-            "description": "Agent ID"
-          },
-          "last_message": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Latest status message from the agent"
-          },
-          "llm_model": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "LLM model alias (e.g. \"opus\", \"sonnet\")"
-          },
-          "llm_tool": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "LLM tool (e.g. \"claude\", \"gemini\", \"codex\")"
-          },
-          "paired": {
+          "ended": {
             "type": "boolean",
-            "description": "Whether the operator works alongside the agent (SPIKE and INV tickets)"
+            "description": "Whether the session has ended and is within its grace period"
           },
-          "pr_number": {
-            "type": [
-              "integer",
-              "null"
-            ],
+          "evicted_records": {
+            "type": "integer",
             "format": "int64",
-            "description": "PR/MR number",
+            "description": "Records evicted from this session because the ring was full",
             "minimum": 0
           },
-          "pr_status": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Last known PR/MR status: open, approved, `changes_requested`, merged or closed"
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TelemetryRecord"
+            },
+            "description": "Oldest first"
           },
-          "pr_url": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "URL of the PR/MR opened by the \"pr\" step"
-          },
-          "remote_host": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "SSH host the agent runs on, when remote"
-          },
-          "review_state": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Pending review gate while `awaiting_input`: `pending_plan`, `pending_visual`, `pending_proof`, `pending_pr_creation` or `pending_pr_merge`"
-          },
-          "session_context_ref": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Session context reference (cmux workspace, tmux window)"
-          },
-          "session_name": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Terminal session name"
-          },
-          "session_pane_ref": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Session pane reference (cmux surface, tmux pane)"
-          },
-          "session_window_ref": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Session window reference (cmux window, tmux session)"
-          },
-          "session_wrapper": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "tmux, vscode, cmux or zellij"
-          },
-          "started_at": {
+          "session_id": {
             "type": "string",
-            "description": "RFC 3339 start time"
-          },
-          "status": {
-            "type": "string",
-            "description": "running, `awaiting_input`, completing or orphaned"
-          },
-          "target_name": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Execution target the agent launched on"
-          },
-          "workspace_url": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Coder dashboard URL of the agent's workspace"
-          },
-          "worktree_path": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Git worktree the agent works in"
+            "description": "Identifies the agent session whose sanitized records are retained."
           }
         }
       },
-      "TicketDependency": {
-        "type": "object",
-        "description": "One `depends_on` reference and where it points.",
-        "required": [
-          "reference",
-          "satisfied"
-        ],
-        "properties": {
-          "column": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Column of the resolved ticket"
-          },
-          "reference": {
-            "type": "string",
-            "description": "The reference as written (local id or `provider:key`)"
-          },
-          "satisfied": {
-            "type": "boolean",
-            "description": "Whether the dependency is completed"
-          },
-          "ticket_id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Local ticket it resolves to; absent while unsynced"
-          }
-        }
+      "TelemetrySignal": {
+        "type": "string",
+        "description": "OTLP signal a record arrived on.",
+        "enum": [
+          "traces",
+          "metrics",
+          "logs"
+        ]
       },
       "TicketDetailResponse": {
         "type": "object",
@@ -15247,6 +15427,10 @@
     {
       "name": "Git",
       "description": "Git provider onboarding"
+    },
+    {
+      "name": "Telemetry",
+      "description": "OTLP ingest from agent sessions and the per-session telemetry window"
     }
   ]
 }

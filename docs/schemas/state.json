@@ -347,7 +347,7 @@
       "type": "object",
       "properties": {
         "identity": {
-          "description": "Commit identity; falls back to the global `git.identity`",
+          "description": "Commit identity override for this delegator.",
           "anyOf": [
             {
               "$ref": "#/$defs/GitIdentityConfig"
@@ -359,7 +359,7 @@
           "default": null
         },
         "credentials": {
-          "description": "HTTPS credential for the ticket's repository",
+          "description": "HTTPS credential bound to one repository.",
           "anyOf": [
             {
               "$ref": "#/$defs/GitCredentialConfig"
@@ -371,7 +371,7 @@
           "default": null
         },
         "settings": {
-          "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected",
+          "description": "Extra `git config` entries applied for this delegator.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/GitConfigEntry"
@@ -385,11 +385,11 @@
       "type": "object",
       "properties": {
         "name": {
-          "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
+          "description": "Git author name applied to delegated commits.",
           "type": "string"
         },
         "email": {
-          "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
+          "description": "Git author email applied to delegated commits.",
           "type": "string"
         }
       },
@@ -403,15 +403,15 @@
       "type": "object",
       "properties": {
         "repository_url": {
-          "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment",
+          "description": "HTTPS repository URL this credential is bound to.",
           "type": "string"
         },
         "username": {
-          "description": "HTTPS username sent with the token",
+          "description": "HTTPS username. The token is read from `token_env`.",
           "type": "string"
         },
         "token_env": {
-          "description": "Environment variable holding the token, read at launch",
+          "description": "Environment variable holding the HTTPS token. The secret is not stored here.",
           "type": "string"
         }
       },
@@ -422,15 +422,15 @@
       ]
     },
     "GitConfigEntry": {
-      "description": "One `git config` entry applied to delegated work.",
+      "description": "One `git config` key and value.",
       "type": "object",
       "properties": {
         "key": {
-          "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected",
+          "description": "`git config` key (for example `user.name`).",
           "type": "string"
         },
         "value": {
-          "description": "Config value",
+          "description": "`git config` value.",
           "type": "string"
         }
       },
@@ -850,42 +850,6 @@
         "started_at",
         "timeout_secs"
       ]
-    },
-    "CampaignRun": {
-      "description": "Runner bookkeeping for one campaign.",
-      "type": "object",
-      "properties": {
-        "launches": {
-          "description": "Ticket id → launches made by the runner",
-          "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0
-          },
-          "default": {}
-        },
-        "started_at": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "format": "date-time"
-        },
-        "last_error": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "pause_reason": {
-          "description": "Why the run paused, if it did",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
     }
   }
 }

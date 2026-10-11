@@ -21,8 +21,13 @@ name = "generate_types"
 path = "src/bin/generate_types.rs"
 
 [dependencies]
-# Shared relay crate (also used by opr8r)
+# Shared crates also used by opr8r
 operator-relay = { path = "crates/relay" }
+operator-telemetry = { path = "crates/telemetry", features = ["redact", "schema"] }
+# OTLP wire types only: prost messages and serde JSON, no tonic server or client
+opentelemetry-proto = { version = "=0.33.0", default-features = false, features = ["gen-tonic-messages", "with-serde", "trace", "logs", "metrics"] }
+prost = "0.14"
+flate2 = "1"
 
 # TUI
 ratatui = "0.30"
@@ -58,7 +63,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 anyhow = "1"
 thiserror = "2"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
 dirs = "6"
 glob = "0.3"
@@ -127,7 +132,6 @@ embed-ui = ["dep:rust-embed", "dep:mime_guess"]
 operator-relay = { path = "crates/relay" }
 tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
-flate2 = "1"
 
 [lints.rust]
 unsafe_code = "deny"

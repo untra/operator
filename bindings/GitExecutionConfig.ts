@@ -8,15 +8,14 @@ import type { GitIdentityConfig } from "./GitIdentityConfig";
  */
 export type GitExecutionConfig = { 
 /**
- * Commit identity; falls back to the global `git.identity`
+ * Commit identity override for this delegator.
  */
 identity: GitIdentityConfig | null, 
 /**
- * HTTPS credential for the ticket's repository
+ * HTTPS credential bound to one repository.
  */
 credentials: GitCredentialConfig | null, 
 /**
- * Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,
- * `user.email`, `core.askpass` and `core.sshCommand` are rejected
+ * Extra `git config` entries applied for this delegator.
  */
 settings: Array<GitConfigEntry>, };

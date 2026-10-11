@@ -5,10 +5,10 @@
  */
 export type GitIdentityConfig = { 
 /**
- * Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`
+ * Git author name applied to delegated commits.
  */
 name: string, 
 /**
- * Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`
+ * Git author email applied to delegated commits.
  */
 email: string, };

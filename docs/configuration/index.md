@@ -30,10 +30,10 @@ Agent lifecycle, parallelism, and health monitoring
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `max_parallel` * | `integer` | 5 |  |
-| `cores_reserved` * | `integer` | 1 |  |
+| `max_parallel` * | `integer` | 5 | Upper bound on concurrent agents (default: 5). The effective cap is also limited by CPU cores minus `cores_reserved`. |
+| `cores_reserved` * | `integer` | 1 | CPU cores kept free when computing the effective agent cap (default: 1). |
 | `max_agents_per_repo` | `integer` | - | Maximum concurrent agents per project/repo (default: 1). Requires `git.use_worktrees` = true when > 1 to avoid conflicts. |
-| `health_check_interval` * | `integer` | 30 |  |
+| `health_check_interval` * | `integer` | 30 | Seconds between agent health checks (default: 30). |
 | `generation_timeout_secs` | `integer` | 300 | Timeout in seconds for each agent generation (default: 300 = 5 min) |
 | `sync_interval` | `integer` | 60 | Interval in seconds between ticket-session syncs (default: 60) |
 | `step_timeout` | `integer` | 1800 | Maximum seconds a step can run before timing out (default: 1800 = 30 min) |
@@ -56,9 +56,9 @@ Queue processing and ticket assignment
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `auto_assign` * | `boolean` | true |  |
-| `priority_order` * | `array`[`string`] | ["INV", "FIX", "TASK", "FEAT", "SPIKE"] |  |
-| `poll_interval_ms` * | `integer` | 1000 |  |
+| `auto_assign` * | `boolean` | true | Assign the next ticket when an agent slot frees (default: true). |
+| `priority_order` * | `array`[`string`] | ["INV", "FIX", "TASK", "FEAT", "SPIKE"] | Issue-type keys, highest priority first (default: INV, FIX, TASK, FEAT, SPIKE). |
+| `poll_interval_ms` * | `integer` | 1000 | How often the queue is polled, in milliseconds (default: 1000). |
 
 ## `[paths]`
 
@@ -66,9 +66,9 @@ Directory paths for tickets, projects, and state
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `tickets` * | `string` | .tickets |  |
-| `projects` * | `string` | . |  |
-| `state` * | `string` | .tickets/operator |  |
+| `tickets` * | `string` | .tickets | Ticket root, relative to the working directory or absolute (default: `.tickets`). |
+| `projects` * | `string` | . | Projects root scanned for agent marker files (default: `.`). |
+| `state` * | `string` | .tickets/operator | Operator state directory (default: `.tickets/operator`). |
 | `worktrees` | `string` | - | Base directory for per-ticket worktrees (default: ~/.operator/worktrees) |
 
 ## `[ui]`
@@ -77,10 +77,10 @@ Terminal UI appearance and behavior
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `refresh_rate_ms` * | `integer` | 250 |  |
-| `completed_history_hours` * | `integer` | 24 |  |
-| `summary_max_length` * | `integer` | 40 |  |
-| `panel_names` | → `PanelNamesConfig` | - |  |
+| `refresh_rate_ms` * | `integer` | 250 | TUI redraw interval in milliseconds (default: 250). |
+| `completed_history_hours` * | `integer` | 24 | Hours of completed tickets shown on the dashboard (default: 24). |
+| `summary_max_length` * | `integer` | 40 | Maximum characters shown for a ticket summary (default: 40). |
+| `panel_names` | → `PanelNamesConfig` | - | Custom titles for the dashboard panels. |
 
 ## `[launch]`
 
@@ -88,9 +88,9 @@ Agent launch behavior and confirmations
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `confirm_autonomous` * | `boolean` | true |  |
-| `confirm_paired` * | `boolean` | true |  |
-| `launch_delay_ms` * | `integer` | 2000 |  |
+| `confirm_autonomous` * | `boolean` | true | Ask before launching an autonomous ticket (default: true). |
+| `confirm_paired` * | `boolean` | true | Ask before launching a paired ticket (default: true). |
+| `launch_delay_ms` * | `integer` | 2000 | Milliseconds to wait after confirmation before the agent starts (default: 2000). |
 | `target` | `string` \| `null` | - | Default named execution target. Per-launch and per-delegator choices take precedence. |
 | `docker` | → `DockerConfig` | - | Docker execution configuration |
 | `yolo` | → `YoloConfig` | - | YOLO (auto-accept) mode configuration |
@@ -245,6 +245,26 @@ rate_limit_warning_threshold = 0.2
 [logging]
 level = "info"
 to_file = true
+
+[telemetry]
+enabled = false
+enable_redaction = false
+
+[telemetry.ingest]
+max_body_bytes = 67108864
+queue_capacity = 1024
+inject_agent_env = true
+
+[telemetry.export]
+protocol = "http/protobuf"
+compression = "gzip"
+timeout_secs = 10
+self_telemetry = true
+
+[telemetry.window]
+max_sessions = 64
+records_per_session = 2048
+grace_secs = 300
 
 [tmux]
 config_generated = false

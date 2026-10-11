@@ -13,6 +13,7 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
+use operator_telemetry::{RedactionClass, CATALOG_MARKDOWN};
 use schemars::schema_for;
 use ts_rs::TS;
 
@@ -32,12 +33,14 @@ use operator::config::{
     AcpConfig, AgentProfile, AgentsConfig, ApiConfig, CmuxPlacementPolicy, CoderConfig,
     CollectionPreset, Config, Delegator, DelegatorLaunchConfig, DetectedTool, DockerConfig,
     ExternalMcpServer, ForgejoConfig, GitConfig, GitHubConfig, GitLabConfig, GiteaConfig,
-    KanbanConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig, McpConfig, ModelServer,
-    NotificationsConfig, OsNotificationConfig, PanelNamesConfig, PathsConfig, QueueConfig,
-    RelayConfig, RemoteAgentRef, RemoteHost, RestApiConfig, SessionWrapperType, SessionsCmuxConfig,
-    SessionsConfig, SessionsTmuxConfig, SessionsVSCodeConfig, SessionsZellijConfig,
-    SkillDirectoriesOverride, SshTarget, TargetDef, TargetKind, TemplatesConfig, TmuxConfig,
-    ToolCapabilities, UiConfig, VersionCheckConfig, WebhookConfig, XOperator, YoloConfig,
+    JudgeConfig, KanbanConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig, McpConfig,
+    ModelServer, NativeLlmConfig, NotificationsConfig, OsNotificationConfig, OtlpCompression,
+    OtlpProtocol, PanelNamesConfig, PathsConfig, QueueConfig, RelayConfig, RemoteAgentRef,
+    RemoteHost, RestApiConfig, SessionWrapperType, SessionsCmuxConfig, SessionsConfig,
+    SessionsTmuxConfig, SessionsVSCodeConfig, SessionsZellijConfig, SkillDirectoriesOverride,
+    SshTarget, TargetDef, TargetKind, TelemetryConfig, TelemetryExportConfig,
+    TelemetryIngestConfig, TelemetryWindowConfig, TemplatesConfig, TmuxConfig, ToolCapabilities,
+    UiConfig, VersionCheckConfig, WebhookConfig, XOperator, YoloConfig,
 };
 use operator::profiles::ProfileIdentity;
 use operator::queue::LlmTask;
@@ -51,7 +54,7 @@ use operator::rest::dto::{
     WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse,
 };
 use operator::state::{
-    AgentState, CampaignRun, CompletedTicket, MultiAgentGroup, MultiAgentPhase, PendingSubAgent,
+    AgentState, CompletedTicket, JudgeAttempt, MultiAgentGroup, MultiAgentPhase, PendingSubAgent,
     State,
 };
 use operator::types::{
@@ -74,6 +77,10 @@ const HEADER: &str = r"// ======================================================
 fn main() {
     let args: Vec<String> = env::args().collect();
     let check_mode = args.iter().any(|a| a == "--check");
+
+    if !check_mode {
+        RedactionClass::export(&ts_rs::Config::default()).expect("export RedactionClass binding");
+    }
 
     // Generate TypeScript
     let ts_content = generate_typescript();
@@ -99,6 +106,10 @@ fn generate_typescript() -> String {
 
     // Collect all type declarations
     let decls: Vec<String> = vec![
+        RedactionClass::decl(&cfg),
+        NativeLlmConfig::decl(&cfg),
+        JudgeConfig::decl(&cfg),
+        JudgeAttempt::decl(&cfg),
         // Unified types (src/types/)
         Project::decl(&cfg),
         ProjectRepo::decl(&cfg),
@@ -134,6 +145,12 @@ fn generate_typescript() -> String {
         CollectionPreset::decl(&cfg),
         TemplatesConfig::decl(&cfg),
         LoggingConfig::decl(&cfg),
+        TelemetryConfig::decl(&cfg),
+        TelemetryIngestConfig::decl(&cfg),
+        TelemetryExportConfig::decl(&cfg),
+        TelemetryWindowConfig::decl(&cfg),
+        OtlpProtocol::decl(&cfg),
+        OtlpCompression::decl(&cfg),
         ApiConfig::decl(&cfg),
         AcpConfig::decl(&cfg),
         McpConfig::decl(&cfg),
@@ -173,6 +190,9 @@ fn generate_typescript() -> String {
         MultiAgentPhase::decl(&cfg),
         PendingSubAgent::decl(&cfg),
         // REST DTOs (src/rest/dto.rs)
+        operator::rest::dto::TelemetrySignal::decl(&cfg),
+        operator::rest::dto::TelemetryRecord::decl(&cfg),
+        operator::rest::dto::TelemetrySessionWindow::decl(&cfg),
         IssueTypeResponse::decl(&cfg),
         IssueTypeSummary::decl(&cfg),
         CreateIssueTypeRequest::decl(&cfg),
@@ -331,6 +351,10 @@ fn write_files(ts_content: &str, config_schema: &str, state_schema: &str, jira_a
     fs::write(jira_api_path, jira_api_schema).expect("Failed to write docs/schemas/jira-api.json");
     println!("Generated: docs/schemas/jira-api.json");
 
+    fs::create_dir_all("docs/telemetry").expect("create telemetry docs directory");
+    fs::write("docs/telemetry/catalog.md", CATALOG_MARKDOWN).expect("write telemetry catalog");
+    println!("Generated: docs/telemetry/catalog.md");
+
     println!("\nType generation complete!");
 }
 
@@ -379,6 +403,14 @@ fn check_files(ts_content: &str, config_schema: &str, state_schema: &str, jira_a
         }
     } else {
         outdated.push("docs/schemas/jira-api.json (missing)");
+    }
+
+    if fs::read_to_string("docs/telemetry/catalog.md")
+        .ok()
+        .as_deref()
+        != Some(CATALOG_MARKDOWN)
+    {
+        outdated.push("docs/telemetry/catalog.md (missing or outdated)");
     }
 
     if outdated.is_empty() {

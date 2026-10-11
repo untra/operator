@@ -21,6 +21,8 @@ pub enum Access {
     Public,
     /// Requires an authenticated principal holding this scope.
     Scoped(Scope),
+    /// OTLP ingest: an agent's scopeless ingest token, or an admin credential.
+    TelemetryIngest,
 }
 
 /// One route's authorization requirement.
@@ -60,6 +62,10 @@ const fn execute(method: &'static str, path: &'static str) -> RouteRule {
 
 const fn admin(method: &'static str, path: &'static str) -> RouteRule {
     rule(method, path, Access::Scoped(Scope::Admin))
+}
+
+const fn otlp_ingest(method: &'static str, path: &'static str) -> RouteRule {
+    rule(method, path, Access::TelemetryIngest)
 }
 
 /// Every mounted route and what it requires.
@@ -223,6 +229,12 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/mcp/descriptor"),
     execute("GET", "/api/v1/mcp/sse"),
     execute("POST", "/api/v1/mcp/message"),
+    // --- Telemetry ----------------------------------------------------------
+    otlp_ingest("POST", "/otlp/v1/traces"),
+    otlp_ingest("POST", "/otlp/v1/metrics"),
+    otlp_ingest("POST", "/otlp/v1/logs"),
+    // The window holds personal-class values, so reading it is administration.
+    admin("GET", "/api/v1/telemetry/sessions/{session_id}"),
 ];
 
 /// Look up the requirement for a matched route, if the table knows it.
@@ -254,6 +266,8 @@ pub struct Principal {
     pub ticket_id: Option<String>,
     /// For an agent callback token: the step it may report on.
     pub step: Option<String>,
+    /// For an agent token: the agent session it is pinned to.
+    pub agent_session_id: Option<String>,
 }
 
 impl Principal {
@@ -263,6 +277,20 @@ impl Principal {
     /// not satisfy a `Read` requirement unless it was also granted.
     pub fn has_scope(&self, scope: Scope) -> bool {
         self.scopes.contains(&scope)
+    }
+
+    /// Whether this principal may post OTLP to `/otlp/v1/*`.
+    ///
+    /// Bearer credentials only: a browser session cookie is sent ambiently, and
+    /// ingest has no CSRF check, so a cookie must never authorize it.
+    pub fn may_ingest_telemetry(&self) -> bool {
+        match self.kind {
+            PrincipalKind::TelemetryIngest => true,
+            PrincipalKind::AccessToken | PrincipalKind::LocalProcess => {
+                self.has_scope(Scope::Admin)
+            }
+            PrincipalKind::Session | PrincipalKind::AgentCallback => false,
+        }
     }
 
     /// A local loopback process, or the TUI in-process: full authority.
@@ -275,6 +303,7 @@ impl Principal {
             session_id: None,
             ticket_id: None,
             step: None,
+            agent_session_id: None,
         }
     }
 }
@@ -390,6 +419,7 @@ mod tests {
             session_id: None,
             ticket_id: None,
             step: None,
+            agent_session_id: None,
         };
         assert!(p.has_scope(Scope::Admin));
         assert!(
@@ -405,5 +435,34 @@ mod tests {
             assert!(p.has_scope(scope));
         }
         assert_eq!(p.kind, PrincipalKind::LocalProcess);
+    }
+
+    #[test]
+    fn test_telemetry_ingest_is_bearer_only() {
+        let with = |kind, scopes: Vec<Scope>| Principal {
+            scopes,
+            kind,
+            ..Principal::local("admin")
+        };
+        assert!(with(PrincipalKind::TelemetryIngest, vec![]).may_ingest_telemetry());
+        assert!(with(PrincipalKind::AccessToken, vec![Scope::Admin]).may_ingest_telemetry());
+        assert!(!with(PrincipalKind::AccessToken, vec![Scope::Read]).may_ingest_telemetry());
+        assert!(
+            !with(PrincipalKind::Session, Scope::ALL.to_vec()).may_ingest_telemetry(),
+            "a cookie is ambient and ingest has no CSRF check"
+        );
+        assert!(!with(PrincipalKind::AgentCallback, vec![Scope::Execute]).may_ingest_telemetry());
+    }
+
+    #[test]
+    fn test_ingest_principal_satisfies_no_scoped_route() {
+        let ingest = Principal {
+            kind: PrincipalKind::TelemetryIngest,
+            scopes: Vec::new(),
+            ..Principal::local("admin")
+        };
+        for scope in Scope::ALL {
+            assert!(!ingest.has_scope(scope));
+        }
     }
 }

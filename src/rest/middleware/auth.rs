@@ -17,7 +17,7 @@ use axum::response::{IntoResponse, Response};
 
 use crate::auth::scope::{required_access, Access, Principal};
 use crate::auth::store::RateLimitDecision;
-use crate::auth::tokens::{AUDIENCE_API, AUDIENCE_CALLBACK};
+use crate::auth::tokens::{Claims, AUDIENCE_API, AUDIENCE_CALLBACK, AUDIENCE_TELEMETRY};
 use crate::rest::dto::auth::{PrincipalKind, Scope};
 use crate::rest::error::{ApiError, Rejection};
 use crate::rest::state::ApiState;
@@ -38,7 +38,10 @@ pub const CSRF_HEADER: &str = "x-operator-csrf";
 /// routing, so `#/login` and `#/config` are indistinguishable to the server.
 /// The bundle carries no workspace data or credentials; everything it displays arrives over authenticated API calls.
 fn is_public_asset(path: &str) -> bool {
-    !(path.starts_with("/api/") || path.starts_with("/swagger-ui") || path.starts_with("/api-docs"))
+    !(path.starts_with("/api/")
+        || path.starts_with("/swagger-ui")
+        || path.starts_with("/api-docs")
+        || path.starts_with(crate::telemetry::OTLP_PATH_PREFIX))
 }
 
 /// Requirement for a path that matched no route.
@@ -106,6 +109,7 @@ pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<
                 session_id: None,
                 ticket_id: None,
                 step: None,
+                agent_session_id: None,
             });
         }
 
@@ -113,20 +117,13 @@ pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<
         // audience, so it can never satisfy an ordinary API route; the handler
         // additionally matches its ticket/step claims against the request path.
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_CALLBACK) {
-            if claims.profile_id != Some(state.config().profile.id)
-                && !(claims.profile_id.is_none() && state.config().profile.id.is_nil())
-            {
-                return None;
-            }
-            return Some(Principal {
-                subject: claims.sub.clone(),
-                scopes: claims.scopes(),
-                kind: PrincipalKind::AgentCallback,
-                expires_at: chrono::DateTime::from_timestamp(claims.exp, 0),
-                session_id: None,
-                ticket_id: claims.ticket_id,
-                step: claims.step,
-            });
+            return agent_principal(state, claims, PrincipalKind::AgentCallback);
+        }
+
+        // An agent session's OTLP ingest token. It carries no scopes, so it
+        // fails every scoped route and is accepted only by `/otlp/v1/*`.
+        if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_TELEMETRY) {
+            return agent_principal(state, claims, PrincipalKind::TelemetryIngest);
         }
         return None;
     }
@@ -140,6 +137,24 @@ pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<
     }
 
     None
+}
+
+/// A principal for a pinned agent token, rejected when minted for another profile.
+fn agent_principal(state: &ApiState, claims: Claims, kind: PrincipalKind) -> Option<Principal> {
+    let profile = state.config().profile.id;
+    if claims.profile_id != Some(profile) && !(claims.profile_id.is_none() && profile.is_nil()) {
+        return None;
+    }
+    Some(Principal {
+        scopes: claims.scopes(),
+        subject: claims.sub,
+        kind,
+        expires_at: chrono::DateTime::from_timestamp(claims.exp, 0),
+        session_id: None,
+        ticket_id: claims.ticket_id,
+        step: claims.step,
+        agent_session_id: claims.session_id,
+    })
 }
 
 /// Whether a request method mutates.
@@ -226,11 +241,24 @@ pub async fn authorize(
 
     let required = match access {
         Access::Public => return Ok(next.run(request).await),
-        Access::Scoped(scope) => scope,
+        Access::Scoped(scope) => Some(scope),
+        Access::TelemetryIngest => None,
     };
 
     let Some(principal) = resolve_principal(&state, &headers).await else {
         return Err(ApiError::Unauthorized("no valid credential was presented".to_string()).into());
+    };
+
+    let Some(required) = required else {
+        if !principal.may_ingest_telemetry() {
+            return Err(ApiError::Forbidden(
+                "OTLP ingest requires an agent ingest token or an admin credential".to_string(),
+            )
+            .into_response());
+        }
+        let mut request = request;
+        request.extensions_mut().insert(principal);
+        return Ok(next.run(request).await);
     };
 
     if !principal.has_scope(required) {
@@ -334,6 +362,7 @@ where
                     session_id: None,
                     ticket_id: None,
                     step: None,
+                    agent_session_id: None,
                 }),
         )))
     }

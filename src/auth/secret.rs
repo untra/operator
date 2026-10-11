@@ -39,6 +39,15 @@ pub fn generate_secret() -> anyhow::Result<String> {
     Ok(URL_SAFE_NO_PAD.encode(bytes))
 }
 
+/// Raw bytes from the OS CSPRNG, for key material that is never shown to a person.
+pub fn random_bytes<const N: usize>() -> anyhow::Result<[u8; N]> {
+    let mut bytes = [0u8; N];
+    rand::rngs::OsRng
+        .try_fill_bytes(&mut bytes)
+        .map_err(|e| anyhow::anyhow!("OS random number generator unavailable: {e}"))?;
+    Ok(bytes)
+}
+
 /// Generate a prefixed secret, e.g. `opk_<random>` for an access key. The
 /// prefix makes a leaked credential recognizable in logs and secret scanners.
 pub fn generate_prefixed_secret(prefix: &str) -> anyhow::Result<String> {

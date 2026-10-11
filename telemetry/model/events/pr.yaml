@@ -1,0 +1,81 @@
+groups:
+  - id: event.operator.pr.created
+    type: "event"
+    name: "operator.pr.created"
+    brief: "Operator pr created."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.pr.number
+      - ref: operator.pr.url
+  - id: event.operator.pr.merged
+    type: "event"
+    name: "operator.pr.merged"
+    brief: "Operator pr merged."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.pr.number
+      - ref: operator.pr.url
+  - id: event.operator.pr.closed
+    type: "event"
+    name: "operator.pr.closed"
+    brief: "Operator pr closed."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.pr.number
+      - ref: operator.pr.url
+  - id: event.operator.pr.ready_to_merge
+    type: "event"
+    name: "operator.pr.ready_to_merge"
+    brief: "Operator pr ready to merge."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.pr.number
+      - ref: operator.pr.url
+  - id: event.operator.pr.changes_requested
+    type: "event"
+    name: "operator.pr.changes_requested"
+    brief: "Operator pr changes requested."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.pr.number
+      - ref: operator.pr.url

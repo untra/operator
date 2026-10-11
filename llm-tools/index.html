@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Tools | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>LLM Tools | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="LLM Tools" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="twitter:description" property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/llm-tools/" />
+<meta property="og:url" content="https://operator.untra.io/llm-tools/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="LLM Tools" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"LLM Tools","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/llm-tools/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/campaigns/" >Campaigns</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/governance/" >Governance</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode-terminals/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Terminals</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/ides/" class="nav-parent-link ">IDEs</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/ides/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/ides/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/transports/" class="nav-parent-link ">Execution Transports</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/transports/local/" >Local</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/transports/ssh/" >SSH</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agent-relays/" class="nav-parent-link ">Agent Relays</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agent-relays/claude-relay/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude Relay</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/premium/" >Operator Premium</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/remote-targets/" class="nav-parent-link ">Remote Targets</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/remote-targets/ssh/" >SSH Hosts</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/remote-targets/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/operator/" ><span class="nav-icon"><img src="/assets/icons/operator.svg" alt="" width="16" height="16"></span>Operator</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/grok/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>Grok</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/xai/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>xAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" class="active" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/llm-tools/index.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.16</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-10-11</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">LLM Tools</h1>
+  
+
+  <!-- AUTO-GENERATED FROM src/llm/tools/tool_config.schema.json - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+<h1 id="llm-tools">LLM Tools</h1>
+
+<p>Operator supports multiple LLM CLI tools through a plugin-like configuration system.
+Each tool is defined by a JSON configuration file that tells Operator how to detect, invoke, and manage the tool.
+An LLM tool is the <strong>agentic CLI</strong> (the process Operator launches). It is not the model provider: a delegator pairs a tool with a model server. <code class="language-plaintext highlighter-rouge">health_ok</code> means the binary is present on <strong>this host</strong>.</p>
+
+<h2 id="supported-tools">Supported Tools</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tool</th>
+      <th>Binary</th>
+      <th>Catalog slug</th>
+      <th>Models</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Claude Code</td>
+      <td><code class="language-plaintext highlighter-rouge">claude</code></td>
+      <td><code class="language-plaintext highlighter-rouge">claude</code></td>
+      <td>opus, sonnet, haiku</td>
+    </tr>
+    <tr>
+      <td>Google Gemini</td>
+      <td><code class="language-plaintext highlighter-rouge">gemini</code></td>
+      <td><code class="language-plaintext highlighter-rouge">gemini-cli</code></td>
+      <td>pro, flash, ultra</td>
+    </tr>
+    <tr>
+      <td>OpenAI Codex</td>
+      <td><code class="language-plaintext highlighter-rouge">codex</code></td>
+      <td><code class="language-plaintext highlighter-rouge">codex</code></td>
+      <td>gpt-4o, o1, o3</td>
+    </tr>
+    <tr>
+      <td>Grok</td>
+      <td><code class="language-plaintext highlighter-rouge">grok</code></td>
+      <td><code class="language-plaintext highlighter-rouge">grok</code></td>
+      <td>grok-4</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="adding-a-new-tool">Adding a New Tool</h2>
+
+<p>To add support for a new LLM CLI tool, drop a JSON configuration file into your
+user tool-config directory - no rebuild required:</p>
+
+<ul>
+  <li>Linux: <code class="language-plaintext highlighter-rouge">~/.config/operator/tools/&lt;tool_name&gt;.json</code></li>
+  <li>macOS: <code class="language-plaintext highlighter-rouge">~/Library/Application Support/operator/tools/&lt;tool_name&gt;.json</code></li>
+</ul>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"tool_name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"your-tool"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"display_name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Your Tool Name"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"version_command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"your-tool --version"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"capabilities"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"supports_sessions"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"supports_headless"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"model_aliases"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"model1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"model2"</span><span class="p">],</span><span class="w">
+  </span><span class="nl">"arg_mapping"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"model"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--model"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--session"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="s2">"-p"</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"command_template"</span><span class="p">:</span><span class="w"> </span><span class="s2">"your-tool --session  </span><span class="se">\"</span><span class="s2">$(cat )</span><span class="se">\"</span><span class="s2">"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"yolo_flags"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--auto-approve"</span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Configs are loaded fresh on every startup. A user config whose <code class="language-plaintext highlighter-rouge">tool_name</code> matches a builtin (claude, gemini, codex) <strong>fully replaces</strong> that builtin.
+Malformed files are skipped with a logged warning. Runtime-loaded tools work everywhere the builtins do, including
+remote (SSH) launches, where the tool’s presence on the remote host is verified by a <code class="language-plaintext highlighter-rouge">command -v</code> preflight.</p>
+
+<blockquote>
+  <p><strong>Security note:</strong> <code class="language-plaintext highlighter-rouge">command_template</code> is arbitrary shell executed at launch.
+Operator only ever loads tool configs from the user-global config directory -
+never from repository-local paths - so a cloned repo cannot inject a tool
+config.</p>
+</blockquote>
+
+<p>New <em>builtin</em> tools (shipped with Operator) are added as embedded JSONs in
+<code class="language-plaintext highlighter-rouge">src/llm/tools/</code>, registered in <code class="language-plaintext highlighter-rouge">BUILTIN_TOOL_CONFIGS</code>, and given a row in
+<code class="language-plaintext highlighter-rouge">shipped_llm_tools()</code> (catalog slug, binary, implicit model server, marker).</p>
+
+<h2 id="detection-modes">Detection Modes</h2>
+
+<p>By default a tool is detected only when <code class="language-plaintext highlighter-rouge">which &lt;tool_name&gt;</code> succeeds. The
+optional <code class="language-plaintext highlighter-rouge">detection</code> object overrides this:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"detection"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nl">"mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"always"</span><span class="p">,</span><span class="w"> </span><span class="nl">"health_command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"your-tool ping"</span><span class="w"> </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Values</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">mode</code></td>
+      <td><code class="language-plaintext highlighter-rouge">which</code> (default), <code class="language-plaintext highlighter-rouge">always</code></td>
+      <td><code class="language-plaintext highlighter-rouge">always</code> skips the PATH lookup and uses <code class="language-plaintext highlighter-rouge">tool_name</code> verbatim as the invocation path - for tools not installed locally (e.g. run over SSH)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">health_command</code></td>
+      <td>any command</td>
+      <td>Health check run at every startup; failure marks the tool unhealthy (<code class="language-plaintext highlighter-rouge">health_ok: false</code>)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Health is <strong>earned, never assumed</strong>, and re-verified on every startup:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Mode</th>
+      <th>No <code class="language-plaintext highlighter-rouge">health_command</code></th>
+      <th>With <code class="language-plaintext highlighter-rouge">health_command</code></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">which</code></td>
+      <td>Healthy - the PATH lookup proves the binary is present</td>
+      <td>Healthy if still on PATH <strong>and</strong> the command passes</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">always</code></td>
+      <td><strong>Unhealthy</strong> - nothing is locally verifiable</td>
+      <td>Healthy if the command passes</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>An unhealthy tool stays listed in the detected tools (so you can see it and why),
+but launching a local agent with it fails until it is healthy again. Remote (SSH)
+launches are unaffected. An <code class="language-plaintext highlighter-rouge">always</code>-mode tool should therefore define a <code class="language-plaintext highlighter-rouge">health_command</code>
+that proves reachability, e.g. <code class="language-plaintext highlighter-rouge">ssh gpu-vm command -v agy</code>.</p>
+
+<h2 id="configuration-schema">Configuration Schema</h2>
+
+<h3 id="required-fields">Required Fields</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool_name</code></td>
+      <td>string</td>
+      <td>Binary/command name (must match executable in PATH)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">version_command</code></td>
+      <td>string</td>
+      <td>Command to check if tool is installed</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">capabilities</code></td>
+      <td>object</td>
+      <td>Feature flags for the tool</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model_aliases</code></td>
+      <td>array</td>
+      <td>List of supported model names</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">arg_mapping</code></td>
+      <td>object</td>
+      <td>Maps logical args to CLI flags</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">command_template</code></td>
+      <td>string</td>
+      <td>Template for building commands</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="optional-fields">Optional Fields</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">display_name</code></td>
+      <td>string</td>
+      <td>tool_name</td>
+      <td>Human-readable name for UI</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">yolo_flags</code></td>
+      <td>array</td>
+      <td>[]</td>
+      <td>Flags for auto-accept/YOLO mode</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">detection</code></td>
+      <td>object</td>
+      <td>which-gated</td>
+      <td>Detection mode + soft health check (see Detection Modes)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">idle_detection</code></td>
+      <td>object</td>
+      <td>-</td>
+      <td>Idle/activity regex patterns + completion hook config</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">permission_modes</code></td>
+      <td>array</td>
+      <td>-</td>
+      <td>Supported permission modes (Claude-specific)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="capabilities-object">Capabilities Object</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">supports_sessions</code></td>
+      <td>boolean</td>
+      <td>required</td>
+      <td>Session continuity via ID</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">supports_headless</code></td>
+      <td>boolean</td>
+      <td>false</td>
+      <td>Non-interactive mode support</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">supports_config_override</code></td>
+      <td>boolean</td>
+      <td>false</td>
+      <td>Runtime config overrides</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">supports_permission_mode</code></td>
+      <td>boolean</td>
+      <td>false</td>
+      <td>Permission modes (Claude)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">supports_json_schema</code></td>
+      <td>boolean</td>
+      <td>false</td>
+      <td>Structured output via JSON schema</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="argument-mapping">Argument Mapping</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Description</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td>Model selection flag</td>
+      <td><code class="language-plaintext highlighter-rouge">--model</code>, <code class="language-plaintext highlighter-rouge">-m</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">session_id</code></td>
+      <td>Session continuity flag</td>
+      <td><code class="language-plaintext highlighter-rouge">--session-id</code>, <code class="language-plaintext highlighter-rouge">--resume</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt</code></td>
+      <td>Prompt/instruction flag</td>
+      <td><code class="language-plaintext highlighter-rouge">-p</code>, <code class="language-plaintext highlighter-rouge">--prompt</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">quiet</code></td>
+      <td>Non-interactive output flag</td>
+      <td><code class="language-plaintext highlighter-rouge">-q</code>, <code class="language-plaintext highlighter-rouge">--output-format json</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">permission_mode</code></td>
+      <td>Permission mode flag (Claude)</td>
+      <td><code class="language-plaintext highlighter-rouge">--permission-mode</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">json_schema</code></td>
+      <td>JSON schema flag</td>
+      <td><code class="language-plaintext highlighter-rouge">--json-schema</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="command-template-placeholders">Command Template Placeholders</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Placeholder</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>``</td>
+      <td>The selected model name</td>
+    </tr>
+    <tr>
+      <td>``</td>
+      <td>Full model flag with value (e.g., <code class="language-plaintext highlighter-rouge">--model opus </code>)</td>
+    </tr>
+    <tr>
+      <td>``</td>
+      <td>Session UUID for continuity</td>
+    </tr>
+    <tr>
+      <td>``</td>
+      <td>Path to the prompt file</td>
+    </tr>
+    <tr>
+      <td>``</td>
+      <td>Generated permission/config flags</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="yolo-mode-flags">YOLO Mode Flags</h2>
+
+<p>YOLO (auto-accept) mode enables fully autonomous execution by bypassing confirmation prompts. Each tool defines its own flags:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tool</th>
+      <th>YOLO Flags</th>
+      <th>Effect</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Claude</td>
+      <td><code class="language-plaintext highlighter-rouge">--dangerously-skip-permissions</code></td>
+      <td>Skips all permission prompts</td>
+    </tr>
+    <tr>
+      <td>Gemini</td>
+      <td><code class="language-plaintext highlighter-rouge">--auto-approve</code>, <code class="language-plaintext highlighter-rouge">-y</code></td>
+      <td>Auto-approves all actions</td>
+    </tr>
+    <tr>
+      <td>Codex</td>
+      <td><code class="language-plaintext highlighter-rouge">--full-auto</code></td>
+      <td>Enables full automation</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="example-full-configuration">Example: Full Configuration</h2>
+
+<p>Here’s a complete example for Claude Code:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"tool_name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"claude"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"display_name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Claude Code"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"version_command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"claude --version"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"capabilities"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"supports_sessions"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"supports_headless"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"supports_config_override"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"supports_permission_mode"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"supports_json_schema"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"model_aliases"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"opus"</span><span class="p">,</span><span class="w"> </span><span class="s2">"sonnet"</span><span class="p">,</span><span class="w"> </span><span class="s2">"haiku"</span><span class="p">],</span><span class="w">
+  </span><span class="nl">"arg_mapping"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"prompt"</span><span class="p">:</span><span class="w"> </span><span class="s2">"-p"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"model"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--model"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--session-id"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"permission_mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--permission-mode"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"json_schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"--json-schema"</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"permission_modes"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"default"</span><span class="p">,</span><span class="w"> </span><span class="s2">"plan"</span><span class="p">,</span><span class="w"> </span><span class="s2">"acceptEdits"</span><span class="p">,</span><span class="w"> </span><span class="s2">"delegate"</span><span class="p">],</span><span class="w">
+  </span><span class="nl">"command_template"</span><span class="p">:</span><span class="w"> </span><span class="s2">"claude --session-id  </span><span class="se">\"</span><span class="s2">$(cat )</span><span class="se">\"</span><span class="s2">"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"yolo_flags"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"--dangerously-skip-permissions"</span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h2 id="visual-indicators">Visual Indicators</h2>
+
+<p>In the TUI, running agents show a tool indicator:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Indicator</th>
+      <th>Tool</th>
+      <th>Color</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A</strong></td>
+      <td>Claude/Anthropic</td>
+      <td>Rust (#C15F3C)</td>
+    </tr>
+    <tr>
+      <td><strong>G</strong></td>
+      <td>Gemini</td>
+      <td>Purple (#6F42C1)</td>
+    </tr>
+    <tr>
+      <td><strong>O</strong></td>
+      <td>Codex/OpenAI</td>
+      <td>Green</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="detection-process">Detection Process</h2>
+
+<p>On every startup, Operator:</p>
+
+<ol>
+  <li>Loads the embedded builtin tool configurations, then user configurations from <code class="language-plaintext highlighter-rouge">&lt;config dir&gt;/operator/tools/*.json</code></li>
+  <li>For each tool, runs <code class="language-plaintext highlighter-rouge">which &lt;tool_name&gt;</code> to check if installed (skipped when <code class="language-plaintext highlighter-rouge">detection.mode</code> is <code class="language-plaintext highlighter-rouge">always</code>)</li>
+  <li>If found, runs the <code class="language-plaintext highlighter-rouge">version_command</code> to get the version (failure degrades to <code class="language-plaintext highlighter-rouge">"unknown"</code>; a <code class="language-plaintext highlighter-rouge">min_version</code> mismatch warns but does not block)</li>
+  <li>Computes health from the verified presence plus the <code class="language-plaintext highlighter-rouge">health_command</code>, if configured (see Detection Modes); an unhealthy tool stays listed but cannot launch locally</li>
+  <li>Builds a list of available providers (tool + model combinations)</li>
+  <li>The first detected tool becomes the default provider</li>
+</ol>
+
+<p>Already-detected tools keep their cached <code class="language-plaintext highlighter-rouge">path</code>/<code class="language-plaintext highlighter-rouge">version</code> across restarts (no
+version re-probing); config-sourced fields like the command template and model
+aliases are re-derived from the loaded configs each startup.</p>
+
+<p>Presence and the <code class="language-plaintext highlighter-rouge">health_command</code> are re-checked every startup, so an uninstalled binary or a newly failing health command demotes the tool on the next launch of Operator.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="tool-not-detected">Tool Not Detected</h3>
+
+<ol>
+  <li>Ensure the binary is in your PATH: <code class="language-plaintext highlighter-rouge">which &lt;tool_name&gt;</code></li>
+  <li>Verify the version command works: <code class="language-plaintext highlighter-rouge">&lt;tool_name&gt; --version</code></li>
+  <li>Check Operator logs for detection errors</li>
+</ol>
+
+<h3 id="command-fails">Command Fails</h3>
+
+<ol>
+  <li>Test the command manually with the template filled in</li>
+  <li>Verify all argument mappings are correct for your tool version</li>
+  <li>Check if the tool requires additional environment variables</li>
+</ol>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

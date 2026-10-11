@@ -1,0 +1,99 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "JRPLAN",
+  "name": "JR Plan",
+  "description": "Decompose a plan into JR-style features, sequential tasks, and review handoffs.",
+  "mode": "paired",
+  "glyph": "J",
+  "color": "blue",
+  "project_required": true,
+  "agent": "jr-architect",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "priority",
+      "description": "Priority level",
+      "type": "enum",
+      "required": false,
+      "default": "P2-medium",
+      "options": ["P0-critical", "P1-high", "P2-medium", "P3-low"],
+      "display_order": 1
+    },
+    {
+      "name": "summary",
+      "description": "Plan summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "What should be decomposed into features and tasks?",
+      "max_length": 120,
+      "display_order": 2
+    },
+    {
+      "name": "plan_source",
+      "description": "Existing plan, issue, spec, or notes",
+      "type": "text",
+      "required": true,
+      "default": "",
+      "placeholder": "Paste the plan or describe where to find it.",
+      "display_order": 3
+    },
+    {
+      "name": "review_policy",
+      "description": "Review expectations for generated tasks and features",
+      "type": "text",
+      "required": false,
+      "default": "Every task gets code review; every feature gets architect review before human PR review.",
+      "display_order": 4
+    }
+  ],
+  "steps": [
+    {
+      "name": "analyze",
+      "display_name": "Analyze Plan",
+      "outputs": ["plan"],
+      "prompt": "Analyze the supplied plan for JR-style orchestration.\n\nRead relevant repo files and identify feature boundaries, dependency order, likely worktrees or branches, risk areas, and validation commands. Write findings to `.tickets/jr/{{ id }}/analysis.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write"],
+      "artifact_patterns": [".tickets/jr/{{ id }}/analysis.md"],
+      "next_step": "decompose"
+    },
+    {
+      "name": "decompose",
+      "display_name": "Decompose Work",
+      "outputs": ["ticket", "documentation"],
+      "prompt": "Create a JR work decomposition in `.tickets/jr/{{ id }}/plan.md`.\n\nDefine JRFEAT entries for feature branches/worktrees and JRTASK entries ordered within each feature. Include parent feature ids, dependencies, expected files, validation commands, and reviewer role. Keep task scopes small enough for one focused implementation pass.",
+      "allowed_tools": ["Read", "Write", "Edit"],
+      "artifact_patterns": [".tickets/jr/{{ id }}/plan.md"],
+      "next_step": "verify"
+    },
+    {
+      "name": "verify",
+      "display_name": "Verify Graph",
+      "outputs": ["review"],
+      "prompt": "Review `.tickets/jr/{{ id }}/plan.md` for JR orchestration quality.\n\nEnsure each feature has a clear branch/worktree target, tasks are sequential within a feature, cross-feature dependencies are explicit, and review gates are clear. Rewrite vague tasks. Do not leave hidden ordering assumptions.",
+      "allowed_tools": ["Read", "Edit", "Grep"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "decompose",
+        "prompt": "The JR decomposition was rejected: {{ rejection_reason }}\n\nRevise feature boundaries, task order, dependencies, or review gates."
+      },
+      "next_step": "queue"
+    },
+    {
+      "name": "queue",
+      "display_name": "Queue Ready Work",
+      "outputs": ["ticket"],
+      "prompt": "Prepare the first ready JR work units.\n\nCreate or describe the initial JRFEAT and JRTASK tickets that have no unmet dependencies. Record the queue decision in `.tickets/jr/{{ id }}/queue.md` so future agents can resume deterministically.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "artifact_patterns": [".tickets/jr/{{ id }}/queue.md"]
+    }
+  ]
+}

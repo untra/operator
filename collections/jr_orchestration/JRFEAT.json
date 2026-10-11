@@ -1,0 +1,104 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "JRFEAT",
+  "name": "JR Feature",
+  "description": "Coordinate one JR feature branch, its task chain, and final architect/human review.",
+  "mode": "paired",
+  "glyph": "F",
+  "color": "green",
+  "project_required": true,
+  "agent": "jr-architect-reviewer",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Feature summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Feature branch outcome",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "parent_plan",
+      "description": "JRPLAN ticket or plan path",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "display_order": 2
+    },
+    {
+      "name": "branch",
+      "description": "Feature branch name",
+      "type": "string",
+      "required": true,
+      "auto": "branch",
+      "display_order": 3,
+      "user_editable": false
+    },
+    {
+      "name": "task_chain",
+      "description": "Ordered child tasks and dependencies",
+      "type": "text",
+      "required": true,
+      "default": "",
+      "placeholder": "JRTASK-1 -> JRTASK-2 -> JRTASK-3",
+      "display_order": 4
+    }
+  ],
+  "steps": [
+    {
+      "name": "branch",
+      "display_name": "Prepare Branch",
+      "outputs": ["code", "documentation"],
+      "prompt": "Prepare the JR feature workspace.\n\nVerify the intended base branch, current git state, and whether this feature should use an isolated worktree. Record branch/worktree information and child task order in `.tickets/jr/{{ id }}/feature.md`.",
+      "allowed_tools": ["Read", "Write", "Glob", "Grep", "Bash"],
+      "artifact_patterns": [".tickets/jr/{{ id }}/feature.md"],
+      "next_step": "coordinate"
+    },
+    {
+      "name": "coordinate",
+      "display_name": "Coordinate Tasks",
+      "outputs": ["documentation", "ticket"],
+      "prompt": "Coordinate this feature's child task chain.\n\nRead the task chain and current ticket state. Identify the next ready JRTASK, required handoff context, and review expectations. Update `.tickets/jr/{{ id }}/handoff.md` with current feature state and next action.",
+      "allowed_tools": ["Read", "Write", "Edit", "Grep"],
+      "artifact_patterns": [".tickets/jr/{{ id }}/handoff.md"],
+      "next_step": "architect"
+    },
+    {
+      "name": "architect",
+      "display_name": "Architect Review",
+      "outputs": ["review"],
+      "prompt": "Perform a JR architect review of the feature branch.\n\nReview the whole feature diff, task handoffs, acceptance criteria, tests, and integration coherence. Look for architectural drift, incomplete task sequencing, missing validation, and dependency mistakes. Write findings to `.tickets/jr/{{ id }}/architect-review.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "review_type": "pr",
+      "artifact_patterns": [".tickets/jr/{{ id }}/architect-review.md"],
+      "on_reject": {
+        "goto_step": "coordinate",
+        "prompt": "Architect review requested changes: {{ rejection_reason }}\n\nCoordinate the needed JRTASK or JRREBASE work, then return to architect review."
+      },
+      "next_step": "human"
+    },
+    {
+      "name": "human",
+      "display_name": "Human Gate",
+      "outputs": ["pr", "review"],
+      "prompt": "Prepare this JR feature for human review.\n\nEnsure the branch is pushed, PR description is accurate, task chain is summarized, validation evidence is included, and unresolved review feedback is documented. Stop for human approval rather than merging automatically.",
+      "allowed_tools": ["Read", "Write", "Bash"],
+      "review_type": "pr",
+      "on_reject": {
+        "goto_step": "architect",
+        "prompt": "Human review requested changes: {{ rejection_reason }}\n\nAddress the feedback through task/rebase work and return to architect review."
+      }
+    }
+  ]
+}

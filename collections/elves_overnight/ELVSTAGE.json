@@ -1,0 +1,96 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "ELVSTAGE",
+  "name": "Elves Stage",
+  "description": "Prepare a long-running Elves session without starting risky implementation work.",
+  "mode": "paired",
+  "glyph": "E",
+  "color": "blue",
+  "project_required": true,
+  "agent": "elves-coordinator",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Run summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "placeholder": "Prepare overnight work plan",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "run_goal",
+      "description": "Goal for the unattended run",
+      "type": "text",
+      "required": true,
+      "default": "",
+      "display_order": 2
+    },
+    {
+      "name": "validation_commands",
+      "description": "Commands that prove the run is safe",
+      "type": "text",
+      "required": false,
+      "default": "",
+      "display_order": 3
+    },
+    {
+      "name": "time_budget_hours",
+      "description": "Maximum intended runtime in hours",
+      "type": "integer",
+      "required": false,
+      "default": "8",
+      "display_order": 4
+    }
+  ],
+  "steps": [
+    {
+      "name": "orient",
+      "display_name": "Orient",
+      "outputs": ["plan"],
+      "prompt": "Orient for an Elves-style long-running session.\n\nRead the run goal, repo state, active branch, tests, PR state, existing docs, and risks. Identify exact batches that can be completed independently. Write the orientation to `docs/elves/execution-log.md` and `.elves-session.json`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Write", "Bash"],
+      "artifact_patterns": ["docs/elves/execution-log.md", ".elves-session.json"],
+      "next_step": "contract"
+    },
+    {
+      "name": "contract",
+      "display_name": "Write Run Contract",
+      "outputs": ["documentation"],
+      "prompt": "Write the durable memory contract for the Elves run.\n\nCreate or refresh `docs/elves/survival-guide.md`, `docs/elves/learnings.md`, `docs/elves/execution-log.md`, and `.elves-session.json`. Include goal, non-goals, stop rules, validation commands, branch/PR details, batch list, current risks, and how to resume after sleep or context loss.",
+      "allowed_tools": ["Read", "Write", "Edit"],
+      "artifact_patterns": ["docs/elves/survival-guide.md", "docs/elves/learnings.md", "docs/elves/execution-log.md", ".elves-session.json"],
+      "next_step": "preflight"
+    },
+    {
+      "name": "preflight",
+      "display_name": "Preflight",
+      "outputs": ["test", "report"],
+      "prompt": "Run Elves preflight.\n\nVerify clean or intentionally dirty git state, remote/auth, base branch, validation commands, PR status if any, sleep/session readiness, collision risks, and whether unattended work is appropriate. Record exact readiness and blockers in `docs/elves/execution-log.md`.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "next_step": "stage"
+    },
+    {
+      "name": "stage",
+      "display_name": "Stage Review",
+      "outputs": ["review"],
+      "prompt": "Stop for staging review.\n\nSummarize the launch command, first batch, stop conditions, validation gates, and known risks. Do not begin implementation in this ticket. This ticket is successful when the run is ready for an ELVBATCH launch.",
+      "allowed_tools": ["Read", "Write"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "contract",
+        "prompt": "The Elves stage review requested changes: {{ rejection_reason }}\n\nRevise the run contract and preflight before asking for launch approval again."
+      }
+    }
+  ]
+}

@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaigns | Operator! Documentation</title>
+  <meta name="description" content="Group many tickets into one planned body of work, ordered by their dependencies into waves that run in parallel.">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Campaigns | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Campaigns" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Group many tickets into one planned body of work, ordered by their dependencies into waves that run in parallel." />
+<meta name="twitter:description" property="og:description" content="Group many tickets into one planned body of work, ordered by their dependencies into waves that run in parallel." />
+<link rel="canonical" href="https://operator.untra.io/getting-started/concepts/campaigns/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/concepts/campaigns/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Campaigns" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Group many tickets into one planned body of work, ordered by their dependencies into waves that run in parallel.","headline":"Campaigns","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/concepts/campaigns/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/campaigns/" class="active"
+                    >Campaigns</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/governance/" >Governance</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode-terminals/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Terminals</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/ides/" class="nav-parent-link ">IDEs</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/ides/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/ides/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/transports/" class="nav-parent-link ">Execution Transports</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/transports/local/" >Local</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/transports/ssh/" >SSH</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agent-relays/" class="nav-parent-link ">Agent Relays</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agent-relays/claude-relay/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude Relay</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/premium/" >Operator Premium</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/remote-targets/" class="nav-parent-link ">Remote Targets</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/remote-targets/ssh/" >SSH Hosts</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/remote-targets/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/operator/" ><span class="nav-icon"><img src="/assets/icons/operator.svg" alt="" width="16" height="16"></span>Operator</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/grok/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>Grok</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/xai/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>xAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/concepts/campaigns.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.16</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-10-11</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Campaigns</h1>
+  
+
+  <p>A <strong>campaign</strong> is an epic of work: many <a href="/getting-started/tickets/">tickets</a> planned together. Each ticket’s <code class="language-plaintext highlighter-rouge">depends_on</code> links form a dependency graph, and Operator orders that graph into <strong>waves</strong> - every ticket in a wave can run at the same time, and each wave waits only on earlier ones.</p>
+
+<p>Campaigns are part of <a href="/getting-started/premium/">Operator Premium</a>.</p>
+
+<h2 id="a-campaign-file">A campaign file</h2>
+
+<p>Campaigns live next to the ticket queue, one markdown file each:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.tickets/campaigns/CAMP-0003-pricing-overhaul.md
+</code></pre></div></div>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">id</span><span class="pi">:</span> <span class="s">CAMP-0003</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Pricing overhaul</span>
+<span class="na">status</span><span class="pi">:</span> <span class="s">draft</span>
+<span class="na">created</span><span class="pi">:</span> <span class="s">2026-10-05</span>
+<span class="na">governance</span><span class="pi">:</span> <span class="s">team-default</span>
+<span class="na">workspace</span><span class="pi">:</span>
+  <span class="na">kind</span><span class="pi">:</span> <span class="s">coder</span>
+  <span class="na">template</span><span class="pi">:</span> <span class="s">operator-agent</span>
+<span class="na">external_ref</span><span class="pi">:</span> <span class="s">jira:PROJ-1</span>
+<span class="nn">---</span>
+<span class="c1"># Pricing overhaul</span>
+
+<span class="s">What this campaign is for, written for the agents that will work it.</span>
+</code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">id</code></td>
+      <td><code class="language-plaintext highlighter-rouge">CAMP-NNNN</code>, assigned in sequence</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">title</code></td>
+      <td>Human-readable name</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">status</code></td>
+      <td><code class="language-plaintext highlighter-rouge">draft</code>, <code class="language-plaintext highlighter-rouge">ready</code>, <code class="language-plaintext highlighter-rouge">running</code>, <code class="language-plaintext highlighter-rouge">paused</code>, <code class="language-plaintext highlighter-rouge">completed</code> or <code class="language-plaintext highlighter-rouge">cancelled</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">governance</code></td>
+      <td>A <a href="/getting-started/concepts/governance/">governance</a> policy layered over every delegator’s own</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">workspace</code></td>
+      <td>Optional shared environment - see <a href="#workspaces">Workspaces</a></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">external_ref</code></td>
+      <td>The epic, project or parent issue the campaign was synced from</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="membership">Membership</h2>
+
+<p>A ticket joins a campaign by naming it in its own frontmatter:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">campaign</span><span class="pi">:</span> <span class="s">CAMP-0003</span>
+<span class="na">depends_on</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="s">FEAT-0012</span>
+  <span class="pi">-</span> <span class="s">jira:PROJ-12</span>
+</code></pre></div></div>
+
+<p>The campaign file never lists its tickets - the tickets are the source of truth.</p>
+
+<h2 id="waves">Waves</h2>
+
+<p>Operator plans the campaign’s open tickets into waves:</p>
+
+<ul>
+  <li>a dependency on another ticket in the campaign orders it into a later wave;</li>
+  <li>a dependency on a ticket <strong>outside</strong> the campaign holds the ticket until that ticket is completed;</li>
+  <li>a dependency on an upstream issue that isn’t synced keeps the ticket blocked until it is synced, or the entry is removed;</li>
+  <li>a dependency cycle is reported and nothing in it is planned;</li>
+  <li>within a wave, tickets follow the same order as the <a href="/getting-started/concepts/kanban/#card-order">kanban board</a>.</li>
+</ul>
+
+<h2 id="lifecycle">Lifecycle</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Status</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">draft</code></td>
+      <td>Being planned. Tickets can join and leave.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">ready</code></td>
+      <td>Planned and waiting to start. Set it by hand when a campaign is signed off.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">running</code></td>
+      <td>Operator launches each wave as the one before it completes.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">paused</code></td>
+      <td>No new launches. Agents already running keep running.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">completed</code></td>
+      <td>Every member ticket is completed.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cancelled</code></td>
+      <td>Abandoned. Set it by hand; a cancelled campaign never starts again.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>A campaign starts from <code class="language-plaintext highlighter-rouge">draft</code>, <code class="language-plaintext highlighter-rouge">ready</code> or <code class="language-plaintext highlighter-rouge">paused</code>. Starting it launches the first wave at once; <code class="language-plaintext highlighter-rouge">operator api</code> then launches each later wave as tickets complete. Starting a running, completed or cancelled campaign is refused.</p>
+
+<p>Operator pauses a running campaign on its own, with a reason, when:</p>
+
+<ul>
+  <li>its <code class="language-plaintext highlighter-rouge">max_launches</code> or <code class="language-plaintext highlighter-rouge">max_retries</code> cap is used up;</li>
+  <li>a launch fails;</li>
+  <li>its tickets form a dependency cycle.</li>
+</ul>
+
+<p>Resuming a paused campaign clears the reason. <a href="/getting-started/agents/#autonomous-and-paired-modes">Paired</a> tickets are never launched automatically - the campaign reports them as <strong>awaiting operator</strong> until you launch them yourself.</p>
+
+<p>Campaigns launch agents unattended, so they need a session wrapper that runs without a client: tmux, zellij or cmux. A VS Code terminal wrapper is refused.</p>
+
+<h2 id="planning-with-an-agent-over-mcp">Planning with an agent over MCP</h2>
+
+<p>An agent connected to the <a href="/getting-started/integrations/">Operator MCP server</a> can plan and start a campaign on its own. The tools are meant to be called in this order:</p>
+
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">operator_list_issue_types</code> - learn which templates exist (<code class="language-plaintext highlighter-rouge">FEAT</code>, <code class="language-plaintext highlighter-rouge">FIX</code>, <code class="language-plaintext highlighter-rouge">TASK</code>, …).</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_preview_ticket_batch</code> - check a batch: allocated ids, waves, and any cycle or missing dependency. Nothing is written.</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_create_campaign</code> - create a <code class="language-plaintext highlighter-rouge">draft</code> campaign.</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_create_tickets_bulk</code> - write the batch inside the campaign. Every ticket is written, or none is.</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_campaign_status</code> - inspect the waves and what would launch first.</li>
+  <li><code class="language-plaintext highlighter-rouge">operator_launch_campaign</code> - with <code class="language-plaintext highlighter-rouge">dry_run: true</code> to see violations, then for real.</li>
+</ol>
+
+<p>Tickets in a batch name each other by <code class="language-plaintext highlighter-rouge">ref</code>, so dependencies can be wired before any id exists. A diamond - one ticket, two that build on it, and one that joins them:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"campaign"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAMP-0003"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"tickets"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w"> </span><span class="nl">"ref"</span><span class="p">:</span><span class="w"> </span><span class="s2">"schema"</span><span class="p">,</span><span class="w"> </span><span class="nl">"template"</span><span class="p">:</span><span class="w"> </span><span class="s2">"TASK"</span><span class="p">,</span><span class="w"> </span><span class="nl">"project"</span><span class="p">:</span><span class="w"> </span><span class="s2">"api"</span><span class="p">,</span><span class="w"> </span><span class="nl">"summary"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Add price tiers table"</span><span class="p">,</span><span class="w"> </span><span class="nl">"values"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w"> </span><span class="nl">"depends_on"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="w"> </span><span class="nl">"ref"</span><span class="p">:</span><span class="w"> </span><span class="s2">"api"</span><span class="p">,</span><span class="w"> </span><span class="nl">"template"</span><span class="p">:</span><span class="w"> </span><span class="s2">"FEAT"</span><span class="p">,</span><span class="w"> </span><span class="nl">"project"</span><span class="p">:</span><span class="w"> </span><span class="s2">"api"</span><span class="p">,</span><span class="w"> </span><span class="nl">"summary"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Serve price tiers"</span><span class="p">,</span><span class="w"> </span><span class="nl">"values"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w"> </span><span class="nl">"depends_on"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"schema"</span><span class="p">]</span><span class="w"> </span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="w"> </span><span class="nl">"ref"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ui"</span><span class="p">,</span><span class="w"> </span><span class="nl">"template"</span><span class="p">:</span><span class="w"> </span><span class="s2">"FEAT"</span><span class="p">,</span><span class="w"> </span><span class="nl">"project"</span><span class="p">:</span><span class="w"> </span><span class="s2">"web"</span><span class="p">,</span><span class="w"> </span><span class="nl">"summary"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Show price tiers"</span><span class="p">,</span><span class="w"> </span><span class="nl">"values"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w"> </span><span class="nl">"depends_on"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"schema"</span><span class="p">]</span><span class="w"> </span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="w"> </span><span class="nl">"ref"</span><span class="p">:</span><span class="w"> </span><span class="s2">"launch"</span><span class="p">,</span><span class="w"> </span><span class="nl">"template"</span><span class="p">:</span><span class="w"> </span><span class="s2">"TASK"</span><span class="p">,</span><span class="w"> </span><span class="nl">"project"</span><span class="p">:</span><span class="w"> </span><span class="s2">"web"</span><span class="p">,</span><span class="w"> </span><span class="nl">"summary"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Enable new pricing"</span><span class="p">,</span><span class="w"> </span><span class="nl">"values"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w"> </span><span class="nl">"depends_on"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"api"</span><span class="p">,</span><span class="w"> </span><span class="s2">"ui"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w">
+  </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>That plans into three waves: <code class="language-plaintext highlighter-rouge">schema</code>, then <code class="language-plaintext highlighter-rouge">api</code> and <code class="language-plaintext highlighter-rouge">ui</code> together, then <code class="language-plaintext highlighter-rouge">launch</code>. <code class="language-plaintext highlighter-rouge">depends_on</code> also accepts existing ticket ids and <code class="language-plaintext highlighter-rouge">provider:key</code> references.</p>
+
+<p>Previewing and bulk-creating tickets are free. Bulk creation is off unless <code class="language-plaintext highlighter-rouge">[mcp].expose_ticket_write_tools = true</code>. Creating, launching and inspecting campaigns need Premium.</p>
+
+<h2 id="watching-a-campaign">Watching a campaign</h2>
+
+<ul>
+  <li><strong>Web UI</strong> - the <strong>Campaigns</strong> page lists every campaign; each one shows its waves, what is blocked and why, and its usage against the governance caps, with Launch and Pause.</li>
+  <li><strong>VS Code</strong> - the <strong>Campaigns</strong> view in the Operator sidebar shows each campaign, its waves and their tickets, with launch, pause and open-in-browser actions.</li>
+  <li><strong>Command line:</strong></li>
+</ul>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>operator campaign list
+operator campaign show CAMP-0003
+operator campaign launch CAMP-0003
+</code></pre></div></div>
+
+<h2 id="workspaces">Workspaces</h2>
+
+<p>By default each ticket runs in its own workspace, exactly as it would outside a campaign. A campaign may instead name one shared environment for all of its tickets:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">workspace</span><span class="pi">:</span>
+  <span class="na">kind</span><span class="pi">:</span> <span class="s">coder</span>
+  <span class="na">template</span><span class="pi">:</span> <span class="s">operator-agent</span>       <span class="c1"># one Coder workspace from this template</span>
+</code></pre></div></div>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">workspace</span><span class="pi">:</span>
+  <span class="na">kind</span><span class="pi">:</span> <span class="s">docker</span>
+  <span class="na">image</span><span class="pi">:</span> <span class="s">untra/operator:latest</span>   <span class="c1"># one container from this image</span>
+</code></pre></div></div>
+
+<p>Tickets in the same wave run in that environment in parallel, each on its own git worktree and branch. A shared Coder workspace is remote execution, so it also follows the rules for <a href="/getting-started/remote-targets/">remote targets</a>.</p>
+
+<h2 id="governance">Governance</h2>
+
+<p>A campaign’s <code class="language-plaintext highlighter-rouge">governance</code> policy is stacked over the policy of each delegator that launches its tickets. The strictest rule wins, so a campaign can narrow what its tickets may use but never widen it. See <a href="/getting-started/concepts/governance/">Governance</a>.</p>
+
+<h2 id="syncing-an-epic-or-project">Syncing an epic or project</h2>
+
+<p>A kanban project can be synced as one campaign by giving its sync entry a <code class="language-plaintext highlighter-rouge">scope</code>. Every issue in that container is pulled in - whoever it is assigned to - and stamped with the campaign:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">kanban</span><span class="k">.</span><span class="n">jira</span><span class="k">.</span><span class="s">"acme.atlassian.net"</span><span class="k">.</span><span class="n">projects</span><span class="k">.</span><span class="s">"PROJ-1"</span><span class="k">]</span>
+<span class="n">scope</span> <span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">jira_epic</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"PROJ-1"</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Scope</th>
+      <th>Members</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">{ jira_epic = "PROJ-1" }</code></td>
+      <td>The epic’s child issues</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">{ linear_project = "&lt;project-id&gt;" }</code></td>
+      <td>The project’s issues</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">{ github_parent = "owner/repo#3" }</code></td>
+      <td>The parent issue’s open sub-issues</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">{ openspec_change = "&lt;change-id&gt;" }</code></td>
+      <td>The change’s task groups</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>An OpenSpec change can also be imported as a campaign without any config:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>operator import openspec add-dark-mode <span class="nt">--campaign</span>
+</code></pre></div></div>
+
+<p>The first sync creates the campaign, titled after the epic, project or parent; later syncs reuse it. A ticket you move to another campaign stays where you put it.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

@@ -75,6 +75,17 @@ Operator maps Linear labels to ticket types:
 | improvement | FEAT |
 | spike | SPIKE |
 
+## Relationships
+
+| Linear | Ticket frontmatter |
+|--------|--------------------|
+| Issue blocked by another (`blocks` relation) | `depends_on: ["linear:ENG-3"]` |
+| Sub-issues | `depends_on` - the parent waits for its sub-issues |
+| Project | `external_parent: linear:<project-id>` |
+| Parent issue (when not in a project) | `external_parent: linear:ENG-1` |
+
+Relationships are pull-only: Operator never writes links or parents back to Linear. On every sync, the `linear:` entries in a ticket's `depends_on` are replaced with what Linear reports now; ticket ids you added yourself are kept. A blocker that isn't synced stays in `depends_on` as `linear:<key>` - the ticket waits on it until it is synced and completed, or the entry is removed. See [Dependencies](/getting-started/tickets/#dependencies-and-campaigns).
+
 ## Syncing Issues
 
 Pull issues from Linear:
@@ -103,7 +114,7 @@ done = "Done"           # State pushed when a ticket completes
 `status_mapping` declares which Linear workflow state corresponds to each of
 operator's strict todo/doing/done states. Issues are pulled from the `todo`
 (and `doing`) states; with `bidirectional = true`, ticket transitions are
-pushed back to the mapped states (requeue → `todo` only fires when `todo` is
+pushed back to the mapped states (requeue > `todo` only fires when `todo` is
 mapped; unmapped `doing`/`done` fall back to `"In Progress"`/`"Done"`).
 
 Discover the team's real state names via `POST /api/v1/kanban/statuses`

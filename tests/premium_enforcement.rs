@@ -112,6 +112,7 @@ fn ssh_target() -> TargetDef {
             ssh_alias: "build".to_string(),
             workdir: "/srv/work".to_string(),
             ssh_config_path: None,
+            remote_callback_port: None,
         }),
     }
 }

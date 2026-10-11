@@ -135,4 +135,23 @@ describe("operator", async () => {
     expect(fullScript).toContain('stop_on_complete="false"');
     expect(fullScript).toContain('create_timeout_secs="600"');
   });
+
+  it("client_only installs binaries without serving or registering the app", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      client_only: "true",
+    });
+    const script = findResourceInstance(state, "coder_script").script;
+    expect(script).toContain('client_only="true"');
+    expect(state.resources.some((r) => r.type === "coder_app" && r.instances.length > 0)).toBe(
+      false,
+    );
+  });
+
+  it("serves the app by default", async () => {
+    const state = await runTerraformApply(import.meta.dir, { agent_id: "foo" });
+    const script = findResourceInstance(state, "coder_script").script;
+    expect(script).toContain('client_only="false"');
+    expect(findResourceInstance(state, "coder_app").slug).toBe("operator");
+  });
 });

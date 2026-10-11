@@ -95,6 +95,10 @@ const DEFAULT_CONFIG: Config = {
     zellij: {
       require_in_zellij: false,
     },
+    connect: {
+      preferred: null,
+      terminal_command: null,
+    },
   },
   llm_tools: {
     detected: [],
@@ -137,6 +141,7 @@ const DEFAULT_CONFIG: Config = {
   model_servers: [],
   hosts: [],
   targets: [],
+  governance: [],
   relay: { auto_inject_mcp: false },
   mcp: {
     http_enabled: true,

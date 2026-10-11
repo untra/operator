@@ -31,6 +31,7 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `project_llm_stats` | `object` | No | Per-project LLM usage statistics |
 | `project_collection_prefs` | `object` | No | Per-project issue type collection preferences (`project_name` -> `collection_name`) |
 | `multi_agent_groups` | `array` | No | Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`) |
+| `campaign_runs` | `object` | No | Campaign id → runner bookkeeping |
 
 ## Type Definitions
 
@@ -197,6 +198,7 @@ Tracks a group of agents working on a single multi-agent step
 | `expected_total` | `integer` | No | Total sub-agents expected (`agent_ids.len() + pending_launches.len()`). |
 | `pending_launches` | `array` | No | Sub-agents that still need launching (waiting for a free slot). |
 | `agent_variant_keys` | `object` | No | Maps launched `agent_id` to the `variant_key` used as the output key. |
+| `judge_attempt` | object | No | The in-flight LLM judge call (set when phase = Voting). Its verdict arrives as a side file keyed by `attempt_id`, never through `State`. |
 
 ### MultiAgentPhase
 
@@ -211,4 +213,23 @@ A sub-agent that has been planned but not yet launched (slot queue).
 | `delegator_name` | `string` | Yes | Delegator (from `config.delegators`) this sub-agent should use. |
 | `prompt` | `string` | Yes | Fully-rendered prompt text for this sub-agent. |
 | `variant_key` | `string` | Yes | Key under which this sub-agent's output is recorded (see `individual_outputs`). |
+
+### JudgeAttempt
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `attempt_id` | `string` | Yes |  |
+| `started_at` | `string` | Yes |  |
+| `timeout_secs` | `integer` | Yes | Judge timeout copied at start, so a config edit can't strand the attempt |
+
+### CampaignRun
+
+Runner bookkeeping for one campaign.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `launches` | `object` | No | Ticket id → launches made by the runner |
+| `started_at` | `string` \| `null` | No |  |
+| `last_error` | `string` \| `null` | No |  |
+| `pause_reason` | `string` \| `null` | No | Why the run paused, if it did |
 

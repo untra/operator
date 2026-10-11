@@ -10,11 +10,14 @@ use axum::{
     Json,
 };
 
+use crate::agents::tmux::OPERATOR_SOCKET;
+use crate::config::Config;
 use crate::queue::creator::TicketCreator;
-use crate::queue::{Queue, Ticket, TicketColumn, TicketStatus};
+use crate::queue::{deps, Queue, Ticket, TicketColumn, TicketStatus};
 use crate::rest::dto::{
     CreateAlertRequest, CreateAlertResponse, CreateTicketRequest, CreateTicketResponse,
-    TicketDetailResponse, UpdateTicketStatusRequest, UpdateTicketStatusResponse,
+    TicketAgent, TicketDependency, TicketDetailResponse, UpdateTicketStatusRequest,
+    UpdateTicketStatusResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
@@ -62,36 +65,110 @@ pub async fn get_one(
     State(state): State<ApiState>,
     Path(ticket_id): Path<String>,
 ) -> Result<Json<TicketDetailResponse>, ApiError> {
-    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
-
+    let config = state.config();
+    let queue = Queue::new(&config).map_err(|e| ApiError::InternalError(e.to_string()))?;
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
-    let step_display_name = ticket.current_step_display_name();
+    let all = all_tickets(&queue)?;
+    let operator_state = crate::state::State::load(&config)
+        .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
+    let agent = operator_state.agent_by_ticket(&ticket.id);
+    Ok(Json(ticket_detail(&config, &ticket, &all, agent)))
+}
 
-    Ok(Json(TicketDetailResponse {
-        id: ticket.id,
-        summary: ticket.summary,
-        ticket_type: ticket.ticket_type,
-        project: ticket.project,
-        status: ticket.status,
-        step: ticket.step,
-        step_display_name: if step_display_name.is_empty() {
-            None
+fn all_tickets(queue: &Queue) -> Result<Vec<Ticket>, ApiError> {
+    let internal = |e: anyhow::Error| ApiError::InternalError(e.to_string());
+    let mut all = queue.list_queue().map_err(internal)?;
+    all.extend(queue.list_in_progress().map_err(internal)?);
+    all.extend(queue.list_completed().map_err(internal)?);
+    Ok(all)
+}
+
+fn dependency(reference: &str, all: &[Ticket]) -> TicketDependency {
+    let local = match deps::resolve(reference, all) {
+        deps::Resolved::Local(id) => all.iter().find(|t| t.id == id),
+        deps::Resolved::Unsynced(_) => None,
+    };
+    let column = local.map(Ticket::column);
+    TicketDependency {
+        reference: reference.to_string(),
+        ticket_id: local.map(|t| t.id.clone()),
+        satisfied: column.as_deref() == Some("completed"),
+        column,
+    }
+}
+
+fn dependents(ticket: &Ticket, all: &[Ticket]) -> Vec<String> {
+    all.iter()
+        .filter(|t| {
+            t.depends_on
+                .iter()
+                .any(|r| deps::resolve(r, all) == deps::Resolved::Local(ticket.id.clone()))
+        })
+        .map(|t| t.id.clone())
+        .collect()
+}
+
+/// Shell command that attaches to the agent's session; tmux only.
+fn attach_command(config: &Config, agent: &crate::state::AgentState) -> Option<String> {
+    let session = agent.session_name.as_deref()?;
+    let wrapper = agent.session_wrapper.as_deref().unwrap_or("tmux");
+    (wrapper == "tmux").then(|| {
+        let socket = config.tmux.config_generated && config.tmux_config_path().exists();
+        let flag = if socket {
+            format!("-L {OPERATOR_SOCKET} ")
         } else {
-            Some(step_display_name)
-        },
-        priority: ticket.priority,
-        timestamp: ticket.timestamp,
-        content: ticket.content,
-        filename: ticket.filename,
-        filepath: ticket.filepath,
-        sessions: ticket.sessions,
-        step_delegators: ticket.step_delegators,
-        worktree_path: ticket.worktree_path,
-        branch: ticket.branch,
-        external_id: ticket.external_id,
-        external_url: ticket.external_url,
-        external_provider: ticket.external_provider,
-    }))
+            String::new()
+        };
+        format!("tmux {flag}attach -t {session}")
+    })
+}
+
+/// Full detail of one ticket, its dependencies resolved against `all`.
+fn ticket_detail(
+    config: &Config,
+    ticket: &Ticket,
+    all: &[Ticket],
+    agent: Option<&crate::state::AgentState>,
+) -> TicketDetailResponse {
+    let step_display_name = ticket.current_step_display_name();
+    TicketDetailResponse {
+        id: ticket.id.clone(),
+        summary: ticket.summary.clone(),
+        ticket_type: ticket.ticket_type.clone(),
+        project: ticket.project.clone(),
+        status: ticket.status.clone(),
+        step: ticket.step.clone(),
+        step_display_name: (!step_display_name.is_empty()).then_some(step_display_name),
+        priority: ticket.priority.clone(),
+        timestamp: ticket.timestamp.clone(),
+        content: ticket.content.clone(),
+        filename: ticket.filename.clone(),
+        filepath: ticket.filepath.clone(),
+        sessions: ticket.sessions.clone(),
+        step_delegators: ticket.step_delegators.clone(),
+        worktree_path: ticket.worktree_path.clone(),
+        branch: ticket.branch.clone(),
+        external_id: ticket.external_id.clone(),
+        external_url: ticket.external_url.clone(),
+        external_provider: ticket.external_provider.clone(),
+        body: ticket.body().to_string(),
+        column: ticket.column(),
+        campaign: ticket.campaign.clone(),
+        depends_on: ticket.depends_on.clone(),
+        dependencies: ticket
+            .depends_on
+            .iter()
+            .map(|r| dependency(r, all))
+            .collect(),
+        dependents: dependents(ticket, all),
+        external_parent: ticket.external_parent.clone(),
+        collection: ticket.collection.clone(),
+        llm_task: ticket.llm_task.clone(),
+        agent: agent.map(|a| TicketAgent {
+            attach_command: attach_command(config, a),
+            ..TicketAgent::from(a)
+        }),
+    }
 }
 
 /// Update a ticket's status
@@ -221,13 +298,14 @@ pub async fn create(
 /// on top of the template's generated defaults (so the ticket gets a real id,
 /// branch, etc.), writes it to the queue via the embedded-template
 /// [`TicketCreator`], and reloads it. Used by both `create` and `create_alert`.
-async fn create_ticket_from_values(
+pub(crate) async fn create_ticket_from_values(
     state: &ApiState,
     template_type: TemplateType,
     values: HashMap<String, String>,
 ) -> Result<(Ticket, std::path::PathBuf), ApiError> {
     let config = (*state.config()).clone();
     let path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
+        let _guard = TicketCreator::creation_lock();
         let creator = TicketCreator::new(&config);
         let project = values.get("project").cloned().unwrap_or_default();
         // Start from generated defaults (id, created, branch, step, status),
@@ -293,7 +371,6 @@ pub async fn create_alert(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Config;
     use std::path::PathBuf;
 
     fn make_state() -> ApiState {
@@ -515,5 +592,134 @@ mod tests {
             .0;
         assert!(!resp.id.is_empty(), "investigation has an id");
         assert!(resp.filename.contains(".md"), "filename: {}", resp.filename);
+    }
+
+    fn write_ticket(root: &std::path::Path, column: &str, name: &str, frontmatter: &str) -> Ticket {
+        let dir = root.join(column);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        std::fs::write(
+            &path,
+            format!("---\n{frontmatter}\n---\n\n# Body of {name}\n"),
+        )
+        .unwrap();
+        Ticket::from_file(&path).unwrap()
+    }
+
+    fn agent_for(ticket_id: &str) -> crate::state::AgentState {
+        serde_json::from_value(serde_json::json!({
+            "id": "agent-1", "ticket_id": ticket_id, "ticket_type": "FEAT", "project": "api",
+            "status": "running", "started_at": "2026-01-01T00:00:00Z",
+            "last_activity": "2026-01-01T00:00:00Z", "paired": false,
+            "session_wrapper": "tmux", "session_name": "op-feat-2",
+            "current_step": "build", "completed_steps": ["plan"],
+            "pr_url": "https://example.test/pr/9", "pr_number": 9
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn test_ticket_detail_resolves_dependencies_and_dependents() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path();
+        let done = write_ticket(
+            root,
+            "completed",
+            "20260101-0000-FEAT-api-a.md",
+            "id: FEAT-1\nstatus: completed",
+        );
+        let me = write_ticket(
+            root,
+            "in-progress",
+            "20260101-0001-FEAT-api-b.md",
+            "id: FEAT-2\ncampaign: CAMP-0001\ndepends_on:\n  - FEAT-1\n  - jira:PROJ-9",
+        );
+        let child = write_ticket(
+            root,
+            "queue",
+            "20260101-0002-FEAT-api-c.md",
+            "id: FEAT-3\ndepends_on:\n  - FEAT-2",
+        );
+        let all = vec![done, me.clone(), child];
+
+        let detail = ticket_detail(&Config::default(), &me, &all, None);
+
+        assert_eq!(detail.body, "# Body of 20260101-0001-FEAT-api-b.md\n");
+        assert_eq!(detail.column, "in-progress");
+        assert_eq!(detail.campaign.as_deref(), Some("CAMP-0001"));
+        assert_eq!(detail.depends_on, vec!["FEAT-1", "jira:PROJ-9"]);
+        assert_eq!(
+            detail.dependencies,
+            vec![
+                TicketDependency {
+                    reference: "FEAT-1".into(),
+                    ticket_id: Some("FEAT-1".into()),
+                    column: Some("completed".into()),
+                    satisfied: true,
+                },
+                TicketDependency {
+                    reference: "jira:PROJ-9".into(),
+                    ticket_id: None,
+                    column: None,
+                    satisfied: false,
+                },
+            ]
+        );
+        assert_eq!(detail.dependents, vec!["FEAT-3"]);
+        assert!(detail.agent.is_none());
+    }
+
+    #[test]
+    fn test_ticket_detail_carries_the_live_agent() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let me = write_ticket(
+            temp.path(),
+            "in-progress",
+            "20260101-0001-FEAT-api-b.md",
+            "id: FEAT-2",
+        );
+        let agent = agent_for("FEAT-2");
+
+        let detail = ticket_detail(
+            &Config::default(),
+            &me,
+            std::slice::from_ref(&me),
+            Some(&agent),
+        );
+
+        let live = detail.agent.expect("agent");
+        assert_eq!(live.id, "agent-1");
+        assert_eq!(live.session_wrapper.as_deref(), Some("tmux"));
+        assert_eq!(live.session_name.as_deref(), Some("op-feat-2"));
+        assert_eq!(live.completed_steps, vec!["plan"]);
+        assert_eq!(live.pr_number, Some(9));
+        assert_eq!(
+            live.attach_command.as_deref(),
+            Some("tmux attach -t op-feat-2")
+        );
+    }
+
+    #[test]
+    fn test_attach_command_uses_the_operator_socket_when_configured() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.paths.tickets = temp.path().to_string_lossy().into_owned();
+        config.tmux.config_generated = true;
+        let conf = config.tmux_config_path();
+        std::fs::create_dir_all(conf.parent().unwrap()).unwrap();
+        std::fs::write(conf, "").unwrap();
+        assert_eq!(
+            attach_command(&config, &agent_for("FEAT-2")).as_deref(),
+            Some("tmux -L operator attach -t op-feat-2")
+        );
+    }
+
+    #[test]
+    fn test_attach_command_is_absent_for_other_wrappers() {
+        let mut agent = agent_for("FEAT-2");
+        agent.session_wrapper = Some("zellij".into());
+        assert_eq!(attach_command(&Config::default(), &agent), None);
+        agent.session_wrapper = Some("cmux".into());
+        assert_eq!(attach_command(&Config::default(), &agent), None);
     }
 }

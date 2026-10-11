@@ -149,6 +149,6 @@ mod tests {
 
         let resp = list(State(state)).await;
         // Should return without error (skills may be empty)
-        assert!(resp.total == resp.skills.len());
+        assert_eq!(resp.total, resp.skills.len());
     }
 }

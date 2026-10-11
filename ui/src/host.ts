@@ -3,6 +3,8 @@ import { createContext, useContext } from "react";
 export interface Host {
   readonly profileId?: string;
   readonly signal?: AbortSignal;
+  /** The host opens local files itself (the VS Code webview). */
+  readonly opensFiles?: boolean;
   baseUrl(): string;
   openExternal(url: string): void;
   browseFolder(): Promise<string | null>;
@@ -32,6 +34,7 @@ export type VscodeApi = {
 };
 
 class VscodeHost implements Host {
+  readonly opensFiles = true;
   private vscode: VscodeApi;
   private apiUrl: string;
 

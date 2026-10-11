@@ -175,13 +175,71 @@
         "x-operator-scope": "write"
       }
     },
+    "/api/v1/agents/{agent_id}/connect/terminal": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "What an IDE extension runs after opening an agent's workspace",
+        "description": "Returns the attach command while the session is live, or the LLM resume\ncommand once it is gone. Deep links never carry commands; this is the only source.",
+        "operationId": "agents_connect_terminal",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "The agent ID to connect to",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Terminal to open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectTerminal"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
     "/api/v1/agents/{agent_id}/focus": {
       "post": {
         "tags": [
           "Agents"
         ],
         "summary": "Focus the terminal session of a running agent in its session wrapper.",
-        "description": "The web UI's launch panel calls this for **cmux** launches: cmux exposes no\nbrowser URL scheme, so the operator control plane (which runs inside cmux)\nshells out to `cmux focus-workspace` for the agent's saved workspace ref to\nbring its pane to the foreground. Other wrappers are unsupported here - VS\nCode focuses through its extension's URI handler, and tmux/zellij are\ndisplay-only in the UI, so it never calls this for them.",
+        "description": "cmux focuses the agent's workspace; tmux switches the attached client to the\nagent's session and window. zellij can't be focused from outside, and VS Code\nfocuses through its extension's URI handler instead.",
         "operationId": "agents_focus_session",
         "parameters": [
           {
@@ -225,6 +283,16 @@
           },
           "404": {
             "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session not reachable; attach to it instead",
             "content": {
               "application/json": {
                 "schema": {
@@ -1197,6 +1265,375 @@
           }
         },
         "security": []
+      }
+    },
+    "/api/v1/campaigns": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "operationId": "campaigns_list",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      },
+      "post": {
+        "tags": [
+          "Campaigns"
+        ],
+        "operationId": "campaigns_create",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewCampaignInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "write"
+      }
+    },
+    "/api/v1/campaigns/{id}": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "operationId": "campaigns_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/campaigns/{id}/launch": {
+      "post": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Start a campaign and launch its first wave; `dry_run` only reports.",
+        "operationId": "campaigns_launch",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchCampaignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignLaunchOutcome"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Campaign cannot start from its current status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "execute"
+      }
+    },
+    "/api/v1/campaigns/{id}/pause": {
+      "post": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Stop new launches; running agents continue.",
+        "operationId": "campaigns_pause",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TickReport"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "execute"
+      }
+    },
+    "/api/v1/campaigns/{id}/status": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "operationId": "campaigns_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignStatusView"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/collections": {
@@ -5783,6 +6220,130 @@
         "x-operator-scope": "write"
       }
     },
+    "/api/v1/tickets/batch": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Create every ticket in a batch, or none.",
+        "operationId": "tickets_batch_create",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Batch invalid; the message carries the preview JSON and nothing is written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "write"
+      }
+    },
+    "/api/v1/tickets/batch/preview": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Preview a batch: allocated ids, resolved dependencies, waves and errors. Writes nothing.",
+        "operationId": "tickets_batch_preview",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchPreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
     "/api/v1/tickets/{id}": {
       "get": {
         "tags": [
@@ -5839,6 +6400,80 @@
           }
         ],
         "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/tickets/{id}/campaign": {
+      "put": {
+        "tags": [
+          "Campaigns"
+        ],
+        "operationId": "tickets_assign_campaign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignCampaignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignCampaignResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "Premium required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/tickets/{id}/launch": {
@@ -6393,9 +7028,25 @@
           "project",
           "status",
           "mode",
-          "started_at"
+          "started_at",
+          "connect"
         ],
         "properties": {
+          "attention": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Attention",
+                "description": "Set when the agent needs the operator"
+              }
+            ]
+          },
+          "connect": {
+            "$ref": "#/components/schemas/ConnectPlan",
+            "description": "Ways to open the agent's session"
+          },
           "current_step": {
             "type": [
               "string",
@@ -6406,6 +7057,13 @@
           "id": {
             "type": "string",
             "description": "Agent ID (e.g., \"op-gamesvc-001\")"
+          },
+          "last_message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Last status message from the agent"
           },
           "mode": {
             "type": "string",
@@ -6495,15 +7153,31 @@
           "started_at",
           "last_activity",
           "completed_steps",
-          "paired"
+          "paired",
+          "connect"
         ],
         "properties": {
+          "attention": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Attention",
+                "description": "Set when the agent needs the operator"
+              }
+            ]
+          },
           "completed_steps": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "description": "Completed steps for this ticket"
+          },
+          "connect": {
+            "$ref": "#/components/schemas/ConnectPlan",
+            "description": "Ways to open the agent's session"
           },
           "current_step": {
             "type": [
@@ -6519,6 +7193,20 @@
           "last_activity": {
             "type": "string",
             "description": "Last activity timestamp (ISO 8601)"
+          },
+          "last_content_change": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Last time the session output changed (ISO 8601)"
+          },
+          "last_message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Last status message from the agent"
           },
           "launch_mode": {
             "type": [
@@ -6563,12 +7251,26 @@
             "type": "string",
             "description": "Project being worked on"
           },
+          "remote_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Remote host the agent runs on (None = local)"
+          },
           "review_state": {
             "type": [
               "string",
               "null"
             ],
             "description": "Review state for `awaiting_input` agents"
+          },
+          "session_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Terminal session name"
           },
           "session_wrapper": {
             "type": [
@@ -6585,6 +7287,13 @@
             "type": "string",
             "description": "Agent status: running, `awaiting_input`, completing, orphaned"
           },
+          "target_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Execution target the agent launched on"
+          },
           "ticket_id": {
             "type": "string",
             "description": "Associated ticket ID (e.g., \"FEAT-042\")"
@@ -6592,6 +7301,13 @@
           "ticket_type": {
             "type": "string",
             "description": "Ticket type: FEAT, FIX, INV, SPIKE"
+          },
+          "workspace_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coder dashboard URL of the agent's workspace"
           },
           "worktree_path": {
             "type": [
@@ -6832,6 +7548,316 @@
           }
         }
       },
+      "AssignCampaignRequest": {
+        "type": "object",
+        "description": "Move a ticket into or out of a campaign.",
+        "properties": {
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Campaign id; null removes the ticket from its campaign."
+          },
+          "depends_on": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Replaces the ticket's `depends_on` when present."
+          }
+        }
+      },
+      "AssignCampaignResponse": {
+        "type": "object",
+        "description": "A ticket's campaign membership after an assignment.",
+        "required": [
+          "id",
+          "depends_on"
+        ],
+        "properties": {
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "Attention": {
+        "type": "object",
+        "description": "Attention nudge for an agent",
+        "required": [
+          "reason",
+          "since"
+        ],
+        "properties": {
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short context (review state or last message)"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/AttentionReason",
+            "description": "Why attention is needed"
+          },
+          "since": {
+            "type": "string",
+            "description": "Since when (ISO 8601)"
+          }
+        }
+      },
+      "AttentionReason": {
+        "type": "string",
+        "description": "Why an agent needs the operator",
+        "enum": [
+          "awaiting_input",
+          "review",
+          "orphaned",
+          "idle"
+        ]
+      },
+      "BatchCreated": {
+        "type": "object",
+        "description": "Result of creating a batch.",
+        "required": [
+          "tickets",
+          "waves"
+        ],
+        "properties": {
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatedTicket"
+            }
+          },
+          "waves": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "BatchItem": {
+        "type": "object",
+        "description": "One ticket to create; `ref` names it within the batch.",
+        "required": [
+          "ref",
+          "template"
+        ],
+        "properties": {
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Batch refs, existing ticket ids, or `provider:key` refs."
+          },
+          "project": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ref": {
+            "type": "string",
+            "description": "Batch-local name other items use in `depends_on`."
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "template": {
+            "type": "string",
+            "description": "Template key (FEAT, FIX, TASK, SPIKE, INV, ...)."
+          },
+          "values": {
+            "type": "object",
+            "description": "Extra Handlebars values; `project`/`summary` above take precedence.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BatchPreview": {
+        "type": "object",
+        "description": "What a batch would create; nothing is written.",
+        "required": [
+          "tickets",
+          "waves",
+          "errors",
+          "valid"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Batch-wide errors (cycles, unknown campaign)."
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedTicket"
+            }
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "waves": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Allocated ids in dependency waves."
+          }
+        }
+      },
+      "BatchRequest": {
+        "type": "object",
+        "description": "A batch of tickets, optionally created inside a campaign.",
+        "required": [
+          "tickets"
+        ],
+        "properties": {
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchItem"
+            }
+          }
+        }
+      },
+      "BlockReason": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Waiting on members in earlier waves.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "dependencies"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Waiting on local tickets outside the campaign.",
+            "required": [
+              "refs",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "gate"
+                ]
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Waiting on local tickets outside the campaign."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Waiting on upstream issues that are not synced.",
+            "required": [
+              "refs",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsynced"
+                ]
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Waiting on upstream issues that are not synced."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Ready, but no Premium entitlement.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "license"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Ready, but no free slot this tick.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "capacity"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Why a pending member is not launching."
+      },
       "BootstrapState": {
         "type": "string",
         "description": "Where the deployment sits in the one-time admin-creation sequence.",
@@ -6904,6 +7930,412 @@
             "description": "The account name created by bootstrap."
           }
         }
+      },
+      "Campaign": {
+        "type": "object",
+        "description": "A campaign, stored as frontmatter plus a markdown body under `<tickets>/campaigns/`.",
+        "required": [
+          "id",
+          "title"
+        ],
+        "properties": {
+          "created": {
+            "type": "string",
+            "description": "Creation date (`YYYY-MM-DD`)."
+          },
+          "external_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Upstream container this campaign was synced from (e.g. `jira:PROJ-1`)."
+          },
+          "governance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a `[[governance]]` policy layered over each delegator's own."
+          },
+          "governance_overrides": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GovernancePolicy",
+                "description": "Inline policy layered over `governance`."
+              }
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "Campaign id (e.g. `CAMP-0003`); member tickets reference it as `campaign:`."
+          },
+          "status": {
+            "$ref": "#/components/schemas/CampaignStatus"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable title."
+          },
+          "workspace": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CampaignWorkspace",
+                "description": "Shared execution environment; absent runs each ticket in its own workspace."
+              }
+            ]
+          }
+        }
+      },
+      "CampaignCounters": {
+        "type": "object",
+        "description": "Usage counted against the campaign's caps.",
+        "required": [
+          "launched",
+          "active",
+          "retries"
+        ],
+        "properties": {
+          "active": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Members in progress.",
+            "minimum": 0
+          },
+          "launched": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "max_launches": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "max_parallel": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "max_retries": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Most relaunches of any one member.",
+            "minimum": 0
+          }
+        }
+      },
+      "CampaignDetail": {
+        "type": "object",
+        "description": "A campaign with its members and plan.",
+        "required": [
+          "campaign",
+          "members",
+          "waves",
+          "gates",
+          "unsynced"
+        ],
+        "properties": {
+          "campaign": {
+            "$ref": "#/components/schemas/Campaign"
+          },
+          "gates": {
+            "type": "object",
+            "description": "Member id → local tickets outside the campaign it waits on.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignMember"
+            }
+          },
+          "plan_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unsynced": {
+            "type": "object",
+            "description": "Member id → unsynced upstream refs it waits on.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "waves": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CampaignLaunchOutcome": {
+        "type": "object",
+        "description": "Result of a launch or dry run.",
+        "required": [
+          "id",
+          "dry_run",
+          "status",
+          "waves",
+          "policy",
+          "violations",
+          "report"
+        ],
+        "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/GovernancePolicy"
+          },
+          "report": {
+            "$ref": "#/components/schemas/TickReport",
+            "description": "The first tick, run or (for a dry run) assessed."
+          },
+          "status": {
+            "$ref": "#/components/schemas/CampaignStatus"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Reasons the campaign cannot start; empty when it can."
+          },
+          "waves": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CampaignListResponse": {
+        "type": "object",
+        "required": [
+          "campaigns",
+          "total"
+        ],
+        "properties": {
+          "campaigns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignSummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CampaignMember": {
+        "type": "object",
+        "description": "A member ticket as seen from its campaign.",
+        "required": [
+          "id",
+          "summary",
+          "project",
+          "column",
+          "depends_on",
+          "launches"
+        ],
+        "properties": {
+          "column": {
+            "type": "string",
+            "description": "`queue`, `in-progress` or `completed`."
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "launches": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Launches made by the runner.",
+            "minimum": 0
+          },
+          "project": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "CampaignStatus": {
+        "type": "string",
+        "description": "Lifecycle of a campaign.",
+        "enum": [
+          "draft",
+          "ready",
+          "running",
+          "paused",
+          "completed",
+          "cancelled"
+        ]
+      },
+      "CampaignStatusView": {
+        "type": "object",
+        "description": "Live state of a campaign run.",
+        "required": [
+          "id",
+          "status",
+          "tickets",
+          "waves",
+          "report",
+          "counters",
+          "policy"
+        ],
+        "properties": {
+          "counters": {
+            "$ref": "#/components/schemas/CampaignCounters"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pause_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "policy": {
+            "$ref": "#/components/schemas/GovernancePolicy",
+            "description": "The policy the campaign layers over each delegator's own."
+          },
+          "report": {
+            "$ref": "#/components/schemas/TickReport",
+            "description": "What the next tick would do."
+          },
+          "status": {
+            "$ref": "#/components/schemas/CampaignStatus"
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignMember"
+            }
+          },
+          "waves": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CampaignSummary": {
+        "type": "object",
+        "description": "A campaign with its member count.",
+        "required": [
+          "campaign",
+          "members"
+        ],
+        "properties": {
+          "campaign": {
+            "$ref": "#/components/schemas/Campaign"
+          },
+          "members": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CampaignWorkspace": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "One Coder workspace created from this template.",
+            "required": [
+              "template",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "coder"
+                ]
+              },
+              "template": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "One container from this image.",
+            "required": [
+              "image",
+              "kind"
+            ],
+            "properties": {
+              "image": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "docker"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One execution environment shared by every ticket in a campaign."
       },
       "CollectionPreset": {
         "type": "string",
@@ -7038,6 +8470,148 @@
           }
         },
         "additionalProperties": false
+      },
+      "ConnectInterface": {
+        "type": "string",
+        "description": "Interface used to open a launched agent's session",
+        "enum": [
+          "vscode",
+          "cursor",
+          "zed",
+          "coder",
+          "cmux",
+          "tmux",
+          "zellij",
+          "ssh",
+          "terminal"
+        ]
+      },
+      "ConnectKind": {
+        "type": "string",
+        "description": "How a client acts on a connect option",
+        "enum": [
+          "ide",
+          "focus_api",
+          "command"
+        ]
+      },
+      "ConnectOption": {
+        "type": "object",
+        "description": "One way to reach an agent's session",
+        "required": [
+          "interface",
+          "kind",
+          "label",
+          "available"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "description": "Whether the option can be used right now"
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Shell command for `command` options"
+          },
+          "interface": {
+            "$ref": "#/components/schemas/ConnectInterface",
+            "description": "Interface this option opens"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ConnectKind",
+            "description": "How the client acts on it"
+          },
+          "label": {
+            "type": "string",
+            "description": "Button label"
+          },
+          "unavailable_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the option is unavailable"
+          },
+          "uri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Deep link for `ide` options"
+          }
+        }
+      },
+      "ConnectPlan": {
+        "type": "object",
+        "description": "Every connect option for an agent, with the preferred one called out",
+        "required": [
+          "phase",
+          "options"
+        ],
+        "properties": {
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectOption"
+            },
+            "description": "All applicable options, preferred included"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/SessionPhase",
+            "description": "Attach vs resume"
+          },
+          "preferred": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectOption",
+                "description": "Primary option (configured preference, else the session wrapper's)"
+              }
+            ]
+          }
+        }
+      },
+      "ConnectTerminal": {
+        "type": "object",
+        "description": "What an IDE extension runs after opening the agent's workspace",
+        "required": [
+          "phase",
+          "ticket_id",
+          "terminal_name"
+        ],
+        "properties": {
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Command to run inside the agent's environment; absent means focus `terminal_name`"
+          },
+          "cwd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Directory to start in"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/SessionPhase",
+            "description": "Attach vs resume"
+          },
+          "terminal_name": {
+            "type": "string",
+            "description": "Existing terminal or session name"
+          },
+          "ticket_id": {
+            "type": "string",
+            "description": "Ticket ID, for naming the terminal"
+          }
+        }
       },
       "CreateAccessKeyRequest": {
         "type": "object",
@@ -7231,6 +8805,13 @@
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
               }
             ]
+          },
+          "governance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a `[[governance]]` policy enforced on this delegator's launches."
           },
           "launch_config": {
             "oneOf": [
@@ -7547,6 +9128,26 @@
           }
         }
       },
+      "CreatedTicket": {
+        "type": "object",
+        "description": "A ticket written by a batch.",
+        "required": [
+          "ref",
+          "id",
+          "filename"
+        ],
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          }
+        }
+      },
       "CsrfTokenResponse": {
         "type": "object",
         "description": "A freshly minted CSRF token for the current session.",
@@ -7801,6 +9402,13 @@
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
               }
             ]
+          },
+          "governance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a `[[governance]]` policy enforced on this delegator's launches."
           },
           "launch_config": {
             "oneOf": [
@@ -8287,16 +9895,19 @@
       },
       "GitConfigEntry": {
         "type": "object",
+        "description": "One `git config` entry applied to delegated work.",
         "required": [
           "key",
           "value"
         ],
         "properties": {
           "key": {
-            "type": "string"
+            "type": "string",
+            "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected"
           },
           "value": {
-            "type": "string"
+            "type": "string",
+            "description": "Config value"
           }
         }
       },
@@ -8310,13 +9921,16 @@
         ],
         "properties": {
           "repository_url": {
-            "type": "string"
+            "type": "string",
+            "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment"
           },
           "token_env": {
-            "type": "string"
+            "type": "string",
+            "description": "Environment variable holding the token, read at launch"
           },
           "username": {
-            "type": "string"
+            "type": "string",
+            "description": "HTTPS username sent with the token"
           }
         }
       },
@@ -8330,7 +9944,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/GitCredentialConfig"
+                "$ref": "#/components/schemas/GitCredentialConfig",
+                "description": "HTTPS credential for the ticket's repository"
               }
             ]
           },
@@ -8340,7 +9955,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/GitIdentityConfig"
+                "$ref": "#/components/schemas/GitIdentityConfig",
+                "description": "Commit identity; falls back to the global `git.identity`"
               }
             ]
           },
@@ -8348,7 +9964,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GitConfigEntry"
-            }
+            },
+            "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected"
           }
         }
       },
@@ -8361,10 +9978,12 @@
         ],
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
           }
         }
       },
@@ -8519,6 +10138,107 @@
           }
         }
       },
+      "GovernancePolicy": {
+        "type": "object",
+        "description": "A named launch policy. Every constraint is optional; an absent one is unconstrained.",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "allowed_delegators": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Delegator names allowed to launch. Absent = any."
+          },
+          "allowed_llm_tools": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "LLM tool names allowed to launch (e.g. `claude`). Absent = any."
+          },
+          "allowed_model_servers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Model server names allowed (declared or implicit, e.g. `anthropic-api`). Absent = any."
+          },
+          "allowed_targets": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Execution target names allowed (e.g. `local`, `docker`, a `[[targets]]` name). Absent = any."
+          },
+          "budget_usd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Spend ceiling in USD. Reserved: accepted and reported, not yet enforced."
+          },
+          "max_launches": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Maximum total launches under this policy (counted per campaign run).",
+            "minimum": 0
+          },
+          "max_parallel": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Maximum concurrently running agents under this policy.",
+            "minimum": 0
+          },
+          "max_retries": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Maximum relaunches of a failed ticket (counted per campaign run).",
+            "minimum": 0
+          },
+          "max_runtime_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Maximum wall-clock minutes per agent.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string",
+            "description": "Unique name, referenced by `Delegator.governance`."
+          },
+          "require_confirmation": {
+            "type": "boolean",
+            "description": "Require operator confirmation before each launch."
+          }
+        }
+      },
       "HealthResponse": {
         "type": "object",
         "description": "Health check response",
@@ -8538,10 +10258,12 @@
             "description": "Top-level directory name of the operator working root (e.g. \"acme\")."
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \"ok\" when the server answers"
           },
           "version": {
-            "type": "string"
+            "type": "string",
+            "description": "Operator version that is serving the API"
           }
         }
       },
@@ -9024,6 +10746,13 @@
           "total_processed"
         ],
         "properties": {
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Campaign the synced tickets were stamped with (scoped syncs)"
+          },
           "created": {
             "type": "array",
             "items": {
@@ -9049,6 +10778,13 @@
             "type": "integer",
             "description": "Total count of issues processed",
             "minimum": 0
+          },
+          "updated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Existing tickets whose synced relationships were refreshed"
           }
         }
       },
@@ -9066,6 +10802,17 @@
           "timestamp"
         ],
         "properties": {
+          "attention": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AttentionReason",
+                "description": "Set when the ticket's agent needs the operator"
+              }
+            ]
+          },
           "filename": {
             "type": "string",
             "description": "Ticket markdown filename (joins with the tickets dir + status folder\nfor co-located clients; remote clients treat tickets as API-only)"
@@ -9108,6 +10855,16 @@
           "timestamp": {
             "type": "string",
             "description": "Timestamp for sorting (YYYYMMDD-HHMM format)"
+          }
+        }
+      },
+      "LaunchCampaignRequest": {
+        "type": "object",
+        "description": "Launch a campaign, or preview the launch.",
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "description": "Report the plan, policy and violations without starting."
           }
         }
       },
@@ -9688,6 +11445,33 @@
           }
         }
       },
+      "LlmTask": {
+        "type": "object",
+        "description": "LLM task metadata for delegate mode integration",
+        "properties": {
+          "blocked_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of task IDs that must resolve before this task"
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM task ID (e.g., Claude delegate mode task UUID)"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM task status: \"open\" or \"resolved\""
+          }
+        }
+      },
       "LlmToolsResponse": {
         "type": "object",
         "description": "Response listing detected LLM tools",
@@ -10031,6 +11815,53 @@
           }
         }
       },
+      "NewCampaignInput": {
+        "type": "object",
+        "description": "Fields for a new campaign.",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "goal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Markdown goal written as the campaign body."
+          },
+          "governance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a `[[governance]]` policy."
+          },
+          "governance_overrides": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GovernancePolicy",
+                "description": "Inline policy layered over `governance`."
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "workspace": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CampaignWorkspace"
+              }
+            ]
+          }
+        }
+      },
       "NextStepInfo": {
         "type": "object",
         "description": "Information about the next step in the workflow",
@@ -10268,10 +12099,52 @@
         },
         "additionalProperties": false
       },
+      "PlannedTicket": {
+        "type": "object",
+        "description": "One item as it would be written.",
+        "required": [
+          "ref",
+          "id",
+          "template",
+          "filename_stem",
+          "depends_on",
+          "errors"
+        ],
+        "properties": {
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Dependencies with batch refs resolved to allocated ids."
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filename_stem": {
+            "type": "string",
+            "description": "Filename without the date prefix: `TYPE-project-slug`."
+          },
+          "id": {
+            "type": "string",
+            "description": "Allocated id; empty when the template is unknown."
+          },
+          "ref": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          }
+        }
+      },
       "PremiumFeature": {
         "type": "string",
         "enum": [
-          "remote_targets"
+          "remote_targets",
+          "campaigns"
         ]
       },
       "PrincipalKind": {
@@ -10832,6 +12705,15 @@
           }
         }
       },
+      "SessionPhase": {
+        "type": "string",
+        "description": "Whether the agent's session can be attached or only resumed",
+        "enum": [
+          "live",
+          "resumable",
+          "gone"
+        ]
+      },
       "SessionSummary": {
         "type": "object",
         "description": "An active or expired browser session. Carries no session identifier - the\ncookie value is never readable back out, only the session's `id` for\nrevocation.",
@@ -11345,10 +13227,12 @@
         ],
         "properties": {
           "active_collection": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the active collection"
           },
           "collection_count": {
             "type": "integer",
+            "description": "Number of collections loaded in the registry",
             "minimum": 0
           },
           "directory_id": {
@@ -11361,13 +13245,16 @@
           },
           "issuetype_count": {
             "type": "integer",
+            "description": "Number of issue types loaded in the registry",
             "minimum": 0
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \"ok\" when the server answers"
           },
           "version": {
-            "type": "string"
+            "type": "string",
+            "description": "Operator version that is serving the API"
           }
         }
       },
@@ -11714,6 +13601,251 @@
           }
         }
       },
+      "TickReport": {
+        "type": "object",
+        "description": "What one tick did, or would do when assessed.",
+        "required": [
+          "status",
+          "launched",
+          "awaiting_operator",
+          "stalled",
+          "blocked"
+        ],
+        "properties": {
+          "awaiting_operator": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blocked": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BlockReason"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "launched": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pause_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stalled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/CampaignStatus"
+          }
+        }
+      },
+      "TicketAgent": {
+        "type": "object",
+        "description": "The agent working a ticket, as shown on the ticket page.",
+        "required": [
+          "id",
+          "status",
+          "paired",
+          "started_at",
+          "completed_steps"
+        ],
+        "properties": {
+          "attach_command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Shell command that attaches to the session (tmux)"
+          },
+          "completed_steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Workflow steps already completed"
+          },
+          "current_step": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Current workflow step (e.g. \"plan\", \"implement\", \"test\")"
+          },
+          "id": {
+            "type": "string",
+            "description": "Agent ID"
+          },
+          "last_message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Latest status message from the agent"
+          },
+          "llm_model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM model alias (e.g. \"opus\", \"sonnet\")"
+          },
+          "llm_tool": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM tool (e.g. \"claude\", \"gemini\", \"codex\")"
+          },
+          "paired": {
+            "type": "boolean",
+            "description": "Whether the operator works alongside the agent (SPIKE and INV tickets)"
+          },
+          "pr_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "PR/MR number",
+            "minimum": 0
+          },
+          "pr_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Last known PR/MR status: open, approved, `changes_requested`, merged or closed"
+          },
+          "pr_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the PR/MR opened by the \"pr\" step"
+          },
+          "remote_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SSH host the agent runs on, when remote"
+          },
+          "review_state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pending review gate while `awaiting_input`: `pending_plan`, `pending_visual`, `pending_proof`, `pending_pr_creation` or `pending_pr_merge`"
+          },
+          "session_context_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session context reference (cmux workspace, tmux window)"
+          },
+          "session_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Terminal session name"
+          },
+          "session_pane_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session pane reference (cmux surface, tmux pane)"
+          },
+          "session_window_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session window reference (cmux window, tmux session)"
+          },
+          "session_wrapper": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "tmux, vscode, cmux or zellij"
+          },
+          "started_at": {
+            "type": "string",
+            "description": "RFC 3339 start time"
+          },
+          "status": {
+            "type": "string",
+            "description": "running, `awaiting_input`, completing or orphaned"
+          },
+          "target_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Execution target the agent launched on"
+          },
+          "workspace_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coder dashboard URL of the agent's workspace"
+          },
+          "worktree_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Git worktree the agent works in"
+          }
+        }
+      },
+      "TicketDependency": {
+        "type": "object",
+        "description": "One `depends_on` reference and where it points.",
+        "required": [
+          "reference",
+          "satisfied"
+        ],
+        "properties": {
+          "column": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Column of the resolved ticket"
+          },
+          "reference": {
+            "type": "string",
+            "description": "The reference as written (local id or `provider:key`)"
+          },
+          "satisfied": {
+            "type": "boolean",
+            "description": "Whether the dependency is completed"
+          },
+          "ticket_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Local ticket it resolves to; absent while unsynced"
+          }
+        }
+      },
       "TicketDetailResponse": {
         "type": "object",
         "description": "Full ticket details including content and metadata",
@@ -11730,9 +13862,30 @@
           "filename",
           "filepath",
           "sessions",
-          "step_delegators"
+          "step_delegators",
+          "body",
+          "column",
+          "depends_on",
+          "dependencies",
+          "dependents",
+          "llm_task"
         ],
         "properties": {
+          "agent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TicketAgent",
+                "description": "The agent working this ticket, if any"
+              }
+            ]
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown after the frontmatter"
+          },
           "branch": {
             "type": [
               "string",
@@ -11740,9 +13893,48 @@
             ],
             "description": "Git branch name"
           },
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Campaign this ticket belongs to (e.g. `CAMP-0001`)"
+          },
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Collection the ticket's issue type comes from"
+          },
+          "column": {
+            "type": "string",
+            "description": "Board column: `queue`, `in-progress` or `completed`"
+          },
           "content": {
             "type": "string",
             "description": "Full markdown content of the ticket"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketDependency"
+            },
+            "description": "`depends_on` resolved against local tickets"
+          },
+          "dependents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Local tickets whose `depends_on` names this ticket"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Raw `depends_on` references"
           },
           "external_id": {
             "type": [
@@ -11750,6 +13942,13 @@
               "null"
             ],
             "description": "External issue ID from kanban provider"
+          },
+          "external_parent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Upstream epic, project or parent (`provider:key`)"
           },
           "external_provider": {
             "type": [
@@ -11776,6 +13975,10 @@
           "id": {
             "type": "string",
             "description": "Ticket ID (e.g., \"FEAT-7598\")"
+          },
+          "llm_task": {
+            "$ref": "#/components/schemas/LlmTask",
+            "description": "Delegate-mode task metadata"
           },
           "priority": {
             "type": "string",
@@ -12877,6 +15080,13 @@
               }
             ]
           },
+          "governance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of a `[[governance]]` policy."
+          },
           "launch_config": {
             "oneOf": [
               {
@@ -12981,6 +15191,10 @@
     {
       "name": "Launch",
       "description": "Ticket launch operations"
+    },
+    {
+      "name": "Campaigns",
+      "description": "Campaigns: epics of tickets planned into waves and launched together (Premium)"
     },
     {
       "name": "Workflow",

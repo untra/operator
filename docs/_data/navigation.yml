@@ -16,6 +16,10 @@ docs:
             url: /getting-started/tickets/
           - title: Kanban
             url: /getting-started/concepts/kanban/
+          - title: Campaigns
+            url: /getting-started/concepts/campaigns/
+          - title: Governance
+            url: /getting-started/concepts/governance/
       - title: Supported Session Management
         url: /getting-started/sessions/
         children:

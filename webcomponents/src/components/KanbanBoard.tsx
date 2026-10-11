@@ -47,6 +47,13 @@ function Column({
   );
 }
 
+const ATTENTION_TITLE: Record<NonNullable<KanbanTicketCard["attention"]>, string> = {
+  awaiting_input: "Agent is waiting for you",
+  review: "Review pending",
+  orphaned: "Session lost",
+  idle: "No output for a while",
+};
+
 function Card({
   ticket,
   onOpen,
@@ -61,6 +68,14 @@ function Card({
         <span className={styles.statusIcon}>{STATUS_GLYPH[ticket.status]}</span>
         <span className={styles.ticketType}>{ticket.ticket_type}</span>
         <span className={styles.ticketId}>{ticket.id}</span>
+        {ticket.attention && (
+          <span
+            className={styles.attention}
+            data-reason={ticket.attention}
+            title={ATTENTION_TITLE[ticket.attention]}
+            aria-label={ATTENTION_TITLE[ticket.attention]}
+          />
+        )}
       </div>
       <div className={styles.cardSummary}>{ticket.summary}</div>
       <div className={styles.cardMeta}>

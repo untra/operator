@@ -1,0 +1,6 @@
+# A completed campaign cannot be started again.
+base = "diamond"
+
+[expect]
+start_error = "completed"
+final_status = "completed"

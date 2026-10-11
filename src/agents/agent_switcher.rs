@@ -4,7 +4,7 @@
 //!
 //! When a step transition occurs and the next step specifies a different agent
 //! (delegator), the current agent is gracefully exited using a 3-tier escalation
-//! (`/exit` → `Ctrl+C` → `Ctrl+D`) and the new one is launched in the same terminal session.
+//! (`/exit` > `Ctrl+C` > `Ctrl+D`) and the new one is launched in the same terminal session.
 //!
 //! Supports tmux and cmux backends via the `TerminalOps` trait.
 
@@ -336,6 +336,7 @@ mod tests {
 
     fn make_delegator(name: &str, tool: &str, model: &str) -> Delegator {
         Delegator {
+            governance: None,
             git: None,
             name: name.to_string(),
             llm_tool: tool.to_string(),

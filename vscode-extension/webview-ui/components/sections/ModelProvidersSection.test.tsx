@@ -99,6 +99,7 @@ describe("CreateDelegatorForm selects", () => {
           model_server: "openai",
           launch_config: null,
           remote_agent: null,
+          governance: null,
         },
       },
     ]);

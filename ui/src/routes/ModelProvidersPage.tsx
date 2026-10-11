@@ -291,6 +291,7 @@ function CreateDelegatorForm({
         git: serializeGitDraft(git),
         launch_config: null,
         remote_agent: null,
+        governance: null,
       },
       {
         onSuccess: () => {
@@ -586,6 +587,7 @@ function DelegatorGitEditor({ delegator }: { delegator: DelegatorResponse }) {
           model_server: delegator.model_server ?? null,
           launch_config: delegator.launch_config ?? null,
           remote_agent: delegator.remote_agent ?? null,
+          governance: delegator.governance ?? null,
           git: serializeGitDraft(git),
         },
       },

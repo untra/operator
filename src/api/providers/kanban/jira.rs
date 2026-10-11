@@ -82,13 +82,6 @@ impl JiraProvider {
         format!("https://{}/rest/api/3", self.domain)
     }
 
-    /// Get Basic Auth header value (simple Base64 encoding)
-    fn auth_header(&self) -> String {
-        let credentials = format!("{}:{}", self.email, self.api_token);
-        let encoded = simple_base64_encode(credentials.as_bytes());
-        format!("Basic {encoded}")
-    }
-
     /// Make an authenticated GET request
     async fn get<T: for<'de> Deserialize<'de>>(&self, path: &str) -> Result<T, ApiError> {
         let url = format!("{}{}", self.base_url(), path);
@@ -97,7 +90,7 @@ impl JiraProvider {
         let response = self
             .client
             .get(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .send()
             .await
@@ -137,7 +130,7 @@ impl JiraProvider {
         let response = self
             .client
             .post(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(body)
@@ -175,7 +168,7 @@ impl JiraProvider {
         let response = self
             .client
             .put(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(body)
@@ -209,7 +202,7 @@ impl JiraProvider {
         let response = self
             .client
             .post(&url)
-            .header("Authorization", self.auth_header())
+            .basic_auth(&self.email, Some(&self.api_token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(body)
@@ -243,6 +236,9 @@ impl JiraProvider {
 
         let url = format!("https://{}/browse/{}", self.domain, issue.key);
         Ok(ExternalIssue {
+            blocked_by: Vec::new(),
+            parent: None,
+            subtasks: Vec::new(),
             id: issue.id,
             key: issue.key,
             summary: issue.fields.summary,
@@ -285,58 +281,39 @@ impl JiraProvider {
     }
 }
 
-/// Simple Base64 encoding implementation (for Basic Auth only)
-fn simple_base64_encode(data: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+/// Issue fields requested from `/search/jql`, which otherwise returns only ids.
+const SEARCH_FIELDS: &str =
+    "summary,description,issuetype,status,assignee,priority,issuelinks,parent,subtasks";
 
-    let mut result = String::new();
-    let mut chunks = data.chunks_exact(3);
+/// Pages fetched per scoped search before giving up (100 issues each).
+const MAX_SEARCH_PAGES: usize = 50;
 
-    for chunk in chunks.by_ref() {
-        let n = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
-        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
-        result.push(ALPHABET[(n & 0x3F) as usize] as char);
+/// ` AND status IN (...)`, or nothing when no statuses are given.
+fn status_clause(statuses: &[String]) -> String {
+    if statuses.is_empty() {
+        return String::new();
     }
-
-    let remainder = chunks.remainder();
-    if remainder.len() == 1 {
-        let n = (remainder[0] as u32) << 16;
-        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
-        result.push_str("==");
-    } else if remainder.len() == 2 {
-        let n = ((remainder[0] as u32) << 16) | ((remainder[1] as u32) << 8);
-        result.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
-        result.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
-        result.push('=');
-    }
-
-    result
+    let quoted: Vec<String> = statuses.iter().map(|s| format!("\"{s}\"")).collect();
+    format!(" AND status IN ({})", quoted.join(","))
 }
 
-/// Simple URL encoding for JQL queries
-fn simple_url_encode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len() * 3);
-    for c in s.chars() {
-        match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => result.push(c),
-            ' ' => result.push_str("%20"),
-            '"' => result.push_str("%22"),
-            '=' => result.push_str("%3D"),
-            '(' => result.push_str("%28"),
-            ')' => result.push_str("%29"),
-            ',' => result.push_str("%2C"),
-            _ => {
-                for b in c.to_string().as_bytes() {
-                    result.push_str(&format!("%{b:02X}"));
-                }
-            }
-        }
+/// Every child of an epic or parent issue, any assignee.
+fn scope_jql(parent_key: &str, statuses: &[String]) -> String {
+    format!("parent = \"{parent_key}\"{}", status_clause(statuses))
+}
+
+/// Search path for a JQL query, with the query string form-encoded.
+fn search_path(jql: &str, page_token: Option<&str>) -> String {
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+    query
+        .append_pair("jql", jql)
+        .append_pair("maxResults", "100")
+        .append_pair("fields", SEARCH_FIELDS);
+    if let Some(token) = page_token {
+        query.append_pair("nextPageToken", token);
     }
-    result
+    let query = query.finish();
+    format!("/search/jql?{query}")
 }
 
 // Jira API response types
@@ -422,6 +399,23 @@ pub struct JiraStatus {
 pub struct JiraSearchResponse {
     /// List of issues matching the JQL query
     pub issues: Vec<JiraIssue>,
+    /// Token for the next page; absent on the last page
+    #[serde(default, rename = "nextPageToken")]
+    pub next_page_token: Option<String>,
+}
+
+/// An issue's title fields, fetched for a scope container
+#[derive(Debug, Deserialize)]
+struct JiraIssueHeader {
+    key: String,
+    fields: JiraHeaderFields,
+}
+
+#[derive(Debug, Deserialize)]
+struct JiraHeaderFields {
+    summary: String,
+    #[serde(default)]
+    description: Option<JiraDescription>,
 }
 
 /// A Jira issue from search results
@@ -452,6 +446,123 @@ pub struct JiraIssueFields {
     pub assignee: Option<JiraUser>,
     /// Issue priority (if set)
     pub priority: Option<JiraPriority>,
+    /// Links to other issues (blocks, relates, ...)
+    #[serde(default)]
+    pub issuelinks: Vec<JiraIssueLink>,
+    /// Parent issue or epic
+    #[serde(default)]
+    pub parent: Option<JiraLinkedIssue>,
+    /// Sub-task issues
+    #[serde(default)]
+    pub subtasks: Vec<JiraLinkedIssue>,
+}
+
+/// A link between two Jira issues
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct JiraIssueLink {
+    /// Link type, e.g. `Blocks` with inward text `is blocked by`
+    #[serde(rename = "type")]
+    pub link_type: JiraIssueLinkType,
+    /// Present when the other issue is on the inward side (e.g. the blocker)
+    #[serde(default)]
+    pub inward_issue: Option<JiraLinkedIssue>,
+    /// Present when the other issue is on the outward side (e.g. the blocked)
+    #[serde(default)]
+    pub outward_issue: Option<JiraLinkedIssue>,
+}
+
+/// Jira issue link type
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct JiraIssueLinkType {
+    /// Link type name (e.g. "Blocks")
+    pub name: String,
+    /// Inward description (e.g. "is blocked by")
+    #[serde(default)]
+    pub inward: String,
+}
+
+/// A related issue as embedded in links, parent and subtasks
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct JiraLinkedIssue {
+    /// Issue key (e.g. "PROJ-12")
+    pub key: String,
+    /// Partial fields; only the issue type is read
+    #[serde(default)]
+    pub fields: Option<JiraLinkedFields>,
+}
+
+/// Partial fields of a related issue
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct JiraLinkedFields {
+    /// Issue type of the related issue
+    #[serde(default)]
+    pub issuetype: Option<JiraIssueTypeRef>,
+}
+
+/// Keys of issues that block this one: `Blocks` links whose blocker is on the inward side.
+fn jira_blocked_by(links: &[JiraIssueLink]) -> Vec<String> {
+    links
+        .iter()
+        .filter(|l| {
+            l.link_type.name.eq_ignore_ascii_case("blocks")
+                || l.link_type
+                    .inward
+                    .to_ascii_lowercase()
+                    .contains("blocked by")
+        })
+        .filter_map(|l| l.inward_issue.as_ref().map(|i| i.key.clone()))
+        .collect()
+}
+
+/// The parent as an epic when its issue type is `Epic`, otherwise a plain parent issue.
+fn jira_parent(parent: Option<&JiraLinkedIssue>) -> Option<super::ExternalParent> {
+    parent.map(|p| {
+        let is_epic = p
+            .fields
+            .as_ref()
+            .and_then(|f| f.issuetype.as_ref())
+            .is_some_and(|t| t.name.eq_ignore_ascii_case("epic"));
+        super::ExternalParent {
+            key: p.key.clone(),
+            kind: if is_epic {
+                super::ParentKind::Epic
+            } else {
+                super::ParentKind::Issue
+            },
+        }
+    })
+}
+
+/// Normalize a Jira search result into an `ExternalIssue`.
+fn issue_from_jira(domain: &str, issue: JiraIssue) -> ExternalIssue {
+    let fields = issue.fields;
+    ExternalIssue {
+        url: format!("https://{domain}/browse/{}", issue.key),
+        id: issue.id,
+        key: issue.key,
+        summary: fields.summary,
+        description: extract_description_text(&fields.description),
+        kanban_issue_types: vec![KanbanIssueTypeRef {
+            id: fields.issuetype.id.unwrap_or_default(),
+            name: fields.issuetype.name,
+        }],
+        status: fields.status.name,
+        assignee: fields.assignee.map(|u| ExternalUser {
+            id: u.account_id,
+            name: u.display_name,
+            email: u.email_address,
+            avatar_url: u.avatar_urls.and_then(|a| a.large),
+        }),
+        priority: fields.priority.map(|p| p.name),
+        blocked_by: jira_blocked_by(&fields.issuelinks),
+        parent: jira_parent(fields.parent.as_ref()),
+        subtasks: fields.subtasks.into_iter().map(|s| s.key).collect(),
+    }
 }
 
 /// Jira description in Atlassian Document Format (ADF)
@@ -637,47 +748,55 @@ impl KanbanProvider for JiraProvider {
         user_id: &str,
         statuses: &[String],
     ) -> Result<Vec<ExternalIssue>, ApiError> {
-        // Build JQL query
-        let status_clause = if statuses.is_empty() {
-            String::new()
-        } else {
-            let quoted: Vec<String> = statuses.iter().map(|s| format!("\"{s}\"")).collect();
-            format!(" AND status IN ({})", quoted.join(","))
-        };
-
-        let jql =
-            format!("project = \"{project_key}\" AND assignee = \"{user_id}\"{status_clause}");
-        let encoded_jql = simple_url_encode(&jql);
-        let path = format!("/search/jql?jql={encoded_jql}&maxResults=100");
-
-        let response: JiraSearchResponse = self.get(&path).await?;
+        let jql = format!(
+            "project = \"{project_key}\" AND assignee = \"{user_id}\"{}",
+            status_clause(statuses)
+        );
+        let response: JiraSearchResponse = self.get(&search_path(&jql, None)).await?;
 
         Ok(response
             .issues
             .into_iter()
-            .map(|issue| {
-                let url = format!("https://{}/browse/{}", self.domain, issue.key);
-                ExternalIssue {
-                    id: issue.id,
-                    key: issue.key,
-                    summary: issue.fields.summary,
-                    description: extract_description_text(&issue.fields.description),
-                    kanban_issue_types: vec![KanbanIssueTypeRef {
-                        id: issue.fields.issuetype.id.unwrap_or_default(),
-                        name: issue.fields.issuetype.name,
-                    }],
-                    status: issue.fields.status.name,
-                    assignee: issue.fields.assignee.map(|u| ExternalUser {
-                        id: u.account_id,
-                        name: u.display_name,
-                        email: u.email_address,
-                        avatar_url: u.avatar_urls.and_then(|a| a.large),
-                    }),
-                    url,
-                    priority: issue.fields.priority.map(|p| p.name),
-                }
-            })
+            .map(|issue| issue_from_jira(&self.domain, issue))
             .collect())
+    }
+
+    async fn list_scope(
+        &self,
+        scope: &crate::config::SyncScope,
+        statuses: &[String],
+    ) -> Result<super::ScopeContents, ApiError> {
+        let crate::config::SyncScope::JiraEpic(key) = scope else {
+            return Err(ApiError::http(
+                "jira",
+                400,
+                format!("jira cannot sync scope {scope:?}"),
+            ));
+        };
+        let header: JiraIssueHeader = self
+            .get(&format!("/issue/{key}?fields=summary,description"))
+            .await?;
+        let jql = scope_jql(key, statuses);
+        let mut issues = Vec::new();
+        let mut token: Option<String> = None;
+        for _ in 0..MAX_SEARCH_PAGES {
+            let page: JiraSearchResponse = self.get(&search_path(&jql, token.as_deref())).await?;
+            issues.extend(page.issues);
+            token = page.next_page_token;
+            if token.is_none() {
+                break;
+            }
+        }
+        Ok(super::ScopeContents {
+            url: format!("https://{}/browse/{}", self.domain, header.key),
+            key: header.key,
+            title: header.fields.summary,
+            description: extract_description_text(&header.fields.description),
+            issues: issues
+                .into_iter()
+                .map(|issue| issue_from_jira(&self.domain, issue))
+                .collect(),
+        })
     }
 
     async fn create_issue(
@@ -884,20 +1003,114 @@ impl super::onboarding::KanbanOnboarding for JiraProvider {
     }
 }
 
+/// Issues normalized from the checked-in relationship fixture.
+#[cfg(test)]
+pub(crate) fn fixture_issues() -> Vec<ExternalIssue> {
+    let body =
+        include_str!("../../../../tests/fixtures/kanban/jira/search_with_relationships.json");
+    let response: JiraSearchResponse = serde_json::from_str(body).unwrap();
+    response
+        .issues
+        .into_iter()
+        .map(|i| issue_from_jira("acme.atlassian.net", i))
+        .collect()
+}
+
+/// The `PROJ-1` epic and its six children from the checked-in fixture.
+#[cfg(test)]
+pub(crate) fn epic_fixture() -> super::ScopeContents {
+    let body = include_str!("../../../../tests/fixtures/kanban/jira/epic_children.json");
+    let response: JiraSearchResponse = serde_json::from_str(body).unwrap();
+    super::ScopeContents {
+        key: "PROJ-1".into(),
+        title: "Pricing overhaul".into(),
+        description: Some("Ship v2 pricing.".into()),
+        url: "https://acme.atlassian.net/browse/PROJ-1".into(),
+        issues: response
+            .issues
+            .into_iter()
+            .map(|i| issue_from_jira("acme.atlassian.net", i))
+            .collect(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_base64_encode() {
-        assert_eq!(simple_base64_encode(b"Hello"), "SGVsbG8=");
+    fn test_search_path_round_trips_jql() {
+        let jql = r#"project = "OPS" AND status IN ("To Do","In Progress")"#;
+        let path = search_path(jql, Some("tok"));
+        let query = path.strip_prefix("/search/jql?").unwrap();
+        let pairs: Vec<(String, String)> = url::form_urlencoded::parse(query.as_bytes())
+            .into_owned()
+            .collect();
         assert_eq!(
-            simple_base64_encode(b"Hello, World!"),
-            "SGVsbG8sIFdvcmxkIQ=="
+            pairs,
+            vec![
+                ("jql".to_string(), jql.to_string()),
+                ("maxResults".to_string(), "100".to_string()),
+                ("fields".to_string(), SEARCH_FIELDS.to_string()),
+                ("nextPageToken".to_string(), "tok".to_string()),
+            ]
         );
-        assert_eq!(simple_base64_encode(b"abc"), "YWJj");
-        assert_eq!(simple_base64_encode(b"ab"), "YWI=");
-        assert_eq!(simple_base64_encode(b"a"), "YQ==");
+    }
+
+    #[test]
+    fn test_scope_jql_drops_assignee_and_keeps_statuses() {
+        assert_eq!(scope_jql("PROJ-1", &[]), r#"parent = "PROJ-1""#);
+        assert_eq!(
+            scope_jql("PROJ-1", &["To Do".to_string()]),
+            r#"parent = "PROJ-1" AND status IN ("To Do")"#
+        );
+    }
+
+    #[test]
+    fn test_search_response_reads_next_page_token() {
+        let page: JiraSearchResponse =
+            serde_json::from_str(r#"{"issues": [], "nextPageToken": "abc"}"#).unwrap();
+        assert_eq!(page.next_page_token.as_deref(), Some("abc"));
+        let last: JiraSearchResponse = serde_json::from_str(r#"{"issues": []}"#).unwrap();
+        assert!(last.next_page_token.is_none());
+    }
+
+    #[test]
+    fn test_search_fields_request_relationships() {
+        for field in ["issuelinks", "parent", "subtasks", "summary", "status"] {
+            assert!(SEARCH_FIELDS.split(',').any(|f| f == field), "{field}");
+        }
+    }
+
+    #[test]
+    fn test_issue_from_jira_maps_inward_blocks_links_only() {
+        let issue = &fixture_issues()[0];
+        assert_eq!(issue.blocked_by, vec!["PROJ-12"]);
+        assert_eq!(issue.url, "https://acme.atlassian.net/browse/PROJ-42");
+    }
+
+    #[test]
+    fn test_issue_from_jira_maps_epic_parent_and_subtasks() {
+        let issue = &fixture_issues()[0];
+        assert_eq!(
+            issue.parent,
+            Some(super::super::ExternalParent {
+                key: "PROJ-1".into(),
+                kind: super::super::ParentKind::Epic,
+            })
+        );
+        assert_eq!(issue.subtasks, vec!["PROJ-43", "PROJ-44"]);
+    }
+
+    #[test]
+    fn test_issue_from_jira_without_links_defaults_empty() {
+        let issue = &fixture_issues()[1];
+        assert!(issue.blocked_by.is_empty());
+        assert!(issue.subtasks.is_empty());
+        assert_eq!(
+            issue.parent.as_ref().map(|p| p.kind),
+            Some(super::super::ParentKind::Issue)
+        );
     }
 
     #[test]

@@ -226,6 +226,18 @@ The `key` field on the synced ticket follows these formats:
 | Pull request  | `octocat/hello!42`        |
 | Draft issue   | `draft:PVTI_lAHO_xxxxxxx` |
 
+### Relationships
+
+| GitHub | Ticket frontmatter |
+|--------|--------------------|
+| Issue dependency ("blocked by") | `depends_on: ["github:octocat/hello#9"]` |
+| Sub-issues | `depends_on` - the parent waits for its sub-issues |
+| Parent issue | `external_parent: github:octocat/hello#3` |
+
+Pull requests and draft issues carry no relationships.
+
+Relationships are pull-only: Operator never writes links or parents back to GitHub. On every sync, the `github:` entries in a ticket's `depends_on` are replaced with what GitHub reports now; ticket ids you added yourself are kept. A blocker that isn't synced stays in `depends_on` as `github:<key>` - the ticket waits on it until it is synced and completed, or the entry is removed. See [Dependencies](/getting-started/tickets/#dependencies-and-campaigns).
+
 ## Creating New Issues
 
 For v1, the GitHub Projects provider creates **draft issues only** via the `addProjectV2DraftIssue` mutation. Draft issues live inside the project (not in any repo) and can be promoted to real issues later from the GitHub UI.

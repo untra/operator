@@ -86,7 +86,7 @@ impl NotificationService {
     ///
     /// This is fire-and-forget - each integration is spawned as a separate task
     /// and errors are logged but not propagated.
-    pub async fn notify(&self, event: NotificationEvent) {
+    pub fn notify(&self, event: NotificationEvent) {
         if !self.enabled {
             return;
         }
@@ -330,7 +330,7 @@ mod tests {
             launch_mode: None,
         };
 
-        service.notify(event).await;
+        service.notify(event);
 
         // Give spawned tasks time to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
@@ -361,7 +361,7 @@ mod tests {
             launch_mode: None,
         };
 
-        service.notify(event).await;
+        service.notify(event);
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         assert_eq!(count.load(Ordering::SeqCst), 0);
@@ -389,7 +389,7 @@ mod tests {
             launch_mode: None,
         };
 
-        service.notify(event).await;
+        service.notify(event);
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         assert_eq!(count.load(Ordering::SeqCst), 0);

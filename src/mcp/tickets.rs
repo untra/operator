@@ -103,7 +103,6 @@ pub async fn return_to_queue(args: Value, state: &ApiState) -> Result<Value, Str
 }
 
 pub async fn create_ticket(args: Value, state: &ApiState) -> Result<Value, String> {
-    use crate::queue::creator::TicketCreator;
     use crate::templates::TemplateType;
     use std::collections::HashMap;
 
@@ -123,19 +122,18 @@ pub async fn create_ticket(args: Value, state: &ApiState) -> Result<Value, Strin
         }
     }
 
-    let config = (*state.config()).clone();
-    let path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
-        let creator = TicketCreator::new(&config);
-        creator
-            .create_ticket_headless(template_type, &values)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())??;
+    let (ticket, path) =
+        crate::rest::routes::tickets::create_ticket_from_values(state, template_type, values)
+            .await
+            .map_err(|e| {
+                let (_, code, message) = e.parts();
+                format!("{code}: {message}")
+            })?;
 
     Ok(json!({
+        "id": ticket.id,
         "path": path.to_string_lossy(),
-        "filename": path.file_name().and_then(|n| n.to_str()).unwrap_or(""),
+        "filename": ticket.filename,
     }))
 }
 
@@ -254,6 +252,7 @@ mod tests {
         )
         .await
         .unwrap();
+        assert_eq!(result["id"], "FEAT-0001");
         let filename = result["filename"].as_str().unwrap();
         assert!(
             filename.contains("FEAT-demo"),

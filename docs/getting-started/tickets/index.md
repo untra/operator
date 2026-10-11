@@ -76,6 +76,41 @@ cargo run -- launch
 Tickets can also be synced from Jira, Linear, or GitHub Projects rather than
 authored by hand. See [Supported Kanban Providers](/getting-started/kanban/).
 
+## Dependencies and campaigns
+
+A ticket can wait on other tickets with `depends_on` in its frontmatter:
+
+```yaml
+depends_on:
+  - FEAT-0012          # a local ticket id
+  - jira:PROJ-12       # an issue from a kanban provider
+```
+
+Each entry is either a local ticket id or a `provider:key` reference (`jira`, `linear`, `github`, `openspec`). Provider references match a synced ticket by its `external_id`, whatever local id it was given - so they keep working if issue type mappings change.
+
+Kanban sync fills `depends_on` from the provider's own relationships (blockers and sub-tasks) and records the epic, project or parent as `external_parent`. Sync only rewrites its own provider's entries; ids you add by hand are kept. A reference to an issue that isn't synced is kept, and the ticket waits on it.
+
+A ticket joins a [campaign](/getting-started/concepts/campaigns/) - a group of tickets planned and launched together - by naming it:
+
+```yaml
+campaign: CAMP-0003
+```
+
+Within a campaign, `depends_on` orders the tickets into waves that run in parallel.
+
+## Viewing a ticket
+
+Every ticket has a page in the web UI at `/#/tickets/<id>` - follow a ticket id from the dashboard, the queue, a campaign or an agent. It shows:
+
+- the ticket's markdown, including its history;
+- its steps, with the current one marked;
+- what it depends on and what depends on it, each linked to its own page;
+- the agent working it, with its pull request.
+
+From the page you can launch a queued ticket, move it to another column, and approve or reject a review the agent is waiting on. A ticket synced from Jira, Linear or GitHub links back to its issue.
+
+**Open in** opens the ticket file, or the agent's worktree, in VS Code, Cursor, Zed or a JetBrains IDE. VS Code and Cursor open the ticket through the [Operator extension](/getting-started/ides/vscode/); a worktree on an SSH host opens over remote SSH. **Session** reaches the agent's terminal: VS Code and Cursor reveal it through the extension, cmux and tmux focus it, tmux also offers the command to attach, and zellij names the tab to switch to.
+
 ## Ticket Directories
 
 ```

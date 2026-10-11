@@ -13,6 +13,14 @@ created: Array<string>,
  */
 skipped: Array<string>, 
 /**
+ * Existing tickets whose synced relationships were refreshed
+ */
+updated: Array<string>, 
+/**
+ * Campaign the synced tickets were stamped with (scoped syncs)
+ */
+campaign?: string | null, 
+/**
  * Error messages for failed syncs
  */
 errors: Array<string>, 

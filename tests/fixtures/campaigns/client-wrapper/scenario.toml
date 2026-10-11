@@ -1,0 +1,9 @@
+# A wrapper that needs a client (VS Code) is refused before the run starts.
+base = "diamond"
+
+[config]
+wrapper = "vscode"
+
+[expect]
+start_error = "client"
+final_status = "ready"

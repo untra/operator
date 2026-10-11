@@ -86,9 +86,8 @@ struct StatusFieldCache {
 /// Resolved (project, item) pair for a given external `issue_key`.
 ///
 /// Populated by `list_issues` so `update_issue_status` can resolve the
-/// human-readable key (e.g. `octocat/hello#42`) back to the `GraphQL` IDs
-/// it needs for the mutation. Cache miss → `update_issue_status` returns
-/// a clear error asking the caller to run `list_issues` first.
+/// human-readable key (e.g. `octocat/hello#42`) back to the `GraphQL` IDs it needs for the mutation.
+// Cache miss `update_issue_status` returns a clear error asking the caller to run `list_issues` first.
 #[derive(Debug, Clone)]
 struct ItemLookup {
     project_id: String,
@@ -830,6 +829,14 @@ enum RawContent {
         labels: Option<RawLabels>,
         #[serde(default, rename = "issueType")]
         issue_type: Option<RawIssueType>,
+        #[serde(default)]
+        parent: Option<RawIssueRef>,
+        #[serde(default, rename = "subIssues")]
+        sub_issues: Option<RawIssueRefs>,
+        #[serde(default, rename = "blockedBy")]
+        blocked_by: Option<RawIssueRefs>,
+        #[serde(default)]
+        state: Option<String>,
     },
     PullRequest {
         #[serde(default)]
@@ -863,6 +870,49 @@ enum RawContent {
 #[serde(rename_all = "camelCase")]
 struct RawRepoRef {
     name_with_owner: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawIssueRef {
+    number: i32,
+    repository: RawRepoRef,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawIssueRefs {
+    nodes: Vec<RawIssueRef>,
+}
+
+fn issue_ref_key(r: &RawIssueRef) -> String {
+    format!("{}#{}", r.repository.name_with_owner, r.number)
+}
+
+/// Relationships of an item's content: `(blocked_by, parent, subtasks)`; only issues carry them.
+fn github_relationships(
+    content: &RawContent,
+) -> (Vec<String>, Option<super::ExternalParent>, Vec<String>) {
+    let RawContent::Issue {
+        parent,
+        sub_issues,
+        blocked_by,
+        ..
+    } = content
+    else {
+        return (Vec::new(), None, Vec::new());
+    };
+    let keys = |refs: &Option<RawIssueRefs>| -> Vec<String> {
+        refs.iter()
+            .flat_map(|r| r.nodes.iter().map(issue_ref_key))
+            .collect()
+    };
+    (
+        keys(blocked_by),
+        parent.as_ref().map(|p| super::ExternalParent {
+            key: issue_ref_key(p),
+            kind: super::ParentKind::Issue,
+        }),
+        keys(sub_issues),
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -1095,130 +1145,17 @@ impl KanbanProvider for GithubProjectsProvider {
                 continue;
             }
 
-            let assignee = assignees.first().map(|a| ExternalUser {
-                id: a
-                    .database_id
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|| a.login.clone()),
-                name: a.name.clone().unwrap_or_else(|| a.login.clone()),
-                email: a.email.clone(),
-                avatar_url: a.avatar_url.clone(),
-            });
-
-            let (issue_id, key, summary, description, url, kanban_issue_types) = match content {
-                RawContent::Issue {
-                    id,
-                    number,
-                    title,
-                    body,
-                    url,
-                    repository,
-                    labels,
-                    issue_type,
-                    ..
-                } => {
-                    let repo = repository
-                        .map(|r| r.name_with_owner)
-                        .unwrap_or_else(|| "unknown/unknown".to_string());
-                    let num = number.unwrap_or(0);
-                    let key = format!("{repo}#{num}");
-                    let kits = if let Some(it) = issue_type {
-                        vec![KanbanIssueTypeRef {
-                            id: it.id,
-                            name: it.name,
-                        }]
-                    } else {
-                        labels
-                            .map(|l| {
-                                l.nodes
-                                    .into_iter()
-                                    .map(|n| KanbanIssueTypeRef {
-                                        id: n.id,
-                                        name: n.name,
-                                    })
-                                    .collect()
-                            })
-                            .unwrap_or_default()
-                    };
-                    (
-                        id.unwrap_or_else(|| key.clone()),
-                        key,
-                        title,
-                        body,
-                        url.unwrap_or_default(),
-                        kits,
-                    )
-                }
-                RawContent::PullRequest {
-                    id,
-                    number,
-                    title,
-                    body,
-                    url,
-                    repository,
-                    labels,
-                    ..
-                } => {
-                    let repo = repository
-                        .map(|r| r.name_with_owner)
-                        .unwrap_or_else(|| "unknown/unknown".to_string());
-                    let num = number.unwrap_or(0);
-                    let key = format!("{repo}!{num}");
-                    let kits = labels
-                        .map(|l| {
-                            l.nodes
-                                .into_iter()
-                                .map(|n| KanbanIssueTypeRef {
-                                    id: n.id,
-                                    name: n.name,
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    (
-                        id.unwrap_or_else(|| key.clone()),
-                        key,
-                        title,
-                        body,
-                        url.unwrap_or_default(),
-                        kits,
-                    )
-                }
-                RawContent::DraftIssue {
-                    id, title, body, ..
-                } => {
-                    let key = format!("draft:{item_id}");
-                    (
-                        id.unwrap_or_else(|| key.clone()),
-                        key,
-                        title,
-                        body,
-                        String::new(),
-                        Vec::new(),
-                    )
-                }
-            };
+            let issue = content_to_issue(content, &item_id, status_name.unwrap_or_default());
 
             // Cache the lookup so update_issue_status can resolve this key later.
             lookup_writes.push((
-                key.clone(),
+                issue.key.clone(),
                 ItemLookup {
                     project_id: project_key.to_string(),
                     item_id: item_id.clone(),
                 },
             ));
-
-            out.push(ExternalIssue {
-                id: issue_id,
-                key,
-                summary,
-                description,
-                kanban_issue_types,
-                status: status_name.unwrap_or_default(),
-                assignee,
-                url,
-                priority: None, // TODO: extract from a Priority single-select field if present
-            });
+            out.push(issue);
         }
 
         // Persist lookups for update_issue_status.
@@ -1230,6 +1167,30 @@ impl KanbanProvider for GithubProjectsProvider {
         }
 
         Ok(out)
+    }
+
+    async fn list_scope(
+        &self,
+        scope: &crate::config::SyncScope,
+        _statuses: &[String],
+    ) -> Result<super::ScopeContents, ApiError> {
+        let crate::config::SyncScope::GithubParent(key) = scope else {
+            return Err(ApiError::http(
+                "github",
+                400,
+                format!("github cannot sync scope {scope:?}"),
+            ));
+        };
+        let (owner, name, number) = parse_issue_key(key).ok_or_else(|| {
+            ApiError::http("github", 400, format!("expected owner/repo#N, got {key}"))
+        })?;
+        let variables = serde_json::json!({ "owner": owner, "name": name, "number": number });
+        let resp: ScopeResponse = self.graphql(PARENT_SCOPE_QUERY, Some(variables)).await?;
+        let parent = resp
+            .repository
+            .and_then(|r| r.issue)
+            .ok_or_else(|| ApiError::http("github", 404, format!("issue {key} not found")))?;
+        Ok(scope_contents(key, parent))
     }
 
     async fn create_issue(
@@ -1325,6 +1286,9 @@ impl KanbanProvider for GithubProjectsProvider {
 
         Ok(CreateIssueResponse {
             issue: ExternalIssue {
+                blocked_by: Vec::new(),
+                parent: None,
+                subtasks: Vec::new(),
                 id: issue_id,
                 key,
                 summary,
@@ -1406,6 +1370,9 @@ impl KanbanProvider for GithubProjectsProvider {
         // would be a second round-trip; the caller already has the rest from
         // its previous list_issues call.
         Ok(ExternalIssue {
+            blocked_by: Vec::new(),
+            parent: None,
+            subtasks: Vec::new(),
             id: lookup.item_id,
             key: issue_key.to_string(),
             summary: String::new(),
@@ -1845,6 +1812,9 @@ impl GithubProjectsProvider {
                                         }
                                         labels(first: 20) { nodes { id name } }
                                         issueType { id name }
+                                        parent { number repository { nameWithOwner } }
+                                        subIssues(first: 50) { nodes { number repository { nameWithOwner } } }
+                                        blockedBy(first: 50) { nodes { number repository { nameWithOwner } } }
                                     }
                                     ... on PullRequest {
                                         id
@@ -1938,6 +1908,216 @@ fn extract_status_and_priority(
 }
 
 /// Extract assignees from a content variant. Returns an empty slice for None.
+/// Normalize a project item's content (issue, pull request or draft) into an `ExternalIssue`.
+/// A parent issue and its open sub-issues, fetched for a scoped sync.
+const PARENT_SCOPE_QUERY: &str = r"
+    query($owner: String!, $name: String!, $number: Int!) {
+        repository(owner: $owner, name: $name) {
+            issue(number: $number) {
+                title
+                body
+                url
+                subIssues(first: 100) {
+                    nodes {
+                        __typename
+                        id
+                        number
+                        title
+                        body
+                        url
+                        state
+                        repository { nameWithOwner }
+                        assignees(first: 10) { nodes { login databaseId name avatarUrl } }
+                        labels(first: 20) { nodes { id name } }
+                        issueType { id name }
+                        parent { number repository { nameWithOwner } }
+                        subIssues(first: 50) { nodes { number repository { nameWithOwner } } }
+                        blockedBy(first: 50) { nodes { number repository { nameWithOwner } } }
+                    }
+                }
+            }
+        }
+    }
+";
+
+#[derive(Debug, Deserialize)]
+struct ScopeResponse {
+    repository: Option<ScopeRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ScopeRepository {
+    issue: Option<ScopeIssue>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ScopeIssue {
+    title: String,
+    #[serde(default)]
+    body: Option<String>,
+    url: String,
+    #[serde(rename = "subIssues")]
+    sub_issues: ScopeIssueNodes,
+}
+
+#[derive(Debug, Deserialize)]
+struct ScopeIssueNodes {
+    nodes: Vec<RawContent>,
+}
+
+/// Split `owner/repo#N`.
+fn parse_issue_key(key: &str) -> Option<(&str, &str, i64)> {
+    let (repo, number) = key.split_once('#')?;
+    let (owner, name) = repo.split_once('/')?;
+    Some((owner, name, number.parse().ok()?))
+}
+
+/// A parent issue as a scope; closed sub-issues are done work and are left out.
+fn scope_contents(key: &str, parent: ScopeIssue) -> super::ScopeContents {
+    let issues = parent
+        .sub_issues
+        .nodes
+        .into_iter()
+        .filter_map(|content| {
+            let state = match &content {
+                RawContent::Issue { state, .. } => state.clone().unwrap_or_default(),
+                _ => return None,
+            };
+            (state != "CLOSED").then(|| content_to_issue(content, key, state))
+        })
+        .collect();
+    super::ScopeContents {
+        key: key.to_string(),
+        title: parent.title,
+        description: parent.body,
+        url: parent.url,
+        issues,
+    }
+}
+
+fn content_to_issue(content: RawContent, item_id: &str, status: String) -> ExternalIssue {
+    let assignees = content_assignees(&content);
+    let (blocked_by, parent, subtasks) = github_relationships(&content);
+    let assignee = assignees.first().map(|a| ExternalUser {
+        id: a
+            .database_id
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| a.login.clone()),
+        name: a.name.clone().unwrap_or_else(|| a.login.clone()),
+        email: a.email.clone(),
+        avatar_url: a.avatar_url.clone(),
+    });
+
+    let (issue_id, key, summary, description, url, kanban_issue_types) = match content {
+        RawContent::Issue {
+            id,
+            number,
+            title,
+            body,
+            url,
+            repository,
+            labels,
+            issue_type,
+            ..
+        } => {
+            let repo = repository
+                .map(|r| r.name_with_owner)
+                .unwrap_or_else(|| "unknown/unknown".to_string());
+            let num = number.unwrap_or(0);
+            let key = format!("{repo}#{num}");
+            let kits = if let Some(it) = issue_type {
+                vec![KanbanIssueTypeRef {
+                    id: it.id,
+                    name: it.name,
+                }]
+            } else {
+                labels
+                    .map(|l| {
+                        l.nodes
+                            .into_iter()
+                            .map(|n| KanbanIssueTypeRef {
+                                id: n.id,
+                                name: n.name,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            };
+            (
+                id.unwrap_or_else(|| key.clone()),
+                key,
+                title,
+                body,
+                url.unwrap_or_default(),
+                kits,
+            )
+        }
+        RawContent::PullRequest {
+            id,
+            number,
+            title,
+            body,
+            url,
+            repository,
+            labels,
+            ..
+        } => {
+            let repo = repository
+                .map(|r| r.name_with_owner)
+                .unwrap_or_else(|| "unknown/unknown".to_string());
+            let num = number.unwrap_or(0);
+            let key = format!("{repo}!{num}");
+            let kits = labels
+                .map(|l| {
+                    l.nodes
+                        .into_iter()
+                        .map(|n| KanbanIssueTypeRef {
+                            id: n.id,
+                            name: n.name,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            (
+                id.unwrap_or_else(|| key.clone()),
+                key,
+                title,
+                body,
+                url.unwrap_or_default(),
+                kits,
+            )
+        }
+        RawContent::DraftIssue {
+            id, title, body, ..
+        } => {
+            let key = format!("draft:{item_id}");
+            (
+                id.unwrap_or_else(|| key.clone()),
+                key,
+                title,
+                body,
+                String::new(),
+                Vec::new(),
+            )
+        }
+    };
+
+    ExternalIssue {
+        blocked_by,
+        parent,
+        subtasks,
+        id: issue_id,
+        key,
+        summary,
+        description,
+        kanban_issue_types,
+        status,
+        assignee,
+        url,
+        priority: None, // TODO: extract from a Priority single-select field if present
+    }
+}
+
 fn content_assignees(content: &RawContent) -> &[RawAssignee] {
     let assignees = match content {
         RawContent::Issue { assignees, .. } => assignees.as_ref(),
@@ -2008,6 +2188,60 @@ mod tests {
             "from_env must not fall back to GITHUB_TOKEN - see Token Disambiguation rule 1"
         );
         env::remove_var("GITHUB_TOKEN");
+    }
+
+    fn fixture_contents() -> Vec<RawContent> {
+        let body =
+            include_str!("../../../../tests/fixtures/kanban/github/items_with_relationships.json");
+        let resp: ListItemsResponse = serde_json::from_str(body).unwrap();
+        resp.node
+            .items
+            .unwrap()
+            .nodes
+            .into_iter()
+            .filter_map(|n| n.content)
+            .collect()
+    }
+
+    #[test]
+    fn test_github_relationships_map_blocked_by_parent_and_sub_issues() {
+        let (blocked_by, parent, subtasks) = github_relationships(&fixture_contents()[0]);
+        assert_eq!(blocked_by, vec!["octo/hello#9"]);
+        assert_eq!(
+            parent,
+            Some(super::super::ExternalParent {
+                key: "octo/hello#3".into(),
+                kind: super::super::ParentKind::Issue,
+            })
+        );
+        assert_eq!(subtasks, vec!["octo/hello#13", "octo/infra#2"]);
+    }
+
+    #[test]
+    fn test_parse_issue_key() {
+        assert_eq!(parse_issue_key("octo/hello#3"), Some(("octo", "hello", 3)));
+        assert_eq!(parse_issue_key("octo/hello"), None);
+        assert_eq!(parse_issue_key("hello#3"), None);
+        assert_eq!(parse_issue_key("octo/hello#x"), None);
+    }
+
+    #[test]
+    fn test_scope_contents_maps_open_sub_issues_with_relationships() {
+        let body =
+            include_str!("../../../../tests/fixtures/kanban/github/parent_with_sub_issues.json");
+        let resp: ScopeResponse = serde_json::from_str(body).unwrap();
+        let parent = resp.repository.unwrap().issue.unwrap();
+        let scope = scope_contents("octo/hello#3", parent);
+        assert_eq!(scope.title, "Sync worker hardening");
+        let keys: Vec<&str> = scope.issues.iter().map(|i| i.key.as_str()).collect();
+        assert_eq!(keys, vec!["octo/hello#12", "octo/hello#13"]);
+        assert_eq!(scope.issues[1].blocked_by, vec!["octo/hello#12"]);
+    }
+
+    #[test]
+    fn test_github_relationships_pull_request_has_none() {
+        let (blocked_by, parent, subtasks) = github_relationships(&fixture_contents()[1]);
+        assert!(blocked_by.is_empty() && parent.is_none() && subtasks.is_empty());
     }
 
     #[test]

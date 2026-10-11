@@ -190,6 +190,7 @@ impl KanbanConfig {
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
                 ticket_project: None,
+                scope: None,
             },
         );
     }
@@ -220,6 +221,7 @@ impl KanbanConfig {
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
                 ticket_project: None,
+                scope: None,
             },
         );
     }
@@ -253,6 +255,7 @@ impl KanbanConfig {
                 type_mappings: std::collections::HashMap::new(),
                 bidirectional: false,
                 ticket_project: None,
+                scope: None,
             },
         );
     }
@@ -379,6 +382,25 @@ pub struct ProjectSyncConfig {
     /// Defaults to the external project key when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ticket_project: Option<String>,
+    /// Sync one upstream container into a campaign instead of the whole project (Premium).
+    /// Scoped syncs pull every member regardless of assignee.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<SyncScope>,
+}
+
+/// An upstream container synced as one campaign.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncScope {
+    /// A Jira epic (or any parent issue) by key, e.g. `PROJ-1`; children are its members.
+    JiraEpic(String),
+    /// A Linear project by id; its issues are the members.
+    LinearProject(String),
+    /// A GitHub parent issue as `owner/repo#N`; its sub-issues are the members.
+    GithubParent(String),
+    /// An OpenSpec change by id; its task groups are the members.
+    OpenspecChange(String),
 }
 
 impl ProjectSyncConfig {

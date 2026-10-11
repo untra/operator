@@ -300,6 +300,10 @@ hosts: Array<RemoteHost>,
  */
 targets: Array<TargetDef>, 
 /**
+ * Named launch policies referenced by `Delegator.governance`.
+ */
+governance: Array<GovernancePolicy>, 
+/**
  * Relay MCP injection configuration
  */
 relay: RelayConfig, 
@@ -310,7 +314,12 @@ mcp: McpConfig,
 /**
  * Agent Client Protocol (ACP) agent configuration
  */
-acp: AcpConfig, };
+acp: AcpConfig, 
+/**
+ * In-daemon LLM calls (judge). Accepted but inert until the `native-llm`
+ * build feature ships; a configured judge falls back to the deterministic rule.
+ */
+native_llm: NativeLlmConfig, };
 
 export type AgentsConfig = { max_parallel: number, cores_reserved: number, 
 /**
@@ -606,6 +615,10 @@ launch_config: DelegatorLaunchConfig | null,
  */
 model_server: string | null, 
 /**
+ * Name of a `[[governance]]` policy enforced on every launch by this delegator.
+ */
+governance?: string | null, 
+/**
  * Declarative reference to a remote, named agent on another platform
  * (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
  *
@@ -753,6 +766,10 @@ model_properties?: { [key in string]: string },
  * Name of a declared `ModelServer` (`None` = implicit vendor default).
  */
 model_server?: string | null, 
+/**
+ * Name of a `[[governance]]` policy.
+ */
+governance?: string | null, 
 /**
  * Launch configuration (permission mode, flags, worktree/docker, prompt
  * wrapping, ...).
@@ -910,7 +927,11 @@ cmux: SessionsCmuxConfig,
 /**
  * Zellij-specific configuration
  */
-zellij: SessionsZellijConfig, };
+zellij: SessionsZellijConfig, 
+/**
+ * How the UI connects you to a launched agent's session
+ */
+connect: SessionsConnectConfig, };
 
 export type SessionWrapperType = "tmux" | "vscode" | "cmux" | "zellij";
 
@@ -1202,7 +1223,11 @@ workdir: string,
 /**
  * SSH config fragment passed with `-F` (used by provisioned coder aliases)
  */
-ssh_config_path?: string | null, };
+ssh_config_path?: string | null, 
+/**
+ * Remote port the reverse tunnel binds for callbacks (None = the local API port)
+ */
+remote_callback_port?: number | null, };
 
 export type CoderConfig = { 
 /**
@@ -1241,9 +1266,31 @@ create_timeout_secs: bigint,
  */
 callback_url?: string | null, 
 /**
- * Passthrough `--parameter` template parameters for `coder create`
+ * Passthrough `--parameter` template parameters for `coder create`.
+ * Values may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}`
  */
-parameters?: { [key in string]: string }, };
+parameters?: { [key in string]: string }, 
+/**
+ * Template preset passed to `coder create --preset`
+ */
+preset?: string | null, 
+/**
+ * Workspace-side port the reverse tunnel binds (None = the local API port)
+ */
+remote_callback_port?: number | null, 
+/**
+ * Env var NAMES resolved on the control plane and shipped to the agent
+ * (e.g. LLM provider credentials); a missing one fails the launch
+ */
+forward_env?: Array<string>, 
+/**
+ * Delete the workspace when the ticket completes (wins over `stop_on_complete`)
+ */
+delete_on_complete: boolean, 
+/**
+ * Delete the workspace when the ticket's PR merges
+ */
+delete_on_merge: boolean, };
 
 export type ProfileIdentity = { id: string, name: string, };
 
@@ -1259,13 +1306,54 @@ project_collection_prefs: { [key in string]: string },
 /**
  * Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`)
  */
-multi_agent_groups: Array<MultiAgentGroup>, };
+multi_agent_groups: Array<MultiAgentGroup>, 
+/**
+ * Campaign id → runner bookkeeping
+ */
+campaign_runs: { [key in string]: CampaignRun }, };
 
 export type AgentState = { 
 /**
  * Non-secret Git configuration captured at launch.
  */
-git_context: GitExecutionConfig | null, id: string, ticket_id: string, ticket_type: string, project: string, status: string, started_at: string, last_activity: string, last_message: string | null, paired: boolean, 
+git_context: GitExecutionConfig | null, 
+/**
+ * Agent ID
+ */
+id: string, 
+/**
+ * Ticket the agent works (e.g. "FEAT-7598")
+ */
+ticket_id: string, 
+/**
+ * Ticket type: FEAT, FIX, INV, SPIKE
+ */
+ticket_type: string, 
+/**
+ * Project the ticket belongs to
+ */
+project: string, 
+/**
+ * "running", "`awaiting_input`", "completing", "orphaned", or "failed" after an interrupted
+ * local shutdown
+ */
+status: string, 
+/**
+ * When the agent launched
+ */
+started_at: string, 
+/**
+ * Last time the agent showed activity
+ */
+last_activity: string, 
+/**
+ * Latest status message from the agent
+ */
+last_message: string | null, 
+/**
+ * Whether the operator works alongside the agent (true for SPIKE and INV)
+ */
+paired: boolean, 
 /**
  * The terminal session name for this agent (for recovery)
  */
@@ -1360,9 +1448,23 @@ step_launch_context: StepLaunchContext | null,
  */
 target_name: string | null, 
 /**
+ * Coder dashboard URL of the workspace this agent runs in
+ */
+workspace_url?: string | null, 
+/**
  * Shutdown recovery strategy.
  */
 shutdown_recovery?: ShutdownRecovery | null, };
+
+export type CampaignRun = { 
+/**
+ * Ticket id → launches made by the runner
+ */
+launches: { [key in string]: number }, started_at?: string | null, last_error?: string | null, 
+/**
+ * Why the run paused, if it did
+ */
+pause_reason?: string | null, };
 
 export type CompletedTicket = { ticket_id: string, ticket_type: string, project: string, summary: string, completed_at: string, pr_url: string | null, output_tickets: Array<string>, };
 
@@ -1412,7 +1514,12 @@ pending_launches: Array<PendingSubAgent>,
 /**
  * Maps launched `agent_id` to the `variant_key` used as the output key.
  */
-agent_variant_keys: { [key in string]: string }, };
+agent_variant_keys: { [key in string]: string }, 
+/**
+ * The in-flight LLM judge call (set when phase = Voting). Its verdict
+ * arrives as a side file keyed by `attempt_id`, never through `State`.
+ */
+judge_attempt: JudgeAttempt | null, };
 
 export type MultiAgentPhase = "fan_out" | "voting" | "complete" | "failed";
 
@@ -1516,7 +1623,15 @@ workflow_hints?: WorkflowHintsDto | null, };
 
 export type WorkflowHintsDto = { loop_kind: string | null, memory_surfaces: Array<string>, review_gates: Array<string>, external_tools: Array<string>, stop_conditions: Array<string>, runner_semantics: string, };
 
-export type HealthResponse = { status: string, version: string, 
+export type HealthResponse = { 
+/**
+ * Always "ok" when the server answers
+ */
+status: string, 
+/**
+ * Operator version that is serving the API
+ */
+version: string, 
 /**
  * Top-level directory name of the operator working root (e.g. "acme").
  */
@@ -1526,7 +1641,15 @@ directory_name: string,
  */
 directory_id: string, };
 
-export type StatusResponse = { status: string, version: string, 
+export type StatusResponse = { 
+/**
+ * Always "ok" when the server answers
+ */
+status: string, 
+/**
+ * Operator version that is serving the API
+ */
+version: string, 
 /**
  * Top-level directory name of the operator working root (e.g. "acme").
  */
@@ -1534,7 +1657,19 @@ directory_name: string,
 /**
  * Non-reversible fingerprint of the working root's canonical path.
  */
-directory_id: string, issuetype_count: number, collection_count: number, active_collection: string, };
+directory_id: string, 
+/**
+ * Number of issue types loaded in the registry
+ */
+issuetype_count: number, 
+/**
+ * Number of collections loaded in the registry
+ */
+collection_count: number, 
+/**
+ * Name of the active collection
+ */
+active_collection: string, };
 
 export type SectionDto = { 
 /**
@@ -1735,6 +1870,224 @@ summary: string | null,
  */
 values: { [key in string]: string }, };
 
+export type GovernancePolicy = { 
+/**
+ * Unique name, referenced by `Delegator.governance`.
+ */
+name: string, 
+/**
+ * Delegator names allowed to launch. Absent = any.
+ */
+allowed_delegators?: Array<string> | null, 
+/**
+ * LLM tool names allowed to launch (e.g. `claude`). Absent = any.
+ */
+allowed_llm_tools?: Array<string> | null, 
+/**
+ * Model server names allowed (declared or implicit, e.g. `anthropic-api`). Absent = any.
+ */
+allowed_model_servers?: Array<string> | null, 
+/**
+ * Execution target names allowed (e.g. `local`, `docker`, a `[[targets]]` name). Absent = any.
+ */
+allowed_targets?: Array<string> | null, 
+/**
+ * Maximum concurrently running agents under this policy.
+ */
+max_parallel?: number | null, 
+/**
+ * Maximum total launches under this policy (counted per campaign run).
+ */
+max_launches?: number | null, 
+/**
+ * Maximum relaunches of a failed ticket (counted per campaign run).
+ */
+max_retries?: number | null, 
+/**
+ * Maximum wall-clock minutes per agent.
+ */
+max_runtime_minutes?: number | null, 
+/**
+ * Spend ceiling in USD. Reserved: accepted and reported, not yet enforced.
+ */
+budget_usd?: number | null, 
+/**
+ * Require operator confirmation before each launch.
+ */
+require_confirmation: boolean, };
+
+export type Campaign = { 
+/**
+ * Campaign id (e.g. `CAMP-0003`); member tickets reference it as `campaign:`.
+ */
+id: string, 
+/**
+ * Human-readable title.
+ */
+title: string, status: CampaignStatus, 
+/**
+ * Creation date (`YYYY-MM-DD`).
+ */
+created: string, 
+/**
+ * Name of a `[[governance]]` policy layered over each delegator's own.
+ */
+governance?: string | null, 
+/**
+ * Inline policy layered over `governance`.
+ */
+governance_overrides?: GovernancePolicy | null, 
+/**
+ * Shared execution environment; absent runs each ticket in its own workspace.
+ */
+workspace?: CampaignWorkspace | null, 
+/**
+ * Upstream container this campaign was synced from (e.g. `jira:PROJ-1`).
+ */
+external_ref?: string | null, };
+
+export type CampaignStatus = "draft" | "ready" | "running" | "paused" | "completed" | "cancelled";
+
+export type CampaignWorkspace = { "kind": "coder", template: string, } | { "kind": "docker", image: string, };
+
+export type BlockReason = { "kind": "dependencies" } | { "kind": "gate", "refs": Array<string> } | { "kind": "unsynced", "refs": Array<string> } | { "kind": "license" } | { "kind": "capacity" };
+
+export type TickReport = { status: CampaignStatus, launched: Array<string>, awaiting_operator: Array<string>, stalled: Array<string>, blocked: { [key in string]: BlockReason }, pause_reason: string | null, };
+
+export type BatchItem = { 
+/**
+ * Batch-local name other items use in `depends_on`.
+ */
+ref: string, 
+/**
+ * Template key (FEAT, FIX, TASK, SPIKE, INV, ...).
+ */
+template: string, project: string | null, summary: string | null, 
+/**
+ * Extra Handlebars values; `project`/`summary` above take precedence.
+ */
+values: { [key in string]: string }, 
+/**
+ * Batch refs, existing ticket ids, or `provider:key` refs.
+ */
+depends_on: Array<string>, };
+
+export type BatchRequest = { campaign: string | null, tickets: Array<BatchItem>, };
+
+export type PlannedTicket = { ref: string, 
+/**
+ * Allocated id; empty when the template is unknown.
+ */
+id: string, template: string, 
+/**
+ * Filename without the date prefix: `TYPE-project-slug`.
+ */
+filename_stem: string, 
+/**
+ * Dependencies with batch refs resolved to allocated ids.
+ */
+depends_on: Array<string>, errors: Array<string>, };
+
+export type BatchPreview = { tickets: Array<PlannedTicket>, 
+/**
+ * Allocated ids in dependency waves.
+ */
+waves: Array<Array<string>>, 
+/**
+ * Batch-wide errors (cycles, unknown campaign).
+ */
+errors: Array<string>, valid: boolean, };
+
+export type CreatedTicket = { ref: string, id: string, filename: string, };
+
+export type BatchCreated = { tickets: Array<CreatedTicket>, waves: Array<Array<string>>, };
+
+export type NewCampaignInput = { title: string, 
+/**
+ * Markdown goal written as the campaign body.
+ */
+goal: string | null, 
+/**
+ * Name of a `[[governance]]` policy.
+ */
+governance: string | null, 
+/**
+ * Inline policy layered over `governance`.
+ */
+governance_overrides: GovernancePolicy | null, workspace: CampaignWorkspace | null, };
+
+export type CampaignMember = { id: string, summary: string, project: string, 
+/**
+ * `queue`, `in-progress` or `completed`.
+ */
+column: string, depends_on: Array<string>, 
+/**
+ * Launches made by the runner.
+ */
+launches: number, };
+
+export type CampaignDetail = { campaign: Campaign, members: Array<CampaignMember>, waves: Array<Array<string>>, 
+/**
+ * Member id → local tickets outside the campaign it waits on.
+ */
+gates: { [key in string]: Array<string> }, 
+/**
+ * Member id → unsynced upstream refs it waits on.
+ */
+unsynced: { [key in string]: Array<string> }, plan_error?: string | null, };
+
+export type CampaignCounters = { launched: number, max_launches: number | null, 
+/**
+ * Members in progress.
+ */
+active: number, max_parallel: number | null, 
+/**
+ * Most relaunches of any one member.
+ */
+retries: number, max_retries: number | null, };
+
+export type CampaignStatusView = { id: string, status: CampaignStatus, tickets: Array<CampaignMember>, waves: Array<Array<string>>, 
+/**
+ * What the next tick would do.
+ */
+report: TickReport, counters: CampaignCounters, 
+/**
+ * The policy the campaign layers over each delegator's own.
+ */
+policy: GovernancePolicy, pause_reason?: string | null, };
+
+export type CampaignLaunchOutcome = { id: string, dry_run: boolean, status: CampaignStatus, waves: Array<Array<string>>, policy: GovernancePolicy, 
+/**
+ * Reasons the campaign cannot start; empty when it can.
+ */
+violations: Array<string>, 
+/**
+ * The first tick, run or (for a dry run) assessed.
+ */
+report: TickReport, };
+
+export type AssignCampaignRequest = { 
+/**
+ * Campaign id; null removes the ticket from its campaign.
+ */
+campaign: string | null, 
+/**
+ * Replaces the ticket's `depends_on` when present.
+ */
+depends_on: Array<string> | null, };
+
+export type AssignCampaignResponse = { id: string, campaign: string | null, depends_on: Array<string>, };
+
+export type LaunchCampaignRequest = { 
+/**
+ * Report the plan, policy and violations without starting.
+ */
+dry_run: boolean, };
+
+export type CampaignSummary = { campaign: Campaign, members: number, };
+
+export type CampaignListResponse = { campaigns: Array<CampaignSummary>, total: number, };
+
 export type CreateTicketResponse = { 
 /**
  * The created ticket's id (e.g. `FEAT-1234`).
@@ -1835,6 +2188,10 @@ model_properties: { [key in string]: string },
  */
 model_server: string | null, 
 /**
+ * Name of a `[[governance]]` policy enforced on this delegator's launches.
+ */
+governance: string | null, 
+/**
  * Optional launch configuration
  */
 launch_config: DelegatorLaunchConfigDto | null, 
@@ -1883,6 +2240,10 @@ model_properties: { [key in string]: string },
  * Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
  */
 model_server: string | null, 
+/**
+ * Name of a `[[governance]]` policy enforced on this delegator's launches.
+ */
+governance: string | null, 
 /**
  * Optional launch configuration
  */
@@ -1961,7 +2322,11 @@ export type JiraSearchResponse = {
 /**
  * List of issues matching the JQL query
  */
-issues: Array<JiraIssue>, };
+issues: Array<JiraIssue>, 
+/**
+ * Token for the next page; absent on the last page
+ */
+nextPageToken: string | null, };
 
 export type JiraIssue = { 
 /**
@@ -2001,7 +2366,19 @@ assignee: JiraUser | null,
 /**
  * Issue priority (if set)
  */
-priority: JiraPriority | null, };
+priority: JiraPriority | null, 
+/**
+ * Links to other issues (blocks, relates, ...)
+ */
+issuelinks: Array<JiraIssueLink>, 
+/**
+ * Parent issue or epic
+ */
+parent: JiraLinkedIssue | null, 
+/**
+ * Sub-task issues
+ */
+subtasks: Array<JiraLinkedIssue>, };
 
 export type JiraUser = { 
 /**

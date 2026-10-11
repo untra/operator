@@ -1,0 +1,23 @@
+# A -> (B || C across repos) -> D; the pair launches in the same tick.
+[config]
+max_parallel = 4
+max_agents_per_repo = 2
+
+[expect]
+waves = [["FEAT-0001"], ["FIX-0003", "FEAT-0002"], ["TASK-0004"]]
+final_status = "completed"
+
+[[tick]]
+launch = ["FEAT-0001"]
+status = "running"
+
+[[tick]]
+launch = ["FIX-0003", "FEAT-0002"]
+status = "running"
+
+[[tick]]
+launch = ["TASK-0004"]
+status = "running"
+
+[[tick]]
+status = "completed"

@@ -196,6 +196,7 @@ mod tests {
                 ssh_alias: "alias".to_string(),
                 workdir: "/srv".to_string(),
                 ssh_config_path: None,
+                remote_callback_port: None,
             }),
         }
     }

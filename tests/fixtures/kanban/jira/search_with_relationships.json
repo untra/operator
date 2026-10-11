@@ -1,0 +1,58 @@
+{
+  "issues": [
+    {
+      "id": "10042",
+      "key": "PROJ-42",
+      "fields": {
+        "summary": "Wire checkout to the new pricing API",
+        "description": null,
+        "issuetype": { "id": "10001", "name": "Story" },
+        "status": { "name": "To Do" },
+        "assignee": null,
+        "priority": { "name": "High" },
+        "parent": {
+          "id": "10001",
+          "key": "PROJ-1",
+          "fields": {
+            "summary": "Pricing overhaul",
+            "issuetype": { "id": "10000", "name": "Epic", "hierarchyLevel": 1 }
+          }
+        },
+        "issuelinks": [
+          {
+            "id": "20001",
+            "type": { "id": "10000", "name": "Blocks", "inward": "is blocked by", "outward": "blocks" },
+            "inwardIssue": { "id": "10012", "key": "PROJ-12", "fields": { "summary": "Pricing API" } }
+          },
+          {
+            "id": "20002",
+            "type": { "id": "10000", "name": "Blocks", "inward": "is blocked by", "outward": "blocks" },
+            "outwardIssue": { "id": "10050", "key": "PROJ-50", "fields": { "summary": "Downstream" } }
+          },
+          {
+            "id": "20003",
+            "type": { "id": "10003", "name": "Relates", "inward": "relates to", "outward": "relates to" },
+            "inwardIssue": { "id": "10013", "key": "PROJ-13", "fields": { "summary": "Related" } }
+          }
+        ],
+        "subtasks": [
+          { "id": "10043", "key": "PROJ-43", "fields": { "summary": "Sub one" } },
+          { "id": "10044", "key": "PROJ-44", "fields": { "summary": "Sub two" } }
+        ]
+      }
+    },
+    {
+      "id": "10060",
+      "key": "PROJ-60",
+      "fields": {
+        "summary": "Story under a non-epic parent, no links",
+        "description": null,
+        "issuetype": { "name": "Sub-task" },
+        "status": { "name": "In Progress" },
+        "assignee": null,
+        "priority": null,
+        "parent": { "id": "10042", "key": "PROJ-42", "fields": { "issuetype": { "name": "Story" } } }
+      }
+    }
+  ]
+}

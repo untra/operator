@@ -43,6 +43,8 @@ pub enum ApiError {
     /// with a mismatched `Origin`.
     CsrfFailed(String),
     NotEntitled(crate::licensing::NotEntitled),
+    /// A launch refused by a `[[governance]]` policy.
+    GovernanceDenied(crate::config::governance::GovernanceViolation),
 }
 
 /// Error response body
@@ -75,6 +77,11 @@ impl ApiError {
             ApiError::NotEntitled(error) => (
                 StatusCode::PAYMENT_REQUIRED,
                 "not_entitled",
+                error.to_string(),
+            ),
+            ApiError::GovernanceDenied(error) => (
+                StatusCode::FORBIDDEN,
+                "governance_denied",
                 error.to_string(),
             ),
         }
@@ -112,6 +119,27 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Pre-built error response, boxed to keep handler `Result`s small.
+pub struct Rejection(Box<Response>);
+
+impl IntoResponse for Rejection {
+    fn into_response(self) -> Response {
+        *self.0
+    }
+}
+
+impl From<Response> for Rejection {
+    fn from(response: Response) -> Self {
+        Self(Box::new(response))
+    }
+}
+
+impl From<ApiError> for Rejection {
+    fn from(error: ApiError) -> Self {
+        Self(Box::new(error.into_response()))
+    }
+}
+
 impl From<std::io::Error> for ApiError {
     fn from(err: std::io::Error) -> Self {
         ApiError::InternalError(err.to_string())
@@ -126,8 +154,11 @@ impl From<serde_json::Error> for ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(err: anyhow::Error) -> Self {
-        match err.downcast_ref::<crate::licensing::NotEntitled>() {
-            Some(error) => Self::NotEntitled(error.clone()),
+        if let Some(error) = err.downcast_ref::<crate::licensing::NotEntitled>() {
+            return Self::NotEntitled(error.clone());
+        }
+        match err.downcast_ref::<crate::config::governance::GovernanceViolation>() {
+            Some(error) => Self::GovernanceDenied(error.clone()),
             None => Self::InternalError(err.to_string()),
         }
     }
@@ -164,6 +195,22 @@ mod tests {
             body.required_tier.as_deref(),
             Some(crate::licensing::PREMIUM_TIER)
         );
+    }
+
+    #[tokio::test]
+    async fn test_governance_denial_is_forbidden_with_stable_code() {
+        let error = crate::config::governance::GovernanceViolation {
+            policy: "local-only".into(),
+            reason: "target 'coder' is not allowed".into(),
+        };
+        let response =
+            ApiError::from(anyhow::Error::new(error).context("launch rejected")).into_response();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body.error, "governance_denied");
+        assert!(body.message.contains("local-only"));
+        assert!(body.feature.is_none());
     }
 
     #[tokio::test]

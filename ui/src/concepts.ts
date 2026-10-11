@@ -134,6 +134,15 @@ export const CONCEPTS: Record<string, Concept> = {
     docsUrl: `${DOCS_BASE}/getting-started/remote-targets/`,
     summary: "SSH hosts and Coder workspaces agents can run on. Requires Premium.",
   },
+  campaigns: {
+    key: "campaigns",
+    icon: "milestone",
+    label: "Campaigns",
+    route: "/campaigns",
+    docsUrl: `${DOCS_BASE}/getting-started/concepts/campaigns/`,
+    summary:
+      "Epics of tickets planned into dependency waves and launched together. Requires Premium.",
+  },
   license: {
     key: "license",
     icon: "key",
@@ -161,4 +170,4 @@ export const STATUS_KEYS = [
 ] as const;
 
 /** Sidebar order for the web-only pages. */
-export const PAGE_KEYS = ["dashboard", "queue"] as const;
+export const PAGE_KEYS = ["dashboard", "queue", "campaigns"] as const;

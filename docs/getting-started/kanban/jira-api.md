@@ -25,6 +25,7 @@ Response from the JQL search endpoint.
 | Property | Type | Description |
 | --- | --- | --- |
 | `issues` | `JiraIssue`[] | List of issues matching the JQL query |
+| `nextPageToken` | `string` (optional) | Token for the next page; absent on the last page |
 
 ## Type Definitions
 
@@ -66,6 +67,28 @@ Fields of a Jira issue
 | `status` | `JiraStatusRef` | Current workflow status |
 | `assignee` | `JiraUser` (optional) | Assigned user (if any) |
 | `priority` | `JiraPriority` (optional) | Issue priority (if set) |
+| `issuelinks` | `JiraIssueLink`[] | Links to other issues (blocks, relates, ...) |
+| `parent` | `JiraLinkedIssue` (optional) | Parent issue or epic |
+| `subtasks` | `JiraLinkedIssue`[] | Sub-task issues |
+
+### JiraIssueLink
+
+A link between two Jira issues
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `type` | `JiraIssueLinkType` | Link type, e.g. `Blocks` with inward text `is blocked by` |
+| `inwardIssue` | `JiraLinkedIssue` (optional) | Present when the other issue is on the inward side (e.g. the blocker) |
+| `outwardIssue` | `JiraLinkedIssue` (optional) | Present when the other issue is on the outward side (e.g. the blocked) |
+
+### JiraIssueLinkType
+
+Jira issue link type
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Link type name (e.g. "Blocks") |
+| `inward` | `string` | Inward description (e.g. "is blocked by") |
 
 ### JiraIssueTypeRef
 
@@ -75,6 +98,23 @@ Reference to an issue type
 | --- | --- | --- |
 | `id` | `string` (optional) | Issue type ID (e.g., "10001") |
 | `name` | `string` | Issue type name (e.g., "Bug", "Story", "Task") |
+
+### JiraLinkedFields
+
+Partial fields of a related issue
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `issuetype` | `JiraIssueTypeRef` (optional) | Issue type of the related issue |
+
+### JiraLinkedIssue
+
+A related issue as embedded in links, parent and subtasks
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | Issue key (e.g. "PROJ-12") |
+| `fields` | `JiraLinkedFields` (optional) | Partial fields; only the issue type is read |
 
 ### JiraPriority
 

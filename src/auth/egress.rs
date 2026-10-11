@@ -90,8 +90,7 @@ fn is_always_forbidden(ip: IpAddr) -> bool {
         IpAddr::V6(v6) => {
             v6.is_multicast()
                 || v6.is_unspecified()
-                // fe80::/10 link-local
-                || (v6.segments()[0] & 0xffc0) == 0xfe80
+                || v6.is_unicast_link_local()
                 // IPv4-mapped addresses re-enter the v4 rules; without this a forbidden v4 address could be smuggled in as ::ffff:169.254.169.254
                 || v6.to_ipv4_mapped().is_some_and(|v4| is_always_forbidden(IpAddr::V4(v4)))
         }
@@ -102,8 +101,7 @@ fn is_always_forbidden(ip: IpAddr) -> bool {
 fn is_private(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => v4.is_private(),
-        // fc00::/7 unique local
-        IpAddr::V6(v6) => (v6.segments()[0] & 0xfe00) == 0xfc00,
+        IpAddr::V6(v6) => v6.is_unique_local(),
     }
 }
 
@@ -211,6 +209,7 @@ mod tests {
             "http://224.0.0.1/",
             "http://[ff02::1]/",
             "http://[fe80::1]/",
+            "http://[febf::1]/",
             "http://0.0.0.0/",
         ] {
             assert!(
@@ -251,6 +250,8 @@ mod tests {
             "http://10.1.2.3/",
             "http://192.168.1.5/",
             "http://172.16.0.9/",
+            "http://[fc00::1]/",
+            "http://[fd12:3456::1]/",
         ] {
             assert!(validate(url, &permissive()).is_ok(), "{url} under default");
             assert!(

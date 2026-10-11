@@ -21,6 +21,7 @@ import type { BootstrapSubmitRequest } from "@operator/bindings/BootstrapSubmitR
 import type { OperatorApi } from "../api-client";
 import type { MutationDefinition, QueryDefinition } from "./adapter";
 import {
+  CAMPAIGN_QUERY_KEYS,
   ISSUE_TYPE_QUERY_KEYS,
   LICENSE_QUERY_KEYS,
   MODEL_QUERY_KEYS,
@@ -101,6 +102,10 @@ export const kanbanQuery = staticRead(QUERY_KEYS.kanban, (api) => api.kanban());
 
 export const activeAgentsQuery = staticRead(QUERY_KEYS.activeAgents, (api) => api.activeAgents());
 
+export const ticketQuery = memoizeDefinition((ticketId: string) =>
+  readWith(QUERY_KEYS.ticket, { ticketId }, (api, params) => api.ticket(params.ticketId)),
+);
+
 export const agentQuery = memoizeDefinition((agentId: string) =>
   readWith(QUERY_KEYS.agent, { agentId }, (api, params) => api.getAgent(params.agentId)),
 );
@@ -134,6 +139,16 @@ export const projectsQuery = staticRead(QUERY_KEYS.projects, (api) => api.listPr
 export const licenseQuery = staticRead(QUERY_KEYS.license, (api) => api.license());
 
 export const targetsQuery = staticRead(QUERY_KEYS.targets, (api) => api.targets());
+
+export const campaignsQuery = staticRead(QUERY_KEYS.campaigns, (api) => api.campaigns());
+
+export const campaignQuery = memoizeDefinition((id: string) =>
+  readWith(QUERY_KEYS.campaign, { id }, (api, params) => api.campaign(params.id)),
+);
+
+export const campaignStatusQuery = memoizeDefinition((id: string) =>
+  readWith(QUERY_KEYS.campaignStatus, { id }, (api, params) => api.campaignStatus(params.id)),
+);
 
 export const sessionsQuery = staticRead(QUERY_KEYS.sessions, (api) => api.listSessions());
 
@@ -325,6 +340,33 @@ export const probeTargetMutation: MutationDefinition<ApiResult<"probeTarget">, {
   key: "probe-target",
   affected: [QUERY_KEYS.targets],
   run: (api, variables) => api.probeTarget(variables.name),
+};
+
+export const moveTicketMutation: MutationDefinition<
+  ApiResult<"moveTicket">,
+  { ticketId: string; status: string }
+> = {
+  key: "move-ticket",
+  affected: [...TICKET_QUERY_KEYS, ...CAMPAIGN_QUERY_KEYS],
+  run: (api, variables) => api.moveTicket(variables.ticketId, variables.status),
+};
+
+export const launchCampaignMutation: MutationDefinition<
+  ApiResult<"launchCampaign">,
+  { id: string; dryRun: boolean }
+> = {
+  key: "launch-campaign",
+  affected: [...CAMPAIGN_QUERY_KEYS],
+  run: (api, variables) => api.launchCampaign(variables.id, variables.dryRun),
+};
+
+export const pauseCampaignMutation: MutationDefinition<
+  ApiResult<"pauseCampaign">,
+  { id: string }
+> = {
+  key: "pause-campaign",
+  affected: [...CAMPAIGN_QUERY_KEYS],
+  run: (api, variables) => api.pauseCampaign(variables.id),
 };
 
 export const pauseQueueMutation: MutationDefinition<

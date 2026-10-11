@@ -3,4 +3,17 @@
 /**
  * Supplied HTTPS credential, bound to a repository; contains no secret value.
  */
-export type GitCredentialConfig = { repository_url: string, username: string, token_env: string, };
+export type GitCredentialConfig = { 
+/**
+ * HTTPS repository URL the credential is bound to, with no embedded credentials, query or
+ * fragment
+ */
+repository_url: string, 
+/**
+ * HTTPS username sent with the token
+ */
+username: string, 
+/**
+ * Environment variable holding the token, read at launch
+ */
+token_env: string, };

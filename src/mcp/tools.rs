@@ -25,7 +25,7 @@ pub struct McpToolDefinition {
 
 /// Returns all available MCP tool definitions
 pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
-    vec![
+    let mut tools = vec![
         McpToolDefinition {
             name: "operator_health".to_string(),
             description: "Check Operator API health status".to_string(),
@@ -249,7 +249,9 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
                 "required": ["id", "reason"]
             }),
         },
-    ]
+    ];
+    tools.extend(crate::mcp::campaigns::definitions());
+    tools
 }
 
 /// Gate the ticket-mutating tools.
@@ -360,6 +362,24 @@ pub async fn execute_tool(
             require_write_tools(state, scopes)?;
             crate::mcp::tickets::create_ticket(args, state).await
         }
+        "operator_preview_ticket_batch" => crate::mcp::campaigns::preview(args, state).await,
+        "operator_create_tickets_bulk" => {
+            require_write_tools(state, scopes)?;
+            crate::mcp::campaigns::create_bulk(args, state).await
+        }
+        "operator_create_campaign" => {
+            require_write_tools(state, scopes)?;
+            crate::mcp::campaigns::create_campaign(args, state).await
+        }
+        "operator_assign_ticket_campaign" => {
+            require_write_tools(state, scopes)?;
+            crate::mcp::campaigns::assign(args, state).await
+        }
+        "operator_launch_campaign" => {
+            require_write_tools(state, scopes)?;
+            crate::mcp::campaigns::launch(args, state).await
+        }
+        "operator_campaign_status" => crate::mcp::campaigns::status(args, state).await,
         "operator_launch_ticket" => {
             require_write_tools(state, scopes)?;
             let id = args
@@ -490,7 +510,7 @@ mod tests {
     #[test]
     fn test_all_tool_definitions_count() {
         let tools = all_tool_definitions();
-        assert_eq!(tools.len(), 18);
+        assert_eq!(tools.len(), 24);
     }
 
     #[test]
@@ -512,6 +532,16 @@ mod tests {
         assert!(names.contains(&"operator_sync_kanban"));
         assert!(names.contains(&"operator_approve_agent"));
         assert!(names.contains(&"operator_reject_agent"));
+        for tool in [
+            "operator_preview_ticket_batch",
+            "operator_create_tickets_bulk",
+            "operator_create_campaign",
+            "operator_assign_ticket_campaign",
+            "operator_launch_campaign",
+            "operator_campaign_status",
+        ] {
+            assert!(names.contains(&tool), "{tool}");
+        }
     }
 
     #[test]

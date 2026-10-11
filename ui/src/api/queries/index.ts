@@ -13,6 +13,7 @@ export const QUERY_KEYS = {
   kanban: "kanban",
   activeAgents: "active-agents",
   agent: "agent",
+  ticket: "ticket",
   configuration: "configuration",
   executionTargets: "execution-targets",
   llmTools: "llm-tools",
@@ -23,6 +24,9 @@ export const QUERY_KEYS = {
   projects: "projects",
   license: "license",
   targets: "targets",
+  campaigns: "campaigns",
+  campaign: "campaign",
+  campaignStatus: "campaign-status",
   sessions: "sessions",
   accessKeys: "access-keys",
   providerKinds: "provider-kinds",
@@ -39,6 +43,7 @@ export const STATUS_POLL_MS = 3000;
 export const AGENT_POLL_MS = 5000;
 
 export const TICKET_QUERY_KEYS = [
+  QUERY_KEYS.ticket,
   QUERY_KEYS.kanban,
   QUERY_KEYS.queueStatus,
   QUERY_KEYS.activeAgents,
@@ -58,6 +63,16 @@ export const LICENSE_QUERY_KEYS = [
   QUERY_KEYS.license,
   QUERY_KEYS.targets,
   QUERY_KEYS.executionTargets,
+  QUERY_KEYS.campaigns,
+  QUERY_KEYS.campaign,
+  QUERY_KEYS.campaignStatus,
+] as const;
+
+export const CAMPAIGN_QUERY_KEYS = [
+  QUERY_KEYS.campaigns,
+  QUERY_KEYS.campaign,
+  QUERY_KEYS.campaignStatus,
+  ...TICKET_QUERY_KEYS,
 ] as const;
 
 export const ISSUE_TYPE_QUERY_KEYS = [

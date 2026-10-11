@@ -2,6 +2,8 @@
 #![allow(unused_imports)]
 
 pub mod creator;
+pub mod deps;
+pub mod ids;
 mod ticket;
 mod watcher;
 
@@ -37,6 +39,15 @@ impl TicketColumn {
     }
 }
 
+/// Launch order: issuetype rank, then the ticket's own priority, then FIFO.
+pub fn queue_order_key(config: &Config, ticket: &Ticket) -> (usize, TicketPriority, String) {
+    (
+        config.priority_index(&ticket.ticket_type),
+        ticket.priority_level(),
+        ticket.timestamp.clone(),
+    )
+}
+
 pub struct Queue {
     config: Config,
     queue_path: PathBuf,
@@ -63,15 +74,7 @@ impl Queue {
     pub fn list_by_priority(&self) -> Result<Vec<Ticket>> {
         let mut tickets = self.list_queue()?;
 
-        tickets.sort_by(|a, b| {
-            let priority_a = self.config.priority_index(&a.ticket_type);
-            let priority_b = self.config.priority_index(&b.ticket_type);
-
-            priority_a
-                .cmp(&priority_b)
-                .then_with(|| a.priority_level().cmp(&b.priority_level()))
-                .then_with(|| a.timestamp.cmp(&b.timestamp))
-        });
+        tickets.sort_by_cached_key(|t| queue_order_key(&self.config, t));
 
         Ok(tickets)
     }

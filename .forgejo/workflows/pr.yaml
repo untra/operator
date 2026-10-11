@@ -1,0 +1,80 @@
+name: pr
+on:
+  pull_request:
+    branches: [main]
+
+# Required check on main: builds the arm64 Dockerfile.local image this PR would deploy, then runs e2e/ against it.
+#   arm64  runs-on: docker  native arm64 buildx --load (nothing pushed), then scripts/ci/e2e.sh
+# Lint and unit tests stay on GitHub build.yaml; this gate proves the casa image boots and onboards.
+#
+# Variables: REGISTRY_IMAGE
+# Secrets:   REGISTRY_USERNAME, REGISTRY_TOKEN,
+#            OPERATOR_LICENSE_ROOT_KEYS (dev root only), OPERATOR_LICENSE_ISSUER, OPERATOR_PURCHASE_URL,
+#            OPERATOR_E2E_LICENSE_TOKEN (optional; the license suite skips without it), OPERATOR_E2E_CA_CERT (optional)
+
+concurrency:
+  group: pr-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  arm64:
+    runs-on: docker
+    steps:
+      - name: License secrets present
+        run: |
+          missing=0
+          for name in OPERATOR_LICENSE_ROOT_KEYS OPERATOR_LICENSE_ISSUER; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "::error::repository secret $name is unset or empty"
+              missing=1
+            fi
+          done
+          exit "$missing"
+        env:
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+
+      - uses: https://forgejo.kube.untra.casa/actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=pr-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Registry login
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "${REGISTRY_IMAGE%%/*}" -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+
+      # Reads main's cache but never writes it: PR layers stay off the registry and clear of the ingress upload limit.
+      - name: Build
+        run: |
+          docker buildx build \
+            --file Dockerfile.local \
+            --build-arg BASE_REGISTRY="${REGISTRY_IMAGE%/*}/mirror/" \
+            --build-arg OPERATOR_RELEASE=1 \
+            --build-arg OPERATOR_LICENSE_ISSUER="$OPERATOR_LICENSE_ISSUER" \
+            --build-arg OPERATOR_LICENSE_ROOT_KEYS="$OPERATOR_LICENSE_ROOT_KEYS" \
+            --build-arg OPERATOR_PURCHASE_URL="$OPERATOR_PURCHASE_URL" \
+            --cache-from "type=registry,ref=$REGISTRY_IMAGE:buildcache" \
+            --tag "operator:${{ steps.meta.outputs.tag }}" \
+            --load \
+            .
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          OPERATOR_PURCHASE_URL: ${{ secrets.OPERATOR_PURCHASE_URL }}
+
+      - name: E2E
+        run: |
+          export BASE_REGISTRY="${REGISTRY_IMAGE%/*}/mirror/"
+          scripts/ci/e2e.sh "operator:${{ steps.meta.outputs.tag }}"
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          E2E_RUN_ID: ${{ github.run_id }}
+          OPERATOR_E2E_ISSUER_URL: https://webhook.operator.untra.casa
+          OPERATOR_E2E_LICENSE_TOKEN: ${{ secrets.OPERATOR_E2E_LICENSE_TOKEN }}
+          OPERATOR_E2E_CA_CERT: ${{ secrets.OPERATOR_E2E_CA_CERT }}
+
+      - name: Remove image
+        if: always()
+        run: docker rmi "operator:${{ steps.meta.outputs.tag }}" || true

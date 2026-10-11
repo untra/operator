@@ -146,6 +146,12 @@ variable "callback_url" {
   default     = ""
 }
 
+variable "client_only" {
+  type        = bool
+  description = "Install only the opr8r client: no API server, or dashboard app. For agent workspaces that an Operator elsewhere launches into."
+  default     = false
+}
+
 variable "use_cached" {
   type        = bool
   description = "Use a cached operator binary if present, otherwise download from GitHub."
@@ -166,6 +172,7 @@ resource "coder_script" "operator" {
     SESSION_WRAPPER     = var.session_wrapper,
     OFFLINE             = var.offline,
     USE_CACHED          = var.use_cached,
+    CLIENT_ONLY         = var.client_only,
     AGENT_TEMPLATE      = var.agent_template,
     CODER_TOKEN_ENV     = var.coder_token_env,
     CALLBACK_URL        = var.callback_url,
@@ -185,6 +192,7 @@ resource "coder_script" "operator" {
 }
 
 resource "coder_app" "operator" {
+  count        = var.client_only ? 0 : 1
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name

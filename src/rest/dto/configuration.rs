@@ -117,6 +117,9 @@ pub struct DelegatorResponse {
     /// Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_server: Option<String>,
+    /// Name of a `[[governance]]` policy enforced on this delegator's launches.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub governance: Option<String>,
     /// Optional launch configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub launch_config: Option<DelegatorLaunchConfigDto>,
@@ -148,6 +151,9 @@ pub struct CreateDelegatorRequest {
     /// Name of a declared `ModelServer`. `None` means use the `llm_tool`'s implicit vendor default.
     #[serde(default)]
     pub model_server: Option<String>,
+    /// Name of a `[[governance]]` policy enforced on this delegator's launches.
+    #[serde(default)]
+    pub governance: Option<String>,
     /// Optional launch configuration
     #[serde(default)]
     pub launch_config: Option<DelegatorLaunchConfigDto>,
@@ -754,6 +760,7 @@ mod tests {
     #[test]
     fn test_delegator_response_roundtrip() {
         let resp = DelegatorResponse {
+            governance: None,
             git: None,
             name: "claude-opus".to_string(),
             llm_tool: "claude".to_string(),

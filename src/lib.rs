@@ -9,6 +9,7 @@
 pub mod agents;
 pub mod api;
 pub mod auth;
+pub mod campaigns;
 pub mod collections;
 pub mod config;
 pub mod editors;

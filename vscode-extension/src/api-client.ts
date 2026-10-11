@@ -15,6 +15,7 @@ import { ApiError, AuthRequiredError } from "./auth/errors";
 // Import generated types from Rust bindings (source of truth)
 import type {
   ActiveAgentsResponse,
+  ConnectTerminal,
   CurrentSessionResponse,
   KanbanBoardResponse,
   LaunchTicketRequest,
@@ -54,6 +55,12 @@ import type {
   McpDescriptorResponse,
   LicenseResponse,
   TargetsResponse,
+  CampaignListResponse,
+  CampaignStatusView,
+  TicketDetailResponse,
+  CampaignLaunchOutcome,
+  LaunchCampaignRequest,
+  TickReport,
 } from "./generated";
 
 // Re-export generated types for consumers
@@ -381,6 +388,11 @@ export class OperatorApiClient {
     return this.request("/api/v1/agents/active");
   }
 
+  /** What to run after opening an agent's workspace: attach while live, resume once gone. */
+  async connectTerminal(agentId: string): Promise<ConnectTerminal> {
+    return this.request(`/api/v1/agents/${encodeURIComponent(agentId)}/connect/terminal`);
+  }
+
   /**
    * Pause queue processing
    *
@@ -683,5 +695,33 @@ export class OperatorApiClient {
   /** Remote targets with their entitlement state. */
   async listTargets(): Promise<TargetsResponse> {
     return this.request("/api/v1/targets");
+  }
+
+  /** Full ticket detail, including where its file lives. */
+  async getTicket(id: string): Promise<TicketDetailResponse> {
+    return this.request(`/api/v1/tickets/${encodeURIComponent(id)}`);
+  }
+
+  async listCampaigns(): Promise<CampaignListResponse> {
+    return this.request("/api/v1/campaigns");
+  }
+
+  /** Members, waves, and what the next tick would do. */
+  async campaignStatus(id: string): Promise<CampaignStatusView> {
+    return this.request(`/api/v1/campaigns/${encodeURIComponent(id)}/status`);
+  }
+
+  /** Start a campaign, or preview the start with `dryRun`. */
+  async launchCampaign(id: string, dryRun: boolean): Promise<CampaignLaunchOutcome> {
+    const body: LaunchCampaignRequest = { dry_run: dryRun };
+    return this.request(`/api/v1/campaigns/${encodeURIComponent(id)}/launch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async pauseCampaign(id: string): Promise<TickReport> {
+    return this.request(`/api/v1/campaigns/${encodeURIComponent(id)}/pause`, { method: "POST" });
   }
 }

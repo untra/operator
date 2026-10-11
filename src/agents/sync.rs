@@ -399,14 +399,15 @@ impl TicketSessionSync {
                                     "completing",
                                     Some("All steps completed".to_string()),
                                 )?;
-                                // Coder targets: stop the finished workspace
-                                // (never delete). Best-effort by design.
+                                // Coder targets: stop or delete the finished
+                                // workspace. Best-effort by design.
                                 if let Some(agent) =
                                     state.agents.iter().find(|a| a.id == agent_id).cloned()
                                 {
-                                    crate::agents::launcher::coder::stop_on_complete_for_agent(
+                                    crate::agents::launcher::coder::finish_workspace_for_agent(
                                         &self.config,
                                         &agent,
+                                        crate::agents::launcher::coder::FinishTrigger::Complete,
                                     );
                                 }
                                 result.completed.push(ticket.id.clone());
@@ -839,10 +840,14 @@ impl TicketSessionSync {
         }
 
         // Remove all sub-agent records now that the group is done.
-        // Coder targets: stop each finished workspace first.
+        // Coder targets: finish each workspace first.
         for aid in &group.agent_ids {
             if let Some(agent) = state.agents.iter().find(|a| &a.id == aid).cloned() {
-                crate::agents::launcher::coder::stop_on_complete_for_agent(&self.config, &agent);
+                crate::agents::launcher::coder::finish_workspace_for_agent(
+                    &self.config,
+                    &agent,
+                    crate::agents::launcher::coder::FinishTrigger::Complete,
+                );
             }
             state.remove_agent(aid)?;
         }
@@ -1011,7 +1016,7 @@ impl TicketSessionSync {
                         if let Ok(content) = self.tmux.capture_pane(session_name, false) {
                             let mut hasher = Sha256::new();
                             hasher.update(content.as_bytes());
-                            let new_hash = crate::agents::hex_encode(&hasher.finalize());
+                            let new_hash = hex::encode(hasher.finalize());
 
                             // Compare with stored hash
                             let content_changed = agent.content_hash.as_ref() != Some(&new_hash);
@@ -1056,6 +1061,11 @@ impl TicketSessionSync {
         agent: &AgentState,
         cleanup_script: Option<&str>,
     ) -> Result<()> {
+        crate::agents::launcher::coder::finish_workspace_for_agent(
+            &self.config,
+            agent,
+            crate::agents::launcher::coder::FinishTrigger::Merged,
+        );
         let worktree_path = if let Some(path) = &agent.worktree_path {
             PathBuf::from(path)
         } else {
@@ -1180,6 +1190,9 @@ mod tests {
 
         // Create a minimal ticket for testing
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1218,6 +1231,9 @@ mod tests {
         health.awaiting_input.push("op-FEAT-123".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1256,6 +1272,9 @@ mod tests {
         health.timed_out.push("op-FEAT-456".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1296,6 +1315,9 @@ mod tests {
         health.awaiting_input.push("op-FEAT-789".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1336,6 +1358,9 @@ mod tests {
         health.artifact_ready.push("op-FEAT-123".to_string());
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1375,6 +1400,9 @@ mod tests {
         // artifact_ready is empty - agent is idle but no artifacts found
 
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "test.md".to_string(),
             filepath: "/tmp/test.md".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -1471,7 +1499,7 @@ mod tests {
         // Calculate hash of OLD content (different from what's in the session)
         let mut old_hasher = Sha256::new();
         old_hasher.update(b"Old content");
-        let old_hash = crate::agents::hex_encode(&old_hasher.finalize());
+        let old_hash = hex::encode(old_hasher.finalize());
 
         // Add an awaiting agent with old content hash
         let agent_id = state
@@ -1527,7 +1555,7 @@ mod tests {
         let content = mock.capture_pane("op-FEAT-unchanged", false).unwrap();
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        let same_hash = crate::agents::hex_encode(&hasher.finalize());
+        let same_hash = hex::encode(hasher.finalize());
 
         let sync = TicketSessionSync::new(&config, Arc::clone(&mock) as Arc<dyn TmuxClient>);
         let mut state = State::load(&config).unwrap();
@@ -1619,6 +1647,9 @@ mod tests {
             let ticket_path = dir.path().join("FEAT-1.md");
             std::fs::write(&ticket_path, "# FEAT-1").unwrap();
             let ticket = Ticket {
+                depends_on: Vec::new(),
+                campaign: None,
+                external_parent: None,
                 filename: "FEAT-1.md".to_string(),
                 filepath: ticket_path.to_string_lossy().to_string(),
                 timestamp: "20241221-1430".to_string(),

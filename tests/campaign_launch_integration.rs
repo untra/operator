@@ -216,11 +216,11 @@ macro_rules! skip_unless_enabled {
 #[tokio::test]
 async fn diamond_launches_waves_through_tmux() {
     skip_unless_enabled!();
-    replay("diamond").await;
+    Box::pin(replay("diamond")).await;
 }
 
 #[tokio::test]
 async fn gated_chain_launches_through_tmux() {
     skip_unless_enabled!();
-    replay("gated-chain").await;
+    Box::pin(replay("gated-chain")).await;
 }

@@ -426,7 +426,7 @@ mod tests {
                 stop_on_complete: true,
                 create_timeout_secs: 300,
                 callback_url: None,
-                parameters: std::collections::HashMap::new(),
+                ..Default::default()
             }),
         });
 

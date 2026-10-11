@@ -163,6 +163,7 @@ pub async fn get_detail(
         session_name: agent.session_name.clone(),
         remote_host: agent.remote_host.clone(),
         target_name: agent.target_name.clone(),
+        workspace_url: agent.workspace_url.clone(),
         last_message: agent.last_message.clone(),
         last_content_change: agent.last_content_change.map(|t| t.to_rfc3339()),
         connect,

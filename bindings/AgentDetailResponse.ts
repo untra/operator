@@ -91,6 +91,10 @@ remote_host: string | null,
  */
 target_name: string | null, 
 /**
+ * Coder dashboard URL of the agent's workspace
+ */
+workspace_url: string | null, 
+/**
  * Last status message from the agent
  */
 last_message: string | null, 

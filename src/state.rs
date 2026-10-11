@@ -106,23 +106,34 @@ impl CampaignRun {
     }
 }
 
+/// One agent working a ticket, persisted in the state file.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct AgentState {
     /// Non-secret Git configuration captured at launch.
     #[serde(default)]
     pub git_context: Option<crate::config::GitExecutionConfig>,
+    /// Agent ID
     pub id: String,
+    /// Ticket the agent works (e.g. "FEAT-7598")
     pub ticket_id: String,
+    /// Ticket type: FEAT, FIX, INV, SPIKE
     pub ticket_type: String,
+    /// Project the ticket belongs to
     pub project: String,
-    pub status: String, // "running", "awaiting_input", "completing", "orphaned"
+    /// "running", "`awaiting_input`", "completing", "orphaned", or "failed" after an interrupted
+    /// local shutdown
+    pub status: String,
+    /// When the agent launched
     #[ts(type = "string")]
     pub started_at: DateTime<Utc>,
+    /// Last time the agent showed activity
     #[ts(type = "string")]
     pub last_activity: DateTime<Utc>,
+    /// Latest status message from the agent
     pub last_message: Option<String>,
-    pub paired: bool, // true for SPIKE/INV
+    /// Whether the operator works alongside the agent (true for SPIKE and INV)
+    pub paired: bool,
     /// The terminal session name for this agent (for recovery)
     #[serde(default)]
     pub session_name: Option<String>,
@@ -195,16 +206,23 @@ pub struct AgentState {
     /// Name of the resolved execution target this agent launched on.
     #[serde(default)]
     pub target_name: Option<String>,
+    /// Coder dashboard URL of the workspace this agent runs in
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_url: Option<String>,
     /// Shutdown recovery strategy.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shutdown_recovery: Option<ShutdownRecovery>,
 }
 
+/// How startup reconciles an agent that was active when operator shut down.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum ShutdownRecovery {
+    /// The local session ended with the process; the agent is marked failed and can be retried
     InterruptedLocal,
+    /// Remote work was left running; relaunching the ticket is refused until the operator
+    /// confirms whether it survived
     RemoteAwaitingReconciliation,
 }
 
@@ -478,6 +496,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            workspace_url: None,
             shutdown_recovery: None,
         });
 
@@ -537,6 +556,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            workspace_url: None,
             shutdown_recovery: None,
         });
 
@@ -660,6 +680,14 @@ impl State {
     pub fn update_agent_remote_host(&mut self, agent_id: &str, host_name: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.remote_host = Some(host_name.to_string());
+        }
+        self.save()
+    }
+
+    /// Record the dashboard URL of the agent's Coder workspace
+    pub fn update_agent_workspace_url(&mut self, agent_id: &str, url: &str) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.workspace_url = Some(url.to_string());
         }
         self.save()
     }

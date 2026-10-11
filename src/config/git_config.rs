@@ -129,7 +129,9 @@ fn default_gitlab_token_env() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
 #[ts(export)]
 pub struct GitIdentityConfig {
+    /// Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`
     pub name: String,
+    /// Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`
     pub email: String,
 }
 
@@ -137,15 +139,22 @@ pub struct GitIdentityConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
 #[ts(export)]
 pub struct GitCredentialConfig {
+    /// HTTPS repository URL the credential is bound to, with no embedded credentials, query or
+    /// fragment
     pub repository_url: String,
+    /// HTTPS username sent with the token
     pub username: String,
+    /// Environment variable holding the token, read at launch
     pub token_env: String,
 }
 
+/// One `git config` entry applied to delegated work.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
 #[ts(export)]
 pub struct GitConfigEntry {
+    /// Dotted config key (e.g. "commit.gpgsign"); identity and authentication keys are rejected
     pub key: String,
+    /// Config value
     pub value: String,
 }
 
@@ -155,10 +164,14 @@ pub struct GitConfigEntry {
 )]
 #[ts(export)]
 pub struct GitExecutionConfig {
+    /// Commit identity; falls back to the global `git.identity`
     #[serde(default)]
     pub identity: Option<GitIdentityConfig>,
+    /// HTTPS credential for the ticket's repository
     #[serde(default)]
     pub credentials: Option<GitCredentialConfig>,
+    /// Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,
+    /// `user.email`, `core.askpass` and `core.sshCommand` are rejected
     #[serde(default)]
     pub settings: Vec<GitConfigEntry>,
 }

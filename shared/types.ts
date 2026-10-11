@@ -1223,7 +1223,11 @@ workdir: string,
 /**
  * SSH config fragment passed with `-F` (used by provisioned coder aliases)
  */
-ssh_config_path?: string | null, };
+ssh_config_path?: string | null, 
+/**
+ * Remote port the reverse tunnel binds for callbacks (None = the local API port)
+ */
+remote_callback_port?: number | null, };
 
 export type CoderConfig = { 
 /**
@@ -1262,9 +1266,31 @@ create_timeout_secs: bigint,
  */
 callback_url?: string | null, 
 /**
- * Passthrough `--parameter` template parameters for `coder create`
+ * Passthrough `--parameter` template parameters for `coder create`.
+ * Values may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}`
  */
-parameters?: { [key in string]: string }, };
+parameters?: { [key in string]: string }, 
+/**
+ * Template preset passed to `coder create --preset`
+ */
+preset?: string | null, 
+/**
+ * Workspace-side port the reverse tunnel binds (None = the local API port)
+ */
+remote_callback_port?: number | null, 
+/**
+ * Env var NAMES resolved on the control plane and shipped to the agent
+ * (e.g. LLM provider credentials); a missing one fails the launch
+ */
+forward_env?: Array<string>, 
+/**
+ * Delete the workspace when the ticket completes (wins over `stop_on_complete`)
+ */
+delete_on_complete: boolean, 
+/**
+ * Delete the workspace when the ticket's PR merges
+ */
+delete_on_merge: boolean, };
 
 export type ProfileIdentity = { id: string, name: string, };
 
@@ -1290,7 +1316,44 @@ export type AgentState = {
 /**
  * Non-secret Git configuration captured at launch.
  */
-git_context: GitExecutionConfig | null, id: string, ticket_id: string, ticket_type: string, project: string, status: string, started_at: string, last_activity: string, last_message: string | null, paired: boolean, 
+git_context: GitExecutionConfig | null, 
+/**
+ * Agent ID
+ */
+id: string, 
+/**
+ * Ticket the agent works (e.g. "FEAT-7598")
+ */
+ticket_id: string, 
+/**
+ * Ticket type: FEAT, FIX, INV, SPIKE
+ */
+ticket_type: string, 
+/**
+ * Project the ticket belongs to
+ */
+project: string, 
+/**
+ * "running", "`awaiting_input`", "completing", "orphaned", or "failed" after an interrupted
+ * local shutdown
+ */
+status: string, 
+/**
+ * When the agent launched
+ */
+started_at: string, 
+/**
+ * Last time the agent showed activity
+ */
+last_activity: string, 
+/**
+ * Latest status message from the agent
+ */
+last_message: string | null, 
+/**
+ * Whether the operator works alongside the agent (true for SPIKE and INV)
+ */
+paired: boolean, 
 /**
  * The terminal session name for this agent (for recovery)
  */
@@ -1384,6 +1447,10 @@ step_launch_context: StepLaunchContext | null,
  * Name of the resolved execution target this agent launched on.
  */
 target_name: string | null, 
+/**
+ * Coder dashboard URL of the workspace this agent runs in
+ */
+workspace_url?: string | null, 
 /**
  * Shutdown recovery strategy.
  */
@@ -1556,7 +1623,15 @@ workflow_hints?: WorkflowHintsDto | null, };
 
 export type WorkflowHintsDto = { loop_kind: string | null, memory_surfaces: Array<string>, review_gates: Array<string>, external_tools: Array<string>, stop_conditions: Array<string>, runner_semantics: string, };
 
-export type HealthResponse = { status: string, version: string, 
+export type HealthResponse = { 
+/**
+ * Always "ok" when the server answers
+ */
+status: string, 
+/**
+ * Operator version that is serving the API
+ */
+version: string, 
 /**
  * Top-level directory name of the operator working root (e.g. "acme").
  */
@@ -1566,7 +1641,15 @@ directory_name: string,
  */
 directory_id: string, };
 
-export type StatusResponse = { status: string, version: string, 
+export type StatusResponse = { 
+/**
+ * Always "ok" when the server answers
+ */
+status: string, 
+/**
+ * Operator version that is serving the API
+ */
+version: string, 
 /**
  * Top-level directory name of the operator working root (e.g. "acme").
  */
@@ -1574,7 +1657,19 @@ directory_name: string,
 /**
  * Non-reversible fingerprint of the working root's canonical path.
  */
-directory_id: string, issuetype_count: number, collection_count: number, active_collection: string, };
+directory_id: string, 
+/**
+ * Number of issue types loaded in the registry
+ */
+issuetype_count: number, 
+/**
+ * Number of collections loaded in the registry
+ */
+collection_count: number, 
+/**
+ * Name of the active collection
+ */
+active_collection: string, };
 
 export type SectionDto = { 
 /**

@@ -332,6 +332,11 @@ function TicketView({ ticket }: { ticket: TicketDetailResponse }) {
             <Link to={`/campaigns/${encodeURIComponent(ticket.campaign)}`}>{ticket.campaign}</Link>
           )}
           <ExternalIssue ticket={ticket} />
+          {agent?.workspace_url && (
+            <a href={agent.workspace_url} target="_blank" rel="noopener noreferrer">
+              Coder workspace
+            </a>
+          )}
           {ticket.branch && <code>{ticket.branch}</code>}
         </div>
       </header>

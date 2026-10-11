@@ -415,11 +415,21 @@ impl Launcher {
                     .await
                     .ok();
             let branch = ticket.branch_name();
-            let host = coder::provision_workspace(
+            let step = if ticket.step.is_empty() {
+                "initial"
+            } else {
+                ticket.step.as_str()
+            };
+            let vars = coder::CoderLaunchVars {
+                ticket_id: &ticket.id,
+                project: &ticket.project,
+                step,
+                delegator: options.delegator_name.as_deref().unwrap_or_default(),
+            };
+            let (host, workspace_url) = coder::provision_workspace(
                 &self.config,
                 coder_cfg,
-                &ticket.project,
-                &ticket.id,
+                &vars,
                 remote_url.as_deref(),
                 Some(&branch),
                 crate::git::identity::resolve_config(
@@ -432,6 +442,7 @@ impl Launcher {
             let callback_url = coder_cfg.callback_url.clone().filter(|u| !u.is_empty());
             options.api_url_override = callback_url;
             options.provisioned_host = Some(host);
+            options.workspace_url = workspace_url;
         }
         Ok(())
     }
@@ -493,16 +504,7 @@ impl Launcher {
                 .map_or("claude", |p| p.tool.as_str());
             let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
             remote::run_preflight(&host, tool, git_provider)?;
-            if let Some(provider) = &options.provider {
-                let missing = prompt::missing_env_refs(&provider.env);
-                if !missing.is_empty() {
-                    anyhow::bail!(
-                        "Cannot launch on remote host '{}': Operator is missing {} (needed for the model server). Set it in the control-plane environment.",
-                        host.name,
-                        missing.join(", ")
-                    );
-                }
-            }
+            remote::require_remote_env(&host, options)?;
         }
 
         // Dispatch based on session wrapper type
@@ -604,6 +606,9 @@ impl Launcher {
         // Store remote host so the dashboard can annotate the agent
         if let Some(host) = options.remote_host() {
             state.update_agent_remote_host(&agent_id, &host.name)?;
+        }
+        if let Some(url) = &options.workspace_url {
+            state.update_agent_workspace_url(&agent_id, url)?;
         }
 
         // Set the current step in state
@@ -1781,16 +1786,7 @@ impl Launcher {
                 .map_or("claude", |p| p.tool.as_str());
             let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
             remote::run_preflight(&host, tool, git_provider)?;
-            if let Some(provider) = &options.launch_options.provider {
-                let missing = prompt::missing_env_refs(&provider.env);
-                if !missing.is_empty() {
-                    anyhow::bail!(
-                        "Cannot launch on remote host '{}': Operator is missing {} (needed for the model server). Set it in the control-plane environment.",
-                        host.name,
-                        missing.join(", ")
-                    );
-                }
-            }
+            remote::require_remote_env(&host, &options.launch_options)?;
         }
 
         // Dispatch based on session wrapper type
@@ -1892,6 +1888,9 @@ impl Launcher {
         // Store remote host so the dashboard can annotate the agent
         if let Some(host) = options.launch_options.remote_host() {
             state.update_agent_remote_host(&agent_id, &host.name)?;
+        }
+        if let Some(url) = &options.launch_options.workspace_url {
+            state.update_agent_workspace_url(&agent_id, url)?;
         }
 
         // Set the current step in state

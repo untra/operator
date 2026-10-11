@@ -37,6 +37,8 @@ pub struct LaunchOptions {
     /// `OPERATOR_API_URL` override for remote launches (a coder target's
     /// control-plane-reachable `callback_url`); None = reverse-tunnel default
     pub api_url_override: Option<String>,
+    /// Coder dashboard URL of the provisioned workspace
+    pub workspace_url: Option<String>,
 }
 
 /// Persisted launch-mode kind, derived from the resolved execution target.
@@ -160,7 +162,7 @@ mod tests {
             stop_on_complete: true,
             create_timeout_secs: 300,
             callback_url: None,
-            parameters: std::collections::HashMap::new(),
+            ..Default::default()
         }
     }
 
@@ -169,6 +171,7 @@ mod tests {
             ssh_alias: "gpu".to_string(),
             workdir: "/proj".to_string(),
             ssh_config_path: None,
+            remote_callback_port: None,
         }
     }
 
@@ -189,6 +192,7 @@ mod tests {
             operator_relay: Some(false),
             provisioned_host: None,
             api_url_override: None,
+            workspace_url: None,
         };
         assert_eq!(opts.operator_relay, Some(false));
     }

@@ -61,13 +61,17 @@ pub struct LlmTask {
 )]
 #[ts(export)]
 pub enum TicketPriority {
+    /// Most urgent; sorts first
     #[serde(rename = "P0-critical")]
     P0Critical,
+    /// High urgency
     #[serde(rename = "P1-high")]
     P1High,
+    /// Default urgency
     #[default]
     #[serde(rename = "P2-medium")]
     P2Medium,
+    /// Least urgent; `P4-trivial` frontmatter also reads as low
     #[serde(rename = "P3-low")]
     P3Low,
 }
@@ -123,9 +127,12 @@ impl std::fmt::Display for TicketPriority {
 #[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum TicketStatus {
+    /// Waiting to be picked up
     #[default]
     Queued,
+    /// An agent is working it
     Running,
+    /// Waiting on the operator (input or a review gate)
     Awaiting,
     /// Older API clients still send `done`; `completed` is what we write.
     #[serde(alias = "done")]

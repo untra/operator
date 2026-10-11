@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, InputHTMLAttributes } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import styles from "./MarkdownView.module.css";
@@ -18,7 +18,11 @@ function ExternalLink({ children, ...props }: AnchorHTMLAttributes<HTMLAnchorEle
   );
 }
 
-const COMPONENTS = { a: ExternalLink };
+function TaskCheckbox(props: InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} aria-label={props.checked ? "Completed task" : "Open task"} />;
+}
+
+const COMPONENTS = { a: ExternalLink, input: TaskCheckbox };
 
 /** Markdown with GitHub extensions; raw HTML is never rendered. */
 export function MarkdownView({ source, className }: MarkdownViewProps) {

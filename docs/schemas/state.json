@@ -62,6 +62,7 @@
   ],
   "$defs": {
     "AgentState": {
+      "description": "One agent working a ticket, persisted in the state file.",
       "type": "object",
       "properties": {
         "git_context": {
@@ -77,35 +78,44 @@
           "default": null
         },
         "id": {
+          "description": "Agent ID",
           "type": "string"
         },
         "ticket_id": {
+          "description": "Ticket the agent works (e.g. \"FEAT-7598\")",
           "type": "string"
         },
         "ticket_type": {
+          "description": "Ticket type: FEAT, FIX, INV, SPIKE",
           "type": "string"
         },
         "project": {
+          "description": "Project the ticket belongs to",
           "type": "string"
         },
         "status": {
+          "description": "\"running\", \"`awaiting_input`\", \"completing\", \"orphaned\", or \"failed\" after an interrupted\nlocal shutdown",
           "type": "string"
         },
         "started_at": {
+          "description": "When the agent launched",
           "type": "string",
           "format": "date-time"
         },
         "last_activity": {
+          "description": "Last time the agent showed activity",
           "type": "string",
           "format": "date-time"
         },
         "last_message": {
+          "description": "Latest status message from the agent",
           "type": [
             "string",
             "null"
           ]
         },
         "paired": {
+          "description": "Whether the operator works alongside the agent (true for SPIKE and INV)",
           "type": "boolean"
         },
         "session_name": {
@@ -302,6 +312,13 @@
           ],
           "default": null
         },
+        "workspace_url": {
+          "description": "Coder dashboard URL of the workspace this agent runs in",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "shutdown_recovery": {
           "description": "Shutdown recovery strategy.",
           "anyOf": [
@@ -330,6 +347,7 @@
       "type": "object",
       "properties": {
         "identity": {
+          "description": "Commit identity; falls back to the global `git.identity`",
           "anyOf": [
             {
               "$ref": "#/$defs/GitIdentityConfig"
@@ -341,6 +359,7 @@
           "default": null
         },
         "credentials": {
+          "description": "HTTPS credential for the ticket's repository",
           "anyOf": [
             {
               "$ref": "#/$defs/GitCredentialConfig"
@@ -352,6 +371,7 @@
           "default": null
         },
         "settings": {
+          "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected",
           "type": "array",
           "items": {
             "$ref": "#/$defs/GitConfigEntry"
@@ -365,9 +385,11 @@
       "type": "object",
       "properties": {
         "name": {
+          "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
           "type": "string"
         },
         "email": {
+          "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
           "type": "string"
         }
       },
@@ -381,12 +403,15 @@
       "type": "object",
       "properties": {
         "repository_url": {
+          "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment",
           "type": "string"
         },
         "username": {
+          "description": "HTTPS username sent with the token",
           "type": "string"
         },
         "token_env": {
+          "description": "Environment variable holding the token, read at launch",
           "type": "string"
         }
       },
@@ -397,12 +422,15 @@
       ]
     },
     "GitConfigEntry": {
+      "description": "One `git config` entry applied to delegated work.",
       "type": "object",
       "properties": {
         "key": {
+          "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected",
           "type": "string"
         },
         "value": {
+          "description": "Config value",
           "type": "string"
         }
       },
@@ -472,10 +500,18 @@
       ]
     },
     "ShutdownRecovery": {
-      "type": "string",
-      "enum": [
-        "interrupted_local",
-        "remote_awaiting_reconciliation"
+      "description": "How startup reconciles an agent that was active when operator shut down.",
+      "oneOf": [
+        {
+          "description": "The local session ended with the process; the agent is marked failed and can be retried",
+          "type": "string",
+          "const": "interrupted_local"
+        },
+        {
+          "description": "Remote work was left running; relaunching the ticket is refused until the operator\nconfirms whether it survived",
+          "type": "string",
+          "const": "remote_awaiting_reconciliation"
+        }
       ]
     },
     "CompletedTicket": {

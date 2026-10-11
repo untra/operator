@@ -124,6 +124,38 @@ pub(crate) fn transfer_git_runtime(host: &RemoteHost, path: &Path) -> Result<()>
     result
 }
 
+/// Remote directory holding binaries Operator ships to a target (opr8r).
+pub(crate) const REMOTE_BIN_DIR: &str = "$HOME/.operator/bin";
+
+/// `NAME -> ${NAME}` references, resolved and shipped like provider secrets.
+pub(crate) fn forward_env_refs(names: &[String]) -> std::collections::HashMap<String, String> {
+    names
+        .iter()
+        .map(|name| (name.clone(), format!("${{{name}}}")))
+        .collect()
+}
+
+/// Fail before any session exists when a provider or forwarded env var is unset here.
+pub(crate) fn require_remote_env(
+    host: &RemoteHost,
+    options: &super::options::LaunchOptions,
+) -> Result<()> {
+    let mut env = options
+        .provider
+        .as_ref()
+        .map(|p| p.env.clone())
+        .unwrap_or_default();
+    env.extend(forward_env_refs(options.target.forward_env()));
+    let missing = super::prompt::missing_env_refs(&env);
+    anyhow::ensure!(
+        missing.is_empty(),
+        "Cannot launch on remote host '{}': Operator is missing {} (needed for the model server or the target's forward_env). Set it in the control-plane environment.",
+        host.name,
+        missing.join(", ")
+    );
+    Ok(())
+}
+
 /// Remote path the prompt file is shipped to.
 pub(crate) fn remote_prompt_path(host: &RemoteHost, session_uuid: &str) -> String {
     format!(
@@ -224,8 +256,9 @@ fn build_remote_llm_command_from(
 /// process *be* ssh, so pane-death ⇔ ssh-death and monitor semantics are
 /// unchanged. `-A` makes relaunch idempotent (reattaches a surviving session).
 /// `ExitOnForwardFailure` turns tunnel-port collisions into loud launch
-/// failures instead of silently broken callbacks. The remote status bar is
-/// switched off so its clock doesn't defeat content-hash idle detection.
+/// failures instead of silently broken callbacks; `remote_port` moves the
+/// workspace-side bind off a port the target already uses. The remote status
+/// bar is switched off so its clock doesn't defeat content-hash idle detection.
 pub(crate) fn build_remote_wrapper_script(
     host: &RemoteHost,
     session_name: &str,
@@ -233,6 +266,7 @@ pub(crate) fn build_remote_wrapper_script(
     local_prompt: &Path,
     local_payload: &Path,
     api_port: u16,
+    remote_port: u16,
     local_env: Option<&Path>,
 ) -> String {
     let alias = shell_escape(&host.ssh_alias);
@@ -248,7 +282,10 @@ pub(crate) fn build_remote_wrapper_script(
     let tmux_cmd = format!(
         "tmux new-session -A -s {} {} \\; set-option status off",
         shell_escape(session_name),
-        shell_escape(&format!("bash {}", shell_escape(&r_payload))),
+        shell_escape(&format!(
+            "PATH=\"{REMOTE_BIN_DIR}:$PATH\" bash {}",
+            shell_escape(&r_payload)
+        )),
     );
 
     let env_ship = local_env
@@ -267,7 +304,7 @@ pub(crate) fn build_remote_wrapper_script(
         .unwrap_or_default();
 
     format!(
-        "#!/bin/bash\nset -e\nssh {f}{alias} {mkdir}\nssh {f}{alias} {cat_prompt} < {local_prompt}\nssh {f}{alias} {cat_payload} < {local_payload}\n{env_ship}exec ssh -t {f}-R {port}:localhost:{port} -o ExitOnForwardFailure=yes {alias} {tmux}\n",
+        "#!/bin/bash\nset -e\nssh {f}{alias} {mkdir}\nssh {f}{alias} {cat_prompt} < {local_prompt}\nssh {f}{alias} {cat_payload} < {local_payload}\n{env_ship}exec ssh -t {f}-R {remote_port}:localhost:{port} -o ExitOnForwardFailure=yes {alias} {tmux}\n",
         f = f_flag,
         alias = alias,
         mkdir = shell_escape(&mkdir_cmd),
@@ -276,6 +313,7 @@ pub(crate) fn build_remote_wrapper_script(
         local_prompt = shell_escape(&local_prompt.display().to_string()),
         local_payload = shell_escape(&local_payload.display().to_string()),
         port = api_port,
+        remote_port = remote_port,
         tmux = shell_escape(&tmux_cmd),
     )
 }
@@ -349,12 +387,17 @@ pub(crate) fn launch_remote_in_session(
         .as_ref()
         .map(|p| p.env.clone())
         .unwrap_or_default();
+    provider_env.extend(forward_env_refs(options.target.forward_env()));
     // Tunnel default; a coder target's control-plane-reachable callback_url
     // overrides it so detached multi-step survives tunnel loss.
+    let remote_port = options
+        .target
+        .remote_callback_port()
+        .unwrap_or(operator_env.ui_port);
     let api_url = options
         .api_url_override
         .clone()
-        .unwrap_or_else(|| format!("http://localhost:{}", operator_env.ui_port));
+        .unwrap_or_else(|| format!("http://localhost:{remote_port}"));
     provider_env.insert("OPERATOR_API_URL".to_string(), api_url);
 
     let payload_file = super::prompt::write_command_file(
@@ -387,6 +430,7 @@ pub(crate) fn launch_remote_in_session(
         prompt_file,
         &payload_file,
         operator_env.ui_port,
+        remote_port,
         secret_env.as_deref(),
     );
     let wrapper_file = write_remote_wrapper_file(config, session_uuid, &wrapper_content)?;
@@ -622,6 +666,7 @@ mod tests {
             Path::new("/local/.tickets/operator/prompts/uuid-1.txt"),
             Path::new("/local/.tickets/operator/commands/uuid-1.sh"),
             7008,
+            7008,
             None,
         );
         assert!(script.starts_with("#!/bin/bash\nset -e\n"));
@@ -644,6 +689,52 @@ mod tests {
     }
 
     #[test]
+    fn test_forward_env_refs_resolve_through_secret_env_path() {
+        let refs = forward_env_refs(&["OPERATOR_TEST_FORWARD_UNSET".to_string()]);
+        assert_eq!(
+            refs.get("OPERATOR_TEST_FORWARD_UNSET").map(String::as_str),
+            Some("${OPERATOR_TEST_FORWARD_UNSET}")
+        );
+        assert_eq!(
+            super::super::prompt::missing_env_refs(&refs),
+            ["OPERATOR_TEST_FORWARD_UNSET"]
+        );
+    }
+
+    #[test]
+    fn test_wrapper_binds_configured_remote_callback_port() {
+        let script = build_remote_wrapper_script(
+            &host(),
+            "op-X",
+            "u1",
+            Path::new("/l/p.txt"),
+            Path::new("/l/c.sh"),
+            7008,
+            17007,
+            None,
+        );
+        assert!(script.contains("-R 17007:localhost:7008"), "{script}");
+    }
+
+    #[test]
+    fn test_wrapper_puts_operator_bin_dir_on_remote_path() {
+        let script = build_remote_wrapper_script(
+            &host(),
+            "op-X",
+            "u1",
+            Path::new("/l/p.txt"),
+            Path::new("/l/c.sh"),
+            7008,
+            7008,
+            None,
+        );
+        assert!(
+            script.contains("PATH=\"$HOME/.operator/bin:$PATH\" bash"),
+            "{script}"
+        );
+    }
+
+    #[test]
     fn test_wrapper_escapes_workdir_with_spaces() {
         let mut h = host();
         h.workdir = "/srv/agent workdir/proj".to_string();
@@ -653,6 +744,7 @@ mod tests {
             "u1",
             Path::new("/l/p.txt"),
             Path::new("/l/c.sh"),
+            7008,
             7008,
             None,
         );
@@ -671,6 +763,7 @@ mod tests {
             "u1",
             Path::new("/l/p.txt"),
             Path::new("/l/c.sh"),
+            7008,
             7008,
             None,
         );

@@ -95,6 +95,10 @@ const DEFAULT_CONFIG: Config = {
     zellij: {
       require_in_zellij: false,
     },
+    connect: {
+      preferred: null,
+      terminal_command: null,
+    },
   },
   llm_tools: {
     detected: [],

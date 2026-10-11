@@ -14,7 +14,9 @@ use crate::queue::{TicketPriority, TicketStatus};
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct HealthResponse {
+    /// Always "ok" when the server answers
     pub status: String,
+    /// Operator version that is serving the API
     pub version: String,
     /// Top-level directory name of the operator working root (e.g. "acme").
     pub directory_name: String,
@@ -26,14 +28,19 @@ pub struct HealthResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct StatusResponse {
+    /// Always "ok" when the server answers
     pub status: String,
+    /// Operator version that is serving the API
     pub version: String,
     /// Top-level directory name of the operator working root (e.g. "acme").
     pub directory_name: String,
     /// Non-reversible fingerprint of the working root's canonical path.
     pub directory_id: String,
+    /// Number of issue types loaded in the registry
     pub issuetype_count: usize,
+    /// Number of collections loaded in the registry
     pub collection_count: usize,
+    /// Name of the active collection
     pub active_collection: String,
 }
 
@@ -240,6 +247,9 @@ pub struct AgentDetailResponse {
     /// Execution target the agent launched on
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_name: Option<String>,
+    /// Coder dashboard URL of the agent's workspace
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_url: Option<String>,
     /// Last status message from the agent
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_message: Option<String>,
@@ -628,45 +638,65 @@ pub struct TicketDependency {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct TicketAgent {
+    /// Agent ID
     pub id: String,
     /// running, `awaiting_input`, completing or orphaned
     pub status: String,
+    /// Whether the operator works alongside the agent (SPIKE and INV tickets)
     pub paired: bool,
     /// RFC 3339 start time
     pub started_at: String,
+    /// Current workflow step (e.g. "plan", "implement", "test")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_step: Option<String>,
+    /// Workflow steps already completed
     pub completed_steps: Vec<String>,
+    /// Pending review gate while `awaiting_input`: `pending_plan`, `pending_visual`, `pending_proof`, `pending_pr_creation` or `pending_pr_merge`
     #[serde(skip_serializing_if = "Option::is_none")]
     pub review_state: Option<String>,
     /// tmux, vscode, cmux or zellij
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_wrapper: Option<String>,
+    /// Terminal session name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_name: Option<String>,
+    /// Session window reference (cmux window, tmux session)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_window_ref: Option<String>,
+    /// Session context reference (cmux workspace, tmux window)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_context_ref: Option<String>,
+    /// Session pane reference (cmux surface, tmux pane)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_pane_ref: Option<String>,
+    /// Git worktree the agent works in
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worktree_path: Option<String>,
+    /// URL of the PR/MR opened by the "pr" step
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pr_url: Option<String>,
+    /// PR/MR number
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pr_number: Option<u64>,
+    /// Last known PR/MR status: open, approved, `changes_requested`, merged or closed
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pr_status: Option<String>,
     /// SSH host the agent runs on, when remote
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_host: Option<String>,
+    /// Execution target the agent launched on
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_name: Option<String>,
+    /// Coder dashboard URL of the agent's workspace
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_url: Option<String>,
+    /// LLM tool (e.g. "claude", "gemini", "codex")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub llm_tool: Option<String>,
+    /// LLM model alias (e.g. "opus", "sonnet")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub llm_model: Option<String>,
+    /// Latest status message from the agent
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_message: Option<String>,
     /// Shell command that attaches to the session (tmux)
@@ -695,6 +725,7 @@ impl From<&crate::state::AgentState> for TicketAgent {
             pr_status: a.pr_status.clone(),
             remote_host: a.remote_host.clone(),
             target_name: a.target_name.clone(),
+            workspace_url: a.workspace_url.clone(),
             llm_tool: a.llm_tool.clone(),
             llm_model: a.llm_model.clone(),
             last_message: a.last_message.clone(),
@@ -870,6 +901,7 @@ mod tests {
             session_name: None,
             remote_host: None,
             target_name: None,
+            workspace_url: None,
             last_message: None,
             last_content_change: None,
             connect: empty_plan(),

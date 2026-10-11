@@ -3,11 +3,51 @@ import type { GitExecutionConfig } from "./GitExecutionConfig";
 import type { ShutdownRecovery } from "./ShutdownRecovery";
 import type { StepLaunchContext } from "./StepLaunchContext";
 
+/**
+ * One agent working a ticket, persisted in the state file.
+ */
 export type AgentState = { 
 /**
  * Non-secret Git configuration captured at launch.
  */
-git_context: GitExecutionConfig | null, id: string, ticket_id: string, ticket_type: string, project: string, status: string, started_at: string, last_activity: string, last_message: string | null, paired: boolean, 
+git_context: GitExecutionConfig | null, 
+/**
+ * Agent ID
+ */
+id: string, 
+/**
+ * Ticket the agent works (e.g. "FEAT-7598")
+ */
+ticket_id: string, 
+/**
+ * Ticket type: FEAT, FIX, INV, SPIKE
+ */
+ticket_type: string, 
+/**
+ * Project the ticket belongs to
+ */
+project: string, 
+/**
+ * "running", "`awaiting_input`", "completing", "orphaned", or "failed" after an interrupted
+ * local shutdown
+ */
+status: string, 
+/**
+ * When the agent launched
+ */
+started_at: string, 
+/**
+ * Last time the agent showed activity
+ */
+last_activity: string, 
+/**
+ * Latest status message from the agent
+ */
+last_message: string | null, 
+/**
+ * Whether the operator works alongside the agent (true for SPIKE and INV)
+ */
+paired: boolean, 
 /**
  * The terminal session name for this agent (for recovery)
  */
@@ -101,6 +141,10 @@ step_launch_context: StepLaunchContext | null,
  * Name of the resolved execution target this agent launched on.
  */
 target_name: string | null, 
+/**
+ * Coder dashboard URL of the workspace this agent runs in
+ */
+workspace_url?: string | null, 
 /**
  * Shutdown recovery strategy.
  */

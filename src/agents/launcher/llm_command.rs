@@ -1152,6 +1152,7 @@ mod tests {
                 ssh_alias: "gpu".to_string(),
                 workdir: "/p".to_string(),
                 ssh_config_path: None,
+                remote_callback_port: None,
             }),
         };
         let err = wrap_for_target(&config, "claude", "/proj", &target, None).unwrap_err();

@@ -3,7 +3,15 @@
 /**
  * Status response with registry info
  */
-export type StatusResponse = { status: string, version: string, 
+export type StatusResponse = { 
+/**
+ * Always "ok" when the server answers
+ */
+status: string, 
+/**
+ * Operator version that is serving the API
+ */
+version: string, 
 /**
  * Top-level directory name of the operator working root (e.g. "acme").
  */
@@ -11,4 +19,16 @@ directory_name: string,
 /**
  * Non-reversible fingerprint of the working root's canonical path.
  */
-directory_id: string, issuetype_count: number, collection_count: number, active_collection: string, };
+directory_id: string, 
+/**
+ * Number of issue types loaded in the registry
+ */
+issuetype_count: number, 
+/**
+ * Number of collections loaded in the registry
+ */
+collection_count: number, 
+/**
+ * Name of the active collection
+ */
+active_collection: string, };

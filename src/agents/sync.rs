@@ -399,14 +399,15 @@ impl TicketSessionSync {
                                     "completing",
                                     Some("All steps completed".to_string()),
                                 )?;
-                                // Coder targets: stop the finished workspace
-                                // (never delete). Best-effort by design.
+                                // Coder targets: stop or delete the finished
+                                // workspace. Best-effort by design.
                                 if let Some(agent) =
                                     state.agents.iter().find(|a| a.id == agent_id).cloned()
                                 {
-                                    crate::agents::launcher::coder::stop_on_complete_for_agent(
+                                    crate::agents::launcher::coder::finish_workspace_for_agent(
                                         &self.config,
                                         &agent,
+                                        crate::agents::launcher::coder::FinishTrigger::Complete,
                                     );
                                 }
                                 result.completed.push(ticket.id.clone());
@@ -839,10 +840,14 @@ impl TicketSessionSync {
         }
 
         // Remove all sub-agent records now that the group is done.
-        // Coder targets: stop each finished workspace first.
+        // Coder targets: finish each workspace first.
         for aid in &group.agent_ids {
             if let Some(agent) = state.agents.iter().find(|a| &a.id == aid).cloned() {
-                crate::agents::launcher::coder::stop_on_complete_for_agent(&self.config, &agent);
+                crate::agents::launcher::coder::finish_workspace_for_agent(
+                    &self.config,
+                    &agent,
+                    crate::agents::launcher::coder::FinishTrigger::Complete,
+                );
             }
             state.remove_agent(aid)?;
         }
@@ -1056,6 +1061,11 @@ impl TicketSessionSync {
         agent: &AgentState,
         cleanup_script: Option<&str>,
     ) -> Result<()> {
+        crate::agents::launcher::coder::finish_workspace_for_agent(
+            &self.config,
+            agent,
+            crate::agents::launcher::coder::FinishTrigger::Merged,
+        );
         let worktree_path = if let Some(path) = &agent.worktree_path {
             PathBuf::from(path)
         } else {

@@ -3,23 +3,95 @@
 /**
  * The agent working a ticket, as shown on the ticket page.
  */
-export type TicketAgent = { id: string, 
+export type TicketAgent = { 
+/**
+ * Agent ID
+ */
+id: string, 
 /**
  * running, `awaiting_input`, completing or orphaned
  */
-status: string, paired: boolean, 
+status: string, 
+/**
+ * Whether the operator works alongside the agent (SPIKE and INV tickets)
+ */
+paired: boolean, 
 /**
  * RFC 3339 start time
  */
-started_at: string, current_step: string | null, completed_steps: Array<string>, review_state: string | null, 
+started_at: string, 
+/**
+ * Current workflow step (e.g. "plan", "implement", "test")
+ */
+current_step: string | null, 
+/**
+ * Workflow steps already completed
+ */
+completed_steps: Array<string>, 
+/**
+ * Pending review gate while `awaiting_input`: `pending_plan`, `pending_visual`, `pending_proof`, `pending_pr_creation` or `pending_pr_merge`
+ */
+review_state: string | null, 
 /**
  * tmux, vscode, cmux or zellij
  */
-session_wrapper: string | null, session_name: string | null, session_window_ref: string | null, session_context_ref: string | null, session_pane_ref: string | null, worktree_path: string | null, pr_url: string | null, pr_number: bigint | null, pr_status: string | null, 
+session_wrapper: string | null, 
+/**
+ * Terminal session name
+ */
+session_name: string | null, 
+/**
+ * Session window reference (cmux window, tmux session)
+ */
+session_window_ref: string | null, 
+/**
+ * Session context reference (cmux workspace, tmux window)
+ */
+session_context_ref: string | null, 
+/**
+ * Session pane reference (cmux surface, tmux pane)
+ */
+session_pane_ref: string | null, 
+/**
+ * Git worktree the agent works in
+ */
+worktree_path: string | null, 
+/**
+ * URL of the PR/MR opened by the "pr" step
+ */
+pr_url: string | null, 
+/**
+ * PR/MR number
+ */
+pr_number: bigint | null, 
+/**
+ * Last known PR/MR status: open, approved, `changes_requested`, merged or closed
+ */
+pr_status: string | null, 
 /**
  * SSH host the agent runs on, when remote
  */
-remote_host: string | null, target_name: string | null, llm_tool: string | null, llm_model: string | null, last_message: string | null, 
+remote_host: string | null, 
+/**
+ * Execution target the agent launched on
+ */
+target_name: string | null, 
+/**
+ * Coder dashboard URL of the agent's workspace
+ */
+workspace_url: string | null, 
+/**
+ * LLM tool (e.g. "claude", "gemini", "codex")
+ */
+llm_tool: string | null, 
+/**
+ * LLM model alias (e.g. "opus", "sonnet")
+ */
+llm_model: string | null, 
+/**
+ * Latest status message from the agent
+ */
+last_message: string | null, 
 /**
  * Shell command that attaches to the session (tmux)
  */

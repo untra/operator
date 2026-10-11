@@ -7302,6 +7302,13 @@
             "type": "string",
             "description": "Ticket type: FEAT, FIX, INV, SPIKE"
           },
+          "workspace_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coder dashboard URL of the agent's workspace"
+          },
           "worktree_path": {
             "type": [
               "string",
@@ -9888,16 +9895,19 @@
       },
       "GitConfigEntry": {
         "type": "object",
+        "description": "One `git config` entry applied to delegated work.",
         "required": [
           "key",
           "value"
         ],
         "properties": {
           "key": {
-            "type": "string"
+            "type": "string",
+            "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected"
           },
           "value": {
-            "type": "string"
+            "type": "string",
+            "description": "Config value"
           }
         }
       },
@@ -9911,13 +9921,16 @@
         ],
         "properties": {
           "repository_url": {
-            "type": "string"
+            "type": "string",
+            "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment"
           },
           "token_env": {
-            "type": "string"
+            "type": "string",
+            "description": "Environment variable holding the token, read at launch"
           },
           "username": {
-            "type": "string"
+            "type": "string",
+            "description": "HTTPS username sent with the token"
           }
         }
       },
@@ -9931,7 +9944,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/GitCredentialConfig"
+                "$ref": "#/components/schemas/GitCredentialConfig",
+                "description": "HTTPS credential for the ticket's repository"
               }
             ]
           },
@@ -9941,7 +9955,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/GitIdentityConfig"
+                "$ref": "#/components/schemas/GitIdentityConfig",
+                "description": "Commit identity; falls back to the global `git.identity`"
               }
             ]
           },
@@ -9949,7 +9964,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GitConfigEntry"
-            }
+            },
+            "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected"
           }
         }
       },
@@ -9962,10 +9978,12 @@
         ],
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
           }
         }
       },
@@ -10240,10 +10258,12 @@
             "description": "Top-level directory name of the operator working root (e.g. \"acme\")."
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \"ok\" when the server answers"
           },
           "version": {
-            "type": "string"
+            "type": "string",
+            "description": "Operator version that is serving the API"
           }
         }
       },
@@ -13207,10 +13227,12 @@
         ],
         "properties": {
           "active_collection": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the active collection"
           },
           "collection_count": {
             "type": "integer",
+            "description": "Number of collections loaded in the registry",
             "minimum": 0
           },
           "directory_id": {
@@ -13223,13 +13245,16 @@
           },
           "issuetype_count": {
             "type": "integer",
+            "description": "Number of issue types loaded in the registry",
             "minimum": 0
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \"ok\" when the server answers"
           },
           "version": {
-            "type": "string"
+            "type": "string",
+            "description": "Operator version that is serving the API"
           }
         }
       },
@@ -13647,37 +13672,44 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Workflow steps already completed"
           },
           "current_step": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Current workflow step (e.g. \"plan\", \"implement\", \"test\")"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent ID"
           },
           "last_message": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Latest status message from the agent"
           },
           "llm_model": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "LLM model alias (e.g. \"opus\", \"sonnet\")"
           },
           "llm_tool": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "LLM tool (e.g. \"claude\", \"gemini\", \"codex\")"
           },
           "paired": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the operator works alongside the agent (SPIKE and INV tickets)"
           },
           "pr_number": {
             "type": [
@@ -13685,19 +13717,22 @@
               "null"
             ],
             "format": "int64",
+            "description": "PR/MR number",
             "minimum": 0
           },
           "pr_status": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Last known PR/MR status: open, approved, `changes_requested`, merged or closed"
           },
           "pr_url": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "URL of the PR/MR opened by the \"pr\" step"
           },
           "remote_host": {
             "type": [
@@ -13710,31 +13745,36 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Pending review gate while `awaiting_input`: `pending_plan`, `pending_visual`, `pending_proof`, `pending_pr_creation` or `pending_pr_merge`"
           },
           "session_context_ref": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Session context reference (cmux workspace, tmux window)"
           },
           "session_name": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Terminal session name"
           },
           "session_pane_ref": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Session pane reference (cmux surface, tmux pane)"
           },
           "session_window_ref": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Session window reference (cmux window, tmux session)"
           },
           "session_wrapper": {
             "type": [
@@ -13755,13 +13795,22 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Execution target the agent launched on"
+          },
+          "workspace_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coder dashboard URL of the agent's workspace"
           },
           "worktree_path": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Git worktree the agent works in"
           }
         }
       },

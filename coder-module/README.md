@@ -95,6 +95,7 @@ This mode has prerequisites the basic mode does not - see below.
 | `group` | `string` | `null` | Group that this app belongs to |
 | `offline` | `bool` | `false` | Skip downloading; requires a pre-installed binary at `install_prefix` |
 | `use_cached` | `bool` | `false` | Reuse a cached binary if present, otherwise download |
+| `client_only` | `bool` | `false` | Install only the `opr8r` client: no `operator` binary, API server, or dashboard app. For agent workspaces that an Operator elsewhere launches into |
 
 ### Child-workspace spawning
 
@@ -107,7 +108,7 @@ All optional. `agent_template` is the switch - leave it empty and no `[[targets]
 | `callback_url` | `string` | `""` | Control-plane-reachable `OPERATOR_API_URL` override, so detached multi-step survives SSH tunnel loss. Empty keeps the reverse-tunnel default. |
 | `name_prefix` | `string` | `""` | Workspace name prefix for deterministic per-ticket naming |
 | `workdir` | `string` | `""` | Project root inside spawned workspaces |
-| `stop_on_complete` | `bool` | `null` | Stop a spawned workspace when its ticket completes (never deletes) |
+| `stop_on_complete` | `bool` | `null` | Stop a spawned workspace when its ticket completes |
 | `create_timeout_secs` | `number` | `null` | Bound on workspace create plus agent-ready wait, in seconds |
 
 ## Prerequisites

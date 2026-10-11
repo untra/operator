@@ -49,6 +49,16 @@ export function AgentDetailPage() {
         <Field label="Paired" value={agent.paired ? "Yes" : "No"} />
         <Field label="Session" value={agent.session_name} />
         <Field label="Host" value={agent.remote_host ?? agent.target_name} />
+        {agent.workspace_url && (
+          <div className={styles.field}>
+            <div className={styles.fieldLabel}>Workspace</div>
+            <div className={styles.fieldValue}>
+              <a href={agent.workspace_url} target="_blank" rel="noopener noreferrer">
+                {agent.workspace_url}
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       {agent.pr_url && (

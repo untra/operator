@@ -71,11 +71,13 @@ export function openTargets(path: string, remoteHost?: string | null): OpenTarge
 /** Like `openTargets`, but VS Code and Cursor open the ticket through the Operator extension. */
 export function ticketFileTargets(ticketId: string, path: string): OpenTarget[] {
   const id = encodeURIComponent(ticketId);
-  return openTargets(path).map((target) =>
-    target.editor === "vscode" || target.editor === "cursor"
-      ? { ...target, url: `${target.editor}://${EXTENSION_ID}/open-ticket?id=${id}` }
-      : target,
-  );
+  const targets = openTargets(path);
+  for (const target of targets) {
+    if (target.editor === "vscode" || target.editor === "cursor") {
+      target.url = `${target.editor}://${EXTENSION_ID}/open-ticket?id=${id}`;
+    }
+  }
+  return targets;
 }
 
 /** The Operator extension's link that reveals a terminal by name. */

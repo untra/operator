@@ -173,6 +173,9 @@ pub struct Delegator {
     /// (claude → anthropic-api, codex → openai-api, gemini → google-api).
     #[serde(default)]
     pub model_server: Option<String>,
+    /// Name of a `[[governance]]` policy enforced on every launch by this delegator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub governance: Option<String>,
     /// Declarative reference to a remote, named agent on another platform
     /// (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).
     ///
@@ -451,6 +454,7 @@ mod tests {
     #[test]
     fn delegator_serializes_omits_none_new_fields() {
         let d = Delegator {
+            governance: None,
             git: None,
             name: "claude-opus".to_string(),
             llm_tool: "claude".to_string(),

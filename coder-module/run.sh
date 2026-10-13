@@ -13,38 +13,43 @@ case "$ARCH" in
     ;;
 esac
 
-OPERATOR_BIN="${INSTALL_PREFIX}/operator"
+client_only="${CLIENT_ONLY}"
 
-if [ "${USE_CACHED}" = "true" ] && [ -f "$OPERATOR_BIN" ]; then
-  echo "Using cached operator binary"
-elif [ "${OFFLINE}" = "true" ]; then
-  if [ -f "$OPERATOR_BIN" ]; then
-    echo "Using offline operator binary"
+# client_only workspaces run agents for an Operator elsewhere; they need only opr8r.
+if [ "$client_only" != "true" ]; then
+  OPERATOR_BIN="${INSTALL_PREFIX}/operator"
+
+  if [ "${USE_CACHED}" = "true" ] && [ -f "$OPERATOR_BIN" ]; then
+    echo "Using cached operator binary"
+  elif [ "${OFFLINE}" = "true" ]; then
+    if [ -f "$OPERATOR_BIN" ]; then
+      echo "Using offline operator binary"
+    else
+      echo "No operator binary found in offline mode"
+      exit 1
+    fi
   else
-    echo "No operator binary found in offline mode"
-    exit 1
+    printf "$${BOLD}Installing operator v${VERSION}...$${RESET}\n"
+
+    if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ -e "$CODER_SCRIPT_BIN_DIR/operator" ]; then
+      rm "$CODER_SCRIPT_BIN_DIR/operator"
+    fi
+
+    mkdir -p "${INSTALL_PREFIX}"
+    RELEASE_URL="https://github.com/untra/operator/releases/download/v${VERSION}/operator-$PLATFORM"
+
+    output=$(curl -fsSL "$RELEASE_URL" -o "$OPERATOR_BIN" 2>&1)
+    if [ $? -ne 0 ]; then
+      echo "Failed to download operator: $output"
+      exit 1
+    fi
+    chmod +x "$OPERATOR_BIN"
+    printf "Operator v${VERSION} installed to ${INSTALL_PREFIX}\n"
   fi
-else
-  printf "$${BOLD}Installing operator v${VERSION}...$${RESET}\n"
 
-  if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ -e "$CODER_SCRIPT_BIN_DIR/operator" ]; then
-    rm "$CODER_SCRIPT_BIN_DIR/operator"
+  if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ ! -e "$CODER_SCRIPT_BIN_DIR/operator" ]; then
+    ln -s "$OPERATOR_BIN" "$CODER_SCRIPT_BIN_DIR/operator"
   fi
-
-  mkdir -p "${INSTALL_PREFIX}"
-  RELEASE_URL="https://github.com/untra/operator/releases/download/v${VERSION}/operator-$PLATFORM"
-
-  output=$(curl -fsSL "$RELEASE_URL" -o "$OPERATOR_BIN" 2>&1)
-  if [ $? -ne 0 ]; then
-    echo "Failed to download operator: $output"
-    exit 1
-  fi
-  chmod +x "$OPERATOR_BIN"
-  printf "Operator v${VERSION} installed to ${INSTALL_PREFIX}\n"
-fi
-
-if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ ! -e "$CODER_SCRIPT_BIN_DIR/operator" ]; then
-  ln -s "$OPERATOR_BIN" "$CODER_SCRIPT_BIN_DIR/operator"
 fi
 
 # opr8r is the client half of the pair: agent sessions launched in this
@@ -84,6 +89,15 @@ fi
 
 if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ -x "$OPR8R_BIN" ] && [ ! -e "$CODER_SCRIPT_BIN_DIR/opr8r" ]; then
   ln -s "$OPR8R_BIN" "$CODER_SCRIPT_BIN_DIR/opr8r"
+fi
+
+if [ "$client_only" = "true" ]; then
+  if [ ! -x "$OPR8R_BIN" ]; then
+    echo "client_only: opr8r is unavailable; this workspace cannot report step completion"
+    exit 1
+  fi
+  echo "client_only: opr8r installed; operator is not installed or started"
+  exit 0
 fi
 
 mkdir -p .tickets/operator .tickets/queue

@@ -16,4 +16,8 @@ workdir: string,
 /**
  * SSH config fragment passed with `-F` (used by provisioned coder aliases)
  */
-ssh_config_path?: string | null, };
+ssh_config_path?: string | null, 
+/**
+ * Remote port the reverse tunnel binds for callbacks (None = the local API port)
+ */
+remote_callback_port?: number | null, };

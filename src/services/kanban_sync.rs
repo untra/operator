@@ -10,17 +10,20 @@
 
 use anyhow::{Context, Result};
 use chrono::Local;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 use tracing::{debug, info, warn};
 
 use crate::api::providers::kanban::{
-    get_provider, get_provider_from_config, ExternalIssue, OpenspecProvider,
+    get_provider, get_provider_from_config, ExternalIssue, KanbanProvider, OpenspecProvider,
+    ScopeContents,
 };
-use crate::config::{Config, KanbanStatusMapping, ProjectSyncConfig};
+use crate::campaigns::{CampaignStore, NewCampaign};
+use crate::config::{Config, KanbanStatusMapping, ProjectSyncConfig, SyncScope};
 use crate::issuetypes::kanban_type::KanbanIssueTypeRef;
-use crate::queue::TicketPriority;
+use crate::licensing::PremiumFeature;
+use crate::queue::{Ticket, TicketPriority};
 
 /// A collection that can be synced from a kanban provider
 #[derive(Debug, Clone)]
@@ -42,8 +45,12 @@ pub struct SyncableCollection {
 pub struct SyncResult {
     /// Tickets that were created
     pub created: Vec<String>,
-    /// Issues that were skipped (already exist locally)
+    /// Issues that were skipped (already exist locally, nothing changed)
     pub skipped: Vec<String>,
+    /// Existing tickets whose synced relationships were refreshed
+    pub updated: Vec<String>,
+    /// Campaign the synced tickets were stamped with (scoped syncs)
+    pub campaign: Option<String>,
     /// Issues that failed to sync
     pub errors: Vec<String>,
     /// Total number of issues processed
@@ -59,8 +66,9 @@ impl SyncResult {
     /// Get a summary message
     pub fn summary(&self) -> String {
         format!(
-            "Created: {}, Skipped: {}, Errors: {}",
+            "Created: {}, Updated: {}, Skipped: {}, Errors: {}",
             self.created.len(),
+            self.updated.len(),
             self.skipped.len(),
             self.errors.len()
         )
@@ -168,17 +176,6 @@ impl KanbanSyncService {
     ) -> Result<SyncResult> {
         info!("Syncing collection: {}/{}", provider_name, project_key);
 
-        let mut result = SyncResult::default();
-
-        // Get the provider: env-configured first, then config-backed
-        // (openspec has no env form and always resolves from config)
-        let provider = match get_provider(provider_name) {
-            Some(p) => p,
-            None => get_provider_from_config(&self.config.kanban, provider_name, project_key)
-                .map_err(|e| anyhow::anyhow!("Provider '{provider_name}' not configured: {e}"))?,
-        };
-
-        // Get the project config
         let project_config = self
             .get_project_config(provider_name, project_key)
             .ok_or_else(|| {
@@ -186,6 +183,10 @@ impl KanbanSyncService {
                     "Project '{project_key}' not configured for provider '{provider_name}'"
                 )
             })?;
+        if let Some(scope) = project_config.scope.clone() {
+            return self.sync_scope(provider_name, project_key, &scope).await;
+        }
+        let provider = self.provider(provider_name, project_key)?;
 
         // Fetch issues from the provider
         let issues = provider
@@ -204,14 +205,115 @@ impl KanbanSyncService {
             project_key
         );
 
-        // Get existing external IDs in the queue
-        let existing_ids = self.get_existing_external_ids()?;
+        Ok(self.apply_issues(provider_name, project_key, &project_config, issues))
+    }
 
-        // Create tickets for new issues
+    /// Env-configured provider first, then config-backed (openspec is config-only).
+    fn provider(&self, provider_name: &str, project_key: &str) -> Result<Box<dyn KanbanProvider>> {
+        match get_provider(provider_name) {
+            Some(p) => Ok(p),
+            None => get_provider_from_config(&self.config.kanban, provider_name, project_key)
+                .map_err(|e| anyhow::anyhow!("Provider '{provider_name}' not configured: {e}")),
+        }
+    }
+
+    /// Sync one upstream container into a campaign (Premium).
+    pub async fn sync_scope(
+        &self,
+        provider_name: &str,
+        project_key: &str,
+        scope: &SyncScope,
+    ) -> Result<SyncResult> {
+        crate::licensing::require_premium(&self.config, PremiumFeature::Campaigns)?;
+        let project_config = self
+            .get_project_config(provider_name, project_key)
+            .unwrap_or_default();
+        let contents = self
+            .provider(provider_name, project_key)?
+            .list_scope(scope, &project_config.pull_statuses())
+            .await
+            .context("Failed to fetch scope from provider")?;
+        info!(
+            "Fetched {} issues in {provider_name}:{}",
+            contents.issues.len(),
+            contents.key
+        );
+        self.apply_scope(provider_name, project_key, &project_config, contents)
+    }
+
+    /// Find or create the campaign for a fetched scope and stamp its issues into it.
+    pub fn apply_scope(
+        &self,
+        provider_name: &str,
+        project_key: &str,
+        project_config: &ProjectSyncConfig,
+        contents: ScopeContents,
+    ) -> Result<SyncResult> {
+        crate::licensing::require_premium(&self.config, PremiumFeature::Campaigns)?;
+        self.stamp_scope(provider_name, project_key, project_config, contents)
+    }
+
+    fn stamp_scope(
+        &self,
+        provider_name: &str,
+        project_key: &str,
+        project_config: &ProjectSyncConfig,
+        contents: ScopeContents,
+    ) -> Result<SyncResult> {
+        let store = CampaignStore::new(&self.config);
+        let external_ref = format!("{provider_name}:{}", contents.key);
+        let campaign = match store.find_by_external_ref(&external_ref) {
+            Some(campaign) => campaign,
+            None => store.create(NewCampaign {
+                title: contents.title,
+                goal: contents.description,
+                external_ref: Some(external_ref),
+                ..Default::default()
+            })?,
+        };
+        let mut result = self.apply_issues_in(
+            provider_name,
+            project_key,
+            project_config,
+            contents.issues,
+            Some(&campaign.id),
+        );
+        result.campaign = Some(campaign.id);
+        Ok(result)
+    }
+
+    /// Write fetched issues as tickets: create new ones, refresh relationships on existing ones.
+    pub fn apply_issues(
+        &self,
+        provider_name: &str,
+        project_key: &str,
+        project_config: &ProjectSyncConfig,
+        issues: Vec<ExternalIssue>,
+    ) -> SyncResult {
+        self.apply_issues_in(provider_name, project_key, project_config, issues, None)
+    }
+
+    fn apply_issues_in(
+        &self,
+        provider_name: &str,
+        project_key: &str,
+        project_config: &ProjectSyncConfig,
+        issues: Vec<ExternalIssue>,
+        campaign: Option<&str>,
+    ) -> SyncResult {
+        let mut result = SyncResult::default();
+        let mut existing = self.existing_tickets_by_external_id(provider_name);
+
         for issue in issues {
-            if existing_ids.contains(&issue.key) {
-                debug!("Skipping existing issue: {}", issue.key);
-                result.skipped.push(issue.key.clone());
+            if let Some(ticket) = existing.get_mut(&issue.key) {
+                match refresh_relationships(ticket, provider_name, &issue, campaign) {
+                    Ok(true) => result.updated.push(issue.key.clone()),
+                    Ok(false) => {
+                        debug!("Skipping unchanged issue: {}", issue.key);
+                        result.skipped.push(issue.key.clone());
+                    }
+                    Err(e) => result.errors.push(format!("{}: {e}", issue.key)),
+                }
                 continue;
             }
 
@@ -223,9 +325,10 @@ impl KanbanSyncService {
             match self.create_ticket_from_issue(
                 &issue,
                 provider_name,
-                ticket_project(&project_config, project_key).as_str(),
+                ticket_project(project_config, project_key).as_str(),
                 type_mappings,
                 project_config.collection_name.as_deref(),
+                campaign,
             ) {
                 Ok(filename) => {
                     info!("Created ticket: {}", filename);
@@ -238,8 +341,11 @@ impl KanbanSyncService {
             }
         }
 
-        result.total_processed = result.created.len() + result.skipped.len() + result.errors.len();
-        Ok(result)
+        result.total_processed = result.created.len()
+            + result.updated.len()
+            + result.skipped.len()
+            + result.errors.len();
+        result
     }
 
     /// Sync all configured collections
@@ -338,29 +444,19 @@ impl KanbanSyncService {
         }
     }
 
-    /// Get set of external IDs that already exist in the queue
-    fn get_existing_external_ids(&self) -> Result<HashSet<String>> {
-        let queue_path = Path::new(&self.config.paths.tickets).join("queue");
-        let mut ids = HashSet::new();
-
-        if !queue_path.exists() {
-            return Ok(ids);
-        }
-
-        for entry in fs::read_dir(&queue_path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_some_and(|e| e == "md") {
-                // Try to read external_id from frontmatter
-                if let Ok(content) = fs::read_to_string(&path) {
-                    if let Some(external_id) = extract_external_id(&content) {
-                        ids.insert(external_id);
-                    }
-                }
-            }
-        }
-
-        Ok(ids)
+    /// This provider's synced tickets in queue, in-progress and completed, keyed by external id.
+    fn existing_tickets_by_external_id(&self, provider: &str) -> HashMap<String, Ticket> {
+        let tickets = Path::new(&self.config.paths.tickets);
+        ["queue", "in-progress", "completed"]
+            .iter()
+            .filter_map(|dir| fs::read_dir(tickets.join(dir)).ok())
+            .flatten()
+            .filter_map(|entry| entry.ok().map(|e| e.path()))
+            .filter(|path| path.extension().is_some_and(|e| e == "md"))
+            .filter_map(|path| Ticket::from_file(&path).ok())
+            .filter(|t| t.external_provider.as_deref().is_none_or(|p| p == provider))
+            .filter_map(|t| Some((t.external_id.clone()?, t)))
+            .collect()
     }
 
     /// Create a ticket file from an external issue
@@ -371,6 +467,7 @@ impl KanbanSyncService {
         project_key: &str,
         type_mappings: Option<&std::collections::HashMap<String, String>>,
         collection: Option<&str>,
+        campaign: Option<&str>,
     ) -> Result<String> {
         let queue_path = Path::new(&self.config.paths.tickets).join("queue");
         fs::create_dir_all(&queue_path)?;
@@ -382,11 +479,22 @@ impl KanbanSyncService {
         // falling back to TASK with needs_issuetype_mapping flag
         let (ticket_type, needs_mapping) =
             resolve_ticket_type(&issue.kanban_issue_types, type_mappings);
-        let slug = slugify(&issue.summary, 50);
-        let filename = format!("{timestamp}-{ticket_type}-{project_key}-{slug}.md");
+        let slug = crate::queue::ids::slugify(&issue.summary, 50);
+        let file_path = crate::queue::ids::unique_path(
+            &queue_path,
+            &format!("{timestamp}-{ticket_type}-{project_key}-{slug}"),
+        );
+        let filename = file_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
 
-        let frontmatter =
+        let mut frontmatter =
             ticket_frontmatter(ticket_type, issue, provider, needs_mapping, collection);
+        let (depends_on, external_parent) = relationship_refs(provider, issue);
+        frontmatter = frontmatter.trim_end_matches("---").to_string()
+            + &relationship_yaml(&depends_on, external_parent.as_deref(), campaign)
+            + "---";
 
         // Build content
         let description = issue
@@ -408,7 +516,6 @@ impl KanbanSyncService {
             frontmatter, ticket_type, issue.summary, description, provider, issue.key, issue.url,
         );
 
-        let file_path = queue_path.join(&filename);
         fs::write(&file_path, content)?;
 
         Ok(filename)
@@ -454,6 +561,85 @@ external_provider: {}{}
         provider,
         needs_mapping_line,
     )
+}
+
+/// Provider-qualified relationship refs for an issue: `(depends_on, external_parent)`.
+///
+/// Blockers and sub-tasks both gate the issue, so both become dependencies.
+pub fn relationship_refs(provider: &str, issue: &ExternalIssue) -> (Vec<String>, Option<String>) {
+    let depends_on: BTreeSet<String> = issue
+        .blocked_by
+        .iter()
+        .chain(&issue.subtasks)
+        .filter(|key| **key != issue.key)
+        .map(|key| format!("{provider}:{key}"))
+        .collect();
+    let parent = issue
+        .parent
+        .as_ref()
+        .map(|p| format!("{provider}:{}", p.key));
+    (depends_on.into_iter().collect(), parent)
+}
+
+/// Replace this provider's synced refs, keeping local ids and other providers' refs.
+pub fn merge_depends_on(existing: &[String], provider: &str, synced: &[String]) -> Vec<String> {
+    let prefix = format!("{provider}:");
+    let kept = existing.iter().filter(|r| !r.starts_with(&prefix));
+    let mut merged: Vec<String> = Vec::new();
+    for r in kept.chain(synced) {
+        if !merged.contains(r) {
+            merged.push(r.clone());
+        }
+    }
+    merged
+}
+
+/// Refresh synced relationships on an existing ticket; returns whether anything changed.
+fn refresh_relationships(
+    ticket: &mut Ticket,
+    provider: &str,
+    issue: &ExternalIssue,
+    campaign: Option<&str>,
+) -> Result<bool> {
+    let (synced, parent) = relationship_refs(provider, issue);
+    let merged = merge_depends_on(&ticket.depends_on, provider, &synced);
+    let mut changed = false;
+    if merged != ticket.depends_on {
+        ticket.set_depends_on(&merged)?;
+        changed = true;
+    }
+    if let Some(parent) = parent.filter(|p| ticket.external_parent.as_ref() != Some(p)) {
+        ticket.update_field("external_parent", &parent)?;
+        changed = true;
+    }
+    if let Some(campaign) = campaign.filter(|_| ticket.campaign.is_none()) {
+        ticket.set_campaign(Some(campaign))?;
+        changed = true;
+    }
+    Ok(changed)
+}
+
+/// YAML lines for relationship fields; values are JSON-quoted, which is valid YAML.
+fn relationship_yaml(
+    depends_on: &[String],
+    external_parent: Option<&str>,
+    campaign: Option<&str>,
+) -> String {
+    let quote = |v: &str| serde_json::to_string(v).unwrap_or_default();
+    let mut yaml = String::new();
+    if let Some(campaign) = campaign {
+        yaml.push_str(&format!("campaign: {}\n", quote(campaign)));
+    }
+    if let Some(parent) = external_parent {
+        yaml.push_str(&format!("external_parent: {}\n", quote(parent)));
+    }
+    if !depends_on.is_empty() {
+        yaml.push_str("depends_on:\n");
+        for r in depends_on {
+            yaml.push_str(&format!("  - {}\n", quote(r)));
+        }
+    }
+    yaml
 }
 
 /// Extract `external_id` from ticket content frontmatter
@@ -546,37 +732,15 @@ fn sanitize_external_key(key: &str) -> String {
     key.chars().filter(char::is_ascii_alphanumeric).collect()
 }
 
-/// Convert a string to a URL-safe slug
-fn slugify(s: &str, max_len: usize) -> String {
-    let slug: String = s
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-");
-
-    if slug.len() <= max_len {
-        slug
-    } else {
-        // Truncate at word boundary if possible
-        let truncated = &slug[..max_len];
-        if let Some(last_dash) = truncated.rfind('-') {
-            truncated[..last_dash].to_string()
-        } else {
-            truncated.to_string()
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn sample_issue() -> ExternalIssue {
         ExternalIssue {
+            blocked_by: Vec::new(),
+            parent: None,
+            subtasks: Vec::new(),
             id: "10042".to_string(),
             key: "PROJ-42".to_string(),
             summary: "Fix the widget".to_string(),
@@ -710,21 +874,6 @@ mod tests {
     }
 
     #[test]
-    fn test_slugify() {
-        assert_eq!(slugify("Hello World", 50), "hello-world");
-        assert_eq!(slugify("Fix: Login Bug!", 50), "fix-login-bug");
-        assert_eq!(slugify("  Multiple   Spaces  ", 50), "multiple-spaces");
-    }
-
-    #[test]
-    fn test_slugify_truncation() {
-        let long_string = "this is a very long string that should be truncated at a word boundary";
-        let slug = slugify(long_string, 30);
-        assert!(slug.len() <= 30);
-        assert!(!slug.ends_with('-'));
-    }
-
-    #[test]
     fn test_extract_external_id() {
         let content = r"---
 id: FEAT-123
@@ -764,7 +913,10 @@ status: queued
         result.skipped.push("PROJ-3".to_string());
 
         assert!(result.is_success());
-        assert_eq!(result.summary(), "Created: 2, Skipped: 1, Errors: 0");
+        assert_eq!(
+            result.summary(),
+            "Created: 2, Updated: 0, Skipped: 1, Errors: 0"
+        );
     }
 
     #[test]
@@ -849,6 +1001,13 @@ status: queued
         assert!(content.contains("external_id: add-dark-mode#1"));
         assert!(content.contains("- [ ] 1.1 Create ThemeContext"));
         assert!(content.contains("Users asked."));
+        let ui = Ticket::from_file(&queue.join(files.iter().find(|f| f.contains("ui")).unwrap()))
+            .unwrap();
+        assert_eq!(ui.depends_on, vec!["openspec:add-dark-mode#1"]);
+        assert_eq!(
+            ui.external_parent.as_deref(),
+            Some("openspec:add-dark-mode")
+        );
 
         // Re-import is idempotent: everything skips, nothing new is created
         let rerun = service
@@ -871,5 +1030,274 @@ status: queued
             .sync_collection("openspec", "no-such-change")
             .await
             .is_err());
+    }
+
+    // ── Relationship sync ───────────────────────────────────────────────────
+
+    fn sync_service(root: &std::path::Path) -> KanbanSyncService {
+        let mut config = Config::default();
+        config.paths.tickets = root.join(".tickets").to_string_lossy().into_owned();
+        KanbanSyncService::new(&config)
+    }
+
+    fn synced_ticket(root: &std::path::Path, key: &str) -> Ticket {
+        ["queue", "in-progress", "completed"]
+            .iter()
+            .filter_map(|d| fs::read_dir(root.join(".tickets").join(d)).ok())
+            .flatten()
+            .filter_map(|e| Ticket::from_file(&e.unwrap().path()).ok())
+            .find(|t| t.external_id.as_deref() == Some(key))
+            .unwrap_or_else(|| panic!("no ticket for {key}"))
+    }
+
+    fn ticket_count(root: &std::path::Path) -> usize {
+        ["queue", "in-progress", "completed"]
+            .iter()
+            .filter_map(|d| fs::read_dir(root.join(".tickets").join(d)).ok())
+            .map(Iterator::count)
+            .sum()
+    }
+
+    #[test]
+    fn test_relationship_refs_unions_blockers_and_subtasks() {
+        let issue = ExternalIssue {
+            blocked_by: vec!["PROJ-12".into(), "PROJ-42".into()],
+            subtasks: vec!["PROJ-43".into(), "PROJ-12".into()],
+            parent: Some(crate::api::providers::kanban::ExternalParent {
+                key: "PROJ-1".into(),
+                kind: crate::api::providers::kanban::ParentKind::Epic,
+            }),
+            ..sample_issue()
+        };
+        let (deps, parent) = relationship_refs("jira", &issue);
+        assert_eq!(deps, vec!["jira:PROJ-12", "jira:PROJ-43"]);
+        assert_eq!(parent.as_deref(), Some("jira:PROJ-1"));
+    }
+
+    #[test]
+    fn test_merge_depends_on_keeps_local_and_foreign_refs() {
+        let existing = vec![
+            "FEAT-0003".to_string(),
+            "jira:PROJ-9".to_string(),
+            "linear:ENG-1".to_string(),
+        ];
+        let merged = merge_depends_on(&existing, "jira", &["jira:PROJ-12".to_string()]);
+        assert_eq!(merged, vec!["FEAT-0003", "linear:ENG-1", "jira:PROJ-12"]);
+    }
+
+    #[test]
+    fn test_jira_fixture_sync_writes_relationships_and_keeps_dangling_blockers() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        let result = service.apply_issues(
+            "jira",
+            "PROJ",
+            &ProjectSyncConfig::default(),
+            crate::api::providers::kanban::jira_fixture_issues(),
+        );
+        assert_eq!(result.created.len(), 2, "{:?}", result.errors);
+        let story = synced_ticket(temp.path(), "PROJ-42");
+        assert_eq!(
+            story.depends_on,
+            vec!["jira:PROJ-12", "jira:PROJ-43", "jira:PROJ-44"],
+            "PROJ-12 is not synced but stays as a blocker"
+        );
+        assert_eq!(story.external_parent.as_deref(), Some("jira:PROJ-1"));
+        let sub = synced_ticket(temp.path(), "PROJ-60");
+        assert!(sub.depends_on.is_empty());
+        assert_eq!(sub.external_parent.as_deref(), Some("jira:PROJ-42"));
+    }
+
+    #[test]
+    fn test_linear_fixture_sync_maps_project_parent() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        service.apply_issues(
+            "linear",
+            "ENG",
+            &ProjectSyncConfig::default(),
+            crate::api::providers::kanban::linear_fixture_issues(),
+        );
+        let issue = synced_ticket(temp.path(), "ENG-7");
+        assert_eq!(
+            issue.depends_on,
+            vec!["linear:ENG-3", "linear:ENG-8", "linear:ENG-9"]
+        );
+        assert_eq!(
+            issue.external_parent.as_deref(),
+            Some("linear:proj-billing")
+        );
+    }
+
+    #[test]
+    fn test_github_keys_survive_yaml_round_trip() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        let issue = ExternalIssue {
+            key: "octo/hello#12".into(),
+            blocked_by: vec!["octo/hello#9".into()],
+            subtasks: vec!["octo/infra#2".into()],
+            parent: Some(crate::api::providers::kanban::ExternalParent {
+                key: "octo/hello#3".into(),
+                kind: crate::api::providers::kanban::ParentKind::Issue,
+            }),
+            ..sample_issue()
+        };
+        service.apply_issues(
+            "github",
+            "PVT_x",
+            &ProjectSyncConfig::default(),
+            vec![issue],
+        );
+        let ticket = synced_ticket(temp.path(), "octo/hello#12");
+        assert_eq!(
+            ticket.depends_on,
+            vec!["github:octo/hello#9", "github:octo/infra#2"]
+        );
+        assert_eq!(
+            ticket.external_parent.as_deref(),
+            Some("github:octo/hello#3")
+        );
+    }
+
+    #[test]
+    fn test_resync_refreshes_provider_edges_across_folders_without_duplicating() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        let config = ProjectSyncConfig::default();
+        let issue = ExternalIssue {
+            blocked_by: vec!["PROJ-12".into()],
+            ..sample_issue()
+        };
+        service.apply_issues("jira", "PROJ", &config, vec![issue]);
+
+        let mut ticket = synced_ticket(temp.path(), "PROJ-42");
+        ticket
+            .set_depends_on(&["jira:PROJ-12".to_string(), "FEAT-0007".to_string()])
+            .unwrap();
+        let in_progress = temp.path().join(".tickets/in-progress");
+        fs::create_dir_all(&in_progress).unwrap();
+        fs::rename(&ticket.filepath, in_progress.join(&ticket.filename)).unwrap();
+
+        let rerun = service.apply_issues("jira", "PROJ", &config, vec![sample_issue()]);
+        assert_eq!(rerun.updated, vec!["PROJ-42"]);
+        assert!(rerun.created.is_empty());
+        assert_eq!(ticket_count(temp.path()), 1);
+        let refreshed = synced_ticket(temp.path(), "PROJ-42");
+        assert_eq!(refreshed.depends_on, vec!["FEAT-0007"]);
+        assert_eq!(refreshed.status, "queued");
+
+        let again = service.apply_issues("jira", "PROJ", &config, vec![sample_issue()]);
+        assert_eq!(again.skipped, vec!["PROJ-42"]);
+    }
+
+    #[test]
+    fn test_same_key_from_another_provider_is_a_separate_ticket() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        let config = ProjectSyncConfig::default();
+        service.apply_issues("jira", "PROJ", &config, vec![sample_issue()]);
+        let result = service.apply_issues("linear", "PROJ", &config, vec![sample_issue()]);
+        assert_eq!(result.created, vec!["PROJ-42"]);
+        assert_eq!(ticket_count(temp.path()), 2);
+    }
+
+    // ── Scoped sync into a campaign ─────────────────────────────────────────
+
+    fn all_tickets(root: &std::path::Path) -> Vec<Ticket> {
+        ["queue", "in-progress", "completed"]
+            .iter()
+            .filter_map(|d| fs::read_dir(root.join(".tickets").join(d)).ok())
+            .flatten()
+            .map(|e| Ticket::from_file(&e.unwrap().path()).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn test_epic_scope_becomes_a_campaign_planned_into_waves() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        let result = service
+            .stamp_scope(
+                "jira",
+                "PROJ-1",
+                &ProjectSyncConfig::default(),
+                crate::api::providers::kanban::jira_epic_fixture(),
+            )
+            .unwrap();
+        assert_eq!(result.campaign.as_deref(), Some("CAMP-0001"));
+        assert_eq!(result.created.len(), 6, "{:?}", result.errors);
+
+        let campaign = CampaignStore::new(&service.config)
+            .get("CAMP-0001")
+            .unwrap();
+        assert_eq!(campaign.title, "Pricing overhaul");
+        assert_eq!(campaign.external_ref.as_deref(), Some("jira:PROJ-1"));
+        assert!(campaign.body.contains("Ship v2 pricing."));
+
+        let all = all_tickets(temp.path());
+        let members = crate::campaigns::members("CAMP-0001", &all);
+        assert_eq!(members.len(), 6);
+        assert!(members
+            .iter()
+            .all(|t| t.external_parent.as_deref() == Some("jira:PROJ-1")));
+
+        let plan = crate::campaigns::plan::plan(&service.config, &members, &all).unwrap();
+        assert_eq!(
+            plan.waves,
+            vec![
+                vec!["TASK-PROJ11", "TASK-PROJ12", "TASK-PROJ15"],
+                vec!["TASK-PROJ13", "TASK-PROJ16"],
+                vec!["TASK-PROJ14"],
+            ]
+        );
+        assert_eq!(
+            crate::campaigns::plan::ready(&plan, &all),
+            vec!["TASK-PROJ11", "TASK-PROJ12", "TASK-PROJ15"]
+        );
+    }
+
+    #[test]
+    fn test_resync_reuses_campaign_and_keeps_reassigned_tickets() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        let config = ProjectSyncConfig::default();
+        let epic = crate::api::providers::kanban::jira_epic_fixture;
+        service
+            .stamp_scope("jira", "PROJ-1", &config, epic())
+            .unwrap();
+
+        let mut moved = synced_ticket(temp.path(), "PROJ-16");
+        moved.set_campaign(Some("CAMP-0099")).unwrap();
+
+        let rerun = service
+            .stamp_scope("jira", "PROJ-1", &config, epic())
+            .unwrap();
+        assert_eq!(rerun.campaign.as_deref(), Some("CAMP-0001"));
+        assert!(rerun.created.is_empty());
+        assert_eq!(CampaignStore::new(&service.config).list().len(), 1);
+        assert_eq!(
+            synced_ticket(temp.path(), "PROJ-16").campaign.as_deref(),
+            Some("CAMP-0099")
+        );
+    }
+
+    #[test]
+    fn test_scoped_sync_without_premium_writes_nothing() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = sync_service(temp.path());
+        let err = service
+            .apply_scope(
+                "jira",
+                "PROJ-1",
+                &ProjectSyncConfig::default(),
+                crate::api::providers::kanban::jira_epic_fixture(),
+            )
+            .unwrap_err();
+        assert!(err
+            .downcast_ref::<crate::licensing::NotEntitled>()
+            .is_some_and(|e| e.feature == PremiumFeature::Campaigns));
+        assert!(!temp.path().join(".tickets/campaigns").exists());
+        assert_eq!(ticket_count(temp.path()), 0);
     }
 }

@@ -336,6 +336,7 @@ mod tests {
 
     fn make_delegator(name: &str, tool: &str, model: &str) -> Delegator {
         Delegator {
+            governance: None,
             git: None,
             name: name.to_string(),
             llm_tool: tool.to_string(),

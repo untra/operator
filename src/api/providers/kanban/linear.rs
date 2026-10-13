@@ -379,6 +379,60 @@ struct IssuesResponse {
 #[derive(Debug, Deserialize)]
 struct IssuesConnection {
     nodes: Vec<LinearIssue>,
+    #[serde(default, rename = "pageInfo")]
+    page_info: Option<PageInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PageInfo {
+    has_next_page: bool,
+    #[serde(default)]
+    end_cursor: Option<String>,
+}
+
+/// A project and one page of its issues.
+#[derive(Debug, Deserialize)]
+struct ProjectScopeResponse {
+    project: LinearProjectHeader,
+    issues: IssuesConnection,
+}
+
+#[derive(Debug, Deserialize)]
+struct LinearProjectHeader {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    url: String,
+}
+
+/// Pages fetched per scoped query before giving up (100 issues each).
+const MAX_SCOPE_PAGES: usize = 50;
+
+/// A project and one page of all its issues (any assignee), optionally filtered by state.
+fn project_scope_query(with_states: bool) -> String {
+    let (state_var, state_filter) = if with_states {
+        (
+            ", $stateNames: [String!]!",
+            "state: { name: { in: $stateNames } }",
+        )
+    } else {
+        ("", "")
+    };
+    format!(
+        "query($projectId: String!, $projectFilterId: ID!, $after: String{state_var}) {{
+            project(id: $projectId) {{ name description url }}
+            issues(
+                filter: {{ project: {{ id: {{ eq: $projectFilterId }} }} {state_filter} }}
+                first: 100
+                after: $after
+            ) {{
+                pageInfo {{ hasNextPage endCursor }}
+                nodes {{ ...SyncedIssue }}
+            }}
+        }}
+        {SYNCED_ISSUE_FRAGMENT}"
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -394,6 +448,122 @@ struct LinearIssue {
     url: String,
     #[serde(default)]
     labels: Option<LabelsNodes>,
+    #[serde(default)]
+    inverse_relations: Option<RelationNodes>,
+    #[serde(default)]
+    parent: Option<IdentifierRef>,
+    #[serde(default)]
+    children: Option<IdentifierNodes>,
+    #[serde(default)]
+    project: Option<LinearProjectRef>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RelationNodes {
+    nodes: Vec<LinearRelation>,
+}
+
+/// An inverse relation: `issue` relates to this one with `type`.
+#[derive(Debug, Deserialize)]
+struct LinearRelation {
+    #[serde(rename = "type")]
+    relation_type: String,
+    issue: IdentifierRef,
+}
+
+#[derive(Debug, Deserialize)]
+struct IdentifierRef {
+    identifier: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct IdentifierNodes {
+    nodes: Vec<IdentifierRef>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LinearProjectRef {
+    id: String,
+}
+
+/// Issue fields read by sync, shared by every `issues` query.
+const SYNCED_ISSUE_FRAGMENT: &str = r"
+    fragment SyncedIssue on Issue {
+        id
+        identifier
+        title
+        description
+        state { name }
+        assignee { id name email avatarUrl }
+        priority
+        url
+        labels { nodes { id name } }
+        inverseRelations { nodes { type issue { identifier } } }
+        parent { identifier }
+        children { nodes { identifier } }
+        project { id name }
+    }
+";
+
+/// Normalize a Linear issue: a project outranks a parent issue as the container.
+fn issue_from_linear(issue: LinearIssue) -> ExternalIssue {
+    let kanban_issue_types = issue
+        .labels
+        .map(|labels| {
+            labels
+                .nodes
+                .into_iter()
+                .map(|l| KanbanIssueTypeRef {
+                    id: l.id,
+                    name: l.name,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let blocked_by = issue
+        .inverse_relations
+        .map(|r| {
+            r.nodes
+                .into_iter()
+                .filter(|rel| rel.relation_type == "blocks")
+                .map(|rel| rel.issue.identifier)
+                .collect()
+        })
+        .unwrap_or_default();
+    let parent = issue
+        .project
+        .map(|p| super::ExternalParent {
+            key: p.id,
+            kind: super::ParentKind::Project,
+        })
+        .or_else(|| {
+            issue.parent.map(|p| super::ExternalParent {
+                key: p.identifier,
+                kind: super::ParentKind::Issue,
+            })
+        });
+    ExternalIssue {
+        id: issue.id,
+        key: issue.identifier,
+        summary: issue.title,
+        description: issue.description,
+        kanban_issue_types,
+        status: issue.state.name,
+        assignee: issue.assignee.map(|u| ExternalUser {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            avatar_url: u.avatar_url,
+        }),
+        url: issue.url,
+        priority: priority_to_string(issue.priority),
+        blocked_by,
+        parent,
+        subtasks: issue
+            .children
+            .map(|c| c.nodes.into_iter().map(|n| n.identifier).collect())
+            .unwrap_or_default(),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -672,27 +842,7 @@ impl KanbanProvider for LinearProvider {
                         first: 100
                     ) {
                         nodes {
-                            id
-                            identifier
-                            title
-                            description
-                            state {
-                                name
-                            }
-                            assignee {
-                                id
-                                name
-                                email
-                                avatarUrl
-                            }
-                            priority
-                            url
-                            labels {
-                                nodes {
-                                    id
-                                    name
-                                }
-                            }
+                            ...SyncedIssue
                         }
                     }
                 }
@@ -709,27 +859,7 @@ impl KanbanProvider for LinearProvider {
                         first: 100
                     ) {
                         nodes {
-                            id
-                            identifier
-                            title
-                            description
-                            state {
-                                name
-                            }
-                            assignee {
-                                id
-                                name
-                                email
-                                avatarUrl
-                            }
-                            priority
-                            url
-                            labels {
-                                nodes {
-                                    id
-                                    name
-                                }
-                            }
+                            ...SyncedIssue
                         }
                     }
                 }
@@ -749,44 +879,60 @@ impl KanbanProvider for LinearProvider {
             })
         };
 
-        let response: IssuesResponse = self.graphql(query, Some(variables)).await?;
+        let query = format!("{query}{SYNCED_ISSUE_FRAGMENT}");
+        let response: IssuesResponse = self.graphql(&query, Some(variables)).await?;
 
         Ok(response
             .issues
             .nodes
             .into_iter()
-            .map(|issue| {
-                let kanban_issue_types = issue
-                    .labels
-                    .map(|labels| {
-                        labels
-                            .nodes
-                            .into_iter()
-                            .map(|l| KanbanIssueTypeRef {
-                                id: l.id,
-                                name: l.name,
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                ExternalIssue {
-                    id: issue.id,
-                    key: issue.identifier,
-                    summary: issue.title,
-                    description: issue.description,
-                    kanban_issue_types,
-                    status: issue.state.name,
-                    assignee: issue.assignee.map(|u| ExternalUser {
-                        id: u.id,
-                        name: u.name,
-                        email: u.email,
-                        avatar_url: u.avatar_url,
-                    }),
-                    url: issue.url,
-                    priority: priority_to_string(issue.priority),
-                }
-            })
+            .map(issue_from_linear)
             .collect())
+    }
+
+    async fn list_scope(
+        &self,
+        scope: &crate::config::SyncScope,
+        statuses: &[String],
+    ) -> Result<super::ScopeContents, ApiError> {
+        let crate::config::SyncScope::LinearProject(project_id) = scope else {
+            return Err(ApiError::http(
+                "linear",
+                400,
+                format!("linear cannot sync scope {scope:?}"),
+            ));
+        };
+        let query = project_scope_query(!statuses.is_empty());
+        let mut header = None;
+        let mut nodes = Vec::new();
+        let mut after: Option<String> = None;
+        for _ in 0..MAX_SCOPE_PAGES {
+            let variables = serde_json::json!({
+                "projectId": project_id,
+                "projectFilterId": project_id,
+                "after": after,
+                "stateNames": statuses,
+            });
+            let page: ProjectScopeResponse = self.graphql(&query, Some(variables)).await?;
+            header.get_or_insert(page.project);
+            nodes.extend(page.issues.nodes);
+            after = page
+                .issues
+                .page_info
+                .filter(|p| p.has_next_page)
+                .and_then(|p| p.end_cursor);
+            if after.is_none() {
+                break;
+            }
+        }
+        let header = header.ok_or_else(|| ApiError::http("linear", 404, "project not found"))?;
+        Ok(super::ScopeContents {
+            key: project_id.clone(),
+            title: header.name,
+            description: header.description,
+            url: header.url,
+            issues: nodes.into_iter().map(issue_from_linear).collect(),
+        })
     }
 
     async fn create_issue(
@@ -859,6 +1005,9 @@ impl KanbanProvider for LinearProvider {
 
         Ok(super::CreateIssueResponse {
             issue: ExternalIssue {
+                blocked_by: Vec::new(),
+                parent: None,
+                subtasks: Vec::new(),
                 id: issue.id,
                 key: issue.identifier,
                 summary: issue.title,
@@ -955,6 +1104,9 @@ impl KanbanProvider for LinearProvider {
         })?;
 
         Ok(ExternalIssue {
+            blocked_by: Vec::new(),
+            parent: None,
+            subtasks: Vec::new(),
             id: issue.id,
             key: issue.identifier,
             summary: issue.title,
@@ -1217,6 +1369,20 @@ impl super::onboarding::KanbanOnboarding for LinearProvider {
     }
 }
 
+/// Issues normalized from the checked-in relationship fixture.
+#[cfg(test)]
+pub(crate) fn fixture_issues() -> Vec<ExternalIssue> {
+    let body =
+        include_str!("../../../../tests/fixtures/kanban/linear/issues_with_relationships.json");
+    let response: IssuesResponse = serde_json::from_str(body).unwrap();
+    response
+        .issues
+        .nodes
+        .into_iter()
+        .map(issue_from_linear)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1337,6 +1503,65 @@ mod tests {
         assert_eq!(states[1].name, "Todo");
         assert_eq!(states[2].name, "In Progress");
         assert_eq!(states[3].name, "Done");
+    }
+
+    #[test]
+    fn test_issue_from_linear_maps_only_blocks_inverse_relations() {
+        assert_eq!(fixture_issues()[0].blocked_by, vec!["ENG-3"]);
+    }
+
+    #[test]
+    fn test_issue_from_linear_project_outranks_parent_issue() {
+        let issues = fixture_issues();
+        assert_eq!(
+            issues[0].parent,
+            Some(super::super::ExternalParent {
+                key: "proj-billing".into(),
+                kind: super::super::ParentKind::Project,
+            })
+        );
+        assert_eq!(issues[0].subtasks, vec!["ENG-8", "ENG-9"]);
+        assert_eq!(
+            issues[1].parent,
+            Some(super::super::ExternalParent {
+                key: "ENG-7".into(),
+                kind: super::super::ParentKind::Issue,
+            })
+        );
+        assert!(issues[1].blocked_by.is_empty());
+    }
+
+    #[test]
+    fn test_project_scope_query_filters_by_project_not_assignee() {
+        let query = project_scope_query(false);
+        assert!(query.contains("project: { id: { eq: $projectFilterId } }"));
+        assert!(
+            !query.contains("assignee: {"),
+            "scoped sync must not filter by assignee"
+        );
+        assert!(!query.contains("$stateNames"));
+        assert!(query.contains("fragment SyncedIssue"));
+        assert!(project_scope_query(true).contains("state: { name: { in: $stateNames } }"));
+    }
+
+    #[test]
+    fn test_project_scope_response_reads_header_and_page_info() {
+        let page: ProjectScopeResponse = serde_json::from_str(
+            r#"{"project": {"name": "Billing v2", "description": null, "url": "https://linear.app/acme/project/billing"},
+                "issues": {"pageInfo": {"hasNextPage": true, "endCursor": "c1"}, "nodes": []}}"#,
+        )
+        .unwrap();
+        assert_eq!(page.project.name, "Billing v2");
+        let info = page.issues.page_info.unwrap();
+        assert!(info.has_next_page);
+        assert_eq!(info.end_cursor.as_deref(), Some("c1"));
+    }
+
+    #[test]
+    fn test_synced_issue_fragment_requests_relationships() {
+        for field in ["inverseRelations", "parent", "children", "project"] {
+            assert!(SYNCED_ISSUE_FRAGMENT.contains(field), "{field}");
+        }
     }
 
     #[test]

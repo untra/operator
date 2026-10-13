@@ -456,6 +456,9 @@ mod tests {
 
     fn make_test_ticket(ticket_type: &str, step: &str) -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "20241221-1430-FEAT-gamesvc-test.md".to_string(),
             filepath: "/test/path".to_string(),
             timestamp: "20241221-1430".to_string(),

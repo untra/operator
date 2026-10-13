@@ -1,0 +1,5 @@
+# A cycle is refused at start; the campaign stays ready and nothing launches.
+[expect]
+plan_error = "dependency cycle"
+start_error = "dependency cycle"
+final_status = "ready"

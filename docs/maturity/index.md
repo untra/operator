@@ -116,6 +116,13 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Coder | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Coder](https://operator.untra.io/getting-started/remote-targets/coder/) |
 | SSH Hosts | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [SSH Hosts](https://operator.untra.io/getting-started/remote-targets/ssh/) |
 
+## Operator Feature
+
+| Integration | Status | Availability | Docs |
+|---|---|---|---|
+| Governance | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Governance](https://operator.untra.io/getting-started/concepts/governance/) |
+| Campaigns | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Campaigns](https://operator.untra.io/getting-started/concepts/campaigns/) |
+
 ## LLM tool capabilities
 
 Advertising status (GA/Beta/Alpha) is not the same as a live connection probe. LLM tool **health** is `path-version`: the binary is on PATH. That is weaker than a model provider's `/models` probe, which proves an API key is accepted.

@@ -78,6 +78,9 @@ pub struct XOperator {
     /// Name of a declared `ModelServer` (`None` = implicit vendor default).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_server: Option<String>,
+    /// Name of a `[[governance]]` policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub governance: Option<String>,
     /// Launch configuration (permission mode, flags, worktree/docker, prompt
     /// wrapping, ...).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -91,6 +94,7 @@ impl XOperator {
             && self.display_name.is_none()
             && self.model_properties.is_empty()
             && self.model_server.is_none()
+            && self.governance.is_none()
             && self.launch_config.is_none()
     }
 }
@@ -138,6 +142,7 @@ pub fn delegator_to_profile(d: &Delegator) -> AgentProfile {
         display_name: d.display_name.clone(),
         model_properties: d.model_properties.clone(),
         model_server: d.model_server.clone(),
+        governance: d.governance.clone(),
         launch_config: d.launch_config.clone(),
     };
 
@@ -190,6 +195,7 @@ pub fn profile_to_delegator(p: &AgentProfile) -> Delegator {
         model_properties: x.model_properties,
         launch_config: x.launch_config,
         model_server: x.model_server,
+        governance: x.governance,
         remote_agent: p.remote_agent.clone(),
         x_agnt: p.x_agnt.clone(),
         x_openai: p.x_openai.clone(),
@@ -213,6 +219,7 @@ mod tests {
         let mut props = std::collections::HashMap::new();
         props.insert("reasoning_effort".to_string(), "high".to_string());
         Delegator {
+            governance: None,
             git: None,
             name: "claude-opus-auto".to_string(),
             llm_tool: "claude".to_string(),
@@ -268,6 +275,7 @@ mod tests {
     #[test]
     fn delegator_with_no_operator_data_has_no_x_operator() {
         let d = Delegator {
+            governance: None,
             git: None,
             name: "bare".to_string(),
             llm_tool: "claude".to_string(),

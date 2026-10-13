@@ -351,6 +351,9 @@ mod tests {
         // None and the call must be a silent no-op.
         let sync = KanbanBidirectionalSync::new(Arc::new(crate::config::Config::default()));
         let ticket = Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: String::new(),
             filepath: String::new(),
             timestamp: String::new(),

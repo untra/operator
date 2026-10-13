@@ -12,6 +12,7 @@
 //  - tmux / zellij have neither a URL scheme nor a control-plane focus path, so
 //    their session is shown read-only.
 
+import type { ConnectOption } from "@operator/bindings/ConnectOption";
 import type { LaunchTicketResponse } from "./api-client";
 
 /** Publisher.name of the operator VS Code extension - the URI authority. */
@@ -45,4 +46,27 @@ export function wrapperSessionLink(res: LaunchTicketResponse): WrapperSessionLin
       return { kind: "display", label: "Session", detail: ref || res.terminal_name };
     }
   }
+}
+
+/** What a click on a server-computed connect option does. */
+export type ConnectAction =
+  | { kind: "open-url"; url: string }
+  | { kind: "focus-api" }
+  | { kind: "copy"; text: string }
+  | { kind: "none" };
+
+export function connectAction(option: ConnectOption): ConnectAction {
+  if (!option.available) {
+    return { kind: "none" };
+  }
+  if (option.kind === "focus_api") {
+    return { kind: "focus-api" };
+  }
+  if (option.kind === "ide" && option.uri) {
+    return { kind: "open-url", url: option.uri };
+  }
+  if (option.kind === "command" && option.command) {
+    return { kind: "copy", text: option.command };
+  }
+  return { kind: "none" };
 }

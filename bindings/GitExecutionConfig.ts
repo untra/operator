@@ -6,4 +6,17 @@ import type { GitIdentityConfig } from "./GitIdentityConfig";
 /**
  * Git settings owned by a named delegator.
  */
-export type GitExecutionConfig = { identity: GitIdentityConfig | null, credentials: GitCredentialConfig | null, settings: Array<GitConfigEntry>, };
+export type GitExecutionConfig = { 
+/**
+ * Commit identity; falls back to the global `git.identity`
+ */
+identity: GitIdentityConfig | null, 
+/**
+ * HTTPS credential for the ticket's repository
+ */
+credentials: GitCredentialConfig | null, 
+/**
+ * Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,
+ * `user.email`, `core.askpass` and `core.sshCommand` are rejected
+ */
+settings: Array<GitConfigEntry>, };

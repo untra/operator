@@ -9,4 +9,8 @@ export type JiraSearchResponse = {
 /**
  * List of issues matching the JQL query
  */
-issues: Array<JiraIssue>, };
+issues: Array<JiraIssue>, 
+/**
+ * Token for the next page; absent on the last page
+ */
+nextPageToken: string | null, };

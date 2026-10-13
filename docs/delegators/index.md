@@ -43,6 +43,7 @@ A delegator bridges a tool (the binary) to a model server (the backend). If `mod
 | `model` | Yes | Model alias passed to the tool (e.g. `"opus"`, `"sonnet"`, `"gpt-4o"`) |
 | `display_name` | No | Human-readable label shown in the UI |
 | `model_server` | No | Name of a declared `[[model_servers]]` entry; omit to use the tool's vendor default |
+| `governance` | No | Name of a `[[governance]]` policy checked on every launch by this delegator |
 | `model_properties` | No | Arbitrary key-value pairs forwarded to the model (e.g. `reasoning_effort = "high"`) |
 | `launch_config` | No | Per-delegator launch overrides (see below) |
 
@@ -154,6 +155,25 @@ operator_relay = true   # coordination-heavy delegators: enable relay
 [delegators.task.launch_config]
 operator_relay = false  # single-agent task delegators: disable relay
 ```
+
+## Governance
+
+A delegator can name a [governance policy](/getting-started/concepts/governance/) that every one of its launches must pass - which tools, model servers and targets it may use, and how many of its tickets may run at once:
+
+```toml
+[[governance]]
+name            = "local-only"
+allowed_targets = ["local", "docker"]
+max_parallel    = 2
+
+[[delegators]]
+name       = "claude-sonnet-auto"
+llm_tool   = "claude"
+model      = "sonnet"
+governance = "local-only"
+```
+
+A refused launch returns `governance_denied` and starts nothing.
 
 ## Using a custom model server
 

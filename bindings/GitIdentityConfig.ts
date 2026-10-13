@@ -3,4 +3,12 @@
 /**
  * Commit identity template for delegated work.
  */
-export type GitIdentityConfig = { name: string, email: string, };
+export type GitIdentityConfig = { 
+/**
+ * Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`
+ */
+name: string, 
+/**
+ * Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`
+ */
+email: string, };

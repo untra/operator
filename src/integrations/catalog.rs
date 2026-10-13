@@ -57,11 +57,12 @@ pub enum Vertical {
     Transport,
     AgentRelay,
     RemoteTargets,
+    Feature,
 }
 
 impl Vertical {
     /// All verticals, in README display order.
-    pub const ALL: [Vertical; 13] = [
+    pub const ALL: [Vertical; 14] = [
         Vertical::Kanban,
         Vertical::Model,
         Vertical::Git,
@@ -75,6 +76,7 @@ impl Vertical {
         Vertical::Transport,
         Vertical::AgentRelay,
         Vertical::RemoteTargets,
+        Vertical::Feature,
     ];
 
     /// Stable lowercase slug (wire id for the REST DTO).
@@ -93,6 +95,7 @@ impl Vertical {
             Vertical::Transport => "transport",
             Vertical::AgentRelay => "agent-relay",
             Vertical::RemoteTargets => "remote-targets",
+            Vertical::Feature => "feature",
         }
     }
 
@@ -112,6 +115,7 @@ impl Vertical {
             Vertical::Transport => "Execution Transport",
             Vertical::AgentRelay => "Agent Relay",
             Vertical::RemoteTargets => "Remote Targets",
+            Vertical::Feature => "Operator Feature",
         }
     }
 
@@ -132,6 +136,7 @@ impl Vertical {
             Vertical::Transport => "getting-started/transports",
             Vertical::AgentRelay => "getting-started/agent-relays",
             Vertical::RemoteTargets => "getting-started/remote-targets",
+            Vertical::Feature => "getting-started/concepts",
         }
     }
 }
@@ -188,8 +193,8 @@ impl CatalogEntry {
 pub fn all_integrations() -> Vec<CatalogEntry> {
     use SupportStatus::{Alpha, Beta, Ga, Proto};
     use Vertical::{
-        AgentRelay, Editor, Git, Integration, Kanban, LlmTool, Model, Notification, Platform,
-        RemoteTargets, Session, Transport, Workflows,
+        AgentRelay, Editor, Feature, Git, Integration, Kanban, LlmTool, Model, Notification,
+        Platform, RemoteTargets, Session, Transport, Workflows,
     };
     vec![
         // --- Kanban providers (mirror KanbanProviderType::ALL) ---
@@ -552,6 +557,26 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             true,
             Beta,
         ),
+        // --- Operator features (concepts, not brands) ---
+        entry(
+            Feature,
+            "governance",
+            "Governance",
+            Some("getting-started/concepts/governance"),
+            None,
+            false,
+            Alpha,
+        ),
+        entry(
+            Feature,
+            "campaigns",
+            "Campaigns",
+            Some("getting-started/concepts/campaigns"),
+            None,
+            false,
+            Alpha,
+        )
+        .premium(),
     ]
 }
 
@@ -643,6 +668,14 @@ mod tests {
         assert!(!entry_for(Vertical::Transport, "local").unwrap().premium);
         assert!(entry_for(Vertical::Transport, "ssh").unwrap().premium);
         assert!(!entry_for(Vertical::Editor, "cursor").unwrap().is_public());
+    }
+
+    #[test]
+    fn campaigns_are_premium_and_governance_is_free() {
+        assert!(entry_for(Vertical::Feature, "campaigns").unwrap().premium);
+        let governance = entry_for(Vertical::Feature, "governance").unwrap();
+        assert!(!governance.premium);
+        assert!(governance.is_public());
     }
 
     #[test]

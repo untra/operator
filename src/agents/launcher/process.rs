@@ -15,12 +15,22 @@ const POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 /// Run `command` to completion, killing it if it outlives `timeout`.
 pub fn output_with_timeout(
+    command: Command,
+    timeout: Duration,
+    description: &str,
+) -> anyhow::Result<Output> {
+    output_with_timeout_stdin(command, Stdio::null(), timeout, description)
+}
+
+/// [`output_with_timeout`] with `stdin` connected to the child.
+pub fn output_with_timeout_stdin(
     mut command: Command,
+    stdin: Stdio,
     timeout: Duration,
     description: &str,
 ) -> anyhow::Result<Output> {
     let mut child = command
-        .stdin(Stdio::null())
+        .stdin(stdin)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -136,6 +146,17 @@ mod tests {
         .unwrap();
         assert!(out.status.success());
         assert!(out.stdout.len() > 200_000, "got {} bytes", out.stdout.len());
+    }
+
+    #[test]
+    fn test_stdin_is_fed_to_the_child() {
+        let temp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(temp.path(), "payload").unwrap();
+        let stdin = Stdio::from(std::fs::File::open(temp.path()).unwrap());
+        let out =
+            output_with_timeout_stdin(sh("cat"), stdin, Duration::from_secs(5), "stdin command")
+                .unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout), "payload");
     }
 
     #[test]

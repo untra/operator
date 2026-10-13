@@ -25,6 +25,9 @@ import { WorkspaceGate } from "./WorkspaceGate";
 import { ProfilesProvider } from "./profiles-context";
 import { LicensePage } from "./routes/LicensePage";
 import { RemoteTargetsPage } from "./routes/RemoteTargetsPage";
+import { CampaignsPage } from "./routes/CampaignsPage";
+import { CampaignDetailPage } from "./routes/CampaignDetailPage";
+import { TicketPage } from "./routes/TicketPage";
 
 const host = createBrowserHost();
 
@@ -48,6 +51,8 @@ createRoot(document.getElementById("root")!).render(
                   <Route path="settings/security" element={<SecurityPage />} />
                   <Route path="settings/license" element={<LicensePage />} />
                   <Route path="remote-targets" element={<RemoteTargetsPage />} />
+                  <Route path="campaigns" element={<CampaignsPage />} />
+                  <Route path="campaigns/:id" element={<CampaignDetailPage />} />
                   <Route index element={<DashboardPage />} />
                   <Route path="config" element={<ConfigPage />} />
                   <Route path="connections" element={<SectionPage conceptKey="connections" />} />
@@ -62,6 +67,7 @@ createRoot(document.getElementById("root")!).render(
                   <Route path="queue" element={<QueuePage />} />
                   <Route path="status" element={<StatusPage />} />
                   <Route path="agent/:id" element={<AgentDetailPage />} />
+                  <Route path="tickets/:id" element={<TicketPage />} />
                 </Route>
               </Route>
             </Route>

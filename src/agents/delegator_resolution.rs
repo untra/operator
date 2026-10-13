@@ -436,6 +436,62 @@ pub fn resolve_launch_options(
     Ok(options)
 }
 
+/// Running tickets under a policy: `(ticket_id, delegator_name)` pairs.
+pub type RunningLaunches<'a> = [(&'a str, &'a str)];
+
+/// Enforce governance on a launch: `outer` layers (e.g. a campaign's) stacked
+/// over the launching delegator's `[[governance]]` policy.
+///
+/// With no layers the launch is unconstrained. `max_parallel` counts other
+/// tickets running under the delegator's policy.
+pub fn enforce_governance(
+    config: &Config,
+    options: &LaunchOptions,
+    outer: &[&crate::config::GovernancePolicy],
+    ticket_id: &str,
+    running: &RunningLaunches<'_>,
+) -> Result<(), crate::config::governance::GovernanceViolation> {
+    use crate::config::governance::{
+        evaluate, find_policy, layer, GovernanceCounters, LaunchFacts,
+    };
+    let delegator = options
+        .delegator_name
+        .as_deref()
+        .and_then(|name| config.delegators.iter().find(|d| d.name == name));
+    let policy_name = delegator.and_then(|d| d.governance.as_deref());
+    let own = policy_name
+        .map(|name| find_policy(&config.governance, name))
+        .transpose()?;
+    let layers: Vec<&crate::config::GovernancePolicy> = outer.iter().copied().chain(own).collect();
+    if layers.is_empty() {
+        return Ok(());
+    }
+    let governed = |name: &str| {
+        config.delegators.iter().any(|d| {
+            d.name == name && policy_name.is_some() && d.governance.as_deref() == policy_name
+        })
+    };
+    let active = running
+        .iter()
+        .filter(|(ticket, name)| *ticket != ticket_id && governed(name))
+        .map(|(ticket, _)| *ticket)
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let facts = LaunchFacts {
+        delegator: options.delegator_name.clone(),
+        llm_tool: options.provider.as_ref().map(|p| p.tool.clone()),
+        model_server: delegator
+            .and_then(|d| resolve_model_server_for_delegator(config, d).ok())
+            .map(|s| s.name),
+        target: options.target.name.clone(),
+    };
+    let counters = GovernanceCounters {
+        active: u32::try_from(active).unwrap_or(u32::MAX),
+        ..GovernanceCounters::default()
+    };
+    evaluate(&layer(&layers), &facts, &counters)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,6 +499,7 @@ mod tests {
 
     fn make_delegator(name: &str, tool: &str, model: &str) -> Delegator {
         Delegator {
+            governance: None,
             git: None,
             name: name.to_string(),
             llm_tool: tool.to_string(),
@@ -751,6 +808,7 @@ mod tests {
     fn test_resolve_delegator_applies_launch_config() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            governance: None,
             git: None,
             name: "full".to_string(),
             llm_tool: "claude".to_string(),
@@ -1051,5 +1109,103 @@ mod tests {
         let via_target = resolve_named_target(&target_config, "vm").unwrap();
 
         assert_eq!(via_host.as_remote_host(), via_target.as_remote_host());
+    }
+
+    fn governed_config(policy: crate::config::GovernancePolicy) -> Config {
+        let mut config = Config::default();
+        let mut d = make_delegator("opus", "claude", "opus");
+        d.governance = Some(policy.name.clone());
+        config.delegators.push(d);
+        config
+            .delegators
+            .push(make_delegator("free", "claude", "sonnet"));
+        config.governance.push(policy);
+        config
+    }
+
+    fn options_for(config: &Config, delegator: &str) -> LaunchOptions {
+        resolve_launch_options(config, Some(delegator), None, None, None, false, None).unwrap()
+    }
+
+    #[test]
+    fn test_enforce_governance_ungoverned_delegator_passes() {
+        let config = governed_config(crate::config::GovernancePolicy {
+            name: "strict".into(),
+            allowed_targets: Some(vec![]),
+            ..Default::default()
+        });
+        let options = options_for(&config, "free");
+        assert!(enforce_governance(&config, &options, &[], "FEAT-1", &[]).is_ok());
+    }
+
+    #[test]
+    fn test_enforce_governance_denies_disallowed_target() {
+        let config = governed_config(crate::config::GovernancePolicy {
+            name: "remote-only".into(),
+            allowed_targets: Some(vec!["coder".into()]),
+            ..Default::default()
+        });
+        let options = options_for(&config, "opus");
+        let err = enforce_governance(&config, &options, &[], "FEAT-1", &[]).unwrap_err();
+        assert!(err.reason.contains("target 'local'"), "{err}");
+    }
+
+    #[test]
+    fn test_enforce_governance_checks_implicit_model_server() {
+        let config = governed_config(crate::config::GovernancePolicy {
+            name: "anthropic".into(),
+            allowed_model_servers: Some(vec!["anthropic-api".into()]),
+            ..Default::default()
+        });
+        let options = options_for(&config, "opus");
+        assert!(enforce_governance(&config, &options, &[], "FEAT-1", &[]).is_ok());
+    }
+
+    #[test]
+    fn test_enforce_governance_max_parallel_counts_other_tickets_under_policy() {
+        let config = governed_config(crate::config::GovernancePolicy {
+            name: "one".into(),
+            max_parallel: Some(1),
+            ..Default::default()
+        });
+        let options = options_for(&config, "opus");
+        assert!(
+            enforce_governance(&config, &options, &[], "FEAT-2", &[("FEAT-9", "free")]).is_ok()
+        );
+        assert!(
+            enforce_governance(&config, &options, &[], "FEAT-2", &[("FEAT-2", "opus")]).is_ok()
+        );
+        assert!(
+            enforce_governance(&config, &options, &[], "FEAT-2", &[("FEAT-1", "opus")]).is_err()
+        );
+    }
+
+    #[test]
+    fn test_enforce_governance_unknown_policy_is_hard_error() {
+        let mut config = governed_config(crate::config::GovernancePolicy {
+            name: "real".into(),
+            ..Default::default()
+        });
+        config.delegators[0].governance = Some("ghost".into());
+        let options = options_for(&config, "opus");
+        let err = enforce_governance(&config, &options, &[], "FEAT-1", &[]).unwrap_err();
+        assert_eq!(err.policy, "ghost");
+    }
+
+    #[test]
+    fn test_enforce_governance_outer_layer_restricts_ungoverned_delegator() {
+        let config = governed_config(crate::config::GovernancePolicy {
+            name: "unused".into(),
+            ..Default::default()
+        });
+        let campaign = crate::config::GovernancePolicy {
+            name: "campaign".into(),
+            allowed_delegators: Some(vec!["opus".into()]),
+            ..Default::default()
+        };
+        let options = options_for(&config, "free");
+        assert!(enforce_governance(&config, &options, &[&campaign], "FEAT-1", &[]).is_err());
+        let options = options_for(&config, "opus");
+        assert!(enforce_governance(&config, &options, &[&campaign], "FEAT-1", &[]).is_ok());
     }
 }

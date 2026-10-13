@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::PathBuf;
 use ts_rs::TS;
@@ -63,28 +63,77 @@ pub struct State {
     #[serde(default)]
     pub multi_agent_groups: Vec<MultiAgentGroup>,
 
+    /// Campaign id → runner bookkeeping
+    #[serde(default)]
+    pub campaign_runs: HashMap<String, CampaignRun>,
+
     #[serde(skip)]
     #[ts(skip)]
     state_path: PathBuf,
 }
 
+/// Runner bookkeeping for one campaign.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct CampaignRun {
+    /// Ticket id → launches made by the runner
+    #[serde(default)]
+    pub launches: BTreeMap<String, u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
+    /// Why the run paused, if it did
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pause_reason: Option<String>,
+}
+
+impl CampaignRun {
+    pub fn record_launch(&mut self, ticket_id: &str) {
+        *self.launches.entry(ticket_id.to_string()).or_default() += 1;
+    }
+
+    /// Launches across the whole run.
+    pub fn launched(&self) -> u32 {
+        self.launches.values().sum()
+    }
+
+    /// Relaunches of one ticket.
+    pub fn retries(&self, ticket_id: &str) -> u32 {
+        self.launches
+            .get(ticket_id)
+            .map_or(0, |n| n.saturating_sub(1))
+    }
+}
+
+/// One agent working a ticket, persisted in the state file.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct AgentState {
     /// Non-secret Git configuration captured at launch.
     #[serde(default)]
     pub git_context: Option<crate::config::GitExecutionConfig>,
+    /// Agent ID
     pub id: String,
+    /// Ticket the agent works (e.g. "FEAT-7598")
     pub ticket_id: String,
+    /// Ticket type: FEAT, FIX, INV, SPIKE
     pub ticket_type: String,
+    /// Project the ticket belongs to
     pub project: String,
-    pub status: String, // "running", "awaiting_input", "completing", "orphaned"
+    /// "running", "`awaiting_input`", "completing", "orphaned", or "failed" after an interrupted
+    /// local shutdown
+    pub status: String,
+    /// When the agent launched
     #[ts(type = "string")]
     pub started_at: DateTime<Utc>,
+    /// Last time the agent showed activity
     #[ts(type = "string")]
     pub last_activity: DateTime<Utc>,
+    /// Latest status message from the agent
     pub last_message: Option<String>,
-    pub paired: bool, // true for SPIKE/INV
+    /// Whether the operator works alongside the agent (true for SPIKE and INV)
+    pub paired: bool,
     /// The terminal session name for this agent (for recovery)
     #[serde(default)]
     pub session_name: Option<String>,
@@ -157,16 +206,23 @@ pub struct AgentState {
     /// Name of the resolved execution target this agent launched on.
     #[serde(default)]
     pub target_name: Option<String>,
+    /// Coder dashboard URL of the workspace this agent runs in
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_url: Option<String>,
     /// Shutdown recovery strategy.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shutdown_recovery: Option<ShutdownRecovery>,
 }
 
+/// How startup reconciles an agent that was active when operator shut down.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum ShutdownRecovery {
+    /// The local session ended with the process; the agent is marked failed and can be retried
     InterruptedLocal,
+    /// Remote work was left running; relaunching the ticket is refused until the operator
+    /// confirms whether it survived
     RemoteAwaitingReconciliation,
 }
 
@@ -307,6 +363,7 @@ impl State {
                 project_llm_stats: HashMap::new(),
                 project_collection_prefs: HashMap::new(),
                 multi_agent_groups: Vec::new(),
+                campaign_runs: HashMap::new(),
                 state_path,
             })
         }
@@ -439,6 +496,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            workspace_url: None,
             shutdown_recovery: None,
         });
 
@@ -498,6 +556,7 @@ impl State {
             remote_host: None,
             step_launch_context: None,
             target_name: None,
+            workspace_url: None,
             shutdown_recovery: None,
         });
 
@@ -621,6 +680,14 @@ impl State {
     pub fn update_agent_remote_host(&mut self, agent_id: &str, host_name: &str) -> Result<()> {
         if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
             agent.remote_host = Some(host_name.to_string());
+        }
+        self.save()
+    }
+
+    /// Record the dashboard URL of the agent's Coder workspace
+    pub fn update_agent_workspace_url(&mut self, agent_id: &str, url: &str) -> Result<()> {
+        if let Some(agent) = self.agents.iter_mut().find(|a| a.id == agent_id) {
+            agent.workspace_url = Some(url.to_string());
         }
         self.save()
     }
@@ -1410,6 +1477,31 @@ mod tests {
         assert!(state.agents.is_empty());
         assert!(state.completed.is_empty());
         assert!(state.project_llm_stats.is_empty());
+    }
+
+    #[test]
+    fn test_campaign_runs_default_when_absent_and_roundtrip() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = test_config(&temp_dir);
+        fs::write(
+            temp_dir.path().join("state.json"),
+            r#"{"paused":false,"agents":[],"completed":[]}"#,
+        )
+        .unwrap();
+        assert!(State::load(&config).unwrap().campaign_runs.is_empty());
+
+        State::mutate(&config, |s| {
+            let run = s.campaign_runs.entry("CAMP-0001".into()).or_default();
+            run.record_launch("FEAT-0001");
+            run.record_launch("FEAT-0001");
+            run.record_launch("FIX-0002");
+        })
+        .unwrap();
+        let run = &State::load(&config).unwrap().campaign_runs["CAMP-0001"];
+        assert_eq!(run.launched(), 3);
+        assert_eq!(run.retries("FEAT-0001"), 1);
+        assert_eq!(run.retries("FIX-0002"), 0);
+        assert_eq!(run.retries("TASK-0003"), 0);
     }
 
     #[test]

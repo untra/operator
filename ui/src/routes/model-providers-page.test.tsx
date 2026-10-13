@@ -4,7 +4,7 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
-import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
+import { mockFetch, requestBody, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
 mock.module("@operator/webcomponents", () => webcomponentMocks);
@@ -36,6 +36,7 @@ afterEach(() => {
 describe("ModelProvidersPage", () => {
   test("creates and updates delegators", async () => {
     const requests: Array<{ path: string; method: string }> = [];
+    const bodies: Record<string, unknown> = {};
     const delegator = {
       name: "claude-gpt",
       llm_tool: "claude",
@@ -45,6 +46,7 @@ describe("ModelProvidersPage", () => {
       model_server: "openai",
       launch_config: null,
       remote_agent: null,
+      governance: "careful",
       git: null,
     };
     mockFetch((input, init) => {
@@ -106,6 +108,7 @@ describe("ModelProvidersPage", () => {
         return Promise.resolve(json(delegator));
       }
       if (path.endsWith("/delegators/claude-gpt") && method === "PUT") {
+        bodies.put = JSON.parse(requestBody(init) ?? "{}");
         return Promise.resolve(json(delegator));
       }
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }));
@@ -132,5 +135,6 @@ describe("ModelProvidersPage", () => {
         method: "PUT",
       });
     });
+    expect(bodies.put).toMatchObject({ governance: "careful" });
   });
 });

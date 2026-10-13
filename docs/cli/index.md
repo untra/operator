@@ -88,6 +88,7 @@ Import tickets from configured kanban providers (jira, linear, github, openspec)
 | --- | --- |
 | `<PROVIDER>` | Provider slug (e.g. openspec). Omit to sync every configured provider |
 | `<REFERENCE>` | Project/change reference (e.g. an `OpenSpec` change id, a Jira project key). Omit to sync all of the provider's configured collections |
+| `--campaign` | Import an `OpenSpec` change as one campaign (Premium). Other providers set `scope` on the project's sync config instead |
 
 ### `create`
 
@@ -151,6 +152,12 @@ No additional arguments.
 ### `auth`
 
 Local authentication administration and recovery
+
+No additional arguments.
+
+### `campaign`
+
+Inspect campaigns: epics of tickets planned into dependency waves
 
 No additional arguments.
 

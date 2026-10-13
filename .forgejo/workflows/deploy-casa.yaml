@@ -49,9 +49,11 @@ jobs:
         run: echo "tag=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Registry login
-        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "${REGISTRY_IMAGE%%/*}" -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login "${REGISTRY_IMAGE%%/*}" -u "$REGISTRY_USERNAME" --password-stdin
         env:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
       # Default docker driver: a docker-container builder would not trust the home CA.
       # OPERATOR_RELEASE=1 makes build.rs fail on an empty keyring or issuer instead of shipping one that rejects every license.
@@ -82,16 +84,21 @@ jobs:
     needs: build
     runs-on: helmfile
     steps:
-      - name: Kubeconfig
+      # The helmfile runner is shared, so the kubeconfig and the registry login live in this job's
+      # temp dir, never in ~/.kube or helm's default registry config.
+      - name: Credentials
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
-          chmod 600 ~/.kube/config
-
-      - name: Registry login
-        run: echo "${{ secrets.REGISTRY_TOKEN }}" | helm registry login "${REGISTRY_IMAGE%%/*}" -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+          umask 077
+          printf '%s\n' "$KUBECONFIG_DATA" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          echo "HELM_REGISTRY_CONFIG=$RUNNER_TEMP/helm-registry.json" >> "$GITHUB_ENV"
+          printf '%s' "$REGISTRY_TOKEN" | helm registry login "${REGISTRY_IMAGE%%/*}" -u "$REGISTRY_USERNAME" \
+            --password-stdin --registry-config "$RUNNER_TEMP/helm-registry.json"
         env:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
 
       # Helmfile owns the release: keep its chart version and values, and swap only the image.
       # The tag carries the digest: a re-run on the same commit pushes a new image under the same
@@ -106,3 +113,7 @@ jobs:
             --wait
         env:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+
+      - name: Drop credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/kubeconfig" "$RUNNER_TEMP/helm-registry.json"

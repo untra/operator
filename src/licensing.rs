@@ -23,12 +23,14 @@ static LICENSE_UPDATE: Mutex<()> = Mutex::new(());
 #[serde(rename_all = "snake_case")]
 pub enum PremiumFeature {
     RemoteTargets,
+    Campaigns,
 }
 
 impl std::fmt::Display for PremiumFeature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::RemoteTargets => f.write_str("remote_targets"),
+            Self::Campaigns => f.write_str("campaigns"),
         }
     }
 }
@@ -228,7 +230,7 @@ pub struct Entitlements {
 impl Entitlements {
     pub fn allows(&self, feature: PremiumFeature) -> bool {
         match feature {
-            PremiumFeature::RemoteTargets => self.premium,
+            PremiumFeature::RemoteTargets | PremiumFeature::Campaigns => self.premium,
         }
     }
 }
@@ -572,6 +574,23 @@ mod tests {
         header.kid = Some(SIGNING_KID.into());
         let license = jsonwebtoken::encode(&header, terms, &fixture.license_key).unwrap();
         crate::trust_verify::Envelope::new(license, fixture.attestation.clone()).encode()
+    }
+
+    #[test]
+    fn premium_features_follow_the_premium_flag() {
+        for feature in [PremiumFeature::RemoteTargets, PremiumFeature::Campaigns] {
+            let free = Entitlements {
+                status: LicenseStatus::Missing,
+                premium: false,
+            };
+            let premium = Entitlements {
+                status: LicenseStatus::Valid,
+                premium: true,
+            };
+            assert!(!free.allows(feature));
+            assert!(premium.allows(feature));
+        }
+        assert_eq!(PremiumFeature::Campaigns.to_string(), "campaigns");
     }
 
     #[test]

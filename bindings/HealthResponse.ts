@@ -3,7 +3,15 @@
 /**
  * Health check response
  */
-export type HealthResponse = { status: string, version: string, 
+export type HealthResponse = { 
+/**
+ * Always "ok" when the server answers
+ */
+status: string, 
+/**
+ * Operator version that is serving the API
+ */
+version: string, 
 /**
  * Top-level directory name of the operator working root (e.g. "acme").
  */

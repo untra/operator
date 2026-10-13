@@ -635,6 +635,9 @@ mod tests {
 
     fn make_test_ticket(project: &str) -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: format!("20241225-1200-TASK-{project}-test.md"),
             filepath: format!("/tmp/tickets/queue/20241225-1200-TASK-{project}-test.md"),
             timestamp: "20241225-1200".to_string(),

@@ -92,6 +92,7 @@ pub async fn create(
         display_name: req.display_name,
         model_properties: req.model_properties,
         model_server: req.model_server,
+        governance: req.governance,
         launch_config: req.launch_config.map(dto_to_launch_config),
         remote_agent: req.remote_agent,
         x_agnt: None,
@@ -196,6 +197,7 @@ fn delegator_to_response(d: &Delegator) -> DelegatorResponse {
         display_name: d.display_name.clone(),
         model_properties: d.model_properties.clone(),
         model_server: d.model_server.clone(),
+        governance: d.governance.clone(),
         launch_config: d.launch_config.as_ref().map(launch_config_to_dto),
         remote_agent: d.remote_agent.clone(),
     }
@@ -255,6 +257,7 @@ pub async fn create_from_tool(
                 display_name: req.display_name,
                 model_properties: std::collections::HashMap::new(),
                 model_server: req.model_server,
+                governance: None,
                 launch_config: req.launch_config.map(dto_to_launch_config),
                 remote_agent: None,
                 x_agnt: None,
@@ -304,6 +307,7 @@ pub async fn update(
                 display_name: req.display_name,
                 model_properties: req.model_properties,
                 model_server: req.model_server,
+                governance: req.governance,
                 launch_config: req.launch_config.map(dto_to_launch_config),
                 remote_agent: req.remote_agent,
                 x_agnt: existing.x_agnt.clone(),
@@ -411,6 +415,7 @@ mod tests {
     async fn test_list_with_delegators() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            governance: None,
             git: None,
             name: "test-delegator".to_string(),
             llm_tool: "claude".to_string(),
@@ -444,6 +449,7 @@ mod tests {
     async fn test_get_one_found() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            governance: None,
             git: None,
             name: "my-delegator".to_string(),
             llm_tool: "codex".to_string(),
@@ -476,6 +482,7 @@ mod tests {
     async fn test_get_one_with_extended_launch_config() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            governance: None,
             git: None,
             name: "full-config".to_string(),
             llm_tool: "claude".to_string(),
@@ -541,6 +548,7 @@ mod tests {
     async fn export_profile_returns_agent_profile() {
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            governance: None,
             git: None,
             name: "claude-opus".to_string(),
             llm_tool: "claude".to_string(),
@@ -576,6 +584,7 @@ mod tests {
         // covered by the unit tests in `config::agent_profile`.
         let mut config = Config::default();
         config.delegators.push(Delegator {
+            governance: None,
             git: None,
             name: "dup".to_string(),
             llm_tool: "claude".to_string(),

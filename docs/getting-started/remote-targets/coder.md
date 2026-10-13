@@ -87,6 +87,7 @@ module "operator" {
 | `group` | `string` | `null` | Group that this app belongs to |
 | `offline` | `bool` | `false` | Skip downloading; requires a pre-installed binary at `install_prefix` |
 | `use_cached` | `bool` | `false` | Use cached binary if present, otherwise download |
+| `client_only` | `bool` | `false` | Install only the `opr8r` client: no API server, or dashboard app. For agent workspaces that an Operator elsewhere launches into |
 
 ### Child agent workspaces
 
@@ -99,7 +100,7 @@ Set `agent_template` and the generated config gains a `[[targets]]` entry with `
 | `callback_url` | `string` | `""` | Control-plane-reachable `OPERATOR_API_URL` override; empty keeps the reverse-tunnel default |
 | `name_prefix` | `string` | `""` | Workspace name prefix for deterministic per-ticket naming |
 | `workdir` | `string` | `""` | Project root inside spawned workspaces |
-| `stop_on_complete` | `bool` | `null` | Stop a spawned workspace when its ticket completes (never deletes) |
+| `stop_on_complete` | `bool` | `null` | Stop a spawned workspace when its ticket completes |
 | `create_timeout_secs` | `number` | `null` | Bound on workspace create plus agent-ready wait, in seconds |
 
 This mode needs a **user session token**, which is not the ambient `CODER_AGENT_TOKEN` - that one is scoped to a single workspace and cannot create others. The module does not provision it; supply it through your template. A user session token can create, delete, and SSH into every workspace its user owns, so scope the account accordingly.
@@ -172,7 +173,46 @@ So a container needs no CLI baked in, and the CLI can never drift from the serve
 - **Naming is deterministic:** `{name_prefix}-{project}-{ticket_id}`, sanitized and capped at Coder's 32-character limit. Relaunching a ticket reuses its workspace.
 - **Create or start:** absent workspaces are created from `template`; existing ones on that template are started.
 - **Collisions are refused:** a workspace of the same name on a *different* template stops the launch rather than being reused, so Operator can never adopt a workspace a human made.
-- **Never deleted:** completed workspaces are stopped (when `stop_on_complete` is set). Reclamation stays with your Coder autostop and autodelete policy.
+- **Stop or delete:** completed workspaces are stopped when `stop_on_complete` is set. Set `delete_on_complete` to delete them instead, or `delete_on_merge` to delete them once the ticket's pull request merges. Both default off. A stopped workspace keeps its volume, which on OSS Coder is only reclaimed by your autodelete policy.
+- **Dashboard link:** the workspace URL (`{CODER_URL}/@{owner}/{workspace}`) is recorded on the agent and linked from the agent and ticket pages.
+
+### Template parameters and presets
+
+{% raw %}
+`parameters` are passed to `coder create` as `--parameter key=value`. Values may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}`:
+
+```toml
+[[targets]]
+name     = "cloud"
+kind     = "coder"
+template = "operator-agent"
+preset   = "standard"
+
+[targets.parameters]
+ticket = "{{ticket_id}}"
+step   = "{{step}}"
+```
+
+A workspace's name is fixed per ticket, so `{{ticket_id}}` and `{{project}}` never change for it. Values using `{{step}}` or `{{delegator}}` are re-sent on `coder start`; declare those template parameters `mutable = true`. `preset` is passed as `--preset`, which templates whose presets have no default need for the non-interactive create.
+{% endraw %}
+
+### Agent environment
+
+The agent sees only what the template sets, plus what Operator ships. List the control-plane variables the agent needs, typically LLM provider credentials, in `forward_env`:
+
+```toml
+forward_env = ["ANTHROPIC_API_KEY"]
+```
+
+Each one must be set in Operator's environment or the launch fails and names it. Values travel in a mode-0600 file that the agent session sources and then deletes; they are never written to the payload script. `token_env` cannot be forwarded.
+
+### opr8r
+
+Agent sessions call `opr8r` to report step completion. After the workspace is reachable, Operator ships its own `opr8r` to `$HOME/.operator/bin` when the workspace's `uname -sm` matches Operator's build. Otherwise it accepts an `opr8r` already on the workspace PATH, and fails the launch if there is none. Bake `opr8r` into the template image, or use the module with `client_only = true`, when Operator runs on a different platform than its workspaces.
+
+### Callback tunnel
+
+Without `callback_url`, the agent reaches Operator through an SSH reverse tunnel bound on the workspace at the same port as Operator's API. If something in the workspace already listens there, the launch fails loudly. Set `remote_callback_port` to bind a different workspace port.
 
 Operator writes its own per-workspace SSH config fragment under `.tickets/operator/ssh/` rather than running `coder config-ssh`, which would rewrite `~/.ssh/config`. The fragment proxies through `coder ssh --stdio` and skips host-key checking, matching what `coder config-ssh` writes for its own hosts: the Coder tailnet is the authentication boundary, and per-ticket workspaces are too short-lived for trust-on-first-use to be meaningful.
 
@@ -207,3 +247,5 @@ Operator fails fast and names what is missing. In order:
 3. **`coder create` fails** - the message is Coder's own, verbatim. Template permissions and workspace quotas surface here.
 4. **The workspace never becomes reachable over SSH** within `create_timeout_secs` - the template's agent is not starting, or `ssh` is missing from Operator's environment.
 5. **A refused name collision** - a workspace of that name already exists on another template. Rename or remove it.
+6. **No `opr8r`** - the workspace runs a different OS/arch than Operator and has no `opr8r` on PATH. See [opr8r](#opr8r).
+7. **`remote port forwarding failed`** - the callback port is taken inside the workspace. Set `remote_callback_port`.

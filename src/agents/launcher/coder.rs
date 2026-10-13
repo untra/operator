@@ -142,6 +142,13 @@ pub(crate) fn write_ssh_fragment(
 pub(crate) struct WorkspaceInfo {
     pub name: String,
     pub template_name: String,
+    #[serde(default)]
+    pub owner_name: String,
+}
+
+/// Dashboard URL of a workspace: `{base}/@{owner}/{workspace}`.
+pub fn workspace_url(base: &str, owner: &str, workspace: &str) -> String {
+    format!("{}/@{owner}/{workspace}", base.trim_end_matches('/'))
 }
 
 /// What provisioning must do for a workspace, decided from `coder list`
@@ -347,9 +354,52 @@ fn ensure_coder_cli(config: &Config, session: &CoderSession) -> Result<PathBuf> 
     }
 }
 
+/// Per-launch values substituted into template parameter values.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct CoderLaunchVars<'a> {
+    pub ticket_id: &'a str,
+    pub project: &'a str,
+    pub step: &'a str,
+    pub delegator: &'a str,
+}
+
+/// Placeholders whose value can differ between launches of one workspace.
+const VARYING_PLACEHOLDERS: [&str; 2] = ["{{step}}", "{{delegator}}"];
+
+fn render_parameter(value: &str, vars: &CoderLaunchVars) -> String {
+    value
+        .replace("{{ticket_id}}", vars.ticket_id)
+        .replace("{{project}}", vars.project)
+        .replace("{{step}}", vars.step)
+        .replace("{{delegator}}", vars.delegator)
+}
+
+/// Sorted `--parameter key=value` flags for the parameters `keep` selects.
+fn parameter_flags(
+    coder: &CoderConfig,
+    vars: &CoderLaunchVars,
+    keep: impl Fn(&str) -> bool,
+) -> Vec<String> {
+    let mut params: Vec<_> = coder.parameters.iter().filter(|(_, v)| keep(v)).collect();
+    params.sort();
+    params
+        .into_iter()
+        .flat_map(|(key, value)| {
+            [
+                "--parameter".to_string(),
+                format!("{key}={}", render_parameter(value, vars)),
+            ]
+        })
+        .collect()
+}
+
 /// Argv for `coder create`. Parameters are sorted so a given config always
 /// produces the same command, and each pair gets its own `--parameter` flag.
-fn create_workspace_args(workspace: &str, coder: &CoderConfig) -> Vec<String> {
+fn create_workspace_args(
+    workspace: &str,
+    coder: &CoderConfig,
+    vars: &CoderLaunchVars,
+) -> Vec<String> {
     let mut args = vec![
         "create".to_string(),
         workspace.to_string(),
@@ -357,27 +407,42 @@ fn create_workspace_args(workspace: &str, coder: &CoderConfig) -> Vec<String> {
         coder.template.clone(),
         "-y".to_string(),
     ];
-    let mut params: Vec<_> = coder.parameters.iter().collect();
-    params.sort();
-    for (key, value) in params {
-        args.push("--parameter".to_string());
-        args.push(format!("{key}={value}"));
+    if let Some(preset) = &coder.preset {
+        args.push("--preset".to_string());
+        args.push(preset.clone());
     }
+    args.extend(parameter_flags(coder, vars, |_| true));
+    args
+}
+
+/// Argv for `coder start`, re-sending only parameters that vary per launch.
+fn start_workspace_args(
+    workspace: &str,
+    coder: &CoderConfig,
+    vars: &CoderLaunchVars,
+) -> Vec<String> {
+    let mut args = vec![
+        "start".to_string(),
+        workspace.to_string(),
+        "--no-wait".to_string(),
+    ];
+    args.extend(parameter_flags(coder, vars, |v| {
+        VARYING_PLACEHOLDERS.iter().any(|p| v.contains(p))
+    }));
     args
 }
 
 /// Provision the workspace for a ticket and return the `RemoteHost` the
-/// shared remote launch tail consumes. Blocking - workspace creation is
+/// shared remote launch tail consumes, plus the workspace dashboard URL. Blocking - workspace creation is
 /// bounded by `create_timeout_secs`.
 pub(crate) fn provision_workspace(
     config: &Config,
     coder: &CoderConfig,
-    project: &str,
-    ticket_id: &str,
+    vars: &CoderLaunchVars,
     remote_url: Option<&str>,
     branch: Option<&str>,
     git: Option<&crate::config::GitExecutionConfig>,
-) -> Result<RemoteHost> {
+) -> Result<(RemoteHost, Option<String>)> {
     if let Some(context) = git {
         if context.credentials.is_some() {
             crate::git::runtime::validate_remote(
@@ -391,40 +456,46 @@ pub(crate) fn provision_workspace(
     let session = resolve_session(coder)?;
     let coder_bin = ensure_coder_cli(config, &session)?;
 
-    let workspace = workspace_name(&coder.name_prefix, project, ticket_id);
-    match decide_workspace_action(
-        find_workspace(&coder_bin, &session, &workspace, QUERY_TIMEOUT_SECS)?.as_ref(),
-        &coder.template,
-    ) {
+    let workspace = workspace_name(&coder.name_prefix, vars.project, vars.ticket_id);
+    let existing = find_workspace(&coder_bin, &session, &workspace, QUERY_TIMEOUT_SECS)?;
+    match decide_workspace_action(existing.as_ref(), &coder.template) {
         WorkspaceAction::Refuse { existing_template } => anyhow::bail!(
             "Workspace '{workspace}' exists on template '{existing_template}', not \
              '{}'; refusing to reuse a workspace Operator did not create",
             coder.template
         ),
         WorkspaceAction::Start => {
-            run_coder(
-                &coder_bin,
-                &session,
-                &["start", &workspace, "--no-wait"],
-                coder.create_timeout_secs,
-            )
-            .map(|_| ())?;
+            let args = start_workspace_args(&workspace, coder, vars);
+            let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+            run_coder(&coder_bin, &session, &arg_refs, coder.create_timeout_secs).map(|_| ())?;
         }
         WorkspaceAction::Create => {
-            let args = create_workspace_args(&workspace, coder);
+            let args = create_workspace_args(&workspace, coder, vars);
             let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
             run_coder(&coder_bin, &session, &arg_refs, coder.create_timeout_secs).map(|_| ())?;
         }
     }
+
+    let owner = match existing {
+        Some(ws) => Some(ws.owner_name),
+        None => find_workspace(&coder_bin, &session, &workspace, QUERY_TIMEOUT_SECS)
+            .ok()
+            .flatten()
+            .map(|ws| ws.owner_name),
+    };
+    let url = owner
+        .filter(|o| !o.is_empty())
+        .map(|o| workspace_url(&session.url, &o, &workspace));
 
     let fragment = write_ssh_fragment(config, &coder_bin, &workspace)?;
     let alias = workspace_alias(&workspace);
     let workdir = coder
         .workdir
         .clone()
-        .unwrap_or_else(|| format!("/home/coder/{project}"));
+        .unwrap_or_else(|| format!("/home/coder/{}", vars.project));
 
     wait_for_ssh(&session, &fragment, &alias, coder.create_timeout_secs)?;
+    ensure_opr8r(&session, &fragment, &alias, coder.create_timeout_secs)?;
 
     // Ensure the checkout before the agent lands in the workdir.
     if let (Some(url), Some(branch)) = (remote_url, branch) {
@@ -453,23 +524,62 @@ pub(crate) fn provision_workspace(
         )
         .with_context(|| format!("Failed to prepare checkout on workspace '{workspace}'"))?;
     }
-    Ok(RemoteHost {
+    let host = RemoteHost {
         name: workspace.clone(),
         ssh_alias: alias,
         workdir,
         display_name: Some(format!("coder/{workspace}")),
         ssh_config_path: Some(fragment.to_string_lossy().to_string()),
-    })
+    };
+    Ok((host, url))
 }
 
-/// Stop the workspace. Best-effort by design.
-pub fn stop_workspace(config: &Config, coder: &CoderConfig, workspace: &str) -> Result<()> {
+/// What ended an agent's use of its workspace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FinishTrigger {
+    /// The ticket's final step completed
+    Complete,
+    /// The ticket's pull request merged
+    Merged,
+}
+
+/// Lifecycle action applied to a finished workspace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FinishAction {
+    Stop,
+    Delete,
+}
+
+/// Delete wins over stop; stopping leaks the workspace volume on OSS Coder.
+pub(crate) fn decide_finish(coder: &CoderConfig, trigger: FinishTrigger) -> Option<FinishAction> {
+    match trigger {
+        FinishTrigger::Complete if coder.delete_on_complete => Some(FinishAction::Delete),
+        FinishTrigger::Complete if coder.stop_on_complete => Some(FinishAction::Stop),
+        FinishTrigger::Merged if coder.delete_on_merge => Some(FinishAction::Delete),
+        _ => None,
+    }
+}
+
+fn finish_args(action: FinishAction, workspace: &str) -> [&str; 3] {
+    let verb = match action {
+        FinishAction::Stop => "stop",
+        FinishAction::Delete => "delete",
+    };
+    [verb, workspace, "--yes"]
+}
+
+fn finish_workspace(
+    config: &Config,
+    coder: &CoderConfig,
+    workspace: &str,
+    action: FinishAction,
+) -> Result<()> {
     let session = resolve_session(coder)?;
     let coder_bin = ensure_coder_cli(config, &session)?;
     run_coder(
         &coder_bin,
         &session,
-        &["stop", workspace, "--yes"],
+        &finish_args(action, workspace),
         coder.create_timeout_secs,
     )
     .map(|_| ())
@@ -529,10 +639,31 @@ fn run_ssh(
     script: &str,
     timeout_secs: u64,
 ) -> Result<()> {
+    ssh_capture(
+        session,
+        fragment,
+        alias,
+        script,
+        std::process::Stdio::null(),
+        timeout_secs,
+    )
+    .map(|_| ())
+}
+
+/// Run `script` on the workspace with `stdin` attached; returns stdout.
+fn ssh_capture(
+    session: &CoderSession,
+    fragment: &Path,
+    alias: &str,
+    script: &str,
+    stdin: std::process::Stdio,
+    timeout_secs: u64,
+) -> Result<String> {
     let mut command = coder_ssh_command(session, fragment);
     command.args(["-o", "BatchMode=yes"]).arg(alias).arg(script);
-    let output = super::process::output_with_timeout(
+    let output = super::process::output_with_timeout_stdin(
         command,
+        stdin,
         std::time::Duration::from_secs(timeout_secs),
         &format!("ssh setup command on workspace '{alias}'"),
     )?;
@@ -543,13 +674,110 @@ fn run_ssh(
             String::from_utf8_lossy(&output.stderr).trim()
         );
     }
-    Ok(())
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-/// Best-effort `stop_on_complete` for a finished agent: parses the persisted
+/// Whether `uname -sm` output names the platform `os`/`arch` (Rust's
+/// `std::env::consts` spelling) builds for.
+fn platform_matches(uname: &str, os: &str, arch: &str) -> bool {
+    let mut parts = uname.split_whitespace();
+    let remote_os = match parts.next() {
+        Some("Linux") => "linux",
+        Some("Darwin") => "macos",
+        _ => return false,
+    };
+    let remote_arch = match parts.next() {
+        Some("arm64") => "aarch64",
+        Some(other) => other,
+        None => return false,
+    };
+    remote_os == os && remote_arch == arch
+}
+
+/// How opr8r reaches the workspace.
+#[derive(Debug, PartialEq, Eq)]
+enum Opr8rPlan {
+    /// Ship the local binary
+    Upload,
+    /// Already on the workspace PATH
+    Present,
+    /// Neither possible
+    Missing,
+}
+
+/// Decide from the probe output (`uname -sm`, then `command -v opr8r`).
+fn plan_opr8r(probe: &str, local_available: bool, os: &str, arch: &str) -> Opr8rPlan {
+    let mut lines = probe.lines();
+    let uname = lines.next().unwrap_or_default();
+    let present = lines.any(|l| !l.trim().is_empty());
+    if local_available && platform_matches(uname, os, arch) {
+        Opr8rPlan::Upload
+    } else if present {
+        Opr8rPlan::Present
+    } else {
+        Opr8rPlan::Missing
+    }
+}
+
+/// Put opr8r on the workspace: ship the local build when the platform
+/// matches, otherwise accept one already on the workspace PATH.
+fn ensure_opr8r(
+    session: &CoderSession,
+    fragment: &Path,
+    alias: &str,
+    timeout_secs: u64,
+) -> Result<()> {
+    use super::remote::REMOTE_BIN_DIR;
+    let probe = ssh_capture(
+        session,
+        fragment,
+        alias,
+        &format!("uname -sm; PATH=\"{REMOTE_BIN_DIR}:$PATH\" command -v opr8r || true"),
+        std::process::Stdio::null(),
+        timeout_secs,
+    )?;
+    let local = super::llm_command::locate_opr8r_binary().filter(|p| p.is_file());
+    match plan_opr8r(
+        &probe,
+        local.is_some(),
+        std::env::consts::OS,
+        std::env::consts::ARCH,
+    ) {
+        Opr8rPlan::Present => Ok(()),
+        Opr8rPlan::Missing => anyhow::bail!(
+            "Workspace '{alias}' has no opr8r on PATH and this Operator build ({}/{}) cannot \
+             ship one; install opr8r in the workspace image",
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        ),
+        Opr8rPlan::Upload => {
+            let bin = local.context("opr8r binary disappeared before upload")?;
+            let file = std::fs::File::open(&bin)
+                .with_context(|| format!("Failed to open {}", bin.display()))?;
+            ssh_capture(
+                session,
+                fragment,
+                alias,
+                &format!(
+                    "mkdir -p \"{REMOTE_BIN_DIR}\" && cat > \"{REMOTE_BIN_DIR}/opr8r.tmp\" && chmod 700 \"{REMOTE_BIN_DIR}/opr8r.tmp\" && mv -f \"{REMOTE_BIN_DIR}/opr8r.tmp\" \"{REMOTE_BIN_DIR}/opr8r\""
+                ),
+                std::process::Stdio::from(file),
+                timeout_secs,
+            )
+            .map(|_| ())
+            .with_context(|| format!("Failed to upload opr8r to workspace '{alias}'"))
+        }
+    }
+}
+
+/// Best-effort workspace cleanup for a finished agent: parses the persisted
 /// launch mode, finds the coder target by the persisted target name, and
-/// stops the workspace recorded as the agent's remote host.
-pub fn stop_on_complete_for_agent(config: &Config, agent: &crate::state::AgentState) {
+/// stops or deletes the workspace recorded as the agent's remote host.
+pub fn finish_workspace_for_agent(
+    config: &Config,
+    agent: &crate::state::AgentState,
+    trigger: FinishTrigger,
+) {
     use crate::agents::{parse_launch_mode, LaunchModeKind};
     let is_coder = agent
         .launch_mode
@@ -578,16 +806,20 @@ pub fn stop_on_complete_for_agent(config: &Config, agent: &crate::state::AgentSt
     let Some(coder) = coder else {
         tracing::warn!(
             agent = %agent.id,
-            "Cannot stop coder workspace: target no longer configured"
+            "Cannot finish coder workspace: target no longer configured"
         );
         return;
     };
-    if !coder.stop_on_complete {
+    let Some(action) = decide_finish(&coder, trigger) else {
         return;
-    }
-    match stop_workspace(config, &coder, &workspace) {
-        Ok(()) => tracing::info!(workspace = %workspace, "Stopped coder workspace on completion"),
-        Err(e) => tracing::warn!(workspace = %workspace, error = %e, "Failed to stop workspace"),
+    };
+    match finish_workspace(config, &coder, &workspace, action) {
+        Ok(()) => {
+            tracing::info!(workspace = %workspace, ?action, ?trigger, "Finished coder workspace");
+        }
+        Err(e) => {
+            tracing::warn!(workspace = %workspace, ?action, error = %e, "Failed to finish workspace");
+        }
     }
 }
 
@@ -606,10 +838,71 @@ mod tests {
         }
     }
 
+    fn vars() -> CoderLaunchVars<'static> {
+        CoderLaunchVars {
+            ticket_id: "FEAT-1",
+            project: "proj",
+            step: "build",
+            delegator: "heavy",
+        }
+    }
+
+    #[test]
+    fn test_render_parameter_substitutes_launch_vars() {
+        assert_eq!(
+            render_parameter("{{project}}/{{ticket_id}}@{{step}}:{{delegator}}", &vars()),
+            "proj/FEAT-1@build:heavy"
+        );
+        assert_eq!(render_parameter("plain", &vars()), "plain");
+    }
+
+    #[test]
+    fn test_create_workspace_args_render_parameters_and_preset() {
+        let mut coder = coder_with_parameters(&[("ticket", "{{ticket_id}}")]);
+        coder.preset = Some("large".to_string());
+        assert_eq!(
+            create_workspace_args("ws", &coder, &vars()),
+            [
+                "create",
+                "ws",
+                "--template",
+                "operator",
+                "-y",
+                "--preset",
+                "large",
+                "--parameter",
+                "ticket=FEAT-1",
+            ]
+        );
+    }
+
+    /// Only values that can change for a fixed workspace name are re-sent on start.
+    #[test]
+    fn test_start_workspace_args_resend_only_varying_parameters() {
+        let coder = coder_with_parameters(&[
+            ("ticket", "{{ticket_id}}"),
+            ("step", "{{step}}"),
+            ("who", "{{delegator}}"),
+            ("cpu", "4"),
+        ]);
+        assert_eq!(
+            start_workspace_args("ws", &coder, &vars()),
+            [
+                "start",
+                "ws",
+                "--no-wait",
+                "--parameter",
+                "step=build",
+                "--parameter",
+                "who=heavy",
+            ]
+        );
+    }
+
     #[test]
     fn test_create_workspace_args_without_parameters() {
         assert_eq!(
-            create_workspace_args("op-proj-feat-1", &coder_with_parameters(&[])),
+            create_workspace_args("op-proj-feat-1", &coder_with_parameters(&[]), &vars()),
             ["create", "op-proj-feat-1", "--template", "operator", "-y"]
         );
     }
@@ -620,7 +913,7 @@ mod tests {
     fn test_create_workspace_args_emit_sorted_separate_parameter_flags() {
         let coder = coder_with_parameters(&[("region", "us-west"), ("cpu", "4")]);
         assert_eq!(
-            create_workspace_args("op-proj-feat-1", &coder),
+            create_workspace_args("op-proj-feat-1", &coder, &vars()),
             [
                 "create",
                 "op-proj-feat-1",
@@ -640,7 +933,7 @@ mod tests {
     #[test]
     fn test_create_workspace_args_preserve_empty_parameter_values() {
         let coder = coder_with_parameters(&[("optional", ""), ("spaced", "a b")]);
-        let args = create_workspace_args("ws", &coder);
+        let args = create_workspace_args("ws", &coder, &vars());
         assert!(args.contains(&"optional=".to_string()));
         assert!(args.contains(&"spaced=a b".to_string()));
         assert_eq!(
@@ -832,10 +1125,99 @@ mod tests {
     }
 
     #[test]
+    fn test_decide_finish_table() {
+        let coder = |stop, del_complete, del_merge| CoderConfig {
+            stop_on_complete: stop,
+            delete_on_complete: del_complete,
+            delete_on_merge: del_merge,
+            ..Default::default()
+        };
+        use FinishAction::{Delete, Stop};
+        use FinishTrigger::{Complete, Merged};
+        let cases = [
+            (coder(true, false, false), Complete, Some(Stop)),
+            (coder(false, false, false), Complete, None),
+            (coder(true, true, false), Complete, Some(Delete)),
+            (coder(false, true, false), Complete, Some(Delete)),
+            (coder(true, false, false), Merged, None),
+            (coder(true, false, true), Merged, Some(Delete)),
+            (coder(false, true, true), Merged, Some(Delete)),
+        ];
+        for (cfg, trigger, expected) in cases {
+            assert_eq!(
+                decide_finish(&cfg, trigger),
+                expected,
+                "{trigger:?} {cfg:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_finish_args() {
+        assert_eq!(
+            finish_args(FinishAction::Stop, "ws"),
+            ["stop", "ws", "--yes"]
+        );
+        assert_eq!(
+            finish_args(FinishAction::Delete, "ws"),
+            ["delete", "ws", "--yes"]
+        );
+    }
+
+    #[test]
+    fn test_platform_matches_uname() {
+        assert!(platform_matches("Linux x86_64", "linux", "x86_64"));
+        assert!(platform_matches("Linux aarch64", "linux", "aarch64"));
+        assert!(platform_matches("Darwin arm64", "macos", "aarch64"));
+        assert!(!platform_matches("Linux x86_64", "macos", "aarch64"));
+        assert!(!platform_matches("Linux aarch64", "linux", "x86_64"));
+        assert!(!platform_matches("", "linux", "x86_64"));
+    }
+
+    #[test]
+    fn test_plan_opr8r() {
+        let plan = |probe, local| plan_opr8r(probe, local, "linux", "x86_64");
+        assert_eq!(plan("Linux x86_64\n", true), Opr8rPlan::Upload);
+        assert_eq!(
+            plan("Linux x86_64\n/usr/bin/opr8r\n", true),
+            Opr8rPlan::Upload,
+            "a matching local build keeps the workspace in step with the control plane"
+        );
+        assert_eq!(
+            plan("Linux aarch64\n/usr/bin/opr8r\n", true),
+            Opr8rPlan::Present
+        );
+        assert_eq!(
+            plan("Linux x86_64\n/usr/bin/opr8r\n", false),
+            Opr8rPlan::Present
+        );
+        assert_eq!(plan("Linux aarch64\n", true), Opr8rPlan::Missing);
+        assert_eq!(plan("Linux x86_64\n", false), Opr8rPlan::Missing);
+    }
+
+    #[test]
+    fn test_workspace_url_shape() {
+        assert_eq!(
+            workspace_url("https://coder.example.com/", "alice", "op-proj-feat-1"),
+            "https://coder.example.com/@alice/op-proj-feat-1"
+        );
+    }
+
+    #[test]
+    fn test_workspace_info_reads_owner_name() {
+        let all: Vec<WorkspaceInfo> = serde_json::from_str(
+            r#"[{"name":"ws","template_name":"t","owner_name":"alice","extra":1}]"#,
+        )
+        .unwrap();
+        assert_eq!(all[0].owner_name, "alice");
+    }
+
+    #[test]
     fn test_decide_workspace_action_template_mismatch_refuses() {
         let existing = WorkspaceInfo {
             name: "ws".to_string(),
             template_name: "someone-elses".to_string(),
+            owner_name: String::new(),
         };
         assert_eq!(
             decide_workspace_action(Some(&existing), "operator-agent"),
@@ -850,6 +1232,7 @@ mod tests {
         let existing = WorkspaceInfo {
             name: "ws".to_string(),
             template_name: "operator-agent".to_string(),
+            owner_name: String::new(),
         };
         assert_eq!(
             decide_workspace_action(Some(&existing), "operator-agent"),
@@ -872,7 +1255,7 @@ mod tests {
             stop_on_complete: true,
             create_timeout_secs: 300,
             callback_url: None,
-            parameters: std::collections::HashMap::new(),
+            ..Default::default()
         };
         let err = resolve_session(&coder).unwrap_err().to_string();
         assert!(

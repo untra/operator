@@ -1,0 +1,21 @@
+# A failed launch call pauses the run before the rest of the wave.
+base = "diamond"
+
+[config]
+max_parallel = 4
+max_agents_per_repo = 2
+
+[expect]
+final_status = "paused"
+pause_reason = "launch of FIX-0003 failed"
+
+[[agent]]
+ticket = "FIX-0003"
+outcomes = ["error"]
+
+[[tick]]
+launch = ["FEAT-0001"]
+status = "running"
+
+[[tick]]
+status = "paused"

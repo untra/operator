@@ -4,6 +4,7 @@
 //! read-only MCP tools. Includes a descriptor endpoint for client discovery,
 //! tool definitions, and an SSE transport for JSON-RPC communication.
 
+pub mod campaigns;
 pub mod client_configs;
 pub mod descriptor;
 pub mod handler;

@@ -1,0 +1,52 @@
+{
+  "node": {
+    "items": {
+      "pageInfo": { "hasNextPage": false, "endCursor": null },
+      "nodes": [
+        {
+          "id": "PVTI_item_12",
+          "type": "ISSUE",
+          "content": {
+            "__typename": "Issue",
+            "id": "I_kwDO_12",
+            "number": 12,
+            "title": "Add retry to the sync worker",
+            "body": null,
+            "url": "https://github.com/octo/hello/issues/12",
+            "repository": { "nameWithOwner": "octo/hello" },
+            "assignees": { "nodes": [] },
+            "labels": { "nodes": [] },
+            "issueType": null,
+            "parent": { "number": 3, "repository": { "nameWithOwner": "octo/hello" } },
+            "subIssues": {
+              "nodes": [
+                { "number": 13, "repository": { "nameWithOwner": "octo/hello" } },
+                { "number": 2, "repository": { "nameWithOwner": "octo/infra" } }
+              ]
+            },
+            "blockedBy": {
+              "nodes": [{ "number": 9, "repository": { "nameWithOwner": "octo/hello" } }]
+            }
+          },
+          "fieldValues": { "nodes": [] }
+        },
+        {
+          "id": "PVTI_item_pr",
+          "type": "PULL_REQUEST",
+          "content": {
+            "__typename": "PullRequest",
+            "id": "PR_kwDO_14",
+            "number": 14,
+            "title": "A pull request has no relationships",
+            "body": null,
+            "url": "https://github.com/octo/hello/pull/14",
+            "repository": { "nameWithOwner": "octo/hello" },
+            "assignees": { "nodes": [] },
+            "labels": { "nodes": [] }
+          },
+          "fieldValues": { "nodes": [] }
+        }
+      ]
+    }
+  }
+}

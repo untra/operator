@@ -96,7 +96,7 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::revoke_access_key))
 }
 
-/// Configuration registry, licence and remote-target routes.
+/// Configuration registry, licence, remote-target and campaign routes.
 ///
 /// Split out of [`documented_router`] for the same reason as [`auth_router`]:
 /// this is the entitlement-relevant subset, where every mutation either changes
@@ -116,6 +116,13 @@ fn premium_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::targets::list, routes::targets::create))
         .routes(routes!(routes::targets::update, routes::targets::remove))
         .routes(routes!(routes::targets::probe))
+        // Campaigns.
+        .routes(routes!(routes::campaigns::list, routes::campaigns::create))
+        .routes(routes!(routes::campaigns::get_one))
+        .routes(routes!(routes::campaigns::assign))
+        .routes(routes!(routes::campaigns::launch))
+        .routes(routes!(routes::campaigns::pause))
+        .routes(routes!(routes::campaigns::status))
 }
 
 fn first_run_router() -> OpenApiRouter<ApiState> {
@@ -188,12 +195,15 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::agents::approve_review))
         .routes(routes!(routes::agents::reject_review))
         .routes(routes!(routes::agents::focus_session))
+        .routes(routes!(routes::agents::connect_terminal))
         // Project endpoints
         .routes(routes!(routes::projects::list))
         .routes(routes!(routes::projects::assess))
         // Ticket endpoints
         .routes(routes!(routes::tickets::get_one))
         .routes(routes!(routes::tickets::create))
+        .routes(routes!(routes::campaigns::batch_preview))
+        .routes(routes!(routes::campaigns::batch_create))
         .routes(routes!(routes::tickets::update_status))
         // External alert -> investigation
         .routes(routes!(routes::tickets::create_alert))

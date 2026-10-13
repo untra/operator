@@ -120,7 +120,8 @@ fn support_json(support: VerticalSupport) -> serde_json::Value {
         | VerticalSupport::Integration(s)
         | VerticalSupport::Workflows(s)
         | VerticalSupport::Notification(s)
-        | VerticalSupport::AgentRelay(s) => serde_json::json!({
+        | VerticalSupport::AgentRelay(s)
+        | VerticalSupport::Feature(s) => serde_json::json!({
             "kind": "sparse",
             "coverage": s.coverage.slug(),
             "notes": s.notes,

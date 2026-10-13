@@ -1,0 +1,27 @@
+# The paired SPIKE is never launched; the operator completes it to unblock FIX.
+[config]
+max_parallel = 4
+max_agents_per_repo = 1
+
+[expect]
+waves = [["FEAT-0001"], ["SPIKE-0002"], ["FIX-0003"]]
+final_status = "completed"
+
+[[operator]]
+tick = 2
+complete = "SPIKE-0002"
+
+[[tick]]
+launch = ["FEAT-0001"]
+status = "running"
+
+[[tick]]
+awaiting_operator = ["SPIKE-0002"]
+status = "running"
+
+[[tick]]
+launch = ["FIX-0003"]
+status = "running"
+
+[[tick]]
+status = "completed"

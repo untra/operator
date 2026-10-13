@@ -20,6 +20,8 @@ OpenSpec stores each proposed change at `openspec/changes/<change-id>/` with a `
 | `## 1. Group` heading in `tasks.md` | One ticket per task group |
 | Checklist items under the group | The ticket's task list (embedded in the body) |
 | All items checked | Group counts as `done` and is skipped on import |
+| Group order | Each ticket `depends_on` the nearest earlier group that is still open |
+| The change itself | `external_parent: openspec:<change-id>` |
 
 Each imported ticket carries `external_provider: openspec` and `external_id: <change-id>#<group-number>` in its frontmatter, so re-running an import skips everything already in your queue - imports are idempotent.
 

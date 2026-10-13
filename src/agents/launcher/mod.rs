@@ -263,7 +263,7 @@ impl Launcher {
         ticket: &Ticket,
         options: LaunchOptions,
     ) -> Result<String> {
-        crate::licensing::require_target(&self.config, &options.target)?;
+        self.require_launch_allowed(&ticket.id, &options)?;
         self.require_step_entitlement(ticket, &options)?;
         let git = crate::git::identity::resolve_config(
             &self.config,
@@ -408,18 +408,28 @@ impl Launcher {
         working_dir_str: &str,
         options: &mut LaunchOptions,
     ) -> Result<()> {
-        crate::licensing::require_target(&self.config, &options.target)?;
+        self.require_launch_allowed(&ticket.id, options)?;
         if let crate::config::TargetKind::Coder(coder_cfg) = &options.target.kind {
             let remote_url =
                 crate::git::GitCli::get_remote_url(std::path::Path::new(working_dir_str))
                     .await
                     .ok();
             let branch = ticket.branch_name();
-            let host = coder::provision_workspace(
+            let step = if ticket.step.is_empty() {
+                "initial"
+            } else {
+                ticket.step.as_str()
+            };
+            let vars = coder::CoderLaunchVars {
+                ticket_id: &ticket.id,
+                project: &ticket.project,
+                step,
+                delegator: options.delegator_name.as_deref().unwrap_or_default(),
+            };
+            let (host, workspace_url) = coder::provision_workspace(
                 &self.config,
                 coder_cfg,
-                &ticket.project,
-                &ticket.id,
+                &vars,
                 remote_url.as_deref(),
                 Some(&branch),
                 crate::git::identity::resolve_config(
@@ -432,6 +442,7 @@ impl Launcher {
             let callback_url = coder_cfg.callback_url.clone().filter(|u| !u.is_empty());
             options.api_url_override = callback_url;
             options.provisioned_host = Some(host);
+            options.workspace_url = workspace_url;
         }
         Ok(())
     }
@@ -443,7 +454,7 @@ impl Launcher {
         initial_prompt: &str,
         options: &LaunchOptions,
     ) -> Result<(String, String)> {
-        crate::licensing::require_target(&self.config, &options.target)?;
+        self.require_launch_allowed(&ticket.id, options)?;
         // Pre-allocate agent ID so we can inject it into the environment
         let agent_id = Uuid::new_v4().to_string();
 
@@ -493,16 +504,7 @@ impl Launcher {
                 .map_or("claude", |p| p.tool.as_str());
             let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
             remote::run_preflight(&host, tool, git_provider)?;
-            if let Some(provider) = &options.provider {
-                let missing = prompt::missing_env_refs(&provider.env);
-                if !missing.is_empty() {
-                    anyhow::bail!(
-                        "Cannot launch on remote host '{}': Operator is missing {} (needed for the model server). Set it in the control-plane environment.",
-                        host.name,
-                        missing.join(", ")
-                    );
-                }
-            }
+            remote::require_remote_env(&host, options)?;
         }
 
         // Dispatch based on session wrapper type
@@ -605,6 +607,9 @@ impl Launcher {
         if let Some(host) = options.remote_host() {
             state.update_agent_remote_host(&agent_id, &host.name)?;
         }
+        if let Some(url) = &options.workspace_url {
+            state.update_agent_workspace_url(&agent_id, url)?;
+        }
 
         // Set the current step in state
         if !ticket.step.is_empty() {
@@ -692,6 +697,36 @@ impl Launcher {
         Ok(opts)
     }
 
+    /// Gate a launch on premium target entitlement and delegator governance.
+    fn require_launch_allowed(&self, ticket_id: &str, options: &LaunchOptions) -> Result<()> {
+        crate::licensing::require_target(&self.config, &options.target)?;
+        let governed = options
+            .delegator_name
+            .as_deref()
+            .and_then(|name| self.config.delegators.iter().find(|d| d.name == name))
+            .is_some_and(|d| d.governance.is_some());
+        if !governed {
+            return Ok(());
+        }
+        let state = State::load(&self.config)?;
+        let running: Vec<(&str, &str)> = state
+            .running_agents()
+            .into_iter()
+            .filter_map(|a| {
+                let delegator = a.step_launch_context.as_ref()?.delegator.as_deref()?;
+                Some((a.ticket_id.as_str(), delegator))
+            })
+            .collect();
+        crate::agents::delegator_resolution::enforce_governance(
+            &self.config,
+            options,
+            &[],
+            ticket_id,
+            &running,
+        )?;
+        Ok(())
+    }
+
     fn require_step_entitlement(&self, ticket: &Ticket, options: &LaunchOptions) -> Result<()> {
         let Some(step) = ticket.current_step_schema() else {
             return Ok(());
@@ -718,7 +753,7 @@ impl Launcher {
         };
         for delegator in delegators {
             let resolved = self.sub_agent_options(options, delegator, delegator)?;
-            crate::licensing::require_target(&self.config, &resolved.target)?;
+            self.require_launch_allowed(&ticket.id, &resolved)?;
         }
         Ok(())
     }
@@ -1009,7 +1044,7 @@ impl Launcher {
         ticket: &Ticket,
         options: LaunchOptions,
     ) -> Result<PreparedLaunch> {
-        crate::licensing::require_target(&self.config, &options.target)?;
+        self.require_launch_allowed(&ticket.id, &options)?;
         // Clone ticket so we can update worktree info
         let mut ticket = ticket.clone();
 
@@ -1297,7 +1332,7 @@ impl Launcher {
         ticket: &Ticket,
         options: RelaunchOptions,
     ) -> Result<PreparedLaunch> {
-        crate::licensing::require_target(&self.config, &options.launch_options.target)?;
+        self.require_launch_allowed(&ticket.id, &options.launch_options)?;
         // Clone ticket so we can update worktree info if needed
         let mut ticket = ticket.clone();
 
@@ -1612,7 +1647,7 @@ impl Launcher {
     /// Used when a tmux session died but the ticket is still in progress.
     /// Can optionally resume from an existing Claude session ID.
     pub async fn relaunch(&self, ticket: &Ticket, options: RelaunchOptions) -> Result<String> {
-        crate::licensing::require_target(&self.config, &options.launch_options.target)?;
+        self.require_launch_allowed(&ticket.id, &options.launch_options)?;
         let resolved = crate::git::identity::resolve_config(
             &self.config,
             ticket,
@@ -1751,16 +1786,7 @@ impl Launcher {
                 .map_or("claude", |p| p.tool.as_str());
             let git_provider = Self::resolve_git_provider(&self.config, &working_dir_str).await;
             remote::run_preflight(&host, tool, git_provider)?;
-            if let Some(provider) = &options.launch_options.provider {
-                let missing = prompt::missing_env_refs(&provider.env);
-                if !missing.is_empty() {
-                    anyhow::bail!(
-                        "Cannot launch on remote host '{}': Operator is missing {} (needed for the model server). Set it in the control-plane environment.",
-                        host.name,
-                        missing.join(", ")
-                    );
-                }
-            }
+            remote::require_remote_env(&host, &options.launch_options)?;
         }
 
         // Dispatch based on session wrapper type
@@ -1862,6 +1888,9 @@ impl Launcher {
         // Store remote host so the dashboard can annotate the agent
         if let Some(host) = options.launch_options.remote_host() {
             state.update_agent_remote_host(&agent_id, &host.name)?;
+        }
+        if let Some(url) = &options.launch_options.workspace_url {
+            state.update_agent_workspace_url(&agent_id, url)?;
         }
 
         // Set the current step in state

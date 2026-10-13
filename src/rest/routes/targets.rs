@@ -359,6 +359,7 @@ mod tests {
                 ssh_alias: "-oProxyCommand=bad".into(),
                 workdir: "/project".into(),
                 ssh_config_path: None,
+                remote_callback_port: None,
             }),
         };
         assert!(validate(&target).is_err());

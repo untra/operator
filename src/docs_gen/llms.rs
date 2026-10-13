@@ -25,6 +25,9 @@ const SUMMARY: &str = "Operator! is a Rust TUI for orchestrating Claude Code and
 /// Free-form context paragraph after the summary.
 const INTRO: &str = "Operator runs from the root of your work directory, discovers projects by LLM marker files (CLAUDE.md / CODEX.md / GEMINI.md) and git repositories, and manages a `.tickets/` queue. It exposes a REST API and an embedded web developer portal.";
 
+/// Points agents at the Markdown twin served for every page.
+const MARKDOWN_HINT: &str = "Every page is also served as plain Markdown: replace the trailing `/` of any page URL with `.md` (e.g. `/getting-started/` -> `/getting-started.md`, `/` -> `/index.md`). Agents should prefer these `.md` URLs over the HTML pages.";
+
 /// A doc section sourced from `docs/{slug}/index.md`.
 struct Link {
     /// Directory slug; also the URL path segment.
@@ -188,14 +191,15 @@ impl DocGenerator for LlmsTxtDocGenerator {
 
         out.push_str(&format!("# {TITLE}\n\n"));
         out.push_str(&format!("> {SUMMARY}\n\n"));
-        out.push_str(&format!("{INTRO}\n"));
+        out.push_str(&format!("{INTRO}\n\n"));
+        out.push_str(&format!("{MARKDOWN_HINT}\n"));
 
         for section in SECTIONS {
             out.push_str(&format!("\n## {}\n", section.heading));
             for link in section.links {
                 let (title, desc) = read_front_matter(docs_root, link.slug);
                 let desc = desc.unwrap_or_else(|| link.fallback_desc.to_string());
-                let url = format!("{SITE_URL}/{}/", link.slug);
+                let url = format!("{SITE_URL}/{}.md", link.slug);
                 out.push_str(&render_item(&title, &url, &desc));
             }
             for (label, url, desc) in section.extra {
@@ -359,7 +363,8 @@ mod tests {
 
         // Section headings and absolute links.
         assert!(out.contains("## Getting Started"));
-        assert!(out.contains("(https://operator.untra.io/getting-started/)"));
+        assert!(out.contains("(https://operator.untra.io/getting-started.md)"));
+        assert!(out.contains(MARKDOWN_HINT));
         assert!(out.contains("## Reference"));
         assert!(out.contains("(https://github.com/untra/operator)"));
 

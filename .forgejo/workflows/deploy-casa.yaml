@@ -9,8 +9,8 @@ on:
 
 # Builds Dockerfile.local with the dev license keyring and rolls it out to operator.kube.untra.casa.
 #   build   runs-on: docker    native arm64 buildx push to the Forgejo registry, tagged by commit sha
-#   deploy  runs-on: helmfile  swaps the image on the helmfile-owned release, at its deployed chart version and values
-# Base images, the chart and the checkout action come from Forgejo mirrors; see .forgejo/README.md.
+#   deploy  runs-on: helmfile  upgrades the release to this ref's chart and image, keeping helmfile's values
+# Base images and the checkout action come from Forgejo mirrors; see .forgejo/README.md.
 #
 # Variables: REGISTRY_IMAGE
 # Secrets:   REGISTRY_USERNAME, REGISTRY_TOKEN, KUBECONFIG,
@@ -24,6 +24,7 @@ jobs:
   build:
     runs-on: docker
     outputs:
+      sha: ${{ steps.meta.outputs.sha }}
       tag: ${{ steps.meta.outputs.tag }}
       digest: ${{ steps.push.outputs.digest }}
     steps:
@@ -46,7 +47,9 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - id: meta
-        run: echo "tag=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tag=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Registry login
         run: printf '%s' "$REGISTRY_TOKEN" | docker login "${REGISTRY_IMAGE%%/*}" -u "$REGISTRY_USERNAME" --password-stdin
@@ -84,26 +87,32 @@ jobs:
     needs: build
     runs-on: helmfile
     steps:
-      # The helmfile runner is shared, so the kubeconfig and the registry login live in this job's temp dir
+      - uses: https://forgejo.kube.untra.casa/actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.sha }}
+
+      # The helmfile runner is shared, so the kubeconfig lives in this job's temp dir
       - name: Credentials
         run: |
           umask 077
           printf '%s\n' "$KUBECONFIG_DATA" > "$RUNNER_TEMP/kubeconfig"
           echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
-          echo "HELM_REGISTRY_CONFIG=$RUNNER_TEMP/helm-registry.json" >> "$GITHUB_ENV"
-          printf '%s' "$REGISTRY_TOKEN" | helm registry login "${REGISTRY_IMAGE%%/*}" -u "$REGISTRY_USERNAME" \
-            --password-stdin --registry-config "$RUNNER_TEMP/helm-registry.json"
         env:
-          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
-          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
 
-      # Helmfile owns the release: keep its chart version and values, swap only the image, and reclaim fields from out-of-band kubectl edits.
+      # Charts up to 0.2.14 labelled the immutable volumeClaimTemplates; the upgraded StatefulSet adopts the orphaned pod and PVC.
+      - name: Adopt legacy StatefulSet
+        run: |
+          legacy=$(kubectl -n operator get statefulset operator \
+            -o jsonpath='{.spec.volumeClaimTemplates[*].metadata.labels.helm\.sh/chart}')
+          if [ -n "$legacy" ]; then
+            kubectl -n operator delete statefulset operator --cascade=orphan
+          fi
+
+      # Helmfile owns the values: keep them, take this ref's chart and image, and reclaim fields from out-of-band kubectl edits.
       - name: Helm upgrade
         run: |
-          version=$(helm get metadata operator -n operator | awk '/^VERSION:/ {print $2}')
-          helm upgrade operator "oci://${REGISTRY_IMAGE%/*}/charts/operator" --version "$version" -n operator \
+          helm upgrade operator ./charts/operator -n operator \
             --reset-then-reuse-values \
             --force-conflicts \
             --set image.repository="$REGISTRY_IMAGE" \
@@ -114,4 +123,4 @@ jobs:
 
       - name: Drop credentials
         if: always()
-        run: rm -f "$RUNNER_TEMP/kubeconfig" "$RUNNER_TEMP/helm-registry.json"
+        run: rm -f "$RUNNER_TEMP/kubeconfig"

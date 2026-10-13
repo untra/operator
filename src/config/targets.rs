@@ -73,7 +73,25 @@ impl TargetDef {
                 ssh_alias: host.ssh_alias.clone(),
                 workdir: host.workdir.clone(),
                 ssh_config_path: host.ssh_config_path.clone(),
+                remote_callback_port: None,
             }),
+        }
+    }
+
+    /// Workspace-side port the reverse tunnel binds (None = the local API port)
+    pub fn remote_callback_port(&self) -> Option<u16> {
+        match &self.kind {
+            TargetKind::Ssh(ssh) => ssh.remote_callback_port,
+            TargetKind::Coder(coder) => coder.remote_callback_port,
+            _ => None,
+        }
+    }
+
+    /// Env var names a coder target forwards from the control plane
+    pub fn forward_env(&self) -> &[String] {
+        match &self.kind {
+            TargetKind::Coder(coder) => &coder.forward_env,
+            _ => &[],
         }
     }
 
@@ -120,6 +138,9 @@ pub struct SshTarget {
     /// SSH config fragment passed with `-F` (used by provisioned coder aliases)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ssh_config_path: Option<String>,
+    /// Remote port the reverse tunnel binds for callbacks (None = the local API port)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_callback_port: Option<u16>,
 }
 
 /// Coder workspace target: lifecycle + alias provisioning around the shared
@@ -154,9 +175,26 @@ pub struct CoderConfig {
     /// multi-step (empty/None = reverse tunnel default)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub callback_url: Option<String>,
-    /// Passthrough `--parameter` template parameters for `coder create`
+    /// Passthrough `--parameter` template parameters for `coder create`.
+    /// Values may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}`
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub parameters: std::collections::HashMap<String, String>,
+    /// Template preset passed to `coder create --preset`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<String>,
+    /// Workspace-side port the reverse tunnel binds (None = the local API port)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_callback_port: Option<u16>,
+    /// Env var NAMES resolved on the control plane and shipped to the agent
+    /// (e.g. LLM provider credentials); a missing one fails the launch
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub forward_env: Vec<String>,
+    /// Delete the workspace when the ticket completes (wins over `stop_on_complete`)
+    #[serde(default)]
+    pub delete_on_complete: bool,
+    /// Delete the workspace when the ticket's PR merges
+    #[serde(default)]
+    pub delete_on_merge: bool,
 }
 
 impl Default for CoderConfig {
@@ -171,6 +209,11 @@ impl Default for CoderConfig {
             create_timeout_secs: default_coder_create_timeout_secs(),
             callback_url: None,
             parameters: std::collections::HashMap::new(),
+            preset: None,
+            remote_callback_port: None,
+            forward_env: Vec::new(),
+            delete_on_complete: false,
+            delete_on_merge: false,
         }
     }
 }
@@ -231,6 +274,13 @@ pub fn validate_targets(config: &super::Config) -> anyhow::Result<()> {
                 anyhow::bail!(
                     "Coder target '{}' requires url_env and token_env names",
                     target.name
+                );
+            }
+            if coder.forward_env.contains(&coder.token_env) {
+                anyhow::bail!(
+                    "Coder target '{}' must not list its token_env '{}' in forward_env",
+                    target.name,
+                    coder.token_env
                 );
             }
         }
@@ -423,6 +473,77 @@ create_timeout_secs = 600
     }
 
     #[test]
+    fn test_target_def_coder_toml_new_fields_default_off() {
+        let def: TargetDef =
+            toml::from_str("name = \"c\"\nkind = \"coder\"\ntemplate = \"t\"\n").unwrap();
+        let TargetKind::Coder(c) = def.kind else {
+            panic!("expected coder kind");
+        };
+        assert_eq!(c.preset, None);
+        assert_eq!(c.remote_callback_port, None);
+        assert!(c.forward_env.is_empty());
+        assert!(!c.delete_on_complete);
+        assert!(!c.delete_on_merge);
+    }
+
+    #[test]
+    fn test_target_def_coder_toml_new_fields_parse() {
+        let toml_src = r#"
+name = "c"
+kind = "coder"
+template = "t"
+preset = "large"
+remote_callback_port = 17007
+forward_env = ["ANTHROPIC_API_KEY"]
+delete_on_complete = true
+delete_on_merge = true
+"#;
+        let def: TargetDef = toml::from_str(toml_src).unwrap();
+        assert_eq!(def.remote_callback_port(), Some(17007));
+        let TargetKind::Coder(c) = def.kind else {
+            panic!("expected coder kind");
+        };
+        assert_eq!(c.preset.as_deref(), Some("large"));
+        assert_eq!(c.forward_env, ["ANTHROPIC_API_KEY"]);
+        assert!(c.delete_on_complete);
+        assert!(c.delete_on_merge);
+    }
+
+    #[test]
+    fn test_forward_env_only_from_coder_targets() {
+        let mut target = coder_def("t");
+        let TargetKind::Coder(coder) = &mut target.kind else {
+            unreachable!();
+        };
+        coder.forward_env = vec!["ANTHROPIC_API_KEY".to_string()];
+        assert_eq!(target.forward_env(), ["ANTHROPIC_API_KEY"]);
+        assert!(TargetDef::local().forward_env().is_empty());
+    }
+
+    #[test]
+    fn test_remote_callback_port_from_ssh_target() {
+        let def: TargetDef = toml::from_str(
+            "name = \"s\"\nkind = \"ssh\"\nssh_alias = \"s\"\nworkdir = \"/p\"\nremote_callback_port = 9000\n",
+        )
+        .unwrap();
+        assert_eq!(def.remote_callback_port(), Some(9000));
+        assert_eq!(TargetDef::local().remote_callback_port(), None);
+    }
+
+    #[test]
+    fn test_validate_targets_rejects_forwarding_coder_token() {
+        let mut target = coder_def("operator-agent");
+        let TargetKind::Coder(coder) = &mut target.kind else {
+            unreachable!();
+        };
+        coder.forward_env = vec![DEFAULT_CODER_TOKEN_ENV.to_string()];
+        let err = validate_targets(&config_with_targets(vec![target]))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("forward_env"), "{err}");
+    }
+
+    #[test]
     fn test_target_def_local_toml() {
         let def: TargetDef = toml::from_str("name = \"here\"\nkind = \"local\"\n").unwrap();
         assert_eq!(def.kind, TargetKind::Local);
@@ -479,6 +600,7 @@ create_timeout_secs = 600
                 ssh_alias: name.to_string(),
                 workdir: "/proj".to_string(),
                 ssh_config_path: None,
+                remote_callback_port: None,
             }),
         }
     }
@@ -544,6 +666,7 @@ create_timeout_secs = 600
     fn test_validate_targets_unknown_delegator_reference_error() {
         let mut config = config_with_targets(vec![]);
         config.delegators.push(crate::config::Delegator {
+            governance: None,
             git: None,
             name: "heavy".to_string(),
             llm_tool: "claude".to_string(),
@@ -589,6 +712,7 @@ create_timeout_secs = 600
         });
         for name in ["local", "docker", "gpu-vm", "legacy-host"] {
             config.delegators = vec![crate::config::Delegator {
+                governance: None,
                 git: None,
                 name: "d".to_string(),
                 llm_tool: "claude".to_string(),

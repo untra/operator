@@ -137,6 +137,19 @@ export function PremiumPaywall() {
   return <div>Premium required</div>;
 }
 
+export function PremiumGate({
+  license,
+  children,
+}: {
+  license: { premium: boolean } | null | undefined;
+  children: ReactNode;
+}) {
+  if (!license) {
+    return null;
+  }
+  return license.premium ? children : <PremiumPaywall />;
+}
+
 export function AsyncState<T>({
   value,
   children,
@@ -148,4 +161,54 @@ export function AsyncState<T>({
     return children(value.data);
   }
   return <div data-status={value.status}>{value.message}</div>;
+}
+
+export function MarkdownView({ source }: { source: string }) {
+  return <article data-testid="markdown">{source}</article>;
+}
+
+export function StepProgress({
+  steps,
+  current,
+}: {
+  steps: { name: string }[];
+  current?: string | null;
+}) {
+  return (
+    <ol>
+      {steps.map((s) => (
+        <li key={s.name} aria-current={s.name === current ? "step" : undefined}>
+          {s.name}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function openTargets(path: string, remoteHost?: string | null) {
+  return remoteHost
+    ? [{ editor: "vscode", label: "VS Code", url: `vscode://ssh/${remoteHost}${path}` }]
+    : [
+        { editor: "vscode", label: "VS Code", url: `vscode://file${path}` },
+        { editor: "jetbrains", label: "JetBrains", url: `idea://open?file=${path}` },
+      ];
+}
+
+export function ticketFileTargets(ticketId: string, path: string) {
+  return [
+    { editor: "vscode", label: "VS Code", url: `vscode://open-ticket/${ticketId}` },
+    { editor: "jetbrains", label: "JetBrains", url: `idea://open?file=${path}` },
+  ];
+}
+
+export function sessionTargets(agent: {
+  session_wrapper: string | null;
+  attach_command: string | null;
+}) {
+  if (agent.session_wrapper === "cmux") {
+    return [{ kind: "focus-api", label: "Focus cmux session" }];
+  }
+  return agent.attach_command
+    ? [{ kind: "command", label: "Attach", command: agent.attach_command }]
+    : [];
 }

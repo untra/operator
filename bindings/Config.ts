@@ -4,6 +4,7 @@ import type { AgentsConfig } from "./AgentsConfig";
 import type { ApiConfig } from "./ApiConfig";
 import type { Delegator } from "./Delegator";
 import type { GitConfig } from "./GitConfig";
+import type { GovernancePolicy } from "./GovernancePolicy";
 import type { KanbanConfig } from "./KanbanConfig";
 import type { LaunchConfig } from "./LaunchConfig";
 import type { LlmToolsConfig } from "./LlmToolsConfig";
@@ -60,6 +61,10 @@ hosts: Array<RemoteHost>,
  * Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`.
  */
 targets: Array<TargetDef>, 
+/**
+ * Named launch policies referenced by `Delegator.governance`.
+ */
+governance: Array<GovernancePolicy>, 
 /**
  * Relay MCP injection configuration
  */

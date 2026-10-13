@@ -75,6 +75,18 @@
   margin-bottom: 0.25rem;
 }
 
+.attention {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.attention[data-reason="orphaned"] {
+  background: var(--danger);
+}
+
 .statusIcon {
   color: var(--accent-text);
   font-size: 0.7rem;

@@ -51,7 +51,8 @@ use operator::rest::dto::{
     WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse,
 };
 use operator::state::{
-    AgentState, CompletedTicket, MultiAgentGroup, MultiAgentPhase, PendingSubAgent, State,
+    AgentState, CampaignRun, CompletedTicket, MultiAgentGroup, MultiAgentPhase, PendingSubAgent,
+    State,
 };
 use operator::types::{
     AttemptStatus, ExecutionProcess, ProcessStatus, Project, ProjectRepo, RunReason, Session,
@@ -166,6 +167,7 @@ fn generate_typescript() -> String {
         // State types (src/state.rs)
         State::decl(&cfg),
         AgentState::decl(&cfg),
+        CampaignRun::decl(&cfg),
         CompletedTicket::decl(&cfg),
         MultiAgentGroup::decl(&cfg),
         MultiAgentPhase::decl(&cfg),
@@ -198,6 +200,30 @@ fn generate_typescript() -> String {
         WorkflowFormatDto::decl(&cfg),
         // Ticket creation + alert DTOs
         CreateTicketRequest::decl(&cfg),
+        // Campaigns and ticket batches (src/campaigns/, src/rest/dto/campaigns.rs)
+        operator::config::GovernancePolicy::decl(&cfg),
+        operator::campaigns::model::Campaign::decl(&cfg),
+        operator::campaigns::model::CampaignStatus::decl(&cfg),
+        operator::campaigns::model::CampaignWorkspace::decl(&cfg),
+        operator::campaigns::runner::BlockReason::decl(&cfg),
+        operator::services::campaign_runner::TickReport::decl(&cfg),
+        operator::campaigns::batch::BatchItem::decl(&cfg),
+        operator::campaigns::batch::BatchRequest::decl(&cfg),
+        operator::campaigns::batch::PlannedTicket::decl(&cfg),
+        operator::campaigns::batch::BatchPreview::decl(&cfg),
+        operator::campaigns::batch::CreatedTicket::decl(&cfg),
+        operator::campaigns::batch::BatchCreated::decl(&cfg),
+        operator::campaigns::service::NewCampaignInput::decl(&cfg),
+        operator::campaigns::service::CampaignMember::decl(&cfg),
+        operator::campaigns::service::CampaignDetail::decl(&cfg),
+        operator::campaigns::service::CampaignCounters::decl(&cfg),
+        operator::campaigns::service::CampaignStatusView::decl(&cfg),
+        operator::campaigns::service::CampaignLaunchOutcome::decl(&cfg),
+        operator::rest::dto::AssignCampaignRequest::decl(&cfg),
+        operator::rest::dto::AssignCampaignResponse::decl(&cfg),
+        operator::rest::dto::LaunchCampaignRequest::decl(&cfg),
+        operator::rest::dto::CampaignSummary::decl(&cfg),
+        operator::rest::dto::CampaignListResponse::decl(&cfg),
         CreateTicketResponse::decl(&cfg),
         CreateAlertRequest::decl(&cfg),
         CreateAlertResponse::decl(&cfg),

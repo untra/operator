@@ -78,6 +78,14 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     admin("PUT", "/api/v1/targets/{name}"),
     admin("DELETE", "/api/v1/targets/{name}"),
     admin("POST", "/api/v1/targets/{name}/probe"),
+    // --- Campaigns ----------------------------------------------------------
+    read("GET", "/api/v1/campaigns"),
+    write("POST", "/api/v1/campaigns"),
+    read("GET", "/api/v1/campaigns/{id}"),
+    write("PUT", "/api/v1/tickets/{id}/campaign"),
+    execute("POST", "/api/v1/campaigns/{id}/launch"),
+    execute("POST", "/api/v1/campaigns/{id}/pause"),
+    read("GET", "/api/v1/campaigns/{id}/status"),
     read("GET", "/api/v1/profiles"),
     admin("POST", "/api/v1/profiles"),
     read("GET", "/api/v1/profiles/{profile_id}"),
@@ -142,6 +150,7 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     // --- Agents -------------------------------------------------------------
     read("GET", "/api/v1/agents/active"),
     read("GET", "/api/v1/agents/{agent_id}"),
+    read("GET", "/api/v1/agents/{agent_id}/connect/terminal"),
     write("POST", "/api/v1/agents/{agent_id}/approve"),
     write("POST", "/api/v1/agents/{agent_id}/reject"),
     // Focus shells out to the session multiplexer binary.
@@ -152,6 +161,8 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     // --- Tickets ------------------------------------------------------------
     read("GET", "/api/v1/tickets/{id}"),
     write("POST", "/api/v1/tickets"),
+    read("POST", "/api/v1/tickets/batch/preview"),
+    write("POST", "/api/v1/tickets/batch"),
     write("PUT", "/api/v1/tickets/{id}/status"),
     write("POST", "/api/v1/alerts"),
     // --- Launch -------------------------------------------------------------

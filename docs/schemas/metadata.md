@@ -34,6 +34,9 @@ Schema for operator-tracked ticket metadata in YAML frontmatter. This schema doc
 | `external_id` | `string` | No | External issue ID from the kanban provider (e.g., PROJ-123 for Jira, ENG-456 for Linear) |
 | `external_url` | `string` (uri) | No | Full URL to the issue in the external provider's web UI |
 | `external_provider` | `string` | No | Provider name for the external issue (e.g., jira, linear) |
+| `campaign` | `string` | No | Campaign this ticket belongs to. A campaign groups tickets into one planned body of work. |
+| `depends_on` | `array` | No | Tickets that must complete before this one can launch. Each entry is a local ticket id, or a `provider:key` reference to an upstream issue (kept even when that issue is not synced). Provider references are refreshed on every kanban sync; local ids are never touched by sync. |
+| `external_parent` | `string` | No | Upstream epic, project, or parent issue as a `provider:key` reference. Pulled from the kanban provider on sync. |
 | `step_delegators` | `object` | No | Step name to delegator name mapping. Populated when a step launches; used for bidirectional kanban activity logs. |
 | `sessions` | `object` | No | Step name to LLM session UUID mapping. Each step gets its own session ID for continuity. |
 | `llm_task` | `object` | No | LLM task metadata for delegate mode integration |
@@ -108,6 +111,25 @@ Schema for operator-tracked ticket metadata in YAML frontmatter. This schema doc
 - **Description**: Provider name for the external issue (e.g., jira, linear)
 - **Type**: `string`
 - **Examples**: `jira`, `linear`
+
+### campaign
+
+- **Description**: Campaign this ticket belongs to. A campaign groups tickets into one planned body of work.
+- **Type**: `string`
+- **Pattern**: `^CAMP-\d+$`
+- **Examples**: `CAMP-0003`
+
+### depends_on
+
+- **Description**: Tickets that must complete before this one can launch. Each entry is a local ticket id, or a `provider:key` reference to an upstream issue (kept even when that issue is not synced). Provider references are refreshed on every kanban sync; local ids are never touched by sync.
+- **Type**: `array`
+- **Examples**: `["FEAT-0012","jira:PROJ-12","linear:ENG-7","github:octo/hello#12"]`
+
+### external_parent
+
+- **Description**: Upstream epic, project, or parent issue as a `provider:key` reference. Pulled from the kanban provider on sync.
+- **Type**: `string`
+- **Examples**: `jira:PROJ-1`, `linear:ENG-40`, `openspec:add-dark-mode`
 
 ### step_delegators
 

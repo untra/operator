@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+use crate::agents::connect::{Attention, ConnectPlan};
 use crate::queue::{TicketPriority, TicketStatus};
 
 // =============================================================================
@@ -13,7 +14,9 @@ use crate::queue::{TicketPriority, TicketStatus};
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct HealthResponse {
+    /// Always "ok" when the server answers
     pub status: String,
+    /// Operator version that is serving the API
     pub version: String,
     /// Top-level directory name of the operator working root (e.g. "acme").
     pub directory_name: String,
@@ -25,14 +28,19 @@ pub struct HealthResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct StatusResponse {
+    /// Always "ok" when the server answers
     pub status: String,
+    /// Operator version that is serving the API
     pub version: String,
     /// Top-level directory name of the operator working root (e.g. "acme").
     pub directory_name: String,
     /// Non-reversible fingerprint of the working root's canonical path.
     pub directory_id: String,
+    /// Number of issue types loaded in the registry
     pub issuetype_count: usize,
+    /// Number of collections loaded in the registry
     pub collection_count: usize,
+    /// Name of the active collection
     pub active_collection: String,
 }
 
@@ -67,6 +75,10 @@ pub struct KanbanTicketCard {
     /// for co-located clients; remote clients treat tickets as API-only)
     #[serde(default)]
     pub filename: String,
+    /// Set when the ticket's agent needs the operator
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub attention: Option<crate::agents::connect::AttentionReason>,
 }
 
 /// Kanban board response with tickets grouped by column
@@ -153,6 +165,14 @@ pub struct ActiveAgentResponse {
     /// Session pane reference (e.g. cmux surface, zellij pane)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_pane_ref: Option<String>,
+    /// Last status message from the agent
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_message: Option<String>,
+    /// Ways to open the agent's session
+    pub connect: ConnectPlan,
+    /// Set when the agent needs the operator
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attention: Option<Attention>,
 }
 
 /// Response for active agents list
@@ -218,6 +238,29 @@ pub struct AgentDetailResponse {
     pub worktree_path: Option<String>,
     /// Whether this is a paired (interactive) agent
     pub paired: bool,
+    /// Terminal session name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_name: Option<String>,
+    /// Remote host the agent runs on (None = local)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_host: Option<String>,
+    /// Execution target the agent launched on
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_name: Option<String>,
+    /// Coder dashboard URL of the agent's workspace
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_url: Option<String>,
+    /// Last status message from the agent
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_message: Option<String>,
+    /// Last time the session output changed (ISO 8601)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_content_change: Option<String>,
+    /// Ways to open the agent's session
+    pub connect: ConnectPlan,
+    /// Set when the agent needs the operator
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attention: Option<Attention>,
 }
 
 // =============================================================================
@@ -461,6 +504,12 @@ pub struct KanbanSyncResponse {
     pub created: Vec<String>,
     /// Ticket IDs that were skipped (already exist)
     pub skipped: Vec<String>,
+    /// Existing tickets whose synced relationships were refreshed
+    #[serde(default)]
+    pub updated: Vec<String>,
+    /// Campaign the synced tickets were stamped with (scoped syncs)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaign: Option<String>,
     /// Error messages for failed syncs
     pub errors: Vec<String>,
     /// Total count of issues processed
@@ -543,6 +592,146 @@ pub struct TicketDetailResponse {
     /// Provider name (e.g., "jira", "linear")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_provider: Option<String>,
+    /// Markdown after the frontmatter
+    pub body: String,
+    /// Board column: `queue`, `in-progress` or `completed`
+    pub column: String,
+    /// Campaign this ticket belongs to (e.g. `CAMP-0001`)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub campaign: Option<String>,
+    /// Raw `depends_on` references
+    pub depends_on: Vec<String>,
+    /// `depends_on` resolved against local tickets
+    pub dependencies: Vec<TicketDependency>,
+    /// Local tickets whose `depends_on` names this ticket
+    pub dependents: Vec<String>,
+    /// Upstream epic, project or parent (`provider:key`)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_parent: Option<String>,
+    /// Collection the ticket's issue type comes from
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection: Option<String>,
+    /// Delegate-mode task metadata
+    pub llm_task: crate::queue::LlmTask,
+    /// The agent working this ticket, if any
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent: Option<TicketAgent>,
+}
+
+/// One `depends_on` reference and where it points.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct TicketDependency {
+    /// The reference as written (local id or `provider:key`)
+    pub reference: String,
+    /// Local ticket it resolves to; absent while unsynced
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_id: Option<String>,
+    /// Column of the resolved ticket
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column: Option<String>,
+    /// Whether the dependency is completed
+    pub satisfied: bool,
+}
+
+/// The agent working a ticket, as shown on the ticket page.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct TicketAgent {
+    /// Agent ID
+    pub id: String,
+    /// running, `awaiting_input`, completing or orphaned
+    pub status: String,
+    /// Whether the operator works alongside the agent (SPIKE and INV tickets)
+    pub paired: bool,
+    /// RFC 3339 start time
+    pub started_at: String,
+    /// Current workflow step (e.g. "plan", "implement", "test")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_step: Option<String>,
+    /// Workflow steps already completed
+    pub completed_steps: Vec<String>,
+    /// Pending review gate while `awaiting_input`: `pending_plan`, `pending_visual`, `pending_proof`, `pending_pr_creation` or `pending_pr_merge`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review_state: Option<String>,
+    /// tmux, vscode, cmux or zellij
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_wrapper: Option<String>,
+    /// Terminal session name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_name: Option<String>,
+    /// Session window reference (cmux window, tmux session)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_window_ref: Option<String>,
+    /// Session context reference (cmux workspace, tmux window)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_context_ref: Option<String>,
+    /// Session pane reference (cmux surface, tmux pane)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_pane_ref: Option<String>,
+    /// Git worktree the agent works in
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worktree_path: Option<String>,
+    /// URL of the PR/MR opened by the "pr" step
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pr_url: Option<String>,
+    /// PR/MR number
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pr_number: Option<u64>,
+    /// Last known PR/MR status: open, approved, `changes_requested`, merged or closed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pr_status: Option<String>,
+    /// SSH host the agent runs on, when remote
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_host: Option<String>,
+    /// Execution target the agent launched on
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_name: Option<String>,
+    /// Coder dashboard URL of the agent's workspace
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_url: Option<String>,
+    /// LLM tool (e.g. "claude", "gemini", "codex")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_tool: Option<String>,
+    /// LLM model alias (e.g. "opus", "sonnet")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_model: Option<String>,
+    /// Latest status message from the agent
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_message: Option<String>,
+    /// Shell command that attaches to the session (tmux)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attach_command: Option<String>,
+}
+
+impl From<&crate::state::AgentState> for TicketAgent {
+    fn from(a: &crate::state::AgentState) -> Self {
+        Self {
+            id: a.id.clone(),
+            status: a.status.clone(),
+            paired: a.paired,
+            started_at: a.started_at.to_rfc3339(),
+            current_step: a.current_step.clone(),
+            completed_steps: a.completed_steps.clone(),
+            review_state: a.review_state.clone(),
+            session_wrapper: a.session_wrapper.clone(),
+            session_name: a.session_name.clone(),
+            session_window_ref: a.session_window_ref.clone(),
+            session_context_ref: a.session_context_ref.clone(),
+            session_pane_ref: a.session_pane_ref.clone(),
+            worktree_path: a.worktree_path.clone(),
+            pr_url: a.pr_url.clone(),
+            pr_number: a.pr_number,
+            pr_status: a.pr_status.clone(),
+            remote_host: a.remote_host.clone(),
+            target_name: a.target_name.clone(),
+            workspace_url: a.workspace_url.clone(),
+            llm_tool: a.llm_tool.clone(),
+            llm_model: a.llm_model.clone(),
+            last_message: a.last_message.clone(),
+            attach_command: None,
+        }
+    }
 }
 
 /// Request to update a ticket's status
@@ -590,6 +779,7 @@ mod tests {
     #[test]
     fn test_kanban_ticket_card_step_display_name_absent_when_none() {
         let card = KanbanTicketCard {
+            attention: None,
             filename: String::new(),
             id: "FEAT-1".to_string(),
             summary: "Add thing".to_string(),
@@ -608,6 +798,7 @@ mod tests {
     #[test]
     fn test_kanban_ticket_card_step_display_name_present_when_set() {
         let card = KanbanTicketCard {
+            attention: None,
             filename: String::new(),
             id: "FEAT-1".to_string(),
             summary: "Add thing".to_string(),
@@ -651,6 +842,14 @@ mod tests {
         assert_eq!(parsed.completed, 7);
     }
 
+    fn empty_plan() -> ConnectPlan {
+        ConnectPlan {
+            phase: crate::agents::connect::SessionPhase::Gone,
+            preferred: None,
+            options: vec![],
+        }
+    }
+
     #[test]
     fn test_active_agent_response_session_fields_absent_when_none() {
         let agent = ActiveAgentResponse {
@@ -666,6 +865,9 @@ mod tests {
             session_window_ref: None,
             session_context_ref: None,
             session_pane_ref: None,
+            last_message: None,
+            connect: empty_plan(),
+            attention: None,
         };
         let json = serde_json::to_string(&agent).unwrap();
         assert!(!json.contains("current_step"));
@@ -696,6 +898,14 @@ mod tests {
             completed_steps: vec![],
             worktree_path: None,
             paired: false,
+            session_name: None,
+            remote_host: None,
+            target_name: None,
+            workspace_url: None,
+            last_message: None,
+            last_content_change: None,
+            connect: empty_plan(),
+            attention: None,
         };
         let json = serde_json::to_string(&detail).unwrap();
         // skip_serializing_if optionals are omitted...
@@ -770,6 +980,16 @@ mod tests {
             external_id: None,
             external_url: None,
             external_provider: None,
+            body: "# Ticket".to_string(),
+            column: "in-progress".to_string(),
+            campaign: None,
+            depends_on: Vec::new(),
+            dependencies: Vec::new(),
+            dependents: Vec::new(),
+            external_parent: None,
+            collection: None,
+            llm_task: crate::queue::LlmTask::default(),
+            agent: None,
         };
         let json = serde_json::to_string(&detail).unwrap();
         let parsed: TicketDetailResponse = serde_json::from_str(&json).unwrap();

@@ -1,0 +1,26 @@
+# Premium lapses after the first launch: the in-flight agent finishes, nothing new starts.
+base = "diamond"
+
+[config]
+max_parallel = 4
+max_agents_per_repo = 2
+revoke_license_at = 1
+
+[expect]
+final_status = "running"
+completed = ["FEAT-0001"]
+blocked = { "FIX-0003" = "license", "FEAT-0002" = "license" }
+
+[[agent]]
+ticket = "FEAT-0001"
+ticks = 2
+
+[[tick]]
+launch = ["FEAT-0001"]
+status = "running"
+
+[[tick]]
+status = "running"
+
+[[tick]]
+status = "running"

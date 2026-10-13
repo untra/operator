@@ -2,6 +2,8 @@
 pub mod agent_profile;
 #[path = "config/git_config.rs"]
 pub mod git_config;
+#[path = "config/governance.rs"]
+pub mod governance;
 #[path = "config/kanban.rs"]
 pub mod kanban;
 #[path = "config/llm_tools.rs"]
@@ -15,6 +17,7 @@ pub mod targets;
 
 pub use agent_profile::*;
 pub use git_config::*;
+pub use governance::GovernancePolicy;
 pub use kanban::*;
 pub use llm_tools::*;
 pub use notifications_config::*;
@@ -87,6 +90,9 @@ pub struct Config {
     /// Named execution targets (docker/coder/ssh/local) referenced by `DelegatorLaunchConfig.target`.
     #[serde(default)]
     pub targets: Vec<TargetDef>,
+    /// Named launch policies referenced by `Delegator.governance`.
+    #[serde(default)]
+    pub governance: Vec<GovernancePolicy>,
     /// Relay MCP injection configuration
     #[serde(default)]
     pub relay: RelayConfig,
@@ -1000,6 +1006,7 @@ impl Default for Config {
             model_servers: Vec::new(),
             hosts: Vec::new(),
             targets: Vec::new(),
+            governance: Vec::new(),
             relay: RelayConfig::default(),
             mcp: McpConfig::default(),
             acp: AcpConfig::default(),

@@ -84,6 +84,10 @@
         },
         "zellij": {
           "require_in_zellij": true
+        },
+        "connect": {
+          "preferred": null,
+          "terminal_command": null
         }
       }
     },
@@ -190,6 +194,14 @@
       },
       "default": []
     },
+    "governance": {
+      "description": "Named launch policies referenced by `Delegator.governance`.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/GovernancePolicy"
+      },
+      "default": []
+    },
     "relay": {
       "description": "Relay MCP injection configuration",
       "$ref": "#/$defs/RelayConfig",
@@ -214,6 +226,13 @@
         "stdio_advertised": true,
         "default_delegator": null,
         "max_concurrent_sessions": 8
+      }
+    },
+    "native_llm": {
+      "description": "In-daemon LLM calls (judge). Accepted but inert until the `native-llm`\nbuild feature ships; a configured judge falls back to the deterministic rule.",
+      "$ref": "#/$defs/NativeLlmConfig",
+      "default": {
+        "judge": null
       }
     }
   },
@@ -475,7 +494,7 @@
         "worktrees": {
           "description": "Base directory for per-ticket worktrees (default: ~/.operator/worktrees)",
           "type": "string",
-          "default": "/Users/samuelvolin/.operator/worktrees"
+          "default": "/Users/untra/.operator/worktrees"
         }
       },
       "required": [
@@ -797,6 +816,14 @@
           "default": {
             "require_in_zellij": true
           }
+        },
+        "connect": {
+          "description": "How the UI connects you to a launched agent's session",
+          "$ref": "#/$defs/SessionsConnectConfig",
+          "default": {
+            "preferred": null,
+            "terminal_command": null
+          }
         }
       }
     },
@@ -913,6 +940,82 @@
           "default": true
         }
       }
+    },
+    "SessionsConnectConfig": {
+      "description": "Connect preferences; the offered interfaces are derived from what is configured and installed",
+      "type": "object",
+      "properties": {
+        "preferred": {
+          "description": "Primary interface for connect links; unset follows the agent's session wrapper",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConnectInterface"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "terminal_command": {
+          "description": "Command that opens a native terminal running `{command}` (e.g. `open -na Ghostty --args -e {command}`); unset disables server-side terminal opening",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "ConnectInterface": {
+      "description": "Interface used to open a launched agent's session",
+      "oneOf": [
+        {
+          "description": "VS Code, via the Operator extension",
+          "type": "string",
+          "const": "vscode"
+        },
+        {
+          "description": "Cursor, via the Operator extension",
+          "type": "string",
+          "const": "cursor"
+        },
+        {
+          "description": "Zed (opens the folder only)",
+          "type": "string",
+          "const": "zed"
+        },
+        {
+          "description": "Coder's VS Code extension",
+          "type": "string",
+          "const": "coder"
+        },
+        {
+          "description": "cmux workspace focus",
+          "type": "string",
+          "const": "cmux"
+        },
+        {
+          "description": "tmux attach",
+          "type": "string",
+          "const": "tmux"
+        },
+        {
+          "description": "zellij attach",
+          "type": "string",
+          "const": "zellij"
+        },
+        {
+          "description": "Plain SSH into the remote session",
+          "type": "string",
+          "const": "ssh"
+        },
+        {
+          "description": "Native terminal running the attach or resume command",
+          "type": "string",
+          "const": "terminal"
+        }
+      ]
     },
     "LlmToolsConfig": {
       "description": "LLM CLI tools configuration",
@@ -1274,9 +1377,11 @@
       "type": "object",
       "properties": {
         "name": {
+          "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
           "type": "string"
         },
         "email": {
+          "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
           "type": "string"
         }
       },
@@ -1516,6 +1621,17 @@
             "string",
             "null"
           ]
+        },
+        "scope": {
+          "description": "Sync one upstream container into a campaign instead of the whole project (Premium).\nScoped syncs pull every member regardless of assignee.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SyncScope"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -1545,6 +1661,63 @@
           ]
         }
       }
+    },
+    "SyncScope": {
+      "description": "An upstream container synced as one campaign.",
+      "oneOf": [
+        {
+          "description": "A Jira epic (or any parent issue) by key, e.g. `PROJ-1`; children are its members.",
+          "type": "object",
+          "properties": {
+            "jira_epic": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "jira_epic"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "A Linear project by id; its issues are the members.",
+          "type": "object",
+          "properties": {
+            "linear_project": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "linear_project"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "A GitHub parent issue as `owner/repo#N`; its sub-issues are the members.",
+          "type": "object",
+          "properties": {
+            "github_parent": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "github_parent"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "An OpenSpec change by id; its task groups are the members.",
+          "type": "object",
+          "properties": {
+            "openspec_change": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "openspec_change"
+          ],
+          "additionalProperties": false
+        }
+      ]
     },
     "LinearConfig": {
       "description": "Linear provider configuration\n\nThe workspace slug is specified as the `HashMap` key in KanbanConfig.linear",
@@ -1644,7 +1817,7 @@
       }
     },
     "Delegator": {
-      "description": "Agent delegator configuration for autonomous ticket launching\n\nA delegator is a named {tool, model} pairing with optional launch configuration\nthat can be used to launch agents for tickets.",
+      "description": "Agent delegator configuration for autonomous ticket launching\n\nA delegator is a named {tool, model} pairing with optional launch configuration.",
       "type": "object",
       "properties": {
         "git": {
@@ -1706,6 +1879,13 @@
           ],
           "default": null
         },
+        "governance": {
+          "description": "Name of a `[[governance]]` policy enforced on every launch by this delegator.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "remote_agent": {
           "description": "Declarative reference to a remote, named agent on another platform\n(e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).\n\nExport-only: Operator has no runtime client for those platforms, so a\ndelegator carrying this CANNOT be launched locally - resolution errors out\n(see `delegator_resolution`). It is stored, listed, serialized into an\n`AgentProfile`, and - for `platform == \"agnt\"` - surfaced in the\n`--format agnt` workflow export as a native AGNT `agnt-agent` node, whose\n`agentId` is this reference's `id` (AGNT identifies agents by UUID, so the\n`id` must be the agent's UUID, not its display name). `None` = ordinary,\nlocally launchable delegator.",
           "anyOf": [
@@ -1738,6 +1918,7 @@
       "type": "object",
       "properties": {
         "identity": {
+          "description": "Commit identity; falls back to the global `git.identity`",
           "anyOf": [
             {
               "$ref": "#/$defs/GitIdentityConfig"
@@ -1749,6 +1930,7 @@
           "default": null
         },
         "credentials": {
+          "description": "HTTPS credential for the ticket's repository",
           "anyOf": [
             {
               "$ref": "#/$defs/GitCredentialConfig"
@@ -1760,6 +1942,7 @@
           "default": null
         },
         "settings": {
+          "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected",
           "type": "array",
           "items": {
             "$ref": "#/$defs/GitConfigEntry"
@@ -1773,12 +1956,15 @@
       "type": "object",
       "properties": {
         "repository_url": {
+          "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment",
           "type": "string"
         },
         "username": {
+          "description": "HTTPS username sent with the token",
           "type": "string"
         },
         "token_env": {
+          "description": "Environment variable holding the token, read at launch",
           "type": "string"
         }
       },
@@ -1789,12 +1975,15 @@
       ]
     },
     "GitConfigEntry": {
+      "description": "One `git config` entry applied to delegated work.",
       "type": "object",
       "properties": {
         "key": {
+          "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected",
           "type": "string"
         },
         "value": {
+          "description": "Config value",
           "type": "string"
         }
       },
@@ -1911,7 +2100,7 @@
       ]
     },
     "ModelServer": {
-      "description": "A named host that serves models via an inference API.\n\nModel servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI\n(`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint\n(`model_server`, e.g. ollama-local, openai-api, a custom vllm host).\n\nImplicit builtin servers (`anthropic-api`, `openai-api`, `google-api`) are\nreturned by [`implicit_model_server_for_tool`] and do not need to be declared\nin config.",
+      "description": "A named host that serves models via an inference API.\n\nModel servers are orthogonal to `llm_tools`: a delegator pairs an agentic CLI\n(`llm_tool`, e.g. claude/codex/gemini) with a model-serving endpoint\n(`model_server`, e.g. ollama-local, openai-api, a custom vllm host).\n\nImplicit builtin servers are returned by [`implicit_model_server_for_tool`] for shipped tools.",
       "type": "object",
       "properties": {
         "name": {
@@ -2125,11 +2314,45 @@
           ]
         },
         "parameters": {
-          "description": "Passthrough `--parameter` template parameters for `coder create`",
+          "description": "Passthrough `--parameter` template parameters for `coder create`.\nValues may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}`",
           "type": "object",
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "preset": {
+          "description": "Template preset passed to `coder create --preset`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "remote_callback_port": {
+          "description": "Workspace-side port the reverse tunnel binds (None = the local API port)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "forward_env": {
+          "description": "Env var NAMES resolved on the control plane and shipped to the agent\n(e.g. LLM provider credentials); a missing one fails the launch",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "delete_on_complete": {
+          "description": "Delete the workspace when the ticket completes (wins over `stop_on_complete`)",
+          "type": "boolean",
+          "default": false
+        },
+        "delete_on_merge": {
+          "description": "Delete the workspace when the ticket's PR merges",
+          "type": "boolean",
+          "default": false
         }
       },
       "required": [
@@ -2154,11 +2377,123 @@
             "string",
             "null"
           ]
+        },
+        "remote_callback_port": {
+          "description": "Remote port the reverse tunnel binds for callbacks (None = the local API port)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
         }
       },
       "required": [
         "ssh_alias",
         "workdir"
+      ]
+    },
+    "GovernancePolicy": {
+      "description": "A named launch policy. Every constraint is optional; an absent one is unconstrained.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Unique name, referenced by `Delegator.governance`.",
+          "type": "string"
+        },
+        "allowed_delegators": {
+          "description": "Delegator names allowed to launch. Absent = any.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed_llm_tools": {
+          "description": "LLM tool names allowed to launch (e.g. `claude`). Absent = any.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed_model_servers": {
+          "description": "Model server names allowed (declared or implicit, e.g. `anthropic-api`). Absent = any.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed_targets": {
+          "description": "Execution target names allowed (e.g. `local`, `docker`, a `[[targets]]` name). Absent = any.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "max_parallel": {
+          "description": "Maximum concurrently running agents under this policy.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "max_launches": {
+          "description": "Maximum total launches under this policy (counted per campaign run).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "max_retries": {
+          "description": "Maximum relaunches of a failed ticket (counted per campaign run).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "max_runtime_minutes": {
+          "description": "Maximum wall-clock minutes per agent.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "budget_usd": {
+          "description": "Spend ceiling in USD. Reserved: accepted and reported, not yet enforced.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "require_confirmation": {
+          "description": "Require operator confirmation before each launch.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "name"
       ]
     },
     "RelayConfig": {
@@ -2275,6 +2610,48 @@
         }
       },
       "additionalProperties": false
+    },
+    "NativeLlmConfig": {
+      "description": "In-daemon LLM calls (built with the `native-llm` feature). Distinct from\ndelegators: these are single typed API calls, not agent CLI sessions.",
+      "type": "object",
+      "properties": {
+        "judge": {
+          "description": "Model that picks the winner of `multi_model` (`voting_mode = single_judge`)\nand `multi_prompt` (`selection_strategy = model_choice`) steps. Unset keeps\nthe deterministic first/longest rule.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JudgeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      }
+    },
+    "JudgeConfig": {
+      "type": "object",
+      "properties": {
+        "model_server": {
+          "description": "Name of a declared or implicit model server (e.g. \"anthropic-api\")",
+          "type": "string"
+        },
+        "model": {
+          "description": "Full API model id (e.g. \"claude-sonnet-5\"), not a CLI alias like \"sonnet\"",
+          "type": "string"
+        },
+        "timeout_secs": {
+          "description": "Seconds before the judge is abandoned and the deterministic rule applies",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 120
+        }
+      },
+      "required": [
+        "model_server",
+        "model"
+      ]
     }
   }
 }

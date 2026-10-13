@@ -266,6 +266,7 @@ export const delegators: DelegatorResponse[] = [
     model_server: null,
     launch_config: null,
     remote_agent: null,
+    governance: null,
   },
   {
     name: "local-coder",
@@ -276,6 +277,7 @@ export const delegators: DelegatorResponse[] = [
     model_server: "workstation",
     launch_config: null,
     remote_agent: null,
+    governance: null,
   },
 ];
 
@@ -289,6 +291,7 @@ export const unnamedDelegator: DelegatorResponse = {
   model_server: null,
   launch_config: null,
   remote_agent: null,
+  governance: null,
 };
 
 export const healthySection: SectionDto = {

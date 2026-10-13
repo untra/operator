@@ -244,6 +244,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Collections", description = "Issue type collection management"),
         (name = "Tickets", description = "Ticket CRUD and status management"),
         (name = "Launch", description = "Ticket launch operations"),
+        (name = "Campaigns", description = "Campaigns: epics of tickets planned into waves and launched together (Premium)"),
         (name = "Workflow", description = "Export tickets to Claude dynamic workflows"),
         (name = "Skills", description = "Skill discovery across LLM tools"),
         (name = "Delegators", description = "Agent delegator CRUD operations"),

@@ -3,13 +3,13 @@
 `workflows/deploy-casa.yaml` builds `Dockerfile.local` with the dev license keyring and swaps the image on the
 `operator` release at `operator.<devhost>`. `workflows/pr.yaml` is the required check on `main`: it builds the
 same arm64 image without pushing it, then runs the `e2e/` Playwright suites against it (`scripts/ci/e2e.sh`).
-Runners have no standing internet access: everything they pull comes from Forgejo mirrors that these commands
-refresh, run from a workstation that does have it.
+Runner egress isn't restricted (jobs reach the internet through OrbStack's NAT), but everything they pull comes
+from Forgejo mirrors anyway, for pinning and speed. These commands refresh the mirrors from a workstation.
 
 | Workflow / job | Runner label | Reaches |
 | --- | --- | --- |
-| `deploy-casa` / `build` | `docker` | Forgejo registry; egress allowlist `deb.debian.org`, `registry.npmjs.org`, `index.crates.io`, `static.crates.io` |
-| `deploy-casa` / `deploy` | `helmfile` | Forgejo registry, cluster API; no internet |
+| `deploy-casa` / `build` | `docker` | Forgejo registry and mirrors; `deb.debian.org`, `registry.npmjs.org`, `index.crates.io`, `static.crates.io` at build time |
+| `deploy-casa` / `deploy` | `helmfile` | Forgejo registry, cluster API |
 | `pr` / `arm64` | `docker` | as `build`, plus `webhook.operator.untra.casa` for the license suite |
 
 Common shell setup:

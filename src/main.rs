@@ -5,6 +5,7 @@ use std::path::PathBuf;
 mod api;
 mod app;
 mod auth;
+mod campaigns;
 mod collections;
 mod config;
 mod editors;
@@ -231,6 +232,11 @@ enum Commands {
         /// Project/change reference (e.g. an `OpenSpec` change id, a Jira project key).
         /// Omit to sync all of the provider's configured collections.
         reference: Option<String>,
+
+        /// Import an `OpenSpec` change as one campaign (Premium). Other providers set
+        /// `scope` on the project's sync config instead.
+        #[arg(long)]
+        campaign: bool,
     },
 
     /// Create a new ticket from template
@@ -320,6 +326,28 @@ enum Commands {
     Auth {
         #[command(subcommand)]
         action: AuthAction,
+    },
+
+    /// Inspect campaigns: epics of tickets planned into dependency waves
+    Campaign {
+        #[command(subcommand)]
+        action: CampaignAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum CampaignAction {
+    /// List campaigns with their status and member count
+    List,
+    /// Show a campaign's plan: waves, blockers, and what is ready to launch
+    Show {
+        /// Campaign id (e.g. CAMP-0001)
+        id: String,
+    },
+    /// Start a campaign (Premium): launch its first wave; `operator api` drives the rest
+    Launch {
+        /// Campaign id (e.g. CAMP-0001)
+        id: String,
     },
 }
 
@@ -495,8 +523,9 @@ async fn main() -> Result<()> {
         Some(Commands::Import {
             provider,
             reference,
+            campaign,
         }) => {
-            cmd_import(&config, provider, reference).await?;
+            cmd_import(&config, provider, reference, campaign).await?;
         }
         Some(Commands::Create { template, project }) => {
             cmd_create(&config, template, project).await?;
@@ -538,6 +567,9 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Workflow { action }) => {
             cmd_workflow(&config, action)?;
+        }
+        Some(Commands::Campaign { action }) => {
+            cmd_campaign(&config, action).await?;
         }
         None => {
             // No subcommand = launch TUI dashboard
@@ -836,10 +868,24 @@ async fn cmd_import(
     config: &Config,
     provider: Option<String>,
     reference: Option<String>,
+    campaign: bool,
 ) -> Result<()> {
     use services::kanban_sync::KanbanSyncService;
 
     let service = KanbanSyncService::new(config);
+
+    if campaign {
+        let (Some("openspec"), Some(change)) = (provider.as_deref(), reference.as_deref()) else {
+            anyhow::bail!(
+                "--campaign takes `openspec <change-id>`; for jira, linear and github set `scope` on the project's sync config"
+            );
+        };
+        let scope = config::SyncScope::OpenspecChange(change.to_string());
+        let result = service.sync_scope("openspec", change, &scope).await?;
+        println!("openspec/{change}: {}", result.summary());
+        print_sync_details(&result);
+        return Ok(());
+    }
 
     let provider = match provider {
         None => {
@@ -887,8 +933,14 @@ async fn cmd_import(
 }
 
 fn print_sync_details(result: &services::kanban_sync::SyncResult) {
+    if let Some(campaign) = &result.campaign {
+        println!("  campaign {campaign}");
+    }
     for key in &result.created {
         println!("  created  {key}");
+    }
+    for key in &result.updated {
+        println!("  updated  {key}");
     }
     for error in &result.errors {
         eprintln!("  error    {error}");
@@ -1026,6 +1078,79 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
     }
 }
 
+async fn cmd_campaign(config: &Config, action: CampaignAction) -> Result<()> {
+    let store = campaigns::CampaignStore::new(config);
+    let queue = queue::Queue::new(config)?;
+    let mut tickets = queue.list_queue()?;
+    tickets.extend(queue.list_in_progress()?);
+    tickets.extend(queue.list_completed()?);
+
+    match action {
+        CampaignAction::List => {
+            for campaign in store.list() {
+                let count = campaigns::members(&campaign.id, &tickets).len();
+                println!(
+                    "{}  {:?}  {} tickets  {}",
+                    campaign.id, campaign.status, count, campaign.title
+                );
+            }
+        }
+        CampaignAction::Show { id } => {
+            let campaign = store
+                .get(&id)
+                .ok_or_else(|| anyhow::anyhow!("Campaign {id} not found"))?;
+            let members = campaigns::members(&campaign.id, &tickets);
+            println!(
+                "{}: {} ({:?})",
+                campaign.id, campaign.title, campaign.status
+            );
+            if let Some(external_ref) = &campaign.external_ref {
+                println!("  synced from {external_ref}");
+            }
+            match campaigns::workspace::resolve_workspace(config, &campaign) {
+                Some(shared) => println!(
+                    "  shared workspace on target '{}' (key {})",
+                    shared.target.name, shared.workspace_key
+                ),
+                None => println!("  each ticket in its own workspace"),
+            }
+            let plan = campaigns::plan::plan(config, &members, &tickets)?;
+            for (n, wave) in plan.waves.iter().enumerate() {
+                println!("  wave {}: {}", n + 1, wave.join(", "));
+            }
+            for (ticket, gates) in &plan.gates {
+                println!("  {ticket} waits on {}", gates.join(", "));
+            }
+            for (ticket, refs) in &plan.unsynced {
+                println!("  {ticket} blocked by unsynced {}", refs.join(", "));
+            }
+            println!(
+                "  ready: {}",
+                campaigns::plan::ready(&plan, &tickets).join(", ")
+            );
+        }
+        CampaignAction::Launch { id } => {
+            let port = services::campaign_runner::LauncherPort::new(config.clone());
+            services::campaign_runner::start_campaign(config, &port, &id)?;
+            let report = services::campaign_runner::tick(config, &port, &id).await?;
+            println!("{id}: {:?}", report.status);
+            println!("  launched: {}", report.launched.join(", "));
+            println!(
+                "  awaiting operator: {}",
+                report.awaiting_operator.join(", ")
+            );
+            println!("  stalled: {}", report.stalled.join(", "));
+            for (ticket, reason) in &report.blocked {
+                println!("  {ticket} blocked: {reason:?}");
+            }
+            if let Some(reason) = &report.pause_reason {
+                println!("  paused: {reason}");
+            }
+        }
+    }
+    Ok(())
+}
+
 fn cmd_workflow(config: &Config, action: WorkflowAction) -> Result<()> {
     match action {
         WorkflowAction::Export {
@@ -1158,6 +1283,8 @@ async fn cmd_api(config: &Config, port: Option<u16>, open: bool) -> Result<()> {
     }
 
     let state = rest::ApiState::new(config.clone(), config.tickets_path());
+    let runner_state = state.clone();
+    services::campaign_runner::spawn_campaign_runner(move || runner_state.config());
     rest::serve(state, port).await?;
 
     Ok(())

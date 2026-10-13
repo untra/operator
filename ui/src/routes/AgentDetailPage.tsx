@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { AGENT_POLL_MS, useApiQuery } from "../api";
 import { agentQuery } from "../api/definitions";
+import { ConnectPanel } from "../components/ConnectPanel";
 import styles from "./AgentDetailPage.module.css";
 
 export function AgentDetailPage() {
@@ -27,11 +28,13 @@ export function AgentDetailPage() {
       </div>
 
       <h1 className={styles.title}>
-        {agent.ticket_id}
+        <Link to={`/tickets/${encodeURIComponent(agent.ticket_id)}`}>{agent.ticket_id}</Link>
         <span className={styles.statusBadge} data-status={agent.status}>
           {agent.status}
         </span>
       </h1>
+
+      <ConnectPanel agentId={agent.id} plan={agent.connect} attention={agent.attention} />
 
       <div className={styles.grid}>
         <Field label="Project" value={agent.project} />
@@ -44,6 +47,18 @@ export function AgentDetailPage() {
         <Field label="Review" value={agent.review_state} />
         <Field label="Elapsed" value={elapsed} />
         <Field label="Paired" value={agent.paired ? "Yes" : "No"} />
+        <Field label="Session" value={agent.session_name} />
+        <Field label="Host" value={agent.remote_host ?? agent.target_name} />
+        {agent.workspace_url && (
+          <div className={styles.field}>
+            <div className={styles.fieldLabel}>Workspace</div>
+            <div className={styles.fieldValue}>
+              <a href={agent.workspace_url} target="_blank" rel="noopener noreferrer">
+                {agent.workspace_url}
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       {agent.pr_url && (

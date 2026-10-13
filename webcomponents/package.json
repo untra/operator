@@ -29,7 +29,9 @@
   },
   "dependencies": {
     "@untra/naiveworkflow-react": "0.0.3",
-    "@xyflow/react": "^12.0.0"
+    "@xyflow/react": "^12.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",

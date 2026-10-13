@@ -154,6 +154,9 @@ fn pipeline_env_for(config: &Config, ticket: &Ticket, issuetype: &IssueType) -> 
 fn preview_ticket(issuetype: &IssueType) -> Ticket {
     let key = &issuetype.key;
     Ticket {
+        depends_on: Vec::new(),
+        campaign: None,
+        external_parent: None,
         filename: format!("{key}-PREVIEW.md"),
         filepath: format!("preview/{key}-PREVIEW.md"),
         timestamp: "preview".to_string(),
@@ -189,6 +192,9 @@ mod tests {
 
     fn ticket(ticket_type: &str) -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "20241221-1430-FEAT-gamesvc-test.md".to_string(),
             filepath: "/test/path".to_string(),
             timestamp: "20241221-1430".to_string(),

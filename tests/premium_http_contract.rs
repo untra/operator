@@ -280,3 +280,43 @@ async fn an_unknown_configuration_is_not_served_by_the_default() {
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+const BATCH: &str = r#"{"tickets":[{"ref":"a","template":"FEAT","summary":"A"},{"ref":"b","template":"FIX","summary":"B","depends_on":["a"]}]}"#;
+
+#[tokio::test]
+async fn campaign_routes_are_402_without_a_licence_and_batches_are_free() {
+    let server = Server::start();
+    let token = server.admin_token();
+
+    for response in [
+        server.get("/api/v1/campaigns", Some(&token)).await,
+        server
+            .post("/api/v1/campaigns", Some(&token), r#"{"title":"Epic"}"#)
+            .await,
+        server
+            .get("/api/v1/campaigns/CAMP-0001/status", Some(&token))
+            .await,
+        server
+            .post("/api/v1/campaigns/CAMP-0001/launch", Some(&token), "{}")
+            .await,
+        server
+            .post("/api/v1/campaigns/CAMP-0001/pause", Some(&token), "{}")
+            .await,
+    ] {
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        let body = body_json(response).await;
+        assert_eq!(body["error"], "not_entitled");
+        assert_eq!(body["feature"], "campaigns");
+    }
+
+    let response = server
+        .post("/api/v1/tickets/batch/preview", Some(&token), BATCH)
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["valid"], true);
+    assert_eq!(
+        body["waves"],
+        serde_json::json!([["FEAT-0001"], ["FIX-0001"]])
+    );
+}

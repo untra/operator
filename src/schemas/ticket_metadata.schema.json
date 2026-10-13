@@ -67,6 +67,26 @@
       "description": "Provider name for the external issue (e.g., jira, linear)",
       "examples": ["jira", "linear"]
     },
+    "campaign": {
+      "type": "string",
+      "description": "Campaign this ticket belongs to. A campaign groups tickets into one planned body of work.",
+      "pattern": "^CAMP-\\d+$",
+      "examples": ["CAMP-0003"]
+    },
+    "depends_on": {
+      "type": "array",
+      "description": "Tickets that must complete before this one can launch. Each entry is a local ticket id, or a `provider:key` reference to an upstream issue (kept even when that issue is not synced). Provider references are refreshed on every kanban sync; local ids are never touched by sync.",
+      "items": {
+        "type": "string",
+        "pattern": "^([A-Z][A-Z0-9_]*-\\w+|(jira|linear|github|openspec):.+)$"
+      },
+      "examples": [["FEAT-0012", "jira:PROJ-12", "linear:ENG-7", "github:octo/hello#12"]]
+    },
+    "external_parent": {
+      "type": "string",
+      "description": "Upstream epic, project, or parent issue as a `provider:key` reference. Pulled from the kanban provider on sync.",
+      "examples": ["jira:PROJ-1", "linear:ENG-40", "openspec:add-dark-mode"]
+    },
     "step_delegators": {
       "type": "object",
       "description": "Step name to delegator name mapping. Populated when a step launches; used for bidirectional kanban activity logs.",

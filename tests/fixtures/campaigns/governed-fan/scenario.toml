@@ -1,0 +1,29 @@
+# max_parallel=2 and one agent per repo throttle the fan; FEAT-0004 requeues
+# twice, so its second retry exceeds max_retries=1 and the run pauses.
+[config]
+max_parallel = 4
+max_agents_per_repo = 1
+
+[expect]
+waves = [["FEAT-0001"], ["FEAT-0002", "FEAT-0003", "FEAT-0004", "FEAT-0005"]]
+final_status = "paused"
+pause_reason = "max_retries reached by FEAT-0004"
+
+[[agent]]
+ticket = "FEAT-0004"
+outcomes = ["requeue", "requeue"]
+
+[[tick]]
+launch = ["FEAT-0001"]
+status = "running"
+
+[[tick]]
+launch = ["FEAT-0002", "FEAT-0004"]
+status = "running"
+
+[[tick]]
+launch = ["FEAT-0003", "FEAT-0004"]
+status = "running"
+
+[[tick]]
+status = "paused"

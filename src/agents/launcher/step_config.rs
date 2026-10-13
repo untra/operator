@@ -157,6 +157,9 @@ mod tests {
     /// Helper to create a minimal test ticket
     fn make_test_ticket(ticket_type: &str, step: &str) -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             id: "TEST-001".to_string(),
             ticket_type: ticket_type.to_string(),
             step: step.to_string(),

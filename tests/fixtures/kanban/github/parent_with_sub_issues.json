@@ -1,0 +1,58 @@
+{
+  "repository": {
+    "issue": {
+      "title": "Sync worker hardening",
+      "body": "Make the sync worker survive outages.",
+      "url": "https://github.com/octo/hello/issues/3",
+      "subIssues": {
+        "nodes": [
+          {
+            "__typename": "Issue",
+            "id": "I_12",
+            "number": 12,
+            "title": "Add retry",
+            "body": null,
+            "url": "https://github.com/octo/hello/issues/12",
+            "state": "OPEN",
+            "repository": { "nameWithOwner": "octo/hello" },
+            "assignees": { "nodes": [] },
+            "labels": { "nodes": [] },
+            "issueType": null,
+            "parent": { "number": 3, "repository": { "nameWithOwner": "octo/hello" } },
+            "subIssues": { "nodes": [] },
+            "blockedBy": { "nodes": [] }
+          },
+          {
+            "__typename": "Issue",
+            "id": "I_13",
+            "number": 13,
+            "title": "Alert on repeated failure",
+            "body": null,
+            "url": "https://github.com/octo/hello/issues/13",
+            "state": "OPEN",
+            "repository": { "nameWithOwner": "octo/hello" },
+            "assignees": { "nodes": [] },
+            "labels": { "nodes": [] },
+            "issueType": null,
+            "parent": { "number": 3, "repository": { "nameWithOwner": "octo/hello" } },
+            "subIssues": { "nodes": [] },
+            "blockedBy": { "nodes": [{ "number": 12, "repository": { "nameWithOwner": "octo/hello" } }] }
+          },
+          {
+            "__typename": "Issue",
+            "id": "I_14",
+            "number": 14,
+            "title": "Already closed",
+            "body": null,
+            "url": "https://github.com/octo/hello/issues/14",
+            "state": "CLOSED",
+            "repository": { "nameWithOwner": "octo/hello" },
+            "assignees": { "nodes": [] },
+            "labels": { "nodes": [] },
+            "issueType": null
+          }
+        ]
+      }
+    }
+  }
+}

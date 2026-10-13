@@ -44,6 +44,7 @@ pub async fn move_ticket(
     .await
     .map_err(|e| e.to_string())??;
 
+    crate::services::campaign_runner::wake().notify_one();
     push_kanban_transition(state, ticket, column);
     Ok(())
 }

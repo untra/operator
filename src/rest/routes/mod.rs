@@ -2,6 +2,7 @@
 
 pub mod agents;
 pub mod auth;
+pub mod campaigns;
 pub mod collections;
 pub mod configuration;
 pub mod delegators;

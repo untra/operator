@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 const ALLOWED_UI_DEPS: &[&str] = &[
     "react",
     "react-dom",
+    "react-markdown",
     "react-router-dom",
     "redux",
     "react-redux",
@@ -39,6 +40,10 @@ const ALLOWED_WEBCOMPONENT_DEPS: &[&str] = &[
     // React Flow - peer dependency of @untra/naiveworkflow-react; the graph
     // renderer/canvas. (dagre, its layout engine, comes in transitively.)
     "@xyflow/react",
+    // Markdown rendering for ticket bodies (MarkdownView); raw HTML disabled.
+    "react-markdown",
+    // GitHub-flavored markdown extensions (tables, task lists) for MarkdownView.
+    "remark-gfm",
 ];
 
 /// CSS-in-JS and heavyweight component libraries banned from every frontend

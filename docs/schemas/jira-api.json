@@ -14,6 +14,14 @@
       "items": {
         "$ref": "#/$defs/JiraIssue"
       }
+    },
+    "nextPageToken": {
+      "description": "Token for the next page; absent on the last page",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
     }
   },
   "required": [
@@ -91,6 +99,34 @@
               "type": "null"
             }
           ]
+        },
+        "issuelinks": {
+          "description": "Links to other issues (blocks, relates, ...)",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JiraIssueLink"
+          },
+          "default": []
+        },
+        "parent": {
+          "description": "Parent issue or epic",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JiraLinkedIssue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "subtasks": {
+          "description": "Sub-task issues",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JiraLinkedIssue"
+          },
+          "default": []
         }
       },
       "required": [
@@ -208,6 +244,104 @@
       "required": [
         "name"
       ]
+    },
+    "JiraIssueLink": {
+      "description": "A link between two Jira issues",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Link type, e.g. `Blocks` with inward text `is blocked by`",
+          "$ref": "#/$defs/JiraIssueLinkType"
+        },
+        "inwardIssue": {
+          "description": "Present when the other issue is on the inward side (e.g. the blocker)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JiraLinkedIssue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "outwardIssue": {
+          "description": "Present when the other issue is on the outward side (e.g. the blocked)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JiraLinkedIssue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "JiraIssueLinkType": {
+      "description": "Jira issue link type",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Link type name (e.g. \"Blocks\")",
+          "type": "string"
+        },
+        "inward": {
+          "description": "Inward description (e.g. \"is blocked by\")",
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "JiraLinkedIssue": {
+      "description": "A related issue as embedded in links, parent and subtasks",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Issue key (e.g. \"PROJ-12\")",
+          "type": "string"
+        },
+        "fields": {
+          "description": "Partial fields; only the issue type is read",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JiraLinkedFields"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "key"
+      ]
+    },
+    "JiraLinkedFields": {
+      "description": "Partial fields of a related issue",
+      "type": "object",
+      "properties": {
+        "issuetype": {
+          "description": "Issue type of the related issue",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JiraIssueTypeRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      }
     }
   }
 }

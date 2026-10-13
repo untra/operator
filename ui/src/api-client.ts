@@ -4,6 +4,15 @@ import type { ProfileSummary } from "@operator/bindings/ProfileSummary";
 import type { LicenseResponse } from "@operator/bindings/LicenseResponse";
 import type { TargetResponse } from "@operator/bindings/TargetResponse";
 import type { TargetsResponse } from "@operator/bindings/TargetsResponse";
+import type { CampaignListResponse } from "@operator/bindings/CampaignListResponse";
+import type { CampaignDetail } from "@operator/bindings/CampaignDetail";
+import type { CampaignStatusView } from "@operator/bindings/CampaignStatusView";
+import type { CampaignLaunchOutcome } from "@operator/bindings/CampaignLaunchOutcome";
+import type { LaunchCampaignRequest } from "@operator/bindings/LaunchCampaignRequest";
+import type { TickReport } from "@operator/bindings/TickReport";
+import type { TicketDetailResponse } from "@operator/bindings/TicketDetailResponse";
+import type { UpdateTicketStatusRequest } from "@operator/bindings/UpdateTicketStatusRequest";
+import type { UpdateTicketStatusResponse } from "@operator/bindings/UpdateTicketStatusResponse";
 import type { TargetProbeResponse } from "@operator/bindings/TargetProbeResponse";
 import type { HealthResponse } from "@operator/bindings/HealthResponse";
 import type { StatusResponse } from "@operator/bindings/StatusResponse";
@@ -675,6 +684,35 @@ export class OperatorApi {
     return requestVoid(this.base, "/api/v1/queue/sync", { method: "POST" });
   }
 
+  // --- Campaigns ---
+
+  campaigns(): Promise<CampaignListResponse> {
+    return request(this.base, "/api/v1/campaigns");
+  }
+
+  campaign(id: string): Promise<CampaignDetail> {
+    return request(this.base, `/api/v1/campaigns/${encodeURIComponent(id)}`);
+  }
+
+  campaignStatus(id: string): Promise<CampaignStatusView> {
+    return request(this.base, `/api/v1/campaigns/${encodeURIComponent(id)}/status`);
+  }
+
+  launchCampaign(id: string, dryRun: boolean): Promise<CampaignLaunchOutcome> {
+    const body: LaunchCampaignRequest = { dry_run: dryRun };
+    return request(this.base, `/api/v1/campaigns/${encodeURIComponent(id)}/launch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(body),
+    });
+  }
+
+  pauseCampaign(id: string): Promise<TickReport> {
+    return request(this.base, `/api/v1/campaigns/${encodeURIComponent(id)}/pause`, {
+      method: "POST",
+    });
+  }
+
   // --- Agents ---
 
   activeAgents(): Promise<ActiveAgentsResponse> {
@@ -711,6 +749,19 @@ export class OperatorApi {
   }
 
   // --- Tickets ---
+
+  ticket(ticketId: string): Promise<TicketDetailResponse> {
+    return request(this.base, `/api/v1/tickets/${encodeURIComponent(ticketId)}`);
+  }
+
+  moveTicket(ticketId: string, status: string): Promise<UpdateTicketStatusResponse> {
+    const body: UpdateTicketStatusRequest = { status };
+    return request(this.base, `/api/v1/tickets/${encodeURIComponent(ticketId)}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(body),
+    });
+  }
 
   launchTicket(ticketId: string, options: LaunchTicketRequest): Promise<LaunchTicketResponse> {
     return request(this.base, `/api/v1/tickets/${encodeURIComponent(ticketId)}/launch`, {

@@ -400,6 +400,9 @@ mod tests {
 
     fn ticket(ticket_type: &str) -> Ticket {
         Ticket {
+            depends_on: Vec::new(),
+            campaign: None,
+            external_parent: None,
             filename: "20241221-1430-FEAT-gamesvc-test.md".to_string(),
             filepath: "/test/path".to_string(),
             timestamp: "20241221-1430".to_string(),
@@ -657,6 +660,7 @@ mod tests {
     fn config_with_remote_delegator(name: &str, platform: &str, id: &str) -> Config {
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            governance: None,
             git: None,
             name: name.to_string(),
             llm_tool: "anthropic".to_string(),
@@ -735,6 +739,7 @@ mod tests {
         let it = issuetype_with_step_agent("local-claude");
         let mut config = Config::default();
         config.delegators.push(crate::config::Delegator {
+            governance: None,
             git: None,
             name: "local-claude".to_string(),
             llm_tool: "claude".to_string(),

@@ -70,6 +70,18 @@ Operator maps Jira issue types to ticket types:
 | Task | FEAT |
 | Spike | SPIKE |
 
+## Relationships
+
+| Jira | Ticket frontmatter |
+|------|--------------------|
+| "is blocked by" issue link (`Blocks` type) | `depends_on: ["jira:PROJ-12"]` |
+| Sub-tasks | `depends_on` - the parent waits for its sub-tasks |
+| Parent epic or parent issue | `external_parent: jira:PROJ-1` |
+
+Sync requests these fields explicitly (`issuelinks`, `parent`, `subtasks` alongside the summary, status and type), since Jira's search API returns only ids unless fields are named.
+
+Relationships are pull-only: Operator never writes links or parents back to Jira. On every sync, the `jira:` entries in a ticket's `depends_on` are replaced with what Jira reports now; ticket ids you added yourself are kept. A blocker that isn't synced stays in `depends_on` as `jira:<key>` - the ticket waits on it until it is synced and completed, or the entry is removed. See [Dependencies](/getting-started/tickets/#dependencies-and-campaigns).
+
 ## Syncing Issues
 
 Pull issues from Jira:

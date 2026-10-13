@@ -102,6 +102,48 @@ pub fn all_capabilities() -> Vec<Capability> {
             tui_action: Some("Reject review"),
         },
         Capability {
+            name: "Preview Ticket Batch",
+            slash_command: None,
+            mcp_tool: Some("operator_preview_ticket_batch"),
+            rest_endpoint: Some("POST /api/v1/tickets/batch/preview"),
+            tui_action: None,
+        },
+        Capability {
+            name: "Create Tickets in Bulk",
+            slash_command: None,
+            mcp_tool: Some("operator_create_tickets_bulk"),
+            rest_endpoint: Some("POST /api/v1/tickets/batch"),
+            tui_action: None,
+        },
+        Capability {
+            name: "Create Campaign",
+            slash_command: None,
+            mcp_tool: Some("operator_create_campaign"),
+            rest_endpoint: Some("POST /api/v1/campaigns"),
+            tui_action: None,
+        },
+        Capability {
+            name: "Assign Ticket to Campaign",
+            slash_command: None,
+            mcp_tool: Some("operator_assign_ticket_campaign"),
+            rest_endpoint: Some("PUT /api/v1/tickets/:id/campaign"),
+            tui_action: None,
+        },
+        Capability {
+            name: "Launch Campaign",
+            slash_command: None,
+            mcp_tool: Some("operator_launch_campaign"),
+            rest_endpoint: Some("POST /api/v1/campaigns/:id/launch"),
+            tui_action: None,
+        },
+        Capability {
+            name: "Campaign Status",
+            slash_command: None,
+            mcp_tool: Some("operator_campaign_status"),
+            rest_endpoint: Some("GET /api/v1/campaigns/:id/status"),
+            tui_action: None,
+        },
+        Capability {
             name: "Setup Agent",
             slash_command: Some("op-setup-agent"),
             mcp_tool: None,
@@ -160,6 +202,6 @@ mod tests {
     #[test]
     fn test_capability_count() {
         let caps = all_capabilities();
-        assert_eq!(caps.len(), 14, "Expected 14 capabilities in the inventory");
+        assert_eq!(caps.len(), 20, "Expected 20 capabilities in the inventory");
     }
 }

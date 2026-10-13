@@ -1,0 +1,131 @@
+.page {
+  padding: 1.5rem;
+  max-width: 64rem;
+}
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge {
+  font-size: 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 1rem;
+  padding: 0.1rem 0.5rem;
+  color: var(--text-muted);
+}
+
+.status {
+  display: block;
+  margin-block: 0.75rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+}
+
+.state {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: var(--surface-alt);
+}
+
+.state[data-status="running"] {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.state[data-status="paused"] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.state[data-status="cancelled"] {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+
+.actions button {
+  min-height: 2rem;
+}
+
+.confirm {
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-block: 1rem;
+}
+
+.violation {
+  color: var(--danger);
+}
+
+.waves {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.wave {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  background: var(--surface);
+}
+
+.wave h3 {
+  margin-top: 0;
+}
+
+.member {
+  border-top: 1px solid var(--border);
+  padding-block: 0.5rem;
+}
+
+.member:first-of-type {
+  border-top: none;
+}
+
+.note {
+  color: var(--warning);
+  font-size: 0.8125rem;
+}
+
+.counters {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+.counters dd {
+  margin: 0;
+}

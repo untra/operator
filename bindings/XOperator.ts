@@ -24,6 +24,10 @@ model_properties?: { [key in string]: string },
  */
 model_server?: string | null, 
 /**
+ * Name of a `[[governance]]` policy.
+ */
+governance?: string | null, 
+/**
  * Launch configuration (permission mode, flags, worktree/docker, prompt
  * wrapping, ...).
  */

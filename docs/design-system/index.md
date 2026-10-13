@@ -90,6 +90,7 @@ helpers in `src/templates/mod.rs` (documented below). It follows the same
 |---------------|:----:|---------|:---:|:----:|
 | dashboard | <i class="codicon codicon-dashboard"></i> | `dashboard` | ✓ | |
 | queue | <i class="codicon codicon-list-ordered"></i> | `list-ordered` | ✓ | |
+| campaigns | <i class="codicon codicon-milestone"></i> | `milestone` | ✓ | |
 | config (Configuration) | <i class="codicon codicon-settings-gear"></i> | `settings-gear` | ✓ | ✓ |
 | connections | <i class="codicon codicon-plug"></i> | `plug` | ✓ | |
 | kanban | <i class="codicon codicon-layout"></i> | `layout` | ✓ | ✓ |
@@ -100,7 +101,7 @@ helpers in `src/templates/mod.rs` (documented below). It follows the same
 | delegators | <i class="codicon codicon-rocket"></i> | `rocket` | ✓ | |
 | projects (Managed Projects) | <i class="codicon codicon-project"></i> | `project` | ✓ | |
 | agents | <i class="codicon codicon-robot"></i> | `robot` | | ✓ |
-| tickets | <i class="codicon codicon-note"></i> | `note` | | ✓ |
+| tickets | <i class="codicon codicon-note"></i> | `note` | ✓ | ✓ |
 | taxonomy | <i class="codicon codicon-type-hierarchy"></i> | `type-hierarchy` | | ✓ |
 | schemas | <i class="codicon codicon-bracket"></i> | `bracket` | | ✓ |
 | shortcuts | <i class="codicon codicon-keyboard"></i> | `keyboard` | | ✓ |

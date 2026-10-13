@@ -21,6 +21,8 @@ const DEFAULT_CODER = {
   name_prefix: "op",
   stop_on_complete: true,
   create_timeout_secs: 300n,
+  delete_on_complete: false,
+  delete_on_merge: false,
 };
 const emptyTarget = (): TargetDef => ({ name: "", kind: "ssh", ssh_alias: "", workdir: "" });
 

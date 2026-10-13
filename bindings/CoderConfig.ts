@@ -42,6 +42,28 @@ create_timeout_secs: bigint,
  */
 callback_url?: string | null, 
 /**
- * Passthrough `--parameter` template parameters for `coder create`
+ * Passthrough `--parameter` template parameters for `coder create`.
+ * Values may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}`
  */
-parameters?: { [key in string]: string }, };
+parameters?: { [key in string]: string }, 
+/**
+ * Template preset passed to `coder create --preset`
+ */
+preset?: string | null, 
+/**
+ * Workspace-side port the reverse tunnel binds (None = the local API port)
+ */
+remote_callback_port?: number | null, 
+/**
+ * Env var NAMES resolved on the control plane and shipped to the agent
+ * (e.g. LLM provider credentials); a missing one fails the launch
+ */
+forward_env?: Array<string>, 
+/**
+ * Delete the workspace when the ticket completes (wins over `stop_on_complete`)
+ */
+delete_on_complete: boolean, 
+/**
+ * Delete the workspace when the ticket's PR merges
+ */
+delete_on_merge: boolean, };

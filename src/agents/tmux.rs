@@ -146,6 +146,9 @@ pub trait TmuxClient: Send + Sync {
     /// This suspends the current terminal and attaches to the tmux session
     fn attach_session(&self, session: &str) -> Result<(), TmuxError>;
 
+    /// Point the attached client at `target` (`session` or `session:window`)
+    fn switch_client(&self, target: &str) -> Result<(), TmuxError>;
+
     /// Set a client-detached hook that runs a command when the client detaches
     fn set_client_detached_hook(&self, session: &str, command: &str) -> Result<(), TmuxError>;
 
@@ -206,6 +209,16 @@ impl SystemTmuxClient {
         Self {
             config_path: Some(config_path),
             socket_name: Some(OPERATOR_SOCKET.to_string()),
+        }
+    }
+
+    /// The client the rest of Operator uses: the generated config and socket when set up.
+    pub fn for_config(config: &crate::config::Config) -> Self {
+        let config_path = config.tmux_config_path();
+        if config.tmux.config_generated && config_path.exists() {
+            Self::with_config(config_path)
+        } else {
+            Self::new()
         }
     }
 
@@ -457,6 +470,17 @@ impl TmuxClient for SystemTmuxClient {
         ])?;
 
         Ok(())
+    }
+
+    fn switch_client(&self, target: &str) -> Result<(), TmuxError> {
+        let output = self.run_tmux(&["switch-client", "-t", target])?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(TmuxError::CommandFailed(
+                String::from_utf8_lossy(&output.stderr).trim().to_string(),
+            ))
+        }
     }
 
     fn attach_session(&self, session: &str) -> Result<(), TmuxError> {
@@ -1009,6 +1033,21 @@ impl TmuxClient for MockTmuxClient {
         let mut sessions = self.sessions.lock().unwrap();
         if let Some(s) = sessions.get_mut(session) {
             s.silence_flag = false;
+            Ok(())
+        } else {
+            Err(TmuxError::SessionNotFound(session.to_string()))
+        }
+    }
+
+    fn switch_client(&self, target: &str) -> Result<(), TmuxError> {
+        self.log_command("switch_client", &[target]);
+
+        if !*self.installed.lock().unwrap() {
+            return Err(TmuxError::NotInstalled);
+        }
+
+        let session = target.split(':').next().unwrap_or(target);
+        if self.sessions.lock().unwrap().contains_key(session) {
             Ok(())
         } else {
             Err(TmuxError::SessionNotFound(session.to_string()))

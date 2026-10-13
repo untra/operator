@@ -84,8 +84,7 @@ jobs:
     needs: build
     runs-on: helmfile
     steps:
-      # The helmfile runner is shared, so the kubeconfig and the registry login live in this job's
-      # temp dir, never in ~/.kube or helm's default registry config.
+      # The helmfile runner is shared, so the kubeconfig and the registry login live in this job's temp dir
       - name: Credentials
         run: |
           umask 077
@@ -100,14 +99,13 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
 
-      # Helmfile owns the release: keep its chart version and values, and swap only the image.
-      # The tag carries the digest: a re-run on the same commit pushes a new image under the same
-      # tag, and a bare tag would leave the StatefulSet unchanged (and IfNotPresent on the old one).
+      # Helmfile owns the release: keep its chart version and values, swap only the image, and reclaim fields from out-of-band kubectl edits.
       - name: Helm upgrade
         run: |
           version=$(helm get metadata operator -n operator | awk '/^VERSION:/ {print $2}')
           helm upgrade operator "oci://${REGISTRY_IMAGE%/*}/charts/operator" --version "$version" -n operator \
             --reset-then-reuse-values \
+            --force-conflicts \
             --set image.repository="$REGISTRY_IMAGE" \
             --set image.tag="${{ needs.build.outputs.tag }}@${{ needs.build.outputs.digest }}" \
             --wait

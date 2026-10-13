@@ -118,6 +118,8 @@ helm rollback operator <revision> -n operator
 
 Job logs are not readable through the API; open the run in the web UI.
 
+Roll images through this workflow or `helm rollback`, not `kubectl set image`: `deploy` runs with `--force-conflicts`, so the next run overwrites out-of-band edits.
+
 ## Housekeeping
 
 ```sh

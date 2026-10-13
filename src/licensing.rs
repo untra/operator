@@ -363,7 +363,7 @@ pub fn status_with(config: &Config, verifier: &Verifier, now: i64) -> LicenseRes
                 profile_id: config.profile.id,
                 premium: status == LicenseStatus::Valid,
                 terms: Some(decoded.terms),
-                purchase_url: purchase_url(),
+                purchase_url: purchase_url(config.profile.id),
             }
         }
     }
@@ -375,10 +375,18 @@ pub fn entitlements_with(config: &Config, verifier: &Verifier, now: i64) -> Enti
     entitlements_from(&status_with(config, verifier, now))
 }
 
-fn purchase_url() -> Option<String> {
-    option_env!("OPERATOR_PURCHASE_URL")
-        .filter(|url| !url.is_empty())
-        .map(str::to_owned)
+fn purchase_url(profile_id: Uuid) -> Option<String> {
+    option_env!("OPERATOR_PURCHASE_URL").and_then(|base| purchase_link(base, profile_id))
+}
+
+/// The purchase URL carrying this configuration's id, so checkout binds the licence to it.
+fn purchase_link(base: &str, profile_id: Uuid) -> Option<String> {
+    let mut url = url::Url::parse(base).ok()?;
+    if !profile_id.is_nil() {
+        url.query_pairs_mut()
+            .append_pair("profile_id", &profile_id.to_string());
+    }
+    Some(url.into())
 }
 
 fn missing(config: &Config) -> LicenseResponse {
@@ -387,7 +395,7 @@ fn missing(config: &Config) -> LicenseResponse {
         profile_id: config.profile.id,
         premium: false,
         terms: None,
-        purchase_url: purchase_url(),
+        purchase_url: purchase_url(config.profile.id),
     }
 }
 
@@ -904,6 +912,42 @@ mod tests {
             1,
             "rotated roots must recompute"
         );
+    }
+
+    const TEST_PROFILE: Uuid = Uuid::from_u128(0x3fa8_5f64_5717_4562_b3fc_2c96_3f66_afa6);
+
+    #[test]
+    fn test_purchase_link_without_query_appends_profile_id() {
+        assert_eq!(
+            purchase_link("https://app.example/checkout", TEST_PROFILE).as_deref(),
+            Some("https://app.example/checkout?profile_id=3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        );
+    }
+
+    #[test]
+    fn test_purchase_link_with_query_keeps_existing_pairs() {
+        assert_eq!(
+            purchase_link("https://app.example/checkout?sku=premium-lifetime", TEST_PROFILE).as_deref(),
+            Some("https://app.example/checkout?sku=premium-lifetime&profile_id=3fa85f64-5717-4562-b3fc-2c963f66afa6")
+        );
+    }
+
+    #[test]
+    fn test_purchase_link_nil_profile_leaves_url_unchanged() {
+        assert_eq!(
+            purchase_link(
+                "https://app.example/checkout?sku=premium-lifetime",
+                Uuid::nil()
+            )
+            .as_deref(),
+            Some("https://app.example/checkout?sku=premium-lifetime")
+        );
+    }
+
+    #[test]
+    fn test_purchase_link_unparseable_or_empty_is_none() {
+        assert_eq!(purchase_link("", TEST_PROFILE), None);
+        assert_eq!(purchase_link("not a url", TEST_PROFILE), None);
     }
 
     #[test]

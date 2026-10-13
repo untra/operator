@@ -91,13 +91,27 @@ export function LicensePanel() {
               </>
             )}
           </dl>
-          {license.purchase_url && /^https:\/\//i.test(license.purchase_url) && (
-            <p>
-              <a href={license.purchase_url} target="_blank" rel="noopener noreferrer">
-                View Operator Premium
-              </a>
-            </p>
-          )}
+          {license.purchase_url &&
+            /^https:\/\//i.test(license.purchase_url) &&
+            (license.premium ? (
+              <p>
+                <a href={license.purchase_url} target="_blank" rel="noopener noreferrer">
+                  View Operator Premium
+                </a>
+              </p>
+            ) : (
+              <div className={styles.purchase}>
+                <a
+                  className={styles.buy}
+                  href={license.purchase_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Buy Operator Premium
+                </a>
+                <p>After checkout, copy your license key and paste it below.</p>
+              </div>
+            ))}
         </>
       ) : (
         <p>Loading license…</p>

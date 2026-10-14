@@ -5,6 +5,7 @@
 pub mod export_config;
 pub mod forward;
 pub mod otlp;
+pub mod self_export;
 pub mod sink;
 pub mod window;
 pub mod wire;
@@ -44,15 +45,48 @@ pub struct IngestBatch {
 
 #[derive(Debug, Default)]
 pub struct TelemetryStats {
-    pub received: AtomicU64,
-    pub dropped_queue_full: AtomicU64,
-    pub redacted: AtomicU64,
+    received: [AtomicU64; 3],
+    dropped_queue_full: [AtomicU64; 3],
+    redacted: [[AtomicU64; 3]; 3],
+}
+
+impl TelemetryStats {
+    pub fn received(&self, signal: TelemetrySignal) -> u64 {
+        self.received[signal_index(signal)].load(Ordering::Relaxed)
+    }
+    pub fn dropped_queue_full(&self, signal: TelemetrySignal) -> u64 {
+        self.dropped_queue_full[signal_index(signal)].load(Ordering::Relaxed)
+    }
+    #[cfg(test)]
+    pub fn redacted(&self, signal: TelemetrySignal) -> u64 {
+        self.redacted[signal_index(signal)]
+            .iter()
+            .map(|v| v.load(Ordering::Relaxed))
+            .sum()
+    }
+    pub fn redaction_counts(&self, signal: TelemetrySignal) -> [u64; 3] {
+        std::array::from_fn(|i| self.redacted[signal_index(signal)][i].load(Ordering::Relaxed))
+    }
+    pub fn record_redaction(
+        &self,
+        signal: TelemetrySignal,
+        stats: operator_telemetry::RedactionStats,
+    ) {
+        for (slot, value) in self.redacted[signal_index(signal)].iter().zip([
+            stats.dropped,
+            stats.hashed,
+            stats.scrubbed,
+        ]) {
+            slot.fetch_add(value, Ordering::Relaxed);
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct QueueFull;
 
 pub struct TelemetryHub {
+    sink: Option<Arc<dyn sink::ExportSink>>,
     redactor: Arc<Redactor>,
     policy: RedactionPolicy,
     window: Arc<Mutex<SessionWindow>>,
@@ -63,8 +97,13 @@ pub struct TelemetryHub {
 
 impl TelemetryHub {
     /// Policies and capacities are fixed here; changing them takes a restart.
-    pub fn new(config: &TelemetryConfig, key: &[u8; 32]) -> anyhow::Result<Self> {
+    pub fn new(
+        config: &TelemetryConfig,
+        key: &[u8; 32],
+        sink: Option<Arc<dyn sink::ExportSink>>,
+    ) -> anyhow::Result<Self> {
         Ok(Self {
+            sink,
             redactor: Arc::new(Redactor::new(key)?),
             policy: RedactionPolicy {
                 enable_redaction: config.enable_redaction,
@@ -87,11 +126,11 @@ impl TelemetryHub {
         context: Option<&TrustedContext>,
     ) -> IngestBatch {
         payload.enrich(context);
+        let signal = payload.signal();
+        let count = payload.record_count();
         let (payload, stats) = payload.redacted(&self.redactor, self.policy);
-        self.stats.received.fetch_add(1, Ordering::Relaxed);
-        self.stats
-            .redacted
-            .fetch_add(stats.total(), Ordering::Relaxed);
+        self.stats.received[signal_index(signal)].fetch_add(count, Ordering::Relaxed);
+        self.stats.record_redaction(signal, stats);
         IngestBatch {
             session_id: payload.session_id(),
             payload,
@@ -103,10 +142,10 @@ impl TelemetryHub {
     /// The worker starts on first use so it runs on the serving runtime.
     pub fn enqueue(&self, batch: IngestBatch) -> Result<(), QueueFull> {
         let sender = self.queue.get_or_init(|| self.spawn_worker());
-        sender.try_send(batch).map_err(|_| {
-            self.stats
-                .dropped_queue_full
-                .fetch_add(1, Ordering::Relaxed);
+        sender.try_send(batch).map_err(|error| {
+            let payload = error.into_inner().payload;
+            self.stats.dropped_queue_full[signal_index(payload.signal())]
+                .fetch_add(payload.record_count(), Ordering::Relaxed);
             QueueFull
         })
     }
@@ -123,9 +162,13 @@ impl TelemetryHub {
     fn spawn_worker(&self) -> mpsc::Sender<IngestBatch> {
         let (tx, mut rx) = mpsc::channel::<IngestBatch>(self.queue_capacity);
         let window = Arc::clone(&self.window);
+        let sink = self.sink.clone();
         tokio::spawn(async move {
             while let Some(batch) = rx.recv().await {
                 deliver_to_window(&window, &batch);
+                if let Some(sink) = &sink {
+                    sink.submit(batch.payload);
+                }
             }
         });
         tx
@@ -190,7 +233,40 @@ mod tests {
     }
 
     fn hub(config: &TelemetryConfig) -> TelemetryHub {
-        TelemetryHub::new(config, &[3; 32]).unwrap()
+        TelemetryHub::new(config, &[3; 32], None).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_sanitized_payload_reaches_sink_and_window() {
+        #[derive(Default)]
+        struct RecordingSink(Mutex<Vec<OtlpPayload>>);
+        impl sink::ExportSink for RecordingSink {
+            fn submit(&self, payload: OtlpPayload) {
+                self.0.lock().unwrap().push(payload);
+            }
+        }
+        let sink = Arc::new(RecordingSink::default());
+        let hub = TelemetryHub::new(
+            &TelemetryConfig::default(),
+            &[3; 32],
+            Some(Arc::clone(&sink) as Arc<dyn sink::ExportSink>),
+        )
+        .unwrap();
+        hub.enqueue(hub.sanitize(
+            logs(vec![kv(attr::OPERATOR_AUTH_TOKEN, "secret")]),
+            Some(&context("s")),
+        ))
+        .unwrap();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while sink.0.lock().unwrap().is_empty() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(hub.session_window("s").is_some());
+        assert!(!format!("{:?}", sink.0.lock().unwrap()[0]).contains("secret"));
+        assert_eq!(hub.stats.received(TelemetrySignal::Logs), 1);
     }
 
     #[tokio::test]
@@ -255,7 +331,7 @@ mod tests {
             window.records[0].attributes[attr::OPERATOR_REDACTED_COUNT],
             2
         );
-        assert_eq!(hub.stats.redacted.load(Ordering::Relaxed), 2);
+        assert_eq!(hub.stats.redacted(TelemetrySignal::Logs), 2);
     }
 
     #[tokio::test]
@@ -270,6 +346,12 @@ mod tests {
         let second = hub.sanitize(logs(vec![]), Some(&context("s")));
         hub.enqueue(first).unwrap();
         assert_eq!(hub.enqueue(second), Err(QueueFull));
-        assert_eq!(hub.stats.dropped_queue_full.load(Ordering::Relaxed), 1);
+        assert_eq!(hub.stats.dropped_queue_full(TelemetrySignal::Logs), 1);
     }
 }
+
+pub mod events;
+
+pub mod metrics;
+
+pub mod agent_env;

@@ -145,6 +145,7 @@ fn generate_typescript() -> String {
         CollectionPreset::decl(&cfg),
         TemplatesConfig::decl(&cfg),
         LoggingConfig::decl(&cfg),
+        operator::config::LogFormat::decl(&cfg),
         TelemetryConfig::decl(&cfg),
         TelemetryIngestConfig::decl(&cfg),
         TelemetryExportConfig::decl(&cfg),
@@ -184,7 +185,7 @@ fn generate_typescript() -> String {
         // State types (src/state.rs)
         State::decl(&cfg),
         AgentState::decl(&cfg),
-        CampaignRun::decl(&cfg),
+        operator::state::CampaignRun::decl(&cfg),
         CompletedTicket::decl(&cfg),
         MultiAgentGroup::decl(&cfg),
         MultiAgentPhase::decl(&cfg),

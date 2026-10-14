@@ -87,6 +87,8 @@ impl NotificationService {
     /// This is fire-and-forget - each integration is spawned as a separate task
     /// and errors are logged but not propagated.
     pub fn notify(&self, event: NotificationEvent) {
+        let (name, attributes) = crate::telemetry::events::notification_event(&event);
+        crate::telemetry::events::emit_event(name, attributes);
         if !self.enabled {
             return;
         }
@@ -116,6 +118,8 @@ impl NotificationService {
     /// This is useful for contexts where async is not available.
     /// Only dispatches to OS integration (webhooks require async).
     pub fn notify_sync(&self, event: NotificationEvent) {
+        let (name, attributes) = crate::telemetry::events::notification_event(&event);
+        crate::telemetry::events::emit_event(name, attributes);
         if !self.enabled {
             return;
         }

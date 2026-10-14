@@ -5,7 +5,6 @@ use ts_rs::TS;
 const MIB: u64 = 1024 * 1024;
 const DEFAULT_INGEST_MAX_BODY_BYTES: u64 = 64 * MIB;
 const DEFAULT_INGEST_QUEUE_CAPACITY: usize = 1024;
-const DEFAULT_EXPORT_TIMEOUT_SECS: u64 = 10;
 const DEFAULT_WINDOW_MAX_SESSIONS: usize = 64;
 const DEFAULT_WINDOW_RECORDS_PER_SESSION: usize = 2048;
 const DEFAULT_WINDOW_GRACE_SECS: u64 = 300;
@@ -94,16 +93,16 @@ pub struct TelemetryExportConfig {
     pub endpoint: Option<String>,
     /// OTLP encoding. Default is `http/protobuf`.
     #[serde(default)]
-    pub protocol: OtlpProtocol,
+    pub protocol: Option<OtlpProtocol>,
     /// Name of an environment variable holding OTLP headers (`key=value,...`)
     #[serde(default)]
     pub headers_env: Option<String>,
     /// Request compression. Default is `gzip`.
     #[serde(default)]
-    pub compression: OtlpCompression,
+    pub compression: Option<OtlpCompression>,
     /// Upstream export timeout in seconds (default: 10).
-    #[serde(default = "default_export_timeout_secs")]
-    pub timeout_secs: u64,
+    #[serde(default)]
+    pub timeout_secs: Option<u64>,
     /// Export Operator's own traces, logs and metrics alongside forwarded agent telemetry
     #[serde(default = "default_true")]
     pub self_telemetry: bool,
@@ -113,10 +112,10 @@ impl Default for TelemetryExportConfig {
     fn default() -> Self {
         Self {
             endpoint: None,
-            protocol: OtlpProtocol::default(),
+            protocol: None,
             headers_env: None,
-            compression: OtlpCompression::default(),
-            timeout_secs: default_export_timeout_secs(),
+            compression: None,
+            timeout_secs: None,
             self_telemetry: true,
         }
     }
@@ -160,10 +159,6 @@ fn default_ingest_queue_capacity() -> usize {
     DEFAULT_INGEST_QUEUE_CAPACITY
 }
 
-fn default_export_timeout_secs() -> u64 {
-    DEFAULT_EXPORT_TIMEOUT_SECS
-}
-
 fn default_window_max_sessions() -> usize {
     DEFAULT_WINDOW_MAX_SESSIONS
 }
@@ -188,16 +183,16 @@ mod tests {
         assert_eq!(cfg.ingest.max_body_bytes, 64 * MIB);
         assert!(cfg.ingest.inject_agent_env);
         assert_eq!(cfg.export.endpoint, None);
-        assert_eq!(cfg.export.protocol, OtlpProtocol::HttpProtobuf);
-        assert_eq!(cfg.export.compression, OtlpCompression::Gzip);
-        assert_eq!(cfg.export.timeout_secs, 10);
+        assert_eq!(cfg.export.protocol, None);
+        assert_eq!(cfg.export.compression, None);
+        assert_eq!(cfg.export.timeout_secs, None);
         assert!(cfg.export.self_telemetry);
     }
 
     #[test]
     fn test_protocol_uses_otel_spelling() {
         let cfg: TelemetryExportConfig = toml::from_str(r#"protocol = "http/json""#).unwrap();
-        assert_eq!(cfg.protocol, OtlpProtocol::HttpJson);
+        assert_eq!(cfg.protocol, Some(OtlpProtocol::HttpJson));
         assert!(toml::from_str::<TelemetryExportConfig>(r#"protocol = "grpc""#).is_err());
     }
 

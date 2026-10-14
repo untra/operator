@@ -49,3 +49,7 @@ pub const CATALOG_MARKDOWN: &str = include_str!(concat!(env!("OUT_DIR"), "/catal
 mod redact;
 #[cfg(feature = "redact")]
 pub use redact::{RedactionPolicy, RedactionResult, RedactionStats, Redactor};
+
+#[cfg(feature = "otlp-json")]
+pub mod otlp_json;
+pub mod traceparent;

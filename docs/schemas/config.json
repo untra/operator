@@ -65,7 +65,8 @@
       "$ref": "#/$defs/LoggingConfig",
       "default": {
         "level": "info",
-        "to_file": true
+        "to_file": true,
+        "format": "text"
       }
     },
     "telemetry": {
@@ -81,10 +82,10 @@
         },
         "export": {
           "endpoint": null,
-          "protocol": "http/protobuf",
+          "protocol": null,
           "headers_env": null,
-          "compression": "gzip",
-          "timeout_secs": 10,
+          "compression": null,
+          "timeout_secs": null,
           "self_telemetry": true
         },
         "window": {
@@ -548,7 +549,7 @@
         "worktrees": {
           "description": "Base directory for per-ticket worktrees (default: ~/.operator/worktrees)",
           "type": "string",
-          "default": "/Users/untra/.operator/worktrees"
+          "default": "/Users/samuelvolin/.operator/worktrees"
         }
       },
       "required": [
@@ -832,8 +833,28 @@
           "description": "Whether to log to file in TUI mode (false = stderr for debugging)",
           "type": "boolean",
           "default": true
+        },
+        "format": {
+          "description": "Line format for console and file logs (default: text).\n\n`json` emits one JSON object per line with `trace_id` and `span_id`.\nOverride with `OPERATOR_LOGGING__FORMAT=json`.",
+          "$ref": "#/$defs/LogFormat",
+          "default": "text"
         }
       }
+    },
+    "LogFormat": {
+      "description": "Console and file log line format.",
+      "oneOf": [
+        {
+          "description": "Human-readable lines.",
+          "type": "string",
+          "const": "text"
+        },
+        {
+          "description": "One JSON object per line, with `trace_id`/`span_id` when a trace is active.",
+          "type": "string",
+          "const": "json"
+        }
+      ]
     },
     "TelemetryConfig": {
       "description": "OTLP telemetry: ingest from agents, a bounded per-session window, and export upstream.\n\nOff by default. Operator never configures a destination of its own.",
@@ -863,10 +884,10 @@
           "$ref": "#/$defs/TelemetryExportConfig",
           "default": {
             "endpoint": null,
-            "protocol": "http/protobuf",
+            "protocol": null,
             "headers_env": null,
-            "compression": "gzip",
-            "timeout_secs": 10,
+            "compression": null,
+            "timeout_secs": null,
             "self_telemetry": true
           }
         },
@@ -921,8 +942,15 @@
         },
         "protocol": {
           "description": "OTLP encoding. Default is `http/protobuf`.",
-          "$ref": "#/$defs/OtlpProtocol",
-          "default": "http/protobuf"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OtlpProtocol"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "headers_env": {
           "description": "Name of an environment variable holding OTLP headers (`key=value,...`)",
@@ -934,15 +962,25 @@
         },
         "compression": {
           "description": "Request compression. Default is `gzip`.",
-          "$ref": "#/$defs/OtlpCompression",
-          "default": "gzip"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OtlpCompression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "timeout_secs": {
           "description": "Upstream export timeout in seconds (default: 10).",
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint64",
           "minimum": 0,
-          "default": 10
+          "default": null
         },
         "self_telemetry": {
           "description": "Export Operator's own traces, logs and metrics alongside forwarded agent telemetry",

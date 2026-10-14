@@ -14,6 +14,7 @@ use crate::templates::{schema::TemplateSchema, TemplateType};
 /// for branding (status line, pane title, UI deep-links).
 #[derive(Debug, Clone, Default)]
 pub struct OperatorEnvVars {
+    pub telemetry_env: std::collections::HashMap<String, String>,
     pub profile_id: uuid::Uuid,
     pub git_context: Option<crate::config::GitExecutionConfig>,
     pub agent_id: String,
@@ -229,6 +230,14 @@ pub fn write_command_file(
     // the resolved server. Exported after the operator branding vars.
     let provider_block = provider_env.map(render_env_exports).unwrap_or_default();
 
+    let mut telemetry_env = operator_env
+        .map(|env| env.telemetry_env.clone())
+        .unwrap_or_default();
+    if let Some(api_url) = provider_env.and_then(|env| env.get("OPERATOR_API_URL")) {
+        crate::telemetry::agent_env::retarget(&mut telemetry_env, api_url);
+    }
+    let telemetry_block = render_env_exports(&telemetry_env);
+
     let pane_title = operator_env
         .map(OperatorEnvVars::to_pane_title_line)
         .unwrap_or_default();
@@ -236,7 +245,8 @@ pub fn write_command_file(
     // Strip Coder session tokens from the agent's environment on every target
     // kind - Operator needs them to drive the control plane; no agent CLI does.
     let strip_block = {
-        let names = crate::config::coder_token_envs(config);
+        let mut names = crate::config::coder_token_envs(config);
+        names.extend(crate::telemetry::agent_env::inherited_otel_env());
         if names.is_empty() {
             String::new()
         } else {
@@ -267,7 +277,7 @@ pub fn write_command_file(
         "if [ -f \"$0.env\" ]; then set -a; . \"$0.env\"; set +a; rm -f \"$0.env\"; fi\n";
 
     let script_content = format!(
-        "#!/bin/bash\n{secret_env_block}{env_block}{provider_block}{strip_block}{git_block}{pane_title}cd {} || exit 1\n{}",
+        "#!/bin/bash\n{secret_env_block}{env_block}{provider_block}{strip_block}{telemetry_block}{git_block}{pane_title}cd {} || exit 1\n{}",
         shell_escape(project_path),
         run
     );
@@ -299,7 +309,7 @@ pub fn write_command_file(
 /// a pure shell-variable reference like `${OLLAMA_API_KEY}` is emitted unquoted
 /// so the shell expands it at run time. This lets an API key be passed by
 /// reference (inherited from operator's env) without writing the secret value into the on-disk command script.
-fn render_env_exports(env: &std::collections::HashMap<String, String>) -> String {
+pub(super) fn render_env_exports(env: &std::collections::HashMap<String, String>) -> String {
     let mut keys: Vec<&String> = env.keys().collect();
     keys.sort();
     let mut out = String::new();
@@ -407,6 +417,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_agent_telemetry_is_injected_after_inherited_environment_scrub() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.paths.tickets = tmp.path().to_string_lossy().into_owned();
+        let env = OperatorEnvVars {
+            telemetry_env: [(
+                "OTEL_EXPORTER_OTLP_ENDPOINT".into(),
+                "http://local/otlp".into(),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        let path = write_command_file(&config, "s", "/tmp", "true", Some(&env), None).unwrap();
+        let content = std::fs::read_to_string(path).unwrap();
+        assert!(
+            content.find("unset ").unwrap()
+                < content.find("export OTEL_EXPORTER_OTLP_ENDPOINT=").unwrap()
+        );
+        assert!(content.contains("OTEL_EXPORTER_OTLP_LOGS_HEADERS"));
+    }
+
+    #[test]
     fn test_command_file_strips_coder_token_env_on_local_target() {
         // The token variable is stripped from EVERY agent spawn environment,
         // including Local launches - the likeliest exposure is a local agent
@@ -433,7 +465,7 @@ mod tests {
         let path = write_command_file(&config, "uuid-1", "/proj", "claude", None, None).unwrap();
         let content = std::fs::read_to_string(&path).unwrap();
         assert!(
-            content.contains("unset CODER_SESSION_TOKEN\n"),
+            content.contains("unset CODER_SESSION_TOKEN "),
             "token env must be unset before exec: {content}"
         );
         let unset_pos = content.find("unset CODER_SESSION_TOKEN").unwrap();
@@ -617,6 +649,7 @@ mod tests {
     fn test_operator_env_vars_to_export_block() {
         let profile_id = Uuid::new_v4();
         let env = OperatorEnvVars {
+            telemetry_env: std::collections::HashMap::new(),
             profile_id,
             git_context: None,
             agent_id: "abc-123".to_string(),
@@ -642,6 +675,7 @@ mod tests {
     #[test]
     fn test_operator_env_vars_to_pane_title_line() {
         let env = OperatorEnvVars {
+            telemetry_env: std::collections::HashMap::new(),
             profile_id: Uuid::nil(),
             git_context: None,
             agent_id: "abc-123".to_string(),
@@ -666,6 +700,7 @@ mod tests {
         let config = make_test_config_with_tickets_path(temp_dir.path());
 
         let env = OperatorEnvVars {
+            telemetry_env: std::collections::HashMap::new(),
             profile_id: Uuid::nil(),
             git_context: None,
             agent_id: "test-agent-id".to_string(),
@@ -813,7 +848,7 @@ mod tests {
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(result.unwrap()).unwrap();
-        assert!(!content.contains("OPERATOR_"));
+        assert!(!content.contains("export OPERATOR_"));
         assert!(!content.contains("\\033]2;"));
         assert!(content.starts_with("#!/bin/bash\n"));
         assert!(content.contains("if [ -f \"$0.env\" ]"));
@@ -824,6 +859,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let config = make_test_config_with_tickets_path(temp.path());
         let env = OperatorEnvVars {
+            telemetry_env: std::collections::HashMap::new(),
             profile_id: Uuid::nil(),
             git_context: Some(crate::config::GitExecutionConfig {
                 identity: Some(crate::config::GitIdentityConfig {

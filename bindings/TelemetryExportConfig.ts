@@ -13,7 +13,7 @@ endpoint: string | null,
 /**
  * OTLP encoding. Default is `http/protobuf`.
  */
-protocol: OtlpProtocol, 
+protocol: OtlpProtocol | null, 
 /**
  * Name of an environment variable holding OTLP headers (`key=value,...`)
  */
@@ -21,11 +21,11 @@ headers_env: string | null,
 /**
  * Request compression. Default is `gzip`.
  */
-compression: OtlpCompression, 
+compression: OtlpCompression | null, 
 /**
  * Upstream export timeout in seconds (default: 10).
  */
-timeout_secs: bigint, 
+timeout_secs: bigint | null, 
 /**
  * Export Operator's own traces, logs and metrics alongside forwarded agent telemetry
  */

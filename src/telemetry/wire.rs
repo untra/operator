@@ -163,6 +163,63 @@ mod tests {
     }
 
     #[test]
+    fn test_lean_json_decodes_with_real_otlp_types() {
+        use operator_telemetry::otlp_json::{self, LogRecord, Span, Status};
+        let traces = otlp_json::traces_request(
+            vec![],
+            "opr8r",
+            vec![Span {
+                trace_id: "01".repeat(16),
+                span_id: "02".repeat(8),
+                parent_span_id: "03".repeat(8),
+                name: "opr8r.step".into(),
+                kind: otlp_json::SPAN_KIND_INTERNAL,
+                start_time_unix_nano: 5,
+                end_time_unix_nano: 10,
+                attributes: vec![],
+                status: Status {
+                    code: otlp_json::STATUS_CODE_OK,
+                },
+            }],
+        );
+        let OtlpPayload::Traces(request) = decode(
+            TelemetrySignal::Traces,
+            Encoding::Json,
+            &serde_json::to_vec(&traces).unwrap(),
+        )
+        .unwrap() else {
+            panic!("traces")
+        };
+        let span = &request.resource_spans[0].scope_spans[0].spans[0];
+        assert_eq!(span.parent_span_id, vec![3; 8]);
+        assert_eq!(span.start_time_unix_nano, 5);
+        let logs = otlp_json::logs_request(
+            vec![],
+            "opr8r",
+            vec![LogRecord {
+                trace_id: "01".repeat(16),
+                span_id: "02".repeat(8),
+                event_name: "operator.step.started".into(),
+                time_unix_nano: 5,
+                severity_number: otlp_json::SEVERITY_INFO,
+                attributes: vec![],
+            }],
+        );
+        let OtlpPayload::Logs(request) = decode(
+            TelemetrySignal::Logs,
+            Encoding::Json,
+            &serde_json::to_vec(&logs).unwrap(),
+        )
+        .unwrap() else {
+            panic!("logs")
+        };
+        assert_eq!(
+            request.resource_logs[0].scope_logs[0].log_records[0].event_name,
+            "operator.step.started"
+        );
+    }
+
+    #[test]
     fn test_negotiate_accepts_protobuf_json_and_gzip() {
         assert_eq!(
             negotiate(&headers("application/x-protobuf", None)),

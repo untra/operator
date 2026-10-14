@@ -1172,7 +1172,9 @@ mod tests {
         let OtlpPayload::Traces(req) = &mut traces else {
             unreachable!();
         };
-        req.resource_spans[0].scope_spans[0].spans.push(Span::default());
+        req.resource_spans[0].scope_spans[0]
+            .spans
+            .push(Span::default());
         assert_eq!(traces.signal(), TelemetrySignal::Traces);
         assert_eq!(traces.record_count(), 2);
 

@@ -23,9 +23,14 @@ path = "src/bin/generate_types.rs"
 [dependencies]
 # Shared crates also used by opr8r
 operator-relay = { path = "crates/relay" }
-operator-telemetry = { path = "crates/telemetry", features = ["redact", "schema"] }
+operator-telemetry = { path = "crates/telemetry", features = ["redact", "schema", "otlp-json"] }
 # OTLP wire types only: prost messages and serde JSON, no tonic server or client
 opentelemetry-proto = { version = "=0.33.0", default-features = false, features = ["gen-tonic-messages", "with-serde", "trace", "logs", "metrics"] }
+opentelemetry = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics"] }
+opentelemetry_sdk = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics"] }
+tracing-opentelemetry = { version = "=0.34.0", default-features = false }
+opentelemetry-appender-tracing = { version = "=0.33.0", default-features = false }
+percent-encoding = "2"
 prost = "0.14"
 flate2 = "1"
 

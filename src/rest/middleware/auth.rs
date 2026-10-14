@@ -254,7 +254,8 @@ pub async fn authorize(
             return Err(ApiError::Forbidden(
                 "OTLP ingest requires an agent ingest token or an admin credential".to_string(),
             )
-            .into_response());
+            .into_response()
+            .into());
         }
         let mut request = request;
         request.extensions_mut().insert(principal);

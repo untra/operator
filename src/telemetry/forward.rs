@@ -29,7 +29,11 @@ const DEFAULT_RETRY_CAPACITY: usize = 256;
 const DEFAULT_MAX_ATTEMPTS: u32 = 5;
 const DEFAULT_BASE_BACKOFF: Duration = Duration::from_millis(500);
 const DEFAULT_MAX_BACKOFF: Duration = Duration::from_secs(30);
-const USER_AGENT: &str = concat!("operator/", env!("CARGO_PKG_VERSION"), " OTel-OTLP-Exporter-Rust");
+const USER_AGENT: &str = concat!(
+    "operator/",
+    env!("CARGO_PKG_VERSION"),
+    " OTel-OTLP-Exporter-Rust"
+);
 const HEADER_CONTENT_ENCODING: &str = "content-encoding";
 const GZIP: &str = "gzip";
 
@@ -143,15 +147,16 @@ pub struct Forwarder {
     tx: mpsc::Sender<Queued>,
     stats: Arc<ForwardStats>,
     slots: Arc<Semaphore>,
-    shutdown: watch::Sender<bool>,
+    shutdown: watch::Sender<Option<Instant>>,
     thread: Mutex<Option<JoinHandle<()>>>,
-    done: std::sync::mpsc::Receiver<()>,
+    done: Mutex<std::sync::mpsc::Receiver<()>>,
+    #[cfg(test)]
     retained: Arc<Mutex<Vec<String>>>,
 }
 
 struct Queued {
     payload: OtlpPayload,
-    _permit: OwnedSemaphorePermit,
+    permit: OwnedSemaphorePermit,
 }
 
 struct Pending {
@@ -171,7 +176,7 @@ impl Forwarder {
     pub fn start(export: ResolvedExport, limits: ForwarderLimits) -> anyhow::Result<Arc<Self>> {
         let capacity = limits.queue_capacity.max(1);
         let (tx, rx) = mpsc::channel(capacity);
-        let (shutdown, shutdown_rx) = watch::channel(false);
+        let (shutdown, shutdown_rx) = watch::channel(None);
         let (done_tx, done) = std::sync::mpsc::channel();
         let stats = Arc::new(ForwardStats::new());
         let slots = Arc::new(Semaphore::new(capacity));
@@ -185,14 +190,21 @@ impl Forwarder {
                     .enable_all()
                     .build()
                     .expect("otlp forwarder runtime");
-                runtime.block_on(worker(
-                    rx,
-                    export,
-                    limits,
-                    stats_worker,
-                    shutdown_rx,
-                    retained_worker,
-                ));
+                runtime.block_on(async move {
+                    let mut deadline_rx = shutdown_rx.clone();
+                    tokio::select! {
+                        () = worker(rx, export, limits, stats_worker, shutdown_rx, retained_worker) => {},
+                        () = async {
+                            while deadline_rx.borrow().is_none() {
+                                if deadline_rx.changed().await.is_err() { return; }
+                            }
+                            let deadline = *deadline_rx.borrow();
+                            if let Some(deadline) = deadline {
+                                tokio::time::sleep_until(deadline.into()).await;
+                            }
+                        } => {},
+                    }
+                });
                 let _ = done_tx.send(());
             })?;
         Ok(Arc::new(Self {
@@ -201,7 +213,8 @@ impl Forwarder {
             slots,
             shutdown,
             thread: Mutex::new(Some(thread)),
-            done,
+            done: Mutex::new(done),
+            #[cfg(test)]
             retained,
         }))
     }
@@ -212,23 +225,28 @@ impl Forwarder {
 
     /// Stop accepting work and return once the worker exits, or once `deadline` passes.
     pub fn shutdown(&self, deadline: Duration) {
-        let _ = self.shutdown.send(true);
-        let _ = self.done.recv_timeout(deadline);
-        if let Some(handle) = self
+        let mut thread = self
             .thread
             .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(handle) = thread.take() else {
+            return;
+        };
+        self.slots.close();
+        let end = Instant::now() + deadline;
+        let _ = self.shutdown.send(Some(end));
+        let finished = self
+            .done
+            .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take()
-        {
-            let (tx, rx) = std::sync::mpsc::channel();
-            std::thread::spawn(move || {
-                let _ = handle.join();
-                let _ = tx.send(());
-            });
-            let _ = rx.recv_timeout(deadline);
+            .recv_timeout(end.saturating_duration_since(Instant::now()))
+            .is_ok();
+        if finished {
+            let _ = handle.join();
         }
     }
 
+    #[cfg(test)]
     pub fn retained_span_names(&self) -> Vec<String> {
         self.retained
             .lock()
@@ -239,18 +257,21 @@ impl Forwarder {
 
 impl ExportSink for Forwarder {
     fn submit(&self, payload: OtlpPayload) {
-        let Ok(permit) = self.slots.clone().try_acquire_owned() else {
-            self.stats
-                .add_dropped(payload.signal(), DropReason::QueueFull, 1);
+        let Ok(permit) = Arc::clone(&self.slots).try_acquire_owned() else {
+            self.stats.add_dropped(
+                payload.signal(),
+                DropReason::QueueFull,
+                payload.record_count(),
+            );
             return;
         };
-        if let Err(error) = self.tx.try_send(Queued {
-            payload,
-            _permit: permit,
-        }) {
+        if let Err(error) = self.tx.try_send(Queued { payload, permit }) {
             let queued = error.into_inner();
-            self.stats
-                .add_dropped(queued.payload.signal(), DropReason::QueueFull, 1);
+            self.stats.add_dropped(
+                queued.payload.signal(),
+                DropReason::QueueFull,
+                queued.payload.record_count(),
+            );
         }
     }
 }
@@ -285,7 +306,7 @@ async fn worker(
     export: ResolvedExport,
     limits: ForwarderLimits,
     stats: Arc<ForwardStats>,
-    mut shutdown: watch::Receiver<bool>,
+    mut shutdown: watch::Receiver<Option<Instant>>,
     retained: Arc<Mutex<Vec<String>>>,
 ) {
     let client = match client_builder()
@@ -297,25 +318,37 @@ async fn worker(
         Err(_) => return,
     };
     let mut pending: [Option<Pending>; 3] = [None, None, None];
-    let mut retries: [VecDeque<RetryItem>; 3] = [
-        VecDeque::new(),
-        VecDeque::new(),
-        VecDeque::new(),
-    ];
+    let mut retries: [VecDeque<RetryItem>; 3] = [VecDeque::new(), VecDeque::new(), VecDeque::new()];
     let mut tick = tokio::time::interval(flush_tick(&limits));
+    let mut draining = false;
     loop {
+        if draining && rx.is_empty() {
+            flush_pending(
+                &client,
+                &export,
+                &limits,
+                &stats,
+                &mut pending,
+                &mut retries,
+                &retained,
+            )
+            .await;
+            drive_retries(&client, &export, &limits, &stats, &mut retries, &retained).await;
+            if retries.iter().all(VecDeque::is_empty) {
+                break;
+            }
+        }
         tokio::select! {
             biased;
-            changed = shutdown.changed() => {
-                if changed.is_err() || *shutdown.borrow() {
-                    break;
-                }
+            _ = shutdown.changed(), if !draining => {
+                draining = true;
+                rx.close();
             }
             _ = tick.tick() => {
                 flush_pending(&client, &export, &limits, &stats, &mut pending, &mut retries, &retained).await;
                 drive_retries(&client, &export, &limits, &stats, &mut retries, &retained).await;
             }
-            message = rx.recv() => {
+            message = rx.recv(), if !draining || !rx.is_empty() => {
                 let Some(queued) = message else { break };
                 accept(&client, &export, &limits, &stats, &mut pending, &mut retries, &retained, queued).await;
             }
@@ -351,14 +384,14 @@ async fn accept(
         Some(batch) => {
             merge(&mut batch.payload, queued.payload);
             batch.resources += resources;
-            batch.permits.push(queued._permit);
+            batch.permits.push(queued.permit);
         }
         empty => {
             *empty = Some(Pending {
                 payload: queued.payload,
                 resources,
                 started: Instant::now(),
-                permits: vec![queued._permit],
+                permits: vec![queued.permit],
             });
         }
     }
@@ -368,7 +401,17 @@ async fn accept(
     if due {
         let batch = pending[index].take();
         if let Some(batch) = batch {
-            send_batch(client, export, limits, stats, retries, retained, batch.payload, 0).await;
+            send_batch(
+                client,
+                export,
+                limits,
+                stats,
+                retries,
+                retained,
+                batch.payload,
+                0,
+            )
+            .await;
         }
     }
 }
@@ -384,7 +427,17 @@ async fn flush_pending(
 ) {
     for batch in pending.iter_mut() {
         if let Some(batch) = batch.take() {
-            send_batch(client, export, limits, stats, retries, retained, batch.payload, 0).await;
+            send_batch(
+                client,
+                export,
+                limits,
+                stats,
+                retries,
+                retained,
+                batch.payload,
+                0,
+            )
+            .await;
         }
     }
 }
@@ -468,11 +521,17 @@ async fn send_or_retry(
             if attempt + 1 >= limits.max_attempts {
                 stats.add_dropped(signal, DropReason::RetriesExhausted, records);
             } else {
-                enqueue_retry(queue, stats, signal, limits.retry_capacity, RetryItem {
-                    payload,
-                    attempt: attempt + 1,
-                    ready_at: Instant::now() + delay,
-                });
+                enqueue_retry(
+                    queue,
+                    stats,
+                    signal,
+                    limits.retry_capacity,
+                    RetryItem {
+                        payload,
+                        attempt: attempt + 1,
+                        ready_at: Instant::now() + delay,
+                    },
+                );
             }
         }
     }
@@ -487,12 +546,21 @@ fn enqueue_retry(
     item: RetryItem,
 ) {
     while queue.len() >= capacity.max(1) {
-        queue.pop_front();
-        stats.add_dropped(signal, DropReason::RetryOverflow, 1);
+        if let Some(dropped) = queue.pop_front() {
+            stats.add_dropped(
+                signal,
+                DropReason::RetryOverflow,
+                dropped.payload.record_count(),
+            );
+        }
     }
     queue.push_back(item);
 }
 
+#[cfg(not(test))]
+fn remember(_: &Mutex<Vec<String>>, _: &[VecDeque<RetryItem>]) {}
+
+#[cfg(test)]
 fn remember(retained: &Mutex<Vec<String>>, queues: &[VecDeque<RetryItem>]) {
     let mut names = Vec::new();
     for queue in queues {
@@ -500,7 +568,9 @@ fn remember(retained: &Mutex<Vec<String>>, queues: &[VecDeque<RetryItem>]) {
             names.extend(span_names(&item.payload));
         }
     }
-    *retained.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = names;
+    *retained
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = names;
 }
 
 enum Attempt {
@@ -622,6 +692,7 @@ impl Drop for Forwarder {
     }
 }
 
+#[cfg(test)]
 fn span_names(payload: &OtlpPayload) -> Vec<String> {
     let OtlpPayload::Traces(request) = payload else {
         return Vec::new();
@@ -648,6 +719,63 @@ mod tests {
     use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span};
     use std::io::Read;
     use std::sync::Arc;
+
+    #[test]
+    fn test_forwarder_is_send_and_sync() {
+        fn check<T: Send + Sync>() {}
+        check::<Forwarder>();
+    }
+
+    #[test]
+    fn test_retry_overflow_counts_records() {
+        let stats = ForwardStats::new();
+        let mut queue = VecDeque::new();
+        let mut payload = traces("one");
+        merge(&mut payload, traces("two"));
+        for payload in [payload, traces("new")] {
+            enqueue_retry(
+                &mut queue,
+                &stats,
+                TelemetrySignal::Traces,
+                1,
+                RetryItem {
+                    payload,
+                    attempt: 1,
+                    ready_at: Instant::now(),
+                },
+            );
+        }
+        assert_eq!(
+            stats.dropped(TelemetrySignal::Traces, DropReason::RetryOverflow),
+            2
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_shutdown_flushes_pending_batches_once() {
+        let hits = Arc::new(Mutex::new(Vec::new()));
+        let base = serve(Script {
+            statuses: Arc::new(Mutex::new(VecDeque::new())),
+            fallback: (StatusCode::OK, None),
+            hits: Arc::clone(&hits),
+            hang: false,
+        })
+        .await;
+        let forwarder = Forwarder::start(
+            export_at(&base, Duration::from_secs(2)),
+            ForwarderLimits {
+                flush_interval: Duration::from_mins(1),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        forwarder.submit(traces("pending"));
+        forwarder.shutdown(Duration::from_secs(2));
+        assert_eq!(forwarder.stats().forwarded(TelemetrySignal::Traces), 1);
+        let started = Instant::now();
+        forwarder.shutdown(Duration::from_secs(2));
+        assert!(started.elapsed() < Duration::from_millis(100));
+    }
 
     fn limits_now() -> ForwarderLimits {
         ForwarderLimits {
@@ -686,7 +814,9 @@ mod tests {
     }
 
     async fn serve(script: Script) -> String {
-        let app = Router::new().route("/v1/traces", post(record)).with_state(script);
+        let app = Router::new()
+            .route("/v1/traces", post(record))
+            .with_state(script);
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         tokio::spawn(async move {
@@ -695,7 +825,11 @@ mod tests {
         format!("http://{address}")
     }
 
-    async fn record(State(script): State<Script>, headers: HeaderMap, body: Bytes) -> axum::response::Response {
+    async fn record(
+        State(script): State<Script>,
+        headers: HeaderMap,
+        body: Bytes,
+    ) -> axum::response::Response {
         script.hits.lock().unwrap().push(Hit {
             path: "/v1/traces".to_string(),
             headers,
@@ -720,6 +854,16 @@ mod tests {
     async fn wait_hits(hits: &Mutex<Vec<Hit>>, count: usize) {
         tokio::time::timeout(Duration::from_secs(5), async {
             while hits.lock().unwrap().len() < count {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+
+    async fn wait_for(mut predicate: impl FnMut() -> bool) {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !predicate() {
                 tokio::task::yield_now().await;
             }
         })
@@ -784,14 +928,20 @@ mod tests {
             hang: false,
         })
         .await;
-        let forwarder = Forwarder::start(export_at(&base, Duration::from_secs(2)), limits_now()).unwrap();
+        let forwarder =
+            Forwarder::start(export_at(&base, Duration::from_secs(2)), limits_now()).unwrap();
         let payload = traces("handle_request");
         forwarder.submit(payload.clone());
         wait_hits(&hits, 1).await;
+        wait_for(|| forwarder.stats().forwarded(TelemetrySignal::Traces) == 1).await;
         let hit = &hits.lock().unwrap()[0];
         assert_eq!(hit.path, "/v1/traces");
         assert_eq!(
-            hit.headers.get("content-encoding").unwrap().to_str().unwrap(),
+            hit.headers
+                .get("content-encoding")
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "gzip"
         );
         assert_eq!(
@@ -810,7 +960,9 @@ mod tests {
         let mut raw = Vec::new();
         decoder.read_to_end(&mut raw).unwrap();
         let decoded = ExportTraceServiceRequest::decode(raw.as_slice()).unwrap();
-        let OtlpPayload::Traces(expected) = payload else { unreachable!() };
+        let OtlpPayload::Traces(expected) = payload else {
+            unreachable!()
+        };
         assert_eq!(decoded, expected);
         assert_eq!(forwarder.stats().forwarded(TelemetrySignal::Traces), 1);
         forwarder.shutdown(Duration::from_secs(2));
@@ -829,11 +981,18 @@ mod tests {
             hang: false,
         })
         .await;
-        let forwarder = Forwarder::start(export_at(&base, Duration::from_secs(2)), limits_now()).unwrap();
+        let forwarder =
+            Forwarder::start(export_at(&base, Duration::from_secs(2)), limits_now()).unwrap();
         forwarder.submit(traces("retry"));
         wait_hits(&hits, 2).await;
+        wait_for(|| forwarder.stats().forwarded(TelemetrySignal::Traces) == 1).await;
         assert_eq!(forwarder.stats().forwarded(TelemetrySignal::Traces), 1);
-        assert_eq!(forwarder.stats().dropped(TelemetrySignal::Traces, DropReason::Rejected), 0);
+        assert_eq!(
+            forwarder
+                .stats()
+                .dropped(TelemetrySignal::Traces, DropReason::Rejected),
+            0
+        );
         forwarder.shutdown(Duration::from_secs(2));
     }
 
@@ -841,18 +1000,27 @@ mod tests {
     async fn test_400_is_not_retried_and_counts_rejected() {
         let hits = Arc::new(Mutex::new(Vec::new()));
         let base = serve(Script {
-            statuses: Arc::new(Mutex::new(VecDeque::from([(StatusCode::BAD_REQUEST, None)]))),
+            statuses: Arc::new(Mutex::new(VecDeque::from([(
+                StatusCode::BAD_REQUEST,
+                None,
+            )]))),
             fallback: (StatusCode::BAD_REQUEST, None),
             hits: Arc::clone(&hits),
             hang: false,
         })
         .await;
-        let forwarder = Forwarder::start(export_at(&base, Duration::from_secs(2)), limits_now()).unwrap();
+        let forwarder =
+            Forwarder::start(export_at(&base, Duration::from_secs(2)), limits_now()).unwrap();
         forwarder.submit(traces("bad"));
         wait_hits(&hits, 1).await;
         tokio::time::sleep(Duration::from_millis(50)).await;
         assert_eq!(hits.lock().unwrap().len(), 1);
-        assert_eq!(forwarder.stats().dropped(TelemetrySignal::Traces, DropReason::Rejected), 1);
+        assert_eq!(
+            forwarder
+                .stats()
+                .dropped(TelemetrySignal::Traces, DropReason::Rejected),
+            1
+        );
         forwarder.shutdown(Duration::from_secs(2));
     }
 
@@ -875,7 +1043,13 @@ mod tests {
             forwarder.submit(traces(name));
         }
         wait_hits(&hits, 3).await;
-        assert!(forwarder.stats().dropped(TelemetrySignal::Traces, DropReason::RetryOverflow) >= 1);
+        wait_for(|| forwarder.retained_span_names() == vec!["newest".to_string()]).await;
+        assert!(
+            forwarder
+                .stats()
+                .dropped(TelemetrySignal::Traces, DropReason::RetryOverflow)
+                >= 1
+        );
         assert_eq!(forwarder.retained_span_names(), vec!["newest".to_string()]);
         forwarder.shutdown(Duration::from_secs(2));
     }
@@ -894,12 +1068,18 @@ mod tests {
             queue_capacity: 1,
             ..limits_now()
         };
-        let forwarder = Forwarder::start(export_at(&base, Duration::from_secs(30)), limits).unwrap();
+        let forwarder =
+            Forwarder::start(export_at(&base, Duration::from_secs(30)), limits).unwrap();
         forwarder.submit(traces("held"));
         let started = Instant::now();
         forwarder.submit(traces("dropped"));
         assert!(started.elapsed() < Duration::from_secs(1));
-        assert_eq!(forwarder.stats().dropped(TelemetrySignal::Traces, DropReason::QueueFull), 1);
+        assert_eq!(
+            forwarder
+                .stats()
+                .dropped(TelemetrySignal::Traces, DropReason::QueueFull),
+            1
+        );
         forwarder.shutdown(Duration::from_millis(300));
     }
 
@@ -913,7 +1093,8 @@ mod tests {
             hang: true,
         })
         .await;
-        let forwarder = Forwarder::start(export_at(&base, Duration::from_secs(30)), limits_now()).unwrap();
+        let forwarder =
+            Forwarder::start(export_at(&base, Duration::from_secs(30)), limits_now()).unwrap();
         forwarder.submit(traces("hang"));
         wait_hits(&hits, 1).await;
         let started = Instant::now();

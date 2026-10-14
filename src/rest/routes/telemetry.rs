@@ -119,6 +119,7 @@ pub async fn get_session(
     })
 }
 
+#[tracing::instrument(name = "operator.otlp.ingest", skip_all, fields(otel.kind = "server"))]
 async fn ingest(
     signal: TelemetrySignal,
     state: &ApiState,

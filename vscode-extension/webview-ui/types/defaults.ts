@@ -85,9 +85,9 @@ const DEFAULT_CONFIG: Config = {
     },
     export: {
       endpoint: null,
-      protocol: "http/protobuf",
+      protocol: null,
       headers_env: null,
-      compression: "gzip",
+      compression: null,
       timeout_secs: BigInt(10),
       self_telemetry: true,
     },

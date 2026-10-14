@@ -998,7 +998,16 @@ level: string,
 /**
  * Whether to log to file in TUI mode (false = stderr for debugging)
  */
-to_file: boolean, };
+to_file: boolean, 
+/**
+ * Line format for console and file logs (default: text).
+ *
+ * `json` emits one JSON object per line with `trace_id` and `span_id`.
+ * Override with `OPERATOR_LOGGING__FORMAT=json`.
+ */
+format: LogFormat, };
+
+export type LogFormat = "text" | "json";
 
 export type TelemetryConfig = { 
 /**
@@ -1044,7 +1053,7 @@ endpoint: string | null,
 /**
  * OTLP encoding. Default is `http/protobuf`.
  */
-protocol: OtlpProtocol, 
+protocol: OtlpProtocol | null, 
 /**
  * Name of an environment variable holding OTLP headers (`key=value,...`)
  */
@@ -1052,11 +1061,11 @@ headers_env: string | null,
 /**
  * Request compression. Default is `gzip`.
  */
-compression: OtlpCompression, 
+compression: OtlpCompression | null, 
 /**
  * Upstream export timeout in seconds (default: 10).
  */
-timeout_secs: bigint, 
+timeout_secs: bigint | null, 
 /**
  * Export Operator's own traces, logs and metrics alongside forwarded agent telemetry
  */

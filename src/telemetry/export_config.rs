@@ -6,6 +6,7 @@ use std::time::Duration;
 use crate::config::{OtlpCompression, OtlpProtocol, TelemetryExportConfig};
 use crate::rest::dto::TelemetrySignal;
 
+const DEFAULT_TIMEOUT_SECS: u64 = 10;
 const ENV_SDK_DISABLED: &str = "OTEL_SDK_DISABLED";
 const ENV_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
 const ENV_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
@@ -80,8 +81,10 @@ impl ResolvedExport {
 
 /// Resolve `config` against `env`. Explicit `config.endpoint` beats env URLs.
 /// `OTEL_SDK_DISABLED=true` disables env-derived export only.
-pub fn resolve(config: &TelemetryExportConfig, env: &dyn Fn(&str) -> Option<String>) -> ResolvedExport {
-    let defaults = TelemetryExportConfig::default();
+pub fn resolve(
+    config: &TelemetryExportConfig,
+    env: &dyn Fn(&str) -> Option<String>,
+) -> ResolvedExport {
     let mut warnings = Vec::new();
     let sdk_disabled = env(ENV_SDK_DISABLED)
         .as_deref()
@@ -108,25 +111,23 @@ pub fn resolve(config: &TelemetryExportConfig, env: &dyn Fn(&str) -> Option<Stri
         }
     }
 
-    let protocol = if config_endpoint.is_some() {
-        config.protocol
-    } else {
-        protocol_from_env(env(ENV_PROTOCOL).as_deref(), &mut warnings)
-    };
-
+    let protocol = config
+        .protocol
+        .unwrap_or_else(|| protocol_from_env(env(ENV_PROTOCOL).as_deref(), &mut warnings));
     let headers = parse_headers(config, env, &mut warnings);
-
-    let timeout = if config.timeout_secs == defaults.timeout_secs {
-        timeout_from_env(env(ENV_TIMEOUT).as_deref(), config.timeout_secs, &mut warnings)
-    } else {
-        Duration::from_secs(config.timeout_secs)
-    };
-
-    let compression = if config.compression == defaults.compression {
-        compression_from_env(env(ENV_COMPRESSION).as_deref(), &mut warnings)
-    } else {
-        config.compression
-    };
+    let timeout = config
+        .timeout_secs
+        .map(Duration::from_secs)
+        .unwrap_or_else(|| {
+            timeout_from_env(
+                env(ENV_TIMEOUT).as_deref(),
+                DEFAULT_TIMEOUT_SECS,
+                &mut warnings,
+            )
+        });
+    let compression = config
+        .compression
+        .unwrap_or_else(|| compression_from_env(env(ENV_COMPRESSION).as_deref(), &mut warnings));
 
     ResolvedExport {
         traces,
@@ -174,7 +175,7 @@ fn join_signal(base: &str, suffix: &str) -> String {
 
 fn protocol_from_env(raw: Option<&str>, warnings: &mut Vec<String>) -> OtlpProtocol {
     match raw.map(str::trim) {
-        None | Some("") | Some("http/protobuf") => OtlpProtocol::HttpProtobuf,
+        None | Some("" | "http/protobuf") => OtlpProtocol::HttpProtobuf,
         Some("http/json") => OtlpProtocol::HttpJson,
         Some("grpc") => {
             warnings.push(GRPC_FALLBACK_WARNING.to_string());
@@ -196,7 +197,9 @@ fn timeout_from_env(raw: Option<&str>, default_secs: u64, warnings: &mut Vec<Str
     match raw.parse::<u64>() {
         Ok(ms) => Duration::from_millis(ms),
         Err(_) => {
-            warnings.push("OTLP timeout is not a millisecond count; using the configured timeout".into());
+            warnings.push(
+                "OTLP timeout is not a millisecond count; using the configured timeout".into(),
+            );
             Duration::from_secs(default_secs)
         }
     }
@@ -210,7 +213,9 @@ fn compression_from_env(raw: Option<&str>, warnings: &mut Vec<String>) -> OtlpCo
         "gzip" => OtlpCompression::Gzip,
         "none" => OtlpCompression::None,
         other => {
-            warnings.push(format!("unrecognized OTLP compression `{other}`; using gzip"));
+            warnings.push(format!(
+                "unrecognized OTLP compression `{other}`; using gzip"
+            ));
             OtlpCompression::Gzip
         }
     }
@@ -225,7 +230,9 @@ fn parse_headers(
         match env(name) {
             Some(raw) => raw,
             None => {
-                warnings.push(format!("OTLP headers environment variable `{name}` is unset"));
+                warnings.push(format!(
+                    "OTLP headers environment variable `{name}` is unset"
+                ));
                 return Vec::new();
             }
         }
@@ -256,24 +263,13 @@ fn parse_headers(
 }
 
 fn percent_decode(input: &str) -> String {
-    let bytes = input.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Some(decoded) = std::str::from_utf8(&bytes[i + 1..i + 3])
-                .ok()
-                .and_then(|hex| u8::from_str_radix(hex, 16).ok())
-            {
-                out.push(decoded);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
+    percent_encoding::percent_decode_str(input)
+        .decode_utf8_lossy()
+        .into_owned()
+}
+
+pub fn sdk_enabled(config: &TelemetryExportConfig, env: &dyn Fn(&str) -> Option<String>) -> bool {
+    config.self_telemetry && !env(ENV_SDK_DISABLED).is_some_and(|v| v.eq_ignore_ascii_case("true"))
 }
 
 #[cfg(test)]
@@ -282,8 +278,41 @@ mod tests {
     use std::collections::HashMap;
 
     fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
-        let map: HashMap<String, String> = pairs.iter().map(|(k, v)| ((*k).into(), (*v).into())).collect();
+        let map: HashMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| ((*k).into(), (*v).into()))
+            .collect();
         move |k| map.get(k).cloned()
+    }
+
+    #[test]
+    fn test_sdk_opt_out_preserves_explicit_forwarding_only() {
+        let config = TelemetryExportConfig {
+            endpoint: Some("http://local".into()),
+            ..Default::default()
+        };
+        let env = env(&[("OTEL_SDK_DISABLED", "true")]);
+        assert!(resolve(&config, &env).is_active());
+        assert!(!sdk_enabled(&config, &env));
+    }
+
+    #[test]
+    fn test_explicit_default_values_override_environment() {
+        let cfg: TelemetryExportConfig = toml::from_str(
+            "protocol = \"http/protobuf\"\ncompression = \"gzip\"\ntimeout_secs = 10",
+        )
+        .unwrap();
+        let resolved = resolve(
+            &cfg,
+            &env(&[
+                ("OTEL_EXPORTER_OTLP_PROTOCOL", "http/json"),
+                ("OTEL_EXPORTER_OTLP_COMPRESSION", "none"),
+                ("OTEL_EXPORTER_OTLP_TIMEOUT", "1"),
+            ]),
+        );
+        assert_eq!(resolved.protocol, OtlpProtocol::HttpProtobuf);
+        assert_eq!(resolved.compression, OtlpCompression::Gzip);
+        assert_eq!(resolved.timeout, Duration::from_secs(10));
     }
 
     #[test]
@@ -416,7 +445,10 @@ mod tests {
                 ),
             ]),
         );
-        assert_eq!(r.headers[0], ("Authorization".into(), "Bearer s3cret".into()));
+        assert_eq!(
+            r.headers[0],
+            ("Authorization".into(), "Bearer s3cret".into())
+        );
         assert!(!format!("{r:?}").contains("s3cret"));
     }
 
@@ -452,7 +484,7 @@ mod tests {
     #[test]
     fn test_explicit_timeout_beats_env() {
         let cfg = TelemetryExportConfig {
-            timeout_secs: 4,
+            timeout_secs: Some(4),
             ..Default::default()
         };
         let r = resolve(&cfg, &env(&[("OTEL_EXPORTER_OTLP_TIMEOUT", "2500")]));

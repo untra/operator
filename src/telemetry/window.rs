@@ -67,9 +67,16 @@ impl SessionWindow {
 
     /// Start the grace period; later records are still accepted until it expires.
     pub fn end(&mut self, session_id: &str, now: Instant) {
-        if let Some(session) = self.sessions.get_mut(session_id) {
-            session.ended_at.get_or_insert(now);
-        }
+        let session = self
+            .sessions
+            .entry(session_id.to_owned())
+            .or_insert_with(|| Session {
+                records: VecDeque::new(),
+                evicted: 0,
+                touched: now,
+                ended_at: None,
+            });
+        session.ended_at.get_or_insert(now);
         self.prune(now);
     }
 
@@ -238,6 +245,19 @@ mod tests {
         w.get(id, now)
             .map(|s| s.records.into_iter().map(|r| r.name).collect())
             .unwrap_or_default()
+    }
+
+    #[test]
+    fn test_end_before_first_record_preserves_terminal_state() {
+        let mut window = SessionWindow::new(WindowLimits {
+            max_sessions: 2,
+            records_per_session: 2,
+            grace: Duration::from_secs(1),
+        });
+        let now = Instant::now();
+        window.end("late", now);
+        assert!(window.get("late", now).unwrap().ended);
+        assert!(window.get("late", now + Duration::from_secs(2)).is_none());
     }
 
     #[test]

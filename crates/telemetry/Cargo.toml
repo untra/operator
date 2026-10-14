@@ -7,10 +7,12 @@ license = "MIT"
 
 [features]
 default = []
+otlp-json = ["dep:serde_json"]
 redact = ["dep:regex", "dep:hmac", "dep:sha2", "dep:serde_json"]
 schema = ["dep:schemars", "dep:ts-rs"]
 
 [dependencies]
+hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", optional = true }
 regex = { version = "1", optional = true }

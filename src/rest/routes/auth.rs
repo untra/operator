@@ -172,7 +172,11 @@ pub async fn bootstrap_submit(
                     let s = store(&state);
                     let _ = blocking(move || {
                         s.record_failure(BUCKET_BOOTSTRAP)?;
-                        s.audit("bootstrap", Some("bad temporary password"), false)
+                        s.audit(
+                            crate::auth::audit::AuditAction::Bootstrap,
+                            Some("bad temporary password"),
+                            false,
+                        )
                     })
                     .await;
                     return Err(ApiError::Unauthorized(
@@ -192,7 +196,14 @@ pub async fn bootstrap_submit(
 
             let s = store(&state);
             if !created {
-                let _ = blocking(move || s.audit("bootstrap", Some("lost the race"), false)).await;
+                let _ = blocking(move || {
+                    s.audit(
+                        crate::auth::audit::AuditAction::Bootstrap,
+                        Some("lost the race"),
+                        false,
+                    )
+                })
+                .await;
                 return Err(ApiError::Conflict(
                     "the admin account was created concurrently".to_string(),
                 )
@@ -200,7 +211,7 @@ pub async fn bootstrap_submit(
             }
             let _ = blocking(move || {
                 s.clear_rate_limit(BUCKET_BOOTSTRAP)?;
-                s.audit("bootstrap", None, true)
+                s.audit(crate::auth::audit::AuditAction::Bootstrap, None, true)
             })
             .await;
 
@@ -220,7 +231,11 @@ pub async fn bootstrap_submit(
                 let s = store(&state);
                 let _ = blocking(move || {
                     s.record_failure(BUCKET_BOOTSTRAP)?;
-                    s.audit("bootstrap", Some("bad temporary password"), false)
+                    s.audit(
+                        crate::auth::audit::AuditAction::Bootstrap,
+                        Some("bad temporary password"),
+                        false,
+                    )
                 })
                 .await;
                 return Err(ApiError::Unauthorized(
@@ -238,7 +253,11 @@ pub async fn bootstrap_submit(
             blocking(move || {
                 s.set_admin_password(&password)?;
                 s.clear_rate_limit(BUCKET_BOOTSTRAP)?;
-                s.audit("bootstrap", Some("password set"), true)
+                s.audit(
+                    crate::auth::audit::AuditAction::Bootstrap,
+                    Some("password set"),
+                    true,
+                )
             })
             .await?;
 
@@ -303,7 +322,7 @@ pub async fn login(
     let (token, csrf, expires_at) = blocking(move || {
         let session = s.create_session()?;
         s.clear_rate_limit(BUCKET_LOGIN)?;
-        s.audit("login", None, true)?;
+        s.audit(crate::auth::audit::AuditAction::Login, None, true)?;
         Ok(session)
     })
     .await?;
@@ -326,7 +345,7 @@ async fn reject_login(state: &ApiState, detail: &'static str) -> Response {
     let s = store(state);
     let _ = blocking(move || {
         s.record_failure(BUCKET_LOGIN)?;
-        s.audit("login", Some(detail), false)
+        s.audit(crate::auth::audit::AuditAction::Login, Some(detail), false)
     })
     .await;
     ApiError::Unauthorized("incorrect username or password".to_string()).into_response()
@@ -389,7 +408,7 @@ pub async fn reset_password(
     let _ = blocking(move || {
         s.clear_rate_limit(BUCKET_PASSWORD_RESET)?;
         s.audit(
-            "password reset",
+            crate::auth::audit::AuditAction::PasswordReset,
             Some("via HTTP with current credentials"),
             true,
         )
@@ -402,7 +421,11 @@ async fn reject_password_reset(state: &ApiState) -> Response {
     let s = store(state);
     let _ = blocking(move || {
         s.record_failure(BUCKET_PASSWORD_RESET)?;
-        s.audit("password reset", Some("invalid credentials"), false)
+        s.audit(
+            crate::auth::audit::AuditAction::PasswordReset,
+            Some("invalid credentials"),
+            false,
+        )
     })
     .await;
     ApiError::Unauthorized("incorrect username or password".to_string()).into_response()
@@ -424,7 +447,7 @@ pub async fn logout(
         let s = store(&state);
         blocking(move || {
             s.revoke_session(&session_id)?;
-            s.audit("logout", None, true)
+            s.audit(crate::auth::audit::AuditAction::Logout, None, true)
         })
         .await?;
     }
@@ -529,7 +552,7 @@ pub async fn revoke_session(
     let s = store(&state);
     blocking(move || {
         s.revoke_session(&id)?;
-        s.audit("session revoked", None, true)
+        s.audit(crate::auth::audit::AuditAction::SessionRevoked, None, true)
     })
     .await?;
     Ok(Json(LogoutResponse { ended: true }))
@@ -580,7 +603,11 @@ pub async fn device_code(
     let s = store(&state);
     let (device_code, user_code) = blocking(move || {
         let pair = s.create_device_authorization(&client_id, &scopes)?;
-        s.audit("device code issued", None, true)?;
+        s.audit(
+            crate::auth::audit::AuditAction::DeviceCodeIssued,
+            None,
+            true,
+        )?;
         // A successful issue is not proof of the admin: this endpoint is public.
         s.record_failure(BUCKET_DEVICE_CODE)?;
         Ok(pair)
@@ -631,7 +658,14 @@ pub async fn device_approve(
 
     let s = store(&state);
     let detail = client_id.clone();
-    let _ = blocking(move || s.audit("device approved", Some(&detail), true)).await;
+    let _ = blocking(move || {
+        s.audit(
+            crate::auth::audit::AuditAction::DeviceApproved,
+            Some(&detail),
+            true,
+        )
+    })
+    .await;
 
     Ok(Json(DeviceApprovalResponse {
         client_id,
@@ -748,7 +782,11 @@ pub async fn token(
                     let s = store(&state);
                     let _ = blocking(move || {
                         s.record_failure(BUCKET_TOKEN)?;
-                        s.audit("refresh token reuse", Some("family revoked"), false)
+                        s.audit(
+                            crate::auth::audit::AuditAction::RefreshTokenReuse,
+                            Some("family revoked"),
+                            false,
+                        )
                     })
                     .await;
                     return Err(oauth_error(
@@ -777,7 +815,11 @@ pub async fn token(
                 let s = store(&state);
                 let _ = blocking(move || {
                     s.record_failure(BUCKET_TOKEN)?;
-                    s.audit("access key exchange", Some("rejected"), false)
+                    s.audit(
+                        crate::auth::audit::AuditAction::AccessKeyExchange,
+                        Some("rejected"),
+                        false,
+                    )
                 })
                 .await;
                 return Err(oauth_error(
@@ -873,7 +915,11 @@ pub async fn create_access_key(
     // so they must surface as 400 rather than 500.
     let created = tokio::task::spawn_blocking(move || {
         let created = s.create_access_key(&name, &scopes, days)?;
-        s.audit("access key created", Some(&name), true)?;
+        s.audit(
+            crate::auth::audit::AuditAction::AccessKeyCreated,
+            Some(&name),
+            true,
+        )?;
         anyhow::Ok(created)
     })
     .await
@@ -904,7 +950,11 @@ pub async fn revoke_access_key(
     let revoked = blocking(move || {
         let at = s.revoke_access_key(&owned)?;
         if at.is_some() {
-            s.audit("access key revoked", Some(&owned), true)?;
+            s.audit(
+                crate::auth::audit::AuditAction::AccessKeyRevoked,
+                Some(&owned),
+                true,
+            )?;
         }
         Ok(at)
     })

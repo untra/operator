@@ -850,6 +850,42 @@
         "started_at",
         "timeout_secs"
       ]
+    },
+    "CampaignRun": {
+      "description": "Runner bookkeeping for one campaign.",
+      "type": "object",
+      "properties": {
+        "launches": {
+          "description": "Ticket id → launches made by the runner",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "default": {}
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "last_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pause_reason": {
+          "description": "Why the run paused, if it did",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   }
 }

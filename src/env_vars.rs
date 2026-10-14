@@ -354,7 +354,8 @@ pub static ENV_VARS: &[EnvVar] = &[
     },
     EnvVar {
         name: "OPERATOR_LOGGING__FORMAT",
-        description: "Console and file log format (text or json). JSON lines include trace_id and span_id",
+        description:
+            "Console and file log format (text or json). JSON lines include trace_id and span_id",
         category: EnvVarCategory::Logging,
         required: false,
         default: Some("text"),

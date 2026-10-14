@@ -126,6 +126,7 @@ Log level and output configuration
 | --- | --- | --- | --- |
 | `level` | `string` | info | Log level filter (trace, debug, info, warn, error) |
 | `to_file` | `boolean` | true | Whether to log to file in TUI mode (false = stderr for debugging) |
+| `format` | → `LogFormat` | text | Line format for console and file logs (default: text).  `json` emits one JSON object per line with `trace_id` and `span_id`. Override with `OPERATOR_LOGGING__FORMAT=json`. |
 
 ## `[tmux]`
 
@@ -202,7 +203,7 @@ poll_interval_ms = 1000
 tickets = ".tickets"
 projects = "."
 state = ".tickets/operator"
-worktrees = "/Users/untra/.operator/worktrees"
+worktrees = "/Users/samuelvolin/.operator/worktrees"
 
 [ui]
 refresh_rate_ms = 250
@@ -245,6 +246,7 @@ rate_limit_warning_threshold = 0.2
 [logging]
 level = "info"
 to_file = true
+format = "text"
 
 [telemetry]
 enabled = false
@@ -256,9 +258,6 @@ queue_capacity = 1024
 inject_agent_env = true
 
 [telemetry.export]
-protocol = "http/protobuf"
-compression = "gzip"
-timeout_secs = 10
 self_telemetry = true
 
 [telemetry.window]
@@ -376,5 +375,6 @@ Any configuration option can be overridden via environment variables.
 **Examples**:
 - `OPERATOR_AGENTS__MAX_PARALLEL=2`
 - `OPERATOR_LOGGING__LEVEL=debug`
+- `OPERATOR_LOGGING__FORMAT=json`
 - `OPERATOR_TMUX__ENABLED=true`
 

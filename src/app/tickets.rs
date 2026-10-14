@@ -336,7 +336,11 @@ fn persist_admin_password(store: &AuthStore, password: Option<&str>) -> Result<(
     };
 
     if store.create_admin(password, false)? {
-        store.audit("admin created", Some("via setup wizard"), true)?;
+        store.audit(
+            crate::auth::audit::AuditAction::AdminCreated,
+            Some("via setup wizard"),
+            true,
+        )?;
     } else {
         tracing::info!("admin account already exists; setup wizard password not applied");
     }

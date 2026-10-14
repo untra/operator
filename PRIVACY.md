@@ -2,8 +2,8 @@
 Operator telemetry is off by default and never phones home.
 Operator logging standards are configurable.
 Enabling telemetry allows Operator to process agent telemetry and retain a bounded in-memory session window.
-Any upstream destination must be configured by the user; Operator does not select a vendor endpoint.
-Optional redaction standards are separately controllable.
+Any upstream destination must be configured by the user through configuration or standard OTEL_* environment variables; Operator does not select a vendor endpoint. Operator self-export uses the same redaction policy as forwarded agent telemetry.
+Optional redaction is independently controlled by telemetry.enable_redaction. With it disabled, content and personal attributes may be retained and forwarded. Secret protection applies in both modes. opr8r never exports captured stdout/stderr or free-text output summaries.
 
 
 2. Third-Party Services

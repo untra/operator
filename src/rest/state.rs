@@ -279,16 +279,15 @@ impl ApiState {
             .map_err(|e| {
                 ApiError::InternalError(format!("loading the telemetry installation key: {e}"))
             })?;
-        let hub = crate::telemetry::TelemetryHub::new(&config.telemetry, &key)
-            .map_err(|e| ApiError::InternalError(format!("building the telemetry hub: {e}")))?;
-        Ok(Some(Arc::clone(
-            self.telemetry.get_or_init(|| Arc::new(hub)),
-        )))
-    }
-
-    /// The telemetry hub if it has already been built, without building it.
-    pub fn telemetry_if_started(&self) -> Option<Arc<crate::telemetry::TelemetryHub>> {
-        self.telemetry.get().cloned()
+        let hub = crate::telemetry::TelemetryHub::new(
+            &config.telemetry,
+            &key,
+            crate::telemetry::sink::installed(),
+        )
+        .map_err(|e| ApiError::InternalError(format!("building the telemetry hub: {e}")))?;
+        let hub = self.telemetry.get_or_init(|| Arc::new(hub));
+        crate::telemetry::metrics::attach_hub_stats(&hub.stats);
+        Ok(Some(Arc::clone(hub)))
     }
 
     /// Get the templates directory path

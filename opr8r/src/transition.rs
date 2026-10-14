@@ -11,14 +11,22 @@ use std::process::Command;
 /// On Windows, we spawn a new process and exit, since Windows doesn't have exec().
 /// This achieves the same effect of running the next command in the same terminal.
 #[cfg(unix)]
-pub fn exec_next_command(command: &str, verbose: bool) -> ! {
+pub fn exec_next_command(
+    command: &str,
+    env: Option<&std::collections::BTreeMap<String, String>>,
+    verbose: bool,
+) -> ! {
     if verbose {
         eprintln!("[opr8r] Executing next step: {}", command);
     }
 
     // Parse the command string into parts
     // We use sh -c to handle complex command strings properly
-    let err = Command::new("sh").arg("-c").arg(command).exec();
+    let err = Command::new("sh")
+        .envs(env.into_iter().flatten())
+        .arg("-c")
+        .arg(command)
+        .exec();
 
     // exec() only returns on error
     eprintln!("[opr8r] Failed to exec next command: {}", err);
@@ -30,13 +38,18 @@ pub fn exec_next_command(command: &str, verbose: bool) -> ! {
 /// Since Windows doesn't have exec(), we spawn a new process and exit.
 /// This achieves the same user-facing effect of running the next command.
 #[cfg(windows)]
-pub fn exec_next_command(command: &str, verbose: bool) -> ! {
+pub fn exec_next_command(
+    command: &str,
+    env: Option<&std::collections::BTreeMap<String, String>>,
+    verbose: bool,
+) -> ! {
     if verbose {
         eprintln!("[opr8r] Executing next step: {}", command);
     }
 
     // On Windows, spawn the command via cmd.exe and wait for it
     let status = Command::new("cmd")
+        .envs(env.into_iter().flatten())
         .args(["/C", command])
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit())

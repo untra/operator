@@ -95,3 +95,48 @@ groups:
     attributes:
       - ref: operator.auth.succeeded
       - ref: operator.auth.detail
+
+  - id: event.operator.auth.oidc_connection_created
+    type: "event"
+    name: "operator.auth.oidc_connection_created"
+    brief: "Operator auth oidc connection created."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+
+  - id: event.operator.auth.oidc_connection_disabled
+    type: "event"
+    name: "operator.auth.oidc_connection_disabled"
+    brief: "Operator auth oidc connection disabled."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+
+  - id: event.operator.auth.user_permissions_changed
+    type: "event"
+    name: "operator.auth.user_permissions_changed"
+    brief: "Operator auth user permissions changed."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+
+  - id: event.operator.auth.oidc_login
+    type: "event"
+    name: "operator.auth.oidc_login"
+    brief: "Operator auth oidc login."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail
+
+  - id: event.operator.auth.access_key_rotated
+    type: "event"
+    name: "operator.auth.access_key_rotated"
+    brief: "Operator auth access key rotated."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail

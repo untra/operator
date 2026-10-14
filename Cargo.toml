@@ -1,6 +1,6 @@
 [package]
 name = "operator"
-version = "0.2.15"
+version = "0.2.16"
 edition = "2021"
 rust-version = "1.95"
 description = "Multi-agent orchestration dashboard for kanban shaped software development"
@@ -127,6 +127,7 @@ url = "2"
 rust-embed = { version = "8", optional = true }
 mime_guess = { version = "2", optional = true }
 utoipa-axum = "0.2"
+openidconnect = { version = "4", default-features = false, features = ["reqwest", "rustls-tls"] }
 
 [features]
 default = ["embed-ui"]

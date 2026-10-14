@@ -115,6 +115,16 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     admin("POST", "/api/v1/auth/device/approve"),
     admin("GET", "/api/v1/auth/sessions"),
     admin("DELETE", "/api/v1/auth/sessions/{id}"),
+    public("GET", "/api/v1/auth/oidc/providers"),
+    public("GET", "/api/v1/auth/oidc/login/{id}"),
+    public("GET", "/api/v1/auth/oidc/callback"),
+    admin("GET", "/api/v1/auth/oidc/connections"),
+    admin("POST", "/api/v1/auth/oidc/connections"),
+    admin("DELETE", "/api/v1/auth/oidc/connections/{id}"),
+    admin("GET", "/api/v1/auth/users"),
+    admin("PUT", "/api/v1/auth/users/{id}"),
+    read("GET", "/api/v1/auth/capabilities"),
+    admin("POST", "/api/v1/auth/keys/{id}/rotate"),
     admin("GET", "/api/v1/auth/keys"),
     admin("POST", "/api/v1/auth/keys"),
     admin("DELETE", "/api/v1/auth/keys/{id}"),
@@ -255,6 +265,7 @@ pub fn required_access(method: &str, matched_path: &str) -> Option<Access> {
 /// An authenticated caller.
 #[derive(Debug, Clone)]
 pub struct Principal {
+    pub authority: Option<super::identity::UserAuthority>,
     /// Account name; always `admin` today.
     pub subject: String,
     /// Scopes this credential carries.
@@ -292,7 +303,7 @@ impl Principal {
             PrincipalKind::AccessToken | PrincipalKind::LocalProcess => {
                 self.has_scope(Scope::Admin)
             }
-            PrincipalKind::Session | PrincipalKind::AgentCallback => false,
+            PrincipalKind::Session | PrincipalKind::AgentCallback | PrincipalKind::ApiKey => false,
         }
     }
 
@@ -307,6 +318,7 @@ impl Principal {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            authority: None,
         }
     }
 }
@@ -342,6 +354,9 @@ mod tests {
             .collect();
 
         let expected: HashSet<(&str, &str)> = [
+            ("GET", "/api/v1/auth/oidc/providers"),
+            ("GET", "/api/v1/auth/oidc/login/{id}"),
+            ("GET", "/api/v1/auth/oidc/callback"),
             ("GET", "/livez"),
             ("GET", "/readyz"),
             ("GET", "/api/v1/auth/bootstrap"),
@@ -435,6 +450,7 @@ mod tests {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            authority: None,
         };
         assert!(p.has_scope(Scope::Admin));
         assert!(

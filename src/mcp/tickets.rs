@@ -32,8 +32,11 @@ pub async fn list_tickets(args: Value, state: &ApiState) -> Result<Value, String
         .unwrap_or("queue")
         .to_string();
     let config = (*state.config()).clone();
+    let projects = state.project_filter();
     let tickets = tokio::task::spawn_blocking(move || -> Result<Vec<Ticket>, String> {
-        let queue = Queue::new(&config).map_err(|e| e.to_string())?;
+        let queue = Queue::new(&config)
+            .map_err(|e| e.to_string())?
+            .restrict_projects(projects);
         match status.as_str() {
             "queue" => queue.list_queue().map_err(|e| e.to_string()),
             "in-progress" => queue.list_in_progress().map_err(|e| e.to_string()),
@@ -52,8 +55,11 @@ async fn find_ticket(state: &ApiState, id: &str, in_status: &str) -> Result<Tick
     let id = id.to_string();
     let in_status = in_status.to_string();
     let config = (*state.config()).clone();
+    let projects = state.project_filter();
     tokio::task::spawn_blocking(move || -> Result<Ticket, String> {
-        let queue = Queue::new(&config).map_err(|e| e.to_string())?;
+        let queue = Queue::new(&config)
+            .map_err(|e| e.to_string())?
+            .restrict_projects(projects);
         let list = match in_status.as_str() {
             "queue" => queue.list_queue(),
             "in-progress" => queue.list_in_progress(),

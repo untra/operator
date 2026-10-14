@@ -24,6 +24,7 @@ use crate::startup::templates::load_registry;
 /// Shared state for the REST API
 #[derive(Clone)]
 pub struct ApiState {
+    pub authorization: Option<Arc<crate::auth::identity::UserAuthority>>,
     /// Issue type registry (thread-safe read-write access)
     pub registry: Arc<RwLock<IssueTypeRegistry>>,
     /// Live application configuration.
@@ -73,6 +74,8 @@ pub struct McpSession {
     pub tx: tokio::sync::mpsc::UnboundedSender<String>,
     /// Who opened the stream.
     pub subject: String,
+    pub credential_id: Option<String>,
+    pub authority_grants: Option<crate::auth::identity::PermissionGrant>,
     /// The client completed the `initialize` / `notifications/initialized` handshake.
     pub initialized: bool,
     /// The client sent an `initialize` request.
@@ -181,6 +184,7 @@ impl ApiState {
         };
 
         Self {
+            authorization: None,
             registry: Arc::new(RwLock::new(registry)),
             config: Arc::new(StdRwLock::new(config_arc)),
             config_update: Arc::new(Mutex::new(())),
@@ -541,5 +545,47 @@ mod tests {
             state.begin_callback(),
             Err(ApiError::Unavailable(_))
         ));
+    }
+}
+
+pub struct RequestState<T>(pub T);
+
+impl axum::extract::FromRequestParts<ApiState> for RequestState<ApiState> {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &ApiState,
+    ) -> Result<Self, Self::Rejection> {
+        let mut state = state.clone();
+        if let Some(principal) = parts.extensions.get::<crate::auth::scope::Principal>() {
+            state.authorization = principal.authority.clone().map(Arc::new);
+        }
+        Ok(Self(state))
+    }
+}
+
+impl ApiState {
+    pub fn may_access_project(&self, project: &str) -> bool {
+        crate::auth::policy::project_allowed(self.authorization.as_deref(), project)
+    }
+
+    pub fn require_project(&self, project: &str) -> Result<(), ApiError> {
+        if self.may_access_project(project) {
+            Ok(())
+        } else {
+            Err(ApiError::NotFound("Resource not found".into()))
+        }
+    }
+
+    pub fn project_filter(&self) -> Option<Vec<String>> {
+        self.authorization
+            .as_ref()
+            .filter(|a| a.key_id.is_some() || !a.user.administrator)
+            .map(|a| a.grants.projects.clone())
+    }
+
+    pub fn queue(&self) -> anyhow::Result<crate::queue::Queue> {
+        Ok(crate::queue::Queue::new(&self.config())?.restrict_projects(self.project_filter()))
     }
 }

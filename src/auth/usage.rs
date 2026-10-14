@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -15,7 +16,11 @@ pub enum CredentialTable {
 }
 
 #[derive(Default)]
-pub struct Usage(Mutex<HashMap<(CredentialTable, String), DateTime<Utc>>>);
+pub struct Usage(
+    Mutex<HashMap<(CredentialTable, String), DateTime<Utc>>>,
+    AtomicBool,
+    AtomicU64,
+);
 
 impl Usage {
     pub fn record(&self, table: CredentialTable, id: &str, observed: DateTime<Utc>) {
@@ -24,7 +29,7 @@ impl Usage {
         };
         let key = (table, id.to_string());
         if pending.len() >= MAX_PENDING && !pending.contains_key(&key) {
-            tracing::warn!("credential usage buffer full; observation dropped");
+            self.2.fetch_add(1, Ordering::Relaxed);
             return;
         }
         pending
@@ -70,6 +75,9 @@ impl Usage {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
+        if usage.1.swap(true, Ordering::AcqRel) {
+            return;
+        }
         let weak_usage = Arc::downgrade(usage);
         let weak_conn = Arc::downgrade(conn);
         runtime.spawn(async move {

@@ -5,12 +5,13 @@
 //! - `POST /api/v1/mcp/message?sessionId={id}` receives JSON-RPC requests and
 //!   sends responses back through the SSE stream
 
+use crate::rest::state::RequestState as State;
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
 
 use super::Host;
-use axum::extract::{Query, State};
+use axum::extract::Query;
 use axum::response::sse::{Event, Sse};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -66,6 +67,8 @@ pub async fn sse_handler(
             observation_id: uuid::Uuid::new_v4().to_string(),
             tx,
             subject: principal.subject.clone(),
+            credential_id: credential_id(&principal),
+            authority_grants: principal.authority.as_ref().map(|a| a.grants.clone()),
             initialized: false,
             initialize_received: false,
             diagnostic: false,
@@ -93,10 +96,21 @@ pub async fn sse_handler(
         Event::default().event("endpoint").data(message_url),
     ));
 
-    let message_stream = UnboundedReceiverStream::new(rx).map(move |msg| {
-        let _disconnect = &disconnect_tx;
-        Ok::<_, Infallible>(Event::default().event("message").data(msg))
-    });
+    let stream_principal = principal.clone();
+    let stream_store = state.auth.store.clone();
+    let message_stream = UnboundedReceiverStream::new(rx)
+        .then(move |msg| {
+            let _disconnect = &disconnect_tx;
+            let store = stream_store.clone();
+            let principal = stream_principal.clone();
+            async move {
+                credential_active(store, principal)
+                    .await
+                    .then(|| Ok::<_, Infallible>(Event::default().event("message").data(msg)))
+            }
+        })
+        .take_while(|event| event.is_some())
+        .map(|event| event.expect("active credential"));
 
     let combined = endpoint_event.chain(message_stream);
 
@@ -105,6 +119,12 @@ pub async fn sse_handler(
         tokio::select! {
             _ = disconnect_rx => {},
             () = tokio::time::sleep(SESSION_TTL) => {},
+            () = async {
+                loop {
+                    tokio::time::sleep(KEEPALIVE_INTERVAL).await;
+                    if !credential_active(state.auth.store.clone(), principal.clone()).await { break; }
+                }
+            } => {},
         }
         sessions_cleanup.lock().await.remove(&session_id_cleanup);
     });
@@ -149,7 +169,10 @@ pub async fn message_handler(
         };
         // The caller must be the principal that opened this stream. Without
         // this, anyone who learns a session id inherits its authority.
-        if session.subject != principal.subject {
+        if session.subject != principal.subject
+            || session.credential_id != credential_id(&principal)
+            || session.authority_grants != principal.authority.as_ref().map(|a| a.grants.clone())
+        {
             return (
                 axum::http::StatusCode::FORBIDDEN,
                 Json(json!({"error": "Session belongs to a different principal"})),
@@ -212,6 +235,7 @@ mod tests {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            authority: None,
             scopes: vec![Scope::Read, Scope::Execute],
         }
     }
@@ -392,4 +416,48 @@ mod lifecycle_tests {
         assert!(text.contains("data: message?sessionId="));
         assert!(!text.contains("internal"));
     }
+}
+
+fn credential_id(principal: &crate::auth::scope::Principal) -> Option<String> {
+    principal
+        .authority
+        .as_ref()
+        .and_then(|a| a.key_id.as_ref())
+        .map(|id| format!("key:{id}"))
+        .or_else(|| {
+            principal
+                .session_id
+                .as_ref()
+                .map(|id| format!("session:{id}"))
+        })
+}
+
+async fn credential_active(
+    store: crate::auth::store::AuthStore,
+    principal: crate::auth::scope::Principal,
+) -> bool {
+    if principal
+        .expires_at
+        .is_some_and(|expiry| expiry <= chrono::Utc::now())
+    {
+        return false;
+    }
+    let Some(authority) = principal.authority else {
+        return true;
+    };
+    let Some(id) = authority.key_id.clone() else {
+        return true;
+    };
+    tokio::task::spawn_blocking(move || {
+        store
+            .key_authority(&id)
+            .ok()
+            .flatten()
+            .is_some_and(|(current, _)| {
+                current.user.id == authority.user.id
+                    && authority.grants == current.grants
+            })
+    })
+    .await
+    .unwrap_or(false)
 }

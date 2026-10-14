@@ -152,6 +152,7 @@ const MIGRATIONS: &[&str] = &[
         created_at  TEXT NOT NULL
     );
     ",
+    include_str!("identity_migration.sql"),
 ];
 
 /// Apply any migrations the database has not seen.
@@ -182,6 +183,10 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
              Downgrading is not supported.",
             MIGRATIONS.len()
         );
+    }
+    if current >= 3 {
+        let telemetry: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='telemetry_key')", [], |r| r.get(0))?;
+        anyhow::ensure!(telemetry, "auth database has an incompatible draft schema; restore a pre-draft backup before upgrading");
     }
     if current == MIGRATIONS.len() {
         return Ok(());
@@ -240,6 +245,33 @@ mod tests {
         apply_pragmas(&conn).unwrap();
         migrate(&mut conn).unwrap();
         conn
+    }
+
+    #[test]
+    fn test_identity_migration_preserves_telemetry_and_binds_key_profile() {
+        let conn = migrated();
+        for table in [
+            "telemetry_key",
+            "oidc_connection",
+            "operator_user",
+            "user_grant",
+            "user_project",
+            "key_capability",
+            "key_project",
+        ] {
+            assert_eq!(
+                conn.query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+                1,
+                "{table}"
+            );
+        }
+        conn.prepare("SELECT profile_id, user_id FROM access_key")
+            .unwrap();
     }
 
     #[test]

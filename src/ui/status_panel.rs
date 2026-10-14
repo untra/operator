@@ -1639,7 +1639,10 @@ mod tests {
             .find(|r| r.id == "mcp")
             .expect("mcp row");
         assert!(
-            mcp_row.actions.iter().any(|a| a.url.contains("/docs/mcp")),
+            mcp_row
+                .actions
+                .iter()
+                .any(|a| a.url.contains("/getting-started/integrations/")),
             "MCP row should carry a docs link"
         );
     }

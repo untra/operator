@@ -3,12 +3,10 @@
 //! Provides endpoints for fetching ticket details and updating ticket status.
 //! These endpoints power the embedded web UI's kanban board and detail drawer.
 
+use crate::rest::state::RequestState as State;
 use std::collections::HashMap;
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use axum::{extract::Path, Json};
 
 use crate::agents::tmux::OPERATOR_SOCKET;
 use crate::config::Config;
@@ -64,7 +62,9 @@ pub async fn get_one(
     Path(ticket_id): Path<String>,
 ) -> Result<Json<TicketDetailResponse>, ApiError> {
     let config = state.config();
-    let queue = Queue::new(&config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = state
+        .queue()
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
     let all = all_tickets(&queue)?;
     let operator_state = crate::state::State::load(&config)
@@ -203,7 +203,9 @@ pub async fn update_status(
         ))
     })?;
 
-    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = state
+        .queue()
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
 
@@ -320,7 +322,8 @@ pub async fn create_alert(
             .map(|f| f.options.clone())
             .unwrap_or_default()
     };
-    let created = ticket_creation::create(&state, alert_request(request, &severity_options)).await?;
+    let created =
+        ticket_creation::create(&state, alert_request(request, &severity_options)).await?;
     Ok(Json(CreateAlertResponse {
         id: created.id,
         filename: created.filename,
@@ -609,7 +612,10 @@ mod tests {
             ..Default::default()
         };
         let resp = create(State(state), Json(request)).await.unwrap().0;
-        assert_eq!(resp.kanban, crate::rest::dto::KanbanPushOutcome::NotConfigured);
+        assert_eq!(
+            resp.kanban,
+            crate::rest::dto::KanbanPushOutcome::NotConfigured
+        );
     }
 
     #[tokio::test]

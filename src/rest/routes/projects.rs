@@ -1,11 +1,9 @@
 //! Project listing and assessment endpoints.
 
+use crate::rest::state::RequestState as State;
 use std::collections::HashMap;
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use axum::{extract::Path, Json};
 
 use crate::rest::dto::{AssessTicketResponse, CreateTicketRequest, ProjectSummary};
 use crate::rest::error::ApiError;
@@ -33,6 +31,9 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<ProjectSummary>> {
     let mut summaries = Vec::new();
 
     for name in project_names {
+        if !state.may_access_project(name) {
+            continue;
+        }
         let project_dir = projects_path.join(name);
         let exists = project_dir.is_dir();
         let has_catalog_info = project_dir.join("catalog-info.yaml").is_file();

@@ -3,16 +3,13 @@
 //! Provides the launch endpoint for starting agents via external clients
 //! like the VS Code extension.
 
+use crate::rest::state::RequestState as State;
 use std::sync::Arc;
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use axum::{extract::Path, Json};
 
 use crate::agents::delegator_resolution::{self, AgentContext};
 use crate::agents::{LaunchOptions, Launcher, PreparedLaunch, ProofRunner, RelaunchOptions};
-use crate::queue::Queue;
 use crate::rest::dto::auth::PrincipalKind;
 use crate::rest::dto::{
     LaunchTicketRequest, LaunchTicketResponse, NextStepInfo, StepCompleteRequest,
@@ -194,7 +191,9 @@ async fn launch_admitted_ticket(
         )));
     }
     // Create a queue to find the ticket
-    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = state
+        .queue()
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Find the ticket by ID
     let ticket = queue
@@ -718,7 +717,9 @@ pub async fn complete_step(
     }
 
     // Create a queue to find the ticket
-    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = state
+        .queue()
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Find the ticket by ID
     let ticket = queue

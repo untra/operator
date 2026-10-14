@@ -179,6 +179,7 @@ pub async fn create(
         let registry = state.registry.read().await;
         prepare(&config, &registry, request)?
     };
+    state.require_project(&draft.project)?;
     create_draft(config, draft, state.kanban_sync.as_deref()).await
 }
 
@@ -226,6 +227,7 @@ pub async fn preview(
         .clone()
         .or_else(|| request.values.get(PROJECT_KEY).cloned())
         .unwrap_or_default();
+    state.require_project(&project)?;
     let kanban_target = kanban_target(state, &project);
     let prepared = {
         let registry = state.registry.read().await;
@@ -284,7 +286,10 @@ pub fn record_external(
     external_url: Option<&str>,
 ) -> anyhow::Result<()> {
     let mut content = fs::read_to_string(path)?;
-    let mut fields = vec![("external_provider", provider), ("external_id", external_id)];
+    let mut fields = vec![
+        ("external_provider", provider),
+        ("external_id", external_id),
+    ];
     if let Some(url) = external_url {
         fields.push(("external_url", url));
     }
@@ -304,7 +309,10 @@ fn ticket_description(content: &str) -> Option<String> {
     let description = body
         .trim_start()
         .split_once('\n')
-        .map_or("", |(title, rest)| if title.starts_with("# ") { rest } else { body })
+        .map_or(
+            "",
+            |(title, rest)| if title.starts_with("# ") { rest } else { body },
+        )
         .trim();
     (!description.is_empty()).then(|| description.to_string())
 }
@@ -481,8 +489,11 @@ fn append_unreferenced_fields(mut template: String, fields: &[FieldSchema]) -> S
 }
 
 fn references(template: &str, name: &str) -> bool {
-    Regex::new(&format!(r"\{{\{{[^}}]*\b{}\b[^}}]*\}}\}}", regex::escape(name)))
-        .is_ok_and(|re| re.is_match(template))
+    Regex::new(&format!(
+        r"\{{\{{[^}}]*\b{}\b[^}}]*\}}\}}",
+        regex::escape(name)
+    ))
+    .is_ok_and(|re| re.is_match(template))
 }
 
 fn title_case(name: &str) -> String {
@@ -602,7 +613,11 @@ mod tests {
         let long = "x".repeat(121);
         let mut req = request(
             "FEAT",
-            &[("priority", "P9-whenever"), ("bogus", "1"), ("id", "FEAT-9")],
+            &[
+                ("priority", "P9-whenever"),
+                ("bogus", "1"),
+                ("id", "FEAT-9"),
+            ],
         );
         req.summary = Some(long);
         let errors = invalid(prepare(&config_in(dir.path()), &registry(), req));
@@ -733,7 +748,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("20260101-1200-FEAT-gamesvc-x.md");
         fs::write(&path, "---\nid: FEAT-0001\n---\n\n# Feature: x\n").unwrap();
-        record_external(&path, "linear", "ENG-12", Some("https://linear.app/i/ENG-12")).unwrap();
+        record_external(
+            &path,
+            "linear",
+            "ENG-12",
+            Some("https://linear.app/i/ENG-12"),
+        )
+        .unwrap();
         let ticket = Ticket::from_file(&path).unwrap();
         assert_eq!(ticket.external_provider.as_deref(), Some("linear"));
         assert_eq!(ticket.external_id.as_deref(), Some("ENG-12"));
@@ -750,6 +771,9 @@ mod tests {
             ticket_description(content).as_deref(),
             Some("## User Story\nwhy")
         );
-        assert_eq!(ticket_description("---\nid: A\n---\n\n# Feature: x\n"), None);
+        assert_eq!(
+            ticket_description("---\nid: A\n---\n\n# Feature: x\n"),
+            None
+        );
     }
 }

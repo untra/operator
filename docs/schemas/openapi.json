@@ -396,7 +396,7 @@
           "Tickets"
         ],
         "summary": "Raise an external alert as an investigation (INV) ticket.",
-        "description": "Creates an investigation through the same embedded-template path as\n[`create`], folding the alert's `source`/`severity` into the ticket values.\nPowers the AGNT `operator-alert` node.",
+        "description": "The alert's free-form `source`/`severity` are recorded in the body; the\nfrontmatter gets the schema's `alert` source and the severity option whose\n`S0`/`S1`/`S2` prefix matches, if any.",
         "operationId": "alerts_create",
         "parameters": [
           {
@@ -6287,8 +6287,8 @@
         "tags": [
           "Tickets"
         ],
-        "summary": "Create a new ticket from a template and write it to the queue.",
-        "description": "Reuses the same [`TicketCreator`] the CLI (`operator create`) and MCP\n(`operator_create_ticket`) use, so a ticket created over HTTP is identical to\none created on any other surface. Powers the AGNT `operator-create-ticket`\nnode.",
+        "summary": "Create a new ticket and write it to the queue.",
+        "description": "Validates against the issue type's field schema, numbers and renders the\nticket through [`ticket_creation`] - the same path MCP and the CLI use - and\npushes it to the project's bidirectional kanban board unless\n`sync_to_kanban` is `false`.",
         "operationId": "tickets_create",
         "parameters": [
           {
@@ -6323,7 +6323,7 @@
             }
           },
           "400": {
-            "description": "Unknown template type",
+            "description": "Unknown issue type or invalid field values",
             "content": {
               "application/json": {
                 "schema": {
@@ -6452,6 +6452,73 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BatchPreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/tickets/preview": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Dry-run a create: field errors, rendered markdown and kanban target.",
+        "operationId": "tickets_preview",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Preview of the ticket that would be created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown issue type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -9019,6 +9086,59 @@
           }
         }
       },
+      "ConnectionsResponse": {
+        "type": "object",
+        "required": [
+          "version",
+          "profile_name",
+          "observed_at",
+          "api_path",
+          "mcp_path",
+          "mcp_http_mounted",
+          "mcp_stdio_advertised",
+          "acp_stdio_advertised",
+          "mcp_connected_clients"
+        ],
+        "properties": {
+          "acp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "api_path": {
+            "type": "string"
+          },
+          "mcp_connected_clients": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mcp_http_mounted": {
+            "type": "boolean",
+            "description": "Whether this running router mounted the SSE transport."
+          },
+          "mcp_path": {
+            "type": "string"
+          },
+          "mcp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "profile_name": {
+            "type": "string"
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Externally configured base URL, if present."
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
       "CreateAccessKeyRequest": {
         "type": "object",
         "description": "Create a service access key for an integration.",
@@ -9476,32 +9596,39 @@
       },
       "CreateTicketRequest": {
         "type": "object",
-        "description": "Request to create a new ticket from a template.",
+        "description": "Request to create a new ticket. Every surface (web, TUI, VS Code, CLI,\nMCP) sends this same shape to `POST /api/v1/tickets`.",
         "required": [
-          "template"
+          "issue_type"
         ],
         "properties": {
+          "issue_type": {
+            "type": "string",
+            "description": "Issue type key from the registry (e.g. `FEAT`, `FIX`, or a custom\ncollection type). `template` is accepted as a legacy alias."
+          },
           "project": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Project the ticket targets (filled into the template's `project` value)."
+            "description": "Project the ticket targets. Required when the issue type sets\n`project_required`."
           },
           "summary": {
             "type": [
               "string",
               "null"
             ],
-            "description": "One-line summary (filled into the template's `summary` value)."
+            "description": "One-line summary."
           },
-          "template": {
-            "type": "string",
-            "description": "Template type key (feature, fix, spike, investigation, task)."
+          "sync_to_kanban": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Push the new ticket to the mapped kanban board. `None` pushes whenever\nthe project maps to a bidirectional kanban project."
           },
           "values": {
             "type": "object",
-            "description": "Additional Handlebars values for the template. Explicit `project`/\n`summary` fields take precedence over the same keys here.",
+            "description": "Values for the issue type's user-editable fields, keyed by field name.\nExplicit `project`/`summary` take precedence over the same keys here.",
             "additionalProperties": {
               "type": "string"
             },
@@ -9517,7 +9644,8 @@
         "required": [
           "id",
           "filename",
-          "path"
+          "path",
+          "kanban"
         ],
         "properties": {
           "filename": {
@@ -9527,6 +9655,10 @@
           "id": {
             "type": "string",
             "description": "The created ticket's id (e.g. `FEAT-1234`)."
+          },
+          "kanban": {
+            "$ref": "#/components/schemas/KanbanPushOutcome",
+            "description": "What happened when mirroring the ticket to its kanban board. A failed\npush never fails the create: the ticket exists locally regardless."
           },
           "path": {
             "type": "string",
@@ -10220,6 +10352,24 @@
           }
         }
       },
+      "FieldError": {
+        "type": "object",
+        "description": "A value that failed issue type field validation.",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Field name (`project`, `summary`, or an issue type field)."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable reason."
+          }
+        }
+      },
       "FieldResponse": {
         "type": "object",
         "description": "Response for a field",
@@ -10239,6 +10389,14 @@
           },
           "description": {
             "type": "string"
+          },
+          "display_order": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Form position (lower first); unordered fields sort last."
           },
           "field_type": {
             "type": "string"
@@ -10301,7 +10459,7 @@
       },
       "GitConfigEntry": {
         "type": "object",
-        "description": "One `git config` key and value.",
+        "description": "One `git config` entry applied to delegated work.",
         "required": [
           "key",
           "value"
@@ -10309,11 +10467,11 @@
         "properties": {
           "key": {
             "type": "string",
-            "description": "`git config` key (for example `user.name`)."
+            "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected"
           },
           "value": {
             "type": "string",
-            "description": "`git config` value."
+            "description": "Config value"
           }
         }
       },
@@ -10328,15 +10486,15 @@
         "properties": {
           "repository_url": {
             "type": "string",
-            "description": "HTTPS repository URL this credential is bound to."
+            "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment"
           },
           "token_env": {
             "type": "string",
-            "description": "Environment variable holding the HTTPS token. The secret is not stored here."
+            "description": "Environment variable holding the token, read at launch"
           },
           "username": {
             "type": "string",
-            "description": "HTTPS username. The token is read from `token_env`."
+            "description": "HTTPS username sent with the token"
           }
         }
       },
@@ -10351,7 +10509,7 @@
               },
               {
                 "$ref": "#/components/schemas/GitCredentialConfig",
-                "description": "HTTPS credential bound to one repository."
+                "description": "HTTPS credential for the ticket's repository"
               }
             ]
           },
@@ -10362,7 +10520,7 @@
               },
               {
                 "$ref": "#/components/schemas/GitIdentityConfig",
-                "description": "Commit identity override for this delegator."
+                "description": "Commit identity; falls back to the global `git.identity`"
               }
             ]
           },
@@ -10371,7 +10529,7 @@
             "items": {
               "$ref": "#/components/schemas/GitConfigEntry"
             },
-            "description": "Extra `git config` entries applied for this delegator."
+            "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected"
           }
         }
       },
@@ -10385,11 +10543,11 @@
         "properties": {
           "email": {
             "type": "string",
-            "description": "Git author email applied to delegated commits."
+            "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
           },
           "name": {
             "type": "string",
-            "description": "Git author name applied to delegated commits."
+            "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`"
           }
         }
       },
@@ -11199,6 +11357,101 @@
           "gitea"
         ]
       },
+      "KanbanPushOutcome": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The ticket's project maps to no bidirectional kanban project.",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_configured"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A target exists but the push was not attempted.",
+            "required": [
+              "reason",
+              "status"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "skipped"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Pushed; the external ids were written back into the ticket.",
+            "required": [
+              "provider",
+              "project_key",
+              "external_id",
+              "status"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "string"
+              },
+              "external_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "project_key": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pushed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The provider rejected or could not be reached.",
+            "required": [
+              "provider",
+              "message",
+              "status"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Result of pushing a newly created ticket to its kanban board."
+      },
       "KanbanStatusMapping": {
         "type": "object",
         "description": "Explicit mapping from operator's strict todo/doing/done states to the\nexternal board's column/status names.\n\nDrives bidirectional sync: issues are pulled from the `todo` column,\npushed to `doing` when a ticket is claimed, to `done` when completed, and\nback to `todo` when requeued. Unset fields fall back per-transition\n(`doing` → \"In Progress\", `done` → \"Done\"); requeue only pushes when\n`todo` is explicitly mapped.",
@@ -11275,6 +11528,24 @@
               "type": "string"
             },
             "description": "Existing tickets whose synced relationships were refreshed"
+          }
+        }
+      },
+      "KanbanTarget": {
+        "type": "object",
+        "description": "The kanban project a new ticket would be pushed to.",
+        "required": [
+          "provider",
+          "project_key"
+        ],
+        "properties": {
+          "project_key": {
+            "type": "string",
+            "description": "Provider project / team key."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider name (`jira`, `linear`, `github`, `gitea`)."
           }
         }
       },
@@ -14720,6 +14991,38 @@
               "null"
             ],
             "description": "Path to git worktree (if created)"
+          }
+        }
+      },
+      "TicketPreviewResponse": {
+        "type": "object",
+        "description": "Dry run of `POST /api/v1/tickets`: what would be written, and where it\nwould sync, without allocating an id or touching the queue.",
+        "required": [
+          "markdown",
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "description": "Validation errors; the create would be rejected while non-empty."
+          },
+          "kanban_target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KanbanTarget",
+                "description": "The kanban project the ticket would be pushed to, if any."
+              }
+            ]
+          },
+          "markdown": {
+            "type": "string",
+            "description": "Rendered markdown, with a placeholder id. Empty when `errors` is not."
           }
         }
       },

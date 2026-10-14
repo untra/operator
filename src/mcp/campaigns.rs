@@ -1,6 +1,7 @@
 //! MCP tools for ticket batches and campaigns; each delegates to its REST handler.
 
-use axum::extract::{Path, State};
+use crate::rest::state::RequestState as State;
+use axum::extract::Path;
 use axum::Json;
 use serde::de::DeserializeOwned;
 use serde::Serialize;

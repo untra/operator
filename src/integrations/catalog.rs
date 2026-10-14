@@ -583,6 +583,26 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             true,
             Beta,
         ),
+        entry(
+            Integration,
+            "keycloak",
+            "Keycloak",
+            Some("getting-started/integrations/keycloak"),
+            None,
+            false,
+            Alpha,
+        )
+        .premium(),
+        entry(
+            Integration,
+            "authentik",
+            "Authentik",
+            Some("getting-started/integrations/authentik"),
+            None,
+            false,
+            Alpha,
+        )
+        .premium(),
         // --- Operator features (concepts, not brands) ---
         entry(
             Feature,

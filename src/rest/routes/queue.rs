@@ -4,15 +4,13 @@
 //! grouped by status columns, and queue control endpoints for
 //! pause/resume/sync operations.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 use chrono::Utc;
 
 use crate::agents::connect;
 use crate::config::Config;
-use crate::queue::{Queue, Ticket, TicketStatus};
+use crate::queue::{Ticket, TicketStatus};
 use crate::rest::dto::{
     KanbanBoardResponse, KanbanSyncResponse, KanbanTicketCard, QueueByType, QueueControlResponse,
     QueueStatusResponse,
@@ -79,7 +77,9 @@ fn sort_active_column(config: &Config, column: &mut [KanbanTicketCard]) {
 pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardResponse>, ApiError> {
     // Create a queue from the config
     let config = state.config();
-    let queue = Queue::new(&config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = state
+        .queue()
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Load tickets from each directory
     let queued_tickets = queue
@@ -163,7 +163,9 @@ pub async fn kanban(State(state): State<ApiState>) -> Result<Json<KanbanBoardRes
 pub async fn status(State(state): State<ApiState>) -> Result<Json<QueueStatusResponse>, ApiError> {
     // Create a queue from the config
     let config = state.config();
-    let queue = Queue::new(&config).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = state
+        .queue()
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
 
     // Load tickets from each directory
     let queued_tickets = queue

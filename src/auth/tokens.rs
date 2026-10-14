@@ -34,6 +34,10 @@ pub const AUDIENCE_TELEMETRY: &str = "otlp-ingest";
 /// Registered and Operator-specific claims.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
+    #[serde(default)]
+    pub credential_version: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<uuid::Uuid>,
     /// Issuer.
@@ -178,6 +182,8 @@ impl SigningKey {
 /// Build the claims for an ordinary API access token.
 pub fn api_claims(subject: &str, scopes: &[Scope], now: DateTime<Utc>, jti: String) -> Claims {
     Claims {
+        credential_version: 1,
+        key_id: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_API.to_string(),
@@ -214,6 +220,8 @@ pub fn callback_claims(
     jti: String,
 ) -> Claims {
     Claims {
+        credential_version: 1,
+        key_id: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_CALLBACK.to_string(),
@@ -245,6 +253,8 @@ pub fn telemetry_claims(
     jti: String,
 ) -> Claims {
     Claims {
+        credential_version: 1,
+        key_id: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_TELEMETRY.to_string(),

@@ -9,6 +9,7 @@ pub mod connections;
 pub mod delegators;
 pub mod git_onboarding;
 pub mod health;
+pub mod identity;
 pub mod integrations;
 pub mod issuetypes;
 pub mod kanban;

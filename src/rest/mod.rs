@@ -91,10 +91,22 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::revoke_session))
         .routes(routes!(routes::auth::device_approve))
         .routes(routes!(
-            routes::auth::list_access_keys,
-            routes::auth::create_access_key
+            routes::identity::keys,
+            routes::identity::create_key
         ))
-        .routes(routes!(routes::auth::revoke_access_key))
+        .routes(routes!(routes::identity::revoke_key))
+        .routes(routes!(routes::identity::rotate_key))
+        .routes(routes!(routes::identity::providers))
+        .routes(routes!(
+            routes::identity::connections,
+            routes::identity::create_connection
+        ))
+        .routes(routes!(routes::identity::disable_connection))
+        .routes(routes!(routes::identity::login))
+        .routes(routes!(routes::identity::callback))
+        .routes(routes!(routes::identity::users))
+        .routes(routes!(routes::identity::update_user))
+        .routes(routes!(routes::identity::capabilities))
 }
 
 /// Configuration registry, licence, remote-target and campaign routes.
@@ -357,6 +369,7 @@ pub fn build_router(state: ApiState) -> Router {
 }
 
 pub(crate) fn build_profile_router(state: ApiState) -> Router {
+    state.auth.store.start_usage_tracking();
     let config = state.config();
     let cors = cors_layer(&config);
 
@@ -390,6 +403,9 @@ pub(crate) fn build_profile_router(state: ApiState) -> Router {
         ))
         .layer(
             TraceLayer::new_for_http()
+                .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
+                    tracing::info_span!("http_request", method = %request.method(), path = request.uri().path())
+                })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
@@ -415,9 +431,14 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     // Serve with graceful shutdown
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(state.clone()))
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal(state.clone()))
+    .await?;
+
+    state.auth.store.flush_usage()?;
 
     // Clean up session file on shutdown
     remove_session_file(&tickets_path);

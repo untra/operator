@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { Scope } from "@operator/bindings/Scope";
 import { useHost } from "../host";
 import { useApiMutation, useApiQuery, STATUS_POLL_MS } from "../api";
 import {
@@ -21,10 +20,10 @@ import {
   mcpRecipe,
 } from "../connections";
 import { PageHeader } from "../components/PageHeader";
+import { IdentityPanel } from "../components/IdentityPanel";
 import { AccessKeysPanel } from "../components/AccessKeysPanel";
 import styles from "./ConnectionsPage.module.css";
 
-const MCP_SCOPES: Scope[] = ["read", "execute"];
 const CLIENT_PAGE_SIZE = 10;
 const ACP_EXTENSIONS: Record<string, string> = {
   zed: "json",
@@ -393,14 +392,8 @@ function Connections() {
           </details>
         </section>
         <section className={styles.card}>
-          {admin ? (
-            <AccessKeysPanel defaultScopes={MCP_SCOPES} />
-          ) : (
-            <>
-              <h2>Service access keys</h2>
-              <p>Administrator access is required to create or revoke keys.</p>
-            </>
-          )}
+          <AccessKeysPanel />
+          <IdentityPanel />
         </section>
       </div>
     </div>

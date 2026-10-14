@@ -1,6 +1,7 @@
 //! Kanban provider endpoints for the REST API.
 
-use axum::extract::{Path, State};
+use crate::rest::state::RequestState as State;
+use axum::extract::Path;
 use axum::Json;
 
 use crate::api::providers::kanban::{get_provider_from_config, KanbanProviderType};

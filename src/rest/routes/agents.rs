@@ -2,10 +2,8 @@
 //!
 //! Provides endpoints for querying active agents and controlling their review state.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 
 use crate::agents::cmux::{CmuxClient, SystemCmuxClient};
 use crate::agents::connect::{
@@ -75,6 +73,7 @@ pub async fn active(State(state): State<ApiState>) -> Result<Json<ActiveAgentsRe
     let agents: Vec<ActiveAgentResponse> = operator_state
         .agents
         .iter()
+        .filter(|a| state.may_access_project(&a.project))
         .filter(|a| {
             a.status == "running" || a.status == "awaiting_input" || a.status == "completing"
         })
@@ -136,7 +135,7 @@ pub async fn get_detail(
     let agent = operator_state
         .agents
         .iter()
-        .find(|a| a.id == agent_id)
+        .find(|a| a.id == agent_id && state.may_access_project(&a.project))
         .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
     let probes = probe(std::sync::Arc::clone(&config)).await?;
     let (connect, attention) = agent_connect(&config, agent, &probes);
@@ -198,7 +197,7 @@ pub async fn connect_terminal(
     let agent = operator_state
         .agents
         .iter()
-        .find(|a| a.id == agent_id)
+        .find(|a| a.id == agent_id && state.may_access_project(&a.project))
         .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
     let remote = connect::resolve_remote(&config, agent);
     let probes = ConnectProbes::default();
@@ -238,7 +237,7 @@ pub async fn approve_review(
     let agent = operator_state
         .agents
         .iter()
-        .find(|a| a.id == agent_id)
+        .find(|a| a.id == agent_id && state.may_access_project(&a.project))
         .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
 
     // Verify agent is awaiting review
@@ -298,7 +297,7 @@ pub async fn reject_review(
     let agent = operator_state
         .agents
         .iter()
-        .find(|a| a.id == agent_id)
+        .find(|a| a.id == agent_id && state.may_access_project(&a.project))
         .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
 
     // Verify agent is awaiting review
@@ -354,7 +353,7 @@ pub async fn focus_session(
     let agent = operator_state
         .agents
         .iter()
-        .find(|a| a.id == agent_id)
+        .find(|a| a.id == agent_id && state.may_access_project(&a.project))
         .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
 
     match agent.session_wrapper.as_deref() {

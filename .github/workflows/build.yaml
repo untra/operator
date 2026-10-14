@@ -373,6 +373,118 @@ jobs:
           flags: rust
           fail_ci_if_error: true
 
+  coverage-relay:
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/relay
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.95
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            crates/relay/target
+          key: relay-${{ runner.os }}-cargo-coverage-${{ hashFiles('crates/relay/Cargo.lock') }}
+          restore-keys: relay-${{ runner.os }}-cargo-coverage-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-nextest
+
+      - name: Generate coverage
+        run: cargo llvm-cov nextest --locked --all-features --profile ci --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/relay/codecov.json
+          flags: relay
+          disable_search: true
+          fail_ci_if_error: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/relay/target/nextest/ci/junit.xml
+          flags: relay
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: true
+
+  coverage-telemetry:
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/telemetry
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.95
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            crates/telemetry/target
+          key: telemetry-${{ runner.os }}-cargo-coverage-${{ hashFiles('crates/telemetry/Cargo.lock') }}
+          restore-keys: telemetry-${{ runner.os }}-cargo-coverage-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-nextest
+
+      - name: Generate coverage
+        run: cargo llvm-cov nextest --locked --all-features --profile ci --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/telemetry/codecov.json
+          flags: telemetry
+          disable_search: true
+          fail_ci_if_error: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/telemetry/target/nextest/ci/junit.xml
+          flags: telemetry
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: true
+
   launch-integration:
     needs: lint-test
     runs-on: ubuntu-latest

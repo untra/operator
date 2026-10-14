@@ -2068,3 +2068,299 @@ async fn test_launch_pending_sub_agents_errors_on_unknown_delegator() {
         "error should mention missing delegator name, got: {msg}"
     );
 }
+
+mod zellij_launch {
+    use super::super::zellij_session::{
+        launch_in_zellij_with_options, launch_in_zellij_with_relaunch_options,
+    };
+    use super::*;
+    use crate::agents::zellij::{MockZellijClient, ZellijClient, ZellijError};
+    use crate::config::LlmProvider;
+
+    const PROMPT: &str = "Inspect the project and implement the ticket";
+
+    fn project_path(config: &Config) -> String {
+        config
+            .projects_path()
+            .join("test-project")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn command_file(config: &Config, uuid: &str) -> std::path::PathBuf {
+        config
+            .tickets_path()
+            .join("operator/commands")
+            .join(format!("{uuid}.sh"))
+    }
+
+    #[test]
+    fn test_zellij_launch_writes_artifacts_and_persists_session() {
+        let temp = TempDir::new().unwrap();
+        let config = make_test_config(&temp);
+        let mut ticket = make_test_ticket("test-project");
+        ticket.ticket_type = "CUSTOM".into();
+        let ticket_path = config
+            .tickets_path()
+            .join("in-progress")
+            .join(&ticket.filename);
+        std::fs::write(
+            &ticket_path,
+            format!(
+                "---\nid: {}\nstatus: in-progress\n---\n\n{}\n",
+                ticket.id, ticket.content
+            ),
+        )
+        .unwrap();
+        let client = Arc::new(MockZellijClient::new());
+        let boundary: Arc<dyn ZellijClient> = Arc::<MockZellijClient>::clone(&client);
+        let result = launch_in_zellij_with_options(
+            &config,
+            &boundary,
+            &ticket,
+            &project_path(&config),
+            PROMPT,
+            &LaunchOptions::default(),
+            &make_test_operator_env(),
+        )
+        .unwrap();
+
+        assert_eq!(result.session_name, "op:test-project:TASK-1234");
+        assert_eq!(result.tab_name, result.session_name);
+        Uuid::parse_str(&result.session_uuid).unwrap();
+        let persisted = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(
+            persisted.sessions.get("initial"),
+            Some(&result.session_uuid)
+        );
+        let prompt_path = config
+            .tickets_path()
+            .join("operator/prompts")
+            .join(format!("{}.txt", result.session_uuid));
+        assert!(std::fs::read_to_string(&prompt_path)
+            .unwrap()
+            .contains(PROMPT));
+        let script_path = command_file(&config, &result.session_uuid);
+        let script = std::fs::read_to_string(&script_path).unwrap();
+        assert!(script.contains(&project_path(&config)));
+        assert!(script.contains("claude"));
+        assert!(script.contains("sonnet"));
+        assert!(script.contains(&result.session_uuid));
+        assert!(script.contains(prompt_path.to_str().unwrap()));
+        assert!(client
+            .sent_texts()
+            .contains(&(result.tab_name, format!("bash {}\n", script_path.display()))));
+    }
+
+    #[test]
+    fn test_zellij_launch_sanitizes_names_and_distinguishes_subagents() {
+        let temp = TempDir::new().unwrap();
+        let config = make_test_config(&temp);
+        let mut ticket = make_test_ticket("project.name");
+        ticket.id = "TASK:1234".into();
+        let boundary: Arc<dyn ZellijClient> = Arc::new(MockZellijClient::new());
+        for (suffix, expected) in [
+            (None, "op:project-name:TASK-1234"),
+            (Some("agent.a"), "op:project-name:TASK-1234:agent-a"),
+            (Some("agent.b"), "op:project-name:TASK-1234:agent-b"),
+        ] {
+            let options = LaunchOptions {
+                session_suffix: suffix.map(str::to_owned),
+                ..Default::default()
+            };
+            let result = launch_in_zellij_with_options(
+                &config,
+                &boundary,
+                &ticket,
+                &project_path(&config),
+                PROMPT,
+                &options,
+                &make_test_operator_env(),
+            )
+            .unwrap();
+            assert_eq!(result.tab_name, expected);
+            assert_eq!(result.session_name, expected);
+        }
+    }
+
+    #[test]
+    fn test_zellij_launch_uses_provider_and_permission_options() {
+        let temp = TempDir::new().unwrap();
+        let mut config = make_test_config(&temp);
+        let mut tool = config.llm_tools.detected[0].clone();
+        tool.name = "codex".into();
+        tool.command_template =
+            "codex {{model_flag}}--session-id {{session_id}} --print-prompt-path {{prompt_file}}"
+                .into();
+        tool.yolo_flags = vec!["--full-auto".into()];
+        config.llm_tools.detected.push(tool);
+        for yolo_mode in [false, true] {
+            let boundary: Arc<dyn ZellijClient> = Arc::new(MockZellijClient::new());
+            let options = LaunchOptions {
+                provider: Some(LlmProvider {
+                    tool: "codex".into(),
+                    model: "selected-model".into(),
+                    ..Default::default()
+                }),
+                yolo_mode,
+                ..Default::default()
+            };
+            let result = launch_in_zellij_with_options(
+                &config,
+                &boundary,
+                &make_test_ticket("test-project"),
+                &project_path(&config),
+                PROMPT,
+                &options,
+                &make_test_operator_env(),
+            )
+            .unwrap();
+            let script =
+                std::fs::read_to_string(command_file(&config, &result.session_uuid)).unwrap();
+            assert!(script.contains("codex"));
+            assert!(script.contains("selected-model"));
+            assert_eq!(script.contains("--full-auto"), yolo_mode);
+        }
+    }
+
+    #[test]
+    fn test_zellij_launch_rejects_unavailable_environment_before_side_effects() {
+        for installed in [false, true] {
+            let temp = TempDir::new().unwrap();
+            let config = make_test_config(&temp);
+            let client = Arc::new(MockZellijClient::new());
+            client.set_available(installed);
+            client.set_in_zellij(false);
+            let boundary: Arc<dyn ZellijClient> = Arc::<MockZellijClient>::clone(&client);
+            let error = launch_in_zellij_with_options(
+                &config,
+                &boundary,
+                &make_test_ticket("test-project"),
+                &project_path(&config),
+                PROMPT,
+                &LaunchOptions::default(),
+                &make_test_operator_env(),
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains(if installed {
+                "Not running inside zellij"
+            } else {
+                "zellij is not available"
+            }));
+            assert!(client.list_tab_names().unwrap().is_empty());
+            assert_eq!(
+                std::fs::read_dir(config.tickets_path().join("operator/prompts"))
+                    .unwrap()
+                    .count(),
+                0
+            );
+            assert!(!config.tickets_path().join("operator/commands").exists());
+        }
+    }
+
+    struct RejectCommandClient(MockZellijClient);
+
+    impl ZellijClient for RejectCommandClient {
+        fn check_available(&self) -> Result<(), ZellijError> {
+            self.0.check_available()
+        }
+        fn check_in_zellij(&self) -> Result<(), ZellijError> {
+            self.0.check_in_zellij()
+        }
+        fn list_tab_names(&self) -> Result<Vec<String>, ZellijError> {
+            self.0.list_tab_names()
+        }
+        fn create_tab(&self, name: &str, cwd: &str) -> Result<(), ZellijError> {
+            self.0.create_tab(name, cwd)
+        }
+        fn send_text(&self, tab: &str, text: &str) -> Result<(), ZellijError> {
+            if text.starts_with("bash ") {
+                Err(ZellijError::CommandFailed(
+                    "command submission rejected".into(),
+                ))
+            } else {
+                self.0.send_text(tab, text)
+            }
+        }
+        fn read_screen(&self, tab: &str) -> Result<String, ZellijError> {
+            self.0.read_screen(tab)
+        }
+        fn focus_tab(&self, tab: &str) -> Result<(), ZellijError> {
+            self.0.focus_tab(tab)
+        }
+        fn close_tab(&self, tab: &str) -> Result<(), ZellijError> {
+            self.0.close_tab(tab)
+        }
+    }
+
+    #[test]
+    fn test_zellij_launch_closes_tab_when_command_submission_fails() {
+        let temp = TempDir::new().unwrap();
+        let config = make_test_config(&temp);
+        let boundary: Arc<dyn ZellijClient> =
+            Arc::new(RejectCommandClient(MockZellijClient::new()));
+        let error = launch_in_zellij_with_options(
+            &config,
+            &boundary,
+            &make_test_ticket("test-project"),
+            &project_path(&config),
+            PROMPT,
+            &LaunchOptions::default(),
+            &make_test_operator_env(),
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Failed to start LLM agent in zellij tab"));
+        assert!(error.to_string().contains("command submission rejected"));
+        assert!(boundary.list_tab_names().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_zellij_relaunch_resumes_only_when_previous_prompt_exists() {
+        for prompt_exists in [true, false] {
+            let temp = TempDir::new().unwrap();
+            let config = make_test_config(&temp);
+            let resume_id = Uuid::new_v4().to_string();
+            let prompts = config.tickets_path().join("operator/prompts");
+            if prompt_exists {
+                std::fs::write(prompts.join(format!("{resume_id}.txt")), "Previous prompt")
+                    .unwrap();
+            }
+            let boundary: Arc<dyn ZellijClient> = Arc::new(MockZellijClient::new());
+            let options = RelaunchOptions {
+                launch_options: LaunchOptions::default(),
+                resume_session_id: Some(resume_id.clone()),
+                retry_reason: None,
+            };
+            let result = launch_in_zellij_with_relaunch_options(
+                &config,
+                &boundary,
+                &make_test_ticket("test-project"),
+                &project_path(&config),
+                PROMPT,
+                &options,
+                &make_test_operator_env(),
+            )
+            .unwrap();
+            assert_eq!(result.session_uuid == resume_id, prompt_exists);
+            Uuid::parse_str(&result.session_uuid).unwrap();
+            let script =
+                std::fs::read_to_string(command_file(&config, &result.session_uuid)).unwrap();
+            assert_eq!(script.contains("--resume"), prompt_exists);
+            if prompt_exists {
+                assert!(script.contains(&format!("--resume {resume_id}")));
+            }
+            let prompt_path = prompts.join(format!("{}.txt", result.session_uuid));
+            assert!(script.contains(prompt_path.to_str().unwrap()));
+            assert_eq!(
+                std::fs::read_to_string(prompt_path).unwrap(),
+                if prompt_exists {
+                    "Previous prompt"
+                } else {
+                    PROMPT
+                }
+            );
+        }
+    }
+}

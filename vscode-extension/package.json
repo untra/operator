@@ -111,7 +111,10 @@
         },
         "operator.connectionMode": {
           "type": "string",
-          "enum": ["local", "remote"],
+          "enum": [
+            "local",
+            "remote"
+          ],
           "default": "local",
           "description": "local uses Operator on this machine. remote uses the saved operator.apiUrl and does not download or start a binary."
         },

@@ -14,10 +14,15 @@ pub enum AuditAction {
     AccessKeyCreated,
     AccessKeyRevoked,
     AdminCreated,
+    OidcConnectionCreated,
+    OidcConnectionDisabled,
+    UserPermissionsChanged,
+    OidcLogin,
+    AccessKeyRotated,
 }
 impl AuditAction {
     #[cfg(test)]
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 17] = [
         Self::Bootstrap,
         Self::Login,
         Self::Logout,
@@ -30,6 +35,11 @@ impl AuditAction {
         Self::AccessKeyCreated,
         Self::AccessKeyRevoked,
         Self::AdminCreated,
+        Self::OidcConnectionCreated,
+        Self::OidcConnectionDisabled,
+        Self::UserPermissionsChanged,
+        Self::OidcLogin,
+        Self::AccessKeyRotated,
     ];
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -45,6 +55,11 @@ impl AuditAction {
             Self::AccessKeyCreated => "access key created",
             Self::AccessKeyRevoked => "access key revoked",
             Self::AdminCreated => "admin created",
+            Self::OidcConnectionCreated => "oidc connection created",
+            Self::OidcConnectionDisabled => "oidc connection disabled",
+            Self::UserPermissionsChanged => "user permissions changed",
+            Self::OidcLogin => "oidc login",
+            Self::AccessKeyRotated => "access key rotated",
         }
     }
     pub const fn event(self) -> EventName {
@@ -61,6 +76,11 @@ impl AuditAction {
             Self::AccessKeyCreated => EventName::OperatorAuthAccessKeyCreated,
             Self::AccessKeyRevoked => EventName::OperatorAuthAccessKeyRevoked,
             Self::AdminCreated => EventName::OperatorAuthAdminCreated,
+            Self::OidcConnectionCreated => EventName::OperatorAuthOidcConnectionCreated,
+            Self::OidcConnectionDisabled => EventName::OperatorAuthOidcConnectionDisabled,
+            Self::UserPermissionsChanged => EventName::OperatorAuthUserPermissionsChanged,
+            Self::OidcLogin => EventName::OperatorAuthOidcLogin,
+            Self::AccessKeyRotated => EventName::OperatorAuthAccessKeyRotated,
         }
     }
 }

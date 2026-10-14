@@ -274,7 +274,12 @@ mod tests {
                 "access key exchange",
                 "access key created",
                 "access key revoked",
-                "admin created"
+                "admin created",
+                "oidc connection created",
+                "oidc connection disabled",
+                "user permissions changed",
+                "oidc login",
+                "access key rotated"
             ]
         );
         for action in AuditAction::ALL {

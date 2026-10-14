@@ -4,8 +4,9 @@
 //! `OTEL_EXPORTER_OTLP_ENDPOINT=<operator>/otlp`. It answers 404 while
 //! telemetry is disabled in the live configuration.
 
+use crate::rest::state::RequestState as State;
 use axum::body::Body;
-use axum::extract::{Path, State};
+use axum::extract::Path;
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -114,9 +115,40 @@ pub async fn get_session(
     let hub = state
         .telemetry()?
         .ok_or_else(|| ApiError::NotFound(DISABLED.to_string()))?;
-    hub.session_window(&session_id).map(Json).ok_or_else(|| {
-        ApiError::NotFound(format!("no telemetry retained for session {session_id}"))
-    })
+    let mut window = hub
+        .session_window(&session_id)
+        .ok_or_else(|| ApiError::NotFound("No telemetry retained for this session".into()))?;
+    if state.project_filter().is_some() {
+        let queue = state
+            .queue()
+            .map_err(|_| ApiError::InternalError("Ticket storage unavailable".into()))?;
+        let tickets = [
+            queue.list_queue(),
+            queue.list_in_progress(),
+            queue.list_completed(),
+        ]
+        .into_iter()
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map_err(|_| ApiError::InternalError("Ticket storage unavailable".into()))?
+        .into_iter()
+        .flatten()
+        .map(|ticket| ticket.id)
+        .collect::<std::collections::HashSet<_>>();
+        window.records.retain(|record| {
+            record
+                .attributes
+                .get(operator_telemetry::attr::OPERATOR_TICKET_ID)
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|ticket| tickets.contains(ticket))
+        });
+        if window.records.is_empty() {
+            return Err(ApiError::NotFound(
+                "No telemetry retained for this session".into(),
+            ));
+        }
+        window.evicted_records = 0;
+    }
+    Ok(Json(window))
 }
 
 #[tracing::instrument(name = "operator.otlp.ingest", skip_all, fields(otel.kind = "server"))]

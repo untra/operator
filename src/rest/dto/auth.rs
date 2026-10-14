@@ -249,6 +249,8 @@ pub enum PrincipalKind {
     Session,
     /// A bearer access token from the device flow or a key exchange.
     AccessToken,
+    /// A bearer token derived from a user-owned API key.
+    ApiKey,
     /// The automatically issued loopback credential for a local process.
     LocalProcess,
     /// A single-purpose agent step-completion callback token.

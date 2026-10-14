@@ -1,231 +1,262 @@
 import { useEffect, useRef, useState } from "react";
-import type { Scope } from "@operator/bindings/Scope";
+import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
+import type { UserKey } from "@operator/bindings/UserKey";
+import { PermissionSelector } from "@operator/webcomponents";
+import { useHost } from "../host";
 import { useApiMutation, useApiQuery } from "../api";
 import {
   accessKeysQuery,
   createAccessKeyMutation,
   revokeAccessKeyMutation,
+  identityCapabilitiesQuery,
 } from "../api/definitions";
 import styles from "../routes/SecurityPage.module.css";
 
-const ALL_SCOPES: Scope[] = ["read", "write", "execute", "admin"];
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 const DEFAULT_EXPIRY_DAYS = 90;
-const DEFAULT_SCOPES: Scope[] = ["read"];
 
-interface AccessKeysPanelProps {
-  defaultScopes?: Scope[];
+export function AccessKeysPanel() {
+  const host = useHost();
+  return <ProfileKeys key={`${host.baseUrl()}:${host.profileId ?? "default"}`} />;
 }
 
-function formatDate(iso: string | null | undefined): string {
-  return iso ? new Date(iso).toLocaleString() : "-";
-}
-
-export function AccessKeysPanel({ defaultScopes = DEFAULT_SCOPES }: AccessKeysPanelProps) {
-  const keys = useApiQuery(accessKeysQuery());
+function ProfileKeys() {
+  const host = useHost();
+  const capabilities = useApiQuery(identityCapabilitiesQuery());
+  const [grants, setGrants] = useState<PermissionGrant | null>(null);
+  const [name, setName] = useState("");
+  const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
+  const [offset, setOffset] = useState(0);
+  const [secret, setSecret] = useState<string | null>(null);
   const createKey = useApiMutation(createAccessKeyMutation);
   const revokeKey = useApiMutation(revokeAccessKeyMutation);
-  const [keyName, setKeyName] = useState("");
-  const [keyScopes, setKeyScopes] = useState<Scope[]>(defaultScopes);
-  const [keyDays, setKeyDays] = useState(DEFAULT_EXPIRY_DAYS);
-  const [keyPage, setKeyPage] = useState(0);
-  const [copyError, setCopyError] = useState<string | null>(null);
-  const keyRows = keys.data?.keys ?? [];
-  const visibleKeys = keyRows.slice(keyPage * PAGE_SIZE, (keyPage + 1) * PAGE_SIZE);
-  const resetKey = createKey.reset;
-  const mounted = useRef(false);
+  const busy = createKey.isPending || revokeKey.isPending;
+  const [error, setError] = useState<string | null>(null);
+  const generation = useRef(0);
+  const available = capabilities.data;
+  const keyQuery = useApiQuery(accessKeysQuery(offset), { enabled: available?.oidc_user ?? false });
+  const keys = keyQuery.data?.keys ?? [];
+  const selected =
+    grants ??
+    (available
+      ? { ...available.grants, capabilities: [], projects: [], instance_wide: false }
+      : null);
+
   useEffect(() => {
-    mounted.current = true;
+    generation.current += 1;
     return () => {
-      mounted.current = false;
-      resetKey();
+      generation.current += 1;
     };
-  }, [resetKey]);
+  }, []);
 
-  function onCreateKey(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    createKey.mutate(
-      { name: keyName, scopes: keyScopes, expires_in_days: BigInt(keyDays) },
-      {
-        onSuccess: () => {
-          if (!mounted.current) {
-            resetKey();
-          } else {
-            setKeyPage(0);
-          }
-        },
-        onError: () => {
-          if (!mounted.current) {
-            resetKey();
-          }
-        },
-      },
-    );
-  }
-
-  function onRevokeKey(id: string) {
-    revokeKey.mutate({ id });
-  }
-
-  function toggleScope(scope: Scope) {
-    setKeyScopes((current) =>
-      current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope],
-    );
-  }
-
-  async function copySecret(secret: string) {
-    try {
-      await navigator.clipboard.writeText(secret);
-      setCopyError(null);
-    } catch {
-      setCopyError("Clipboard unavailable. Select and copy the secret above.");
+  function issue(key?: UserKey) {
+    if (!selected || busy) {
+      return;
     }
+    const current = generation.current;
+    setError(null);
+    setSecret(null);
+    createKey.mutate({
+      request: { name: key?.name ?? name, expires_in_days: days, grants: key?.grants ?? selected },
+      id: key?.id,
+      onIssued: (value) => {
+        if (generation.current === current) {
+          setSecret(value);
+        }
+      },
+    });
+  }
+
+  function revoke(id: string) {
+    revokeKey.mutate({ id });
   }
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.sectionTitle}>Service access keys</h2>
-      {(keys.error ?? createKey.error ?? revokeKey.error) && (
-        <p role="alert" className={styles.error}>
-          {(keys.error ?? createKey.error ?? revokeKey.error)?.message}
+      <h2>Operator API keys</h2>
+      <p>
+        Keys act on your behalf in this profile. Revocation and permission reductions apply on the
+        next authorization check.
+      </p>
+      {(error ??
+        capabilities.error?.message ??
+        keyQuery.error?.message ??
+        createKey.error?.message ??
+        revokeKey.error?.message) && (
+        <p role="alert">
+          {error ??
+            capabilities.error?.message ??
+            keyQuery.error?.message ??
+            createKey.error?.message ??
+            revokeKey.error?.message}
         </p>
       )}
-      {copyError && <p role="alert">{copyError}</p>}
-      <button
-        type="button"
-        onClick={() => {
-          void keys.refetch().catch(() => undefined);
-        }}
-      >
-        Refresh keys
-      </button>
-      <p className={styles.sectionHint}>
-        To rotate a key, create a replacement, update the client, then revoke the old key. Existing
-        bearer tokens remain valid until they expire.
-      </p>
-      <p className={styles.sectionHint}>
-        For integrations. Grant only the scopes the integration needs; every key expires.
-      </p>
-
-      {createKey.data?.secret && (
+      {!available && <p>Loading permissions...</p>}
+      {available && !available.oidc_user && (
+        <p>Sign in with an approved OIDC account to create and manage your API keys.</p>
+      )}
+      {available?.oidc_user && !available.can_issue && (
+        <p>
+          Issuing or rotating keys requires Premium and an OIDC sign-in within the last five
+          minutes.
+        </p>
+      )}
+      {available?.connection_id && (
+        <a
+          href={`${host.baseUrl()}/api/v1/auth/oidc/login/${encodeURIComponent(available.connection_id)}`}
+        >
+          Sign in again
+        </a>
+      )}
+      {secret && (
         <div className={styles.secretBox}>
-          <strong>Copy this now - it is shown once and cannot be retrieved.</strong>
-          <code className={styles.secret}>{createKey.data.secret}</code>
+          <strong>Copy this secret now. It cannot be retrieved later.</strong>
+          <code className={styles.secret}>{secret}</code>
           <button
             type="button"
             onClick={() => {
-              if (createKey.data) {
-                void copySecret(createKey.data.secret);
-              }
+              void navigator.clipboard
+                .writeText(secret)
+                .catch(() => setError("Clipboard unavailable. Select and copy the secret."));
             }}
           >
             Copy secret
           </button>
-          <button type="button" onClick={createKey.reset}>
+          <button type="button" onClick={() => setSecret(null)}>
             Dismiss secret
           </button>
         </div>
       )}
-
-      <form className={styles.form} onSubmit={onCreateKey}>
-        <label>
-          Name
-          <input
-            value={keyName}
-            onChange={(e) => setKeyName(e.target.value)}
-            placeholder="ci-pipeline"
-            required
-          />
-        </label>
-        <label>
-          Expires in (days)
-          <input
-            type="number"
-            min={1}
-            max={365}
-            value={keyDays}
-            onChange={(e) => setKeyDays(Number(e.target.value))}
-            required
-          />
-        </label>
-        <div className={styles.scopes}>
-          {ALL_SCOPES.map((scope) => (
-            <label key={scope}>
-              <input
-                type="checkbox"
-                checked={keyScopes.includes(scope)}
-                onChange={() => toggleScope(scope)}
-              />
-              {scope}
-            </label>
-          ))}
-        </div>
-        <button
-          className={styles.primary}
-          type="submit"
-          disabled={createKey.isPending || !keyName || keyScopes.length === 0}
+      {available?.oidc_user && selected && (
+        <form
+          className={styles.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            issue();
+          }}
         >
-          Create key
-        </button>
-      </form>
-
-      {keys.isLoading && <p className={styles.sectionHint}>Loading access keys…</p>}
-      {!keys.isLoading && !keys.error && keyRows.length === 0 && (
-        <p className={styles.sectionHint}>No service access keys have been created.</p>
+          <label>
+            Name
+            <input
+              required
+              maxLength={128}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <label>
+            Expires in days
+            <input
+              required
+              type="number"
+              min={1}
+              max={365}
+              value={days}
+              onChange={(event) => setDays(Number(event.target.value))}
+            />
+          </label>
+          <PermissionSelector
+            available={available.grants}
+            value={selected}
+            onChange={setGrants}
+            disabled={busy || !available.can_issue}
+          />
+          <button
+            type="submit"
+            disabled={busy || !available.can_issue || selected.capabilities.length === 0}
+          >
+            Create key
+          </button>
+        </form>
       )}
-      {!keys.isLoading && keyRows.length > 0 && (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Scopes</th>
-              <th>Expires</th>
-              <th>Last used</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {visibleKeys.map((k) => (
-              <tr key={k.id} className={k.revoked_at ? styles.revoked : undefined}>
-                <td>
-                  {k.name}
-                  {k.revoked_at ? " (revoked)" : ""}
-                </td>
-                <td>{k.scopes.join(", ")}</td>
-                <td>{formatDate(k.expires_at)}</td>
-                <td>{formatDate(k.last_used_at)}</td>
-                <td>
-                  <button
-                    className={styles.danger}
-                    onClick={() => onRevokeKey(k.id)}
-                    disabled={!!k.revoked_at}
-                  >
-                    Revoke
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {keyRows.length > PAGE_SIZE && (
-        <div className={styles.pagination}>
+      {available?.oidc_user && (
+        <>
           <button
             type="button"
-            disabled={keyPage === 0}
-            onClick={() => setKeyPage((page) => Math.max(0, page - 1))}
+            onClick={() => {
+              void keyQuery.refetch().catch(() => undefined);
+            }}
+          >
+            Refresh keys
+          </button>
+          <p>
+            Last used is approximate and normally updates within one minute. Rotation immediately
+            revokes the old key. For an overlap, create a replacement and revoke the old key after
+            switching clients.
+          </p>
+          {keyQuery.isLoading && <p>Loading keys...</p>}
+          {!keyQuery.isLoading && !keyQuery.error && keys.length === 0 && (
+            <p>No keys on this page.</p>
+          )}
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Name and prefix</th>
+                <th>Permissions</th>
+                <th>Expires</th>
+                <th>Last used</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {keys.map((key) => (
+                <tr key={key.id}>
+                  <td>
+                    {key.name}
+                    <br />
+                    <code>{key.display_prefix}</code>
+                    {key.revoked_at ? " (revoked)" : ""}
+                  </td>
+                  <td>
+                    {key.grants.capabilities.join(", ")}
+                    <br />
+                    {key.grants.projects.join(", ") || "No projects"}
+                  </td>
+                  <td>{new Date(key.expires_at).toLocaleString()}</td>
+                  <td>
+                    {key.last_used_at
+                      ? new Date(key.last_used_at).toLocaleString()
+                      : "Never observed"}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      disabled={busy || !!key.revoked_at || !available.can_issue}
+                      onClick={() => {
+                        issue(key);
+                      }}
+                    >
+                      Rotate
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !!key.revoked_at}
+                      onClick={() => {
+                        revoke(key.id);
+                      }}
+                    >
+                      Revoke
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button
+            type="button"
+            disabled={offset === 0}
+            onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}
           >
             Previous
           </button>
-          <span>Page {keyPage + 1}</span>
           <button
             type="button"
-            disabled={(keyPage + 1) * PAGE_SIZE >= keyRows.length}
-            onClick={() => setKeyPage((page) => page + 1)}
+            disabled={keys.length < PAGE_SIZE}
+            onClick={() => setOffset((value) => value + PAGE_SIZE)}
           >
             Next
           </button>
-        </div>
+        </>
       )}
     </section>
   );

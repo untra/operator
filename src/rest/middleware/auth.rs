@@ -91,17 +91,48 @@ fn bearer_token(headers: &HeaderMap) -> Option<String> {
 /// Order matters only in that a bearer token is checked before a cookie: an
 /// explicit `Authorization` header is a deliberate act, while a cookie is sent
 /// ambiently by the browser.
-pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<Principal> {
+pub async fn resolve_principal(
+    state: &ApiState,
+    headers: &HeaderMap,
+) -> Result<Option<Principal>, ApiError> {
     if let Some(token) = bearer_token(headers) {
         // The local-unlock token is a plain opaque string, not a JWT.
         if let Some(local) = state.auth.local_token.as_deref() {
             if crate::auth::local::matches(local, &token) {
-                return Some(Principal::local(crate::auth::store::ADMIN_SUBJECT));
+                return Ok(Some(Principal::local(crate::auth::store::ADMIN_SUBJECT)));
             }
         }
 
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_API) {
-            return Some(Principal {
+            if claims.credential_version != 1 {
+                return Ok(None);
+            }
+            if let Some(id) = claims.key_id.clone() {
+                let store = state.auth.store.clone();
+                let Some((authority, expiry)) =
+                    tokio::task::spawn_blocking(move || store.key_authority(&id))
+                        .await
+                        .map_err(|_| {
+                            ApiError::Unavailable("Credential validation unavailable".into())
+                        })?
+                        .map_err(|_| {
+                            ApiError::Unavailable("Credential storage unavailable".into())
+                        })?
+                else {
+                    return Ok(None);
+                };
+                if authority.user.id != claims.sub
+                    || claims.profile_id != Some(authority.grants.profile_id)
+                    || authority.grants.profile_id != state.config().profile.id
+                {
+                    return Ok(None);
+                }
+                let Some(jwt_expiry) = chrono::DateTime::from_timestamp(claims.exp, 0) else {
+                    return Ok(None);
+                };
+                return Ok(Some(authority.principal(expiry.min(jwt_expiry), None)));
+            }
+            return Ok(Some(Principal {
                 subject: claims.sub.clone(),
                 scopes: claims.scopes(),
                 kind: PrincipalKind::AccessToken,
@@ -110,33 +141,44 @@ pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<
                 ticket_id: None,
                 step: None,
                 agent_session_id: None,
-            });
+                authority: None,
+            }));
         }
 
         // An agent step-completion token. It verifies under a different
         // audience, so it can never satisfy an ordinary API route; the handler
         // additionally matches its ticket/step claims against the request path.
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_CALLBACK) {
-            return agent_principal(state, claims, PrincipalKind::AgentCallback);
+            return Ok(agent_principal(state, claims, PrincipalKind::AgentCallback));
         }
 
         // An agent session's OTLP ingest token. It carries no scopes, so it
         // fails every scoped route and is accepted only by `/otlp/v1/*`.
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_TELEMETRY) {
-            return agent_principal(state, claims, PrincipalKind::TelemetryIngest);
+            return Ok(agent_principal(
+                state,
+                claims,
+                PrincipalKind::TelemetryIngest,
+            ));
         }
-        return None;
+        return Ok(None);
     }
 
     if let Some(cookie) = cookie_value(headers, SESSION_COOKIE) {
         let store = state.auth.store.clone();
-        return tokio::task::spawn_blocking(move || store.authenticate_session(&cookie))
-            .await
-            .ok()?
-            .ok()?;
+        let profile = state.config().profile.id;
+        return tokio::task::spawn_blocking(move || {
+            let Some(principal) = store.authenticate_session(&cookie)? else {
+                return Ok(None);
+            };
+            store.resolve_user_session(principal, profile)
+        })
+        .await
+        .map_err(|_| ApiError::Unavailable("Session validation unavailable".into()))?
+        .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()));
     }
 
-    None
+    Ok(None)
 }
 
 /// A principal for a pinned agent token, rejected when minted for another profile.
@@ -154,6 +196,7 @@ fn agent_principal(state: &ApiState, claims: Claims, kind: PrincipalKind) -> Opt
         ticket_id: claims.ticket_id,
         step: claims.step,
         agent_session_id: claims.session_id,
+        authority: None,
     })
 }
 
@@ -239,15 +282,51 @@ pub async fn authorize(
         );
     };
 
+    if path == "/api/v1/auth/token" {
+        let peer = request
+            .extensions()
+            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+            .map_or_else(|| "unknown".to_string(), |peer| peer.ip().to_string());
+        if let Err(retry) = state.auth.store.limits.check(&[(
+            format!("exchange:{peer}"),
+            crate::auth::limits::EXCHANGES_PER_MINUTE,
+        )]) {
+            return Err(rate_limited(retry).into());
+        }
+    }
+
     let required = match access {
-        Access::Public => return Ok(next.run(request).await),
+        Access::Public => {
+            let mut response = next.run(request).await;
+            if path.starts_with("/api/v1/auth/") {
+                response.headers_mut().insert(
+                    header::CACHE_CONTROL,
+                    axum::http::HeaderValue::from_static("no-store"),
+                );
+            }
+            return Ok(response);
+        }
         Access::Scoped(scope) => Some(scope),
         Access::TelemetryIngest => None,
     };
 
-    let Some(principal) = resolve_principal(&state, &headers).await else {
+    let Some(principal) = resolve_principal(&state, &headers).await? else {
         return Err(ApiError::Unauthorized("no valid credential was presented".to_string()).into());
     };
+
+    if let Some(authority) = principal.authority.as_ref() {
+        if let Some(id) = authority.key_id.as_ref() {
+            if let Err(retry) = state.auth.store.limits.check(&[
+                (format!("key:{id}"), crate::auth::limits::REQUESTS_PER_KEY),
+                (
+                    format!("owner:{}", authority.user.id),
+                    crate::auth::limits::REQUESTS_PER_OWNER,
+                ),
+            ]) {
+                return Err(rate_limited(retry).into());
+            }
+        }
+    }
 
     let Some(required) = required else {
         if !principal.may_ingest_telemetry() {
@@ -262,7 +341,13 @@ pub async fn authorize(
         return Ok(next.run(request).await);
     };
 
-    if !principal.has_scope(required) {
+    if let Some(authority) = principal.authority.as_ref() {
+        crate::auth::policy::authorize(
+            authority,
+            method.as_str(),
+            matched.as_deref().unwrap_or(&path),
+        )?;
+    } else if !principal.has_scope(required) {
         return Err(
             ApiError::Forbidden(format!("this endpoint requires the `{required}` scope")).into(),
         );
@@ -303,7 +388,14 @@ pub async fn authorize(
 
     let mut request = request;
     request.extensions_mut().insert(principal);
-    Ok(next.run(request).await)
+    let mut response = next.run(request).await;
+    if path.starts_with("/api/v1/auth/") {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("no-store"),
+        );
+    }
+    Ok(response)
 }
 
 /// Apply persisted backoff to a credential-issuing endpoint.
@@ -364,6 +456,7 @@ where
                     ticket_id: None,
                     step: None,
                     agent_session_id: None,
+                    authority: None,
                 }),
         )))
     }
@@ -549,4 +642,13 @@ mod tests {
         // authority and must not match anything.
         assert_eq!(origin_authority("null"), None);
     }
+}
+
+fn rate_limited(seconds: u64) -> Response {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(header::RETRY_AFTER, seconds.to_string())],
+        axum::Json(serde_json::json!({"error": "rate_limited"})),
+    )
+        .into_response()
 }

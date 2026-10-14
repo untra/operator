@@ -1,3 +1,12 @@
+import type { CreateOidcConnection } from "@operator/bindings/CreateOidcConnection";
+import type { OidcConnection } from "@operator/bindings/OidcConnection";
+import type { OperatorUser } from "@operator/bindings/OperatorUser";
+import type { UpdateOperatorUser } from "@operator/bindings/UpdateOperatorUser";
+import type { CreateUserKey } from "@operator/bindings/CreateUserKey";
+import type { IssuedUserKey } from "@operator/bindings/IssuedUserKey";
+import type { UserKeyList } from "@operator/bindings/UserKeyList";
+import type { CapabilityResponse } from "@operator/bindings/CapabilityResponse";
+import type { OidcLoginProvider } from "@operator/bindings/OidcLoginProvider";
 import type { ConnectionsResponse } from "@operator/bindings/ConnectionsResponse";
 import type { McpClientStatus } from "@operator/bindings/McpClientStatus";
 import type { TokenResponse } from "@operator/bindings/TokenResponse";
@@ -84,7 +93,6 @@ import type { AccessKeyListResponse } from "@operator/bindings/AccessKeyListResp
 import type { BootstrapStatusResponse } from "@operator/bindings/BootstrapStatusResponse";
 import type { BootstrapSubmitRequest } from "@operator/bindings/BootstrapSubmitRequest";
 import type { BootstrapSubmitResponse } from "@operator/bindings/BootstrapSubmitResponse";
-import type { CreateAccessKeyRequest } from "@operator/bindings/CreateAccessKeyRequest";
 import type { CreateAccessKeyResponse } from "@operator/bindings/CreateAccessKeyResponse";
 import type { CsrfTokenResponse } from "@operator/bindings/CsrfTokenResponse";
 import type { CurrentSessionResponse } from "@operator/bindings/CurrentSessionResponse";
@@ -97,7 +105,6 @@ import type { ForgotPasswordRequest } from "@operator/bindings/ForgotPasswordReq
 import type { ForgotPasswordResponse } from "@operator/bindings/ForgotPasswordResponse";
 import type { ResetPasswordRequest } from "@operator/bindings/ResetPasswordRequest";
 import type { ResetPasswordResponse } from "@operator/bindings/ResetPasswordResponse";
-import type { RevokeAccessKeyResponse } from "@operator/bindings/RevokeAccessKeyResponse";
 import type { SessionListResponse } from "@operator/bindings/SessionListResponse";
 
 export type { ProfileSummary, LicenseResponse, TargetResponse, TargetsResponse };
@@ -639,11 +646,52 @@ export class OperatorApi {
     });
   }
 
-  listAccessKeys(): Promise<AccessKeyListResponse> {
-    return request(this.base, "/api/v1/auth/keys");
+  oidcConnections(): Promise<OidcConnection[]> {
+    return request(this.base, "/api/v1/auth/oidc/connections");
+  }
+  createOidcConnection(body: CreateOidcConnection): Promise<string> {
+    return request(this.base, "/api/v1/auth/oidc/connections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(body),
+    });
+  }
+  disableOidcConnection(id: string): Promise<null> {
+    return request(this.base, `/api/v1/auth/oidc/connections/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  }
+  operatorUsers(): Promise<OperatorUser[]> {
+    return request(this.base, "/api/v1/auth/users");
+  }
+  updateOperatorUser(id: string, body: UpdateOperatorUser): Promise<null> {
+    return request(this.base, `/api/v1/auth/users/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(body),
+    });
   }
 
-  createAccessKey(body: CreateAccessKeyRequest): Promise<CreateAccessKeyResponse> {
+  identityCapabilities(): Promise<CapabilityResponse> {
+    const query = this.base.profileId
+      ? `?profile_id=${encodeURIComponent(this.base.profileId)}`
+      : "";
+    return request(this.base, `/api/v1/auth/capabilities${query}`);
+  }
+
+  oidcProviders(): Promise<OidcLoginProvider[]> {
+    return request(this.base, "/api/v1/auth/oidc/providers");
+  }
+
+  listAccessKeys(offset = 0): Promise<UserKeyList> {
+    const query = new URLSearchParams({ offset: String(offset) });
+    if (this.base.profileId) {
+      query.set("profile_id", this.base.profileId);
+    }
+    return request(this.base, `/api/v1/auth/keys?${query}`);
+  }
+
+  createAccessKey(body: CreateUserKey): Promise<IssuedUserKey> {
     return request(this.base, "/api/v1/auth/keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -651,10 +699,16 @@ export class OperatorApi {
     });
   }
 
-  revokeAccessKey(id: string): Promise<RevokeAccessKeyResponse> {
-    return request(this.base, `/api/v1/auth/keys/${encodeURIComponent(id)}`, {
-      method: "DELETE",
+  rotateAccessKey(id: string, body: CreateUserKey): Promise<IssuedUserKey> {
+    return request(this.base, `/api/v1/auth/keys/${encodeURIComponent(id)}/rotate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(body),
     });
+  }
+
+  revokeAccessKey(id: string): Promise<null> {
+    return request(this.base, `/api/v1/auth/keys/${encodeURIComponent(id)}`, { method: "DELETE" });
   }
 
   approveDevice(userCode: string): Promise<DeviceApprovalResponse> {

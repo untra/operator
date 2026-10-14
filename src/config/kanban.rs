@@ -441,10 +441,12 @@ impl ProjectSyncConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct GiteaProjectsConfig {
+    /// Whether this instance is synced (default: false).
     #[serde(default)]
     pub enabled: bool,
     /// Instance base URL, including any deployment path prefix.
     pub base_url: String,
+    /// Environment variable containing the API token (default: `OPERATOR_GITEA_TOKEN`).
     #[serde(default = "default_gitea_projects_token_env")]
     pub api_key_env: String,
     /// Repositories to discover, in owner/name form.
@@ -463,10 +465,12 @@ fn default_gitea_projects_token_env() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct ForgejoProjectsConfig {
+    /// Whether this instance is synced (default: false).
     #[serde(default)]
     pub enabled: bool,
     /// Instance base URL, including any deployment path prefix.
     pub base_url: String,
+    /// Environment variable containing the API token (default: `OPERATOR_FORGEJO_TOKEN`).
     #[serde(default = "default_forgejo_projects_token_env")]
     pub api_key_env: String,
     /// Repositories to discover, in owner/name form.

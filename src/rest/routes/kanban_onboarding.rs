@@ -4,7 +4,7 @@
 //! deserializes its DTO, delegates to the service, and serializes the
 //! response. Business logic lives in the service module.
 
-use axum::extract::State;
+use crate::rest::state::RequestState as State;
 use axum::Json;
 
 use crate::rest::dto::{

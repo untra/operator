@@ -4,11 +4,19 @@ import type { ProjectSyncConfig } from "./ProjectSyncConfig";
 /**
  * Repository project board configuration; credentials are environment variable names.
  */
-export type GiteaProjectsConfig = { enabled: boolean, 
+export type GiteaProjectsConfig = { 
+/**
+ * Whether this instance is synced (default: false).
+ */
+enabled: boolean, 
 /**
  * Instance base URL, including any deployment path prefix.
  */
-base_url: string, api_key_env: string, 
+base_url: string, 
+/**
+ * Environment variable containing the API token (default: `OPERATOR_GITEA_TOKEN`).
+ */
+api_key_env: string, 
 /**
  * Repositories to discover, in owner/name form.
  */

@@ -1366,6 +1366,14 @@ wip_prefix: string, };
 
 export type KanbanConfig = { 
 /**
+ * Gitea repository project boards, keyed by instance name. Import-only.
+ */
+gitea: { [key in string]: GiteaProjectsConfig }, 
+/**
+ * Reserved Forgejo project boards; enabling requires an upstream board API.
+ */
+forgejo: { [key in string]: ForgejoProjectsConfig }, 
+/**
  * Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net")
  */
 jira: { [key in string]: JiraConfig }, 
@@ -1907,7 +1915,11 @@ collection?: string, };
 
 export type UpdateIssueTypeRequest = { name: string | null, description: string | null, mode: string | null, glyph: string | null, color: string | null, project_required: boolean | null, fields: Array<CreateFieldRequest> | null, steps: Array<CreateStepRequest> | null, };
 
-export type FieldResponse = { name: string, description: string, field_type: string, required: boolean, default: string | null, options: Array<string>, placeholder: string | null, max_length: number | null, user_editable: boolean, };
+export type FieldResponse = { name: string, description: string, field_type: FieldType, required: boolean, default: string | null, options: Array<string>, placeholder: string | null, max_length: number | null, 
+/**
+ * Form position (lower first); unordered fields sort last.
+ */
+display_order: number | null, user_editable: boolean, };
 
 export type CreateFieldRequest = { name: string, description: string, field_type: string, required: boolean, default: string | null, options: Array<string>, placeholder: string | null, max_length: number | null, user_editable: boolean, };
 
@@ -2203,22 +2215,29 @@ docs_url: string | null, };
 
 export type CreateTicketRequest = { 
 /**
- * Template type key (feature, fix, spike, investigation, task).
+ * Issue type key from the registry (e.g. `FEAT`, `FIX`, or a custom
+ * collection type). `template` is accepted as a legacy alias.
  */
-template: string, 
+issue_type: string, 
 /**
- * Project the ticket targets (filled into the template's `project` value).
+ * Project the ticket targets. Required when the issue type sets
+ * `project_required`.
  */
 project: string | null, 
 /**
- * One-line summary (filled into the template's `summary` value).
+ * One-line summary.
  */
 summary: string | null, 
 /**
- * Additional Handlebars values for the template. Explicit `project`/
- * `summary` fields take precedence over the same keys here.
+ * Values for the issue type's user-editable fields, keyed by field name.
+ * Explicit `project`/`summary` take precedence over the same keys here.
  */
-values: { [key in string]: string }, };
+values: { [key in string]: string }, 
+/**
+ * Push the new ticket to the mapped kanban board. `None` pushes whenever
+ * the project maps to a bidirectional kanban project.
+ */
+sync_to_kanban: boolean | null, };
 
 export type GovernancePolicy = { 
 /**
@@ -2450,7 +2469,12 @@ filename: string,
 /**
  * The absolute path the ticket was written to.
  */
-path: string, };
+path: string, 
+/**
+ * What happened when mirroring the ticket to its kanban board. A failed
+ * push never fails the create: the ticket exists locally regardless.
+ */
+kanban: KanbanPushOutcome, };
 
 export type CreateAlertRequest = { 
 /**

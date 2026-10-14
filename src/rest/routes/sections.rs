@@ -1,7 +1,8 @@
 //! Status sections endpoint - the canonical section tree shared with the TUI
 //! and VS Code extension, rendered for the web UI's Status page.
 
-use axum::{extract::State, Json};
+use crate::rest::state::RequestState as State;
+use axum::Json;
 
 use crate::rest::dto::{section_provider, LiveConnectionStatus, SectionDto};
 use crate::rest::state::ApiState;

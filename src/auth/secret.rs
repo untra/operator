@@ -50,6 +50,7 @@ pub fn random_bytes<const N: usize>() -> anyhow::Result<[u8; N]> {
 
 /// Generate a prefixed secret, e.g. `opk_<random>` for an access key. The
 /// prefix makes a leaked credential recognizable in logs and secret scanners.
+#[cfg(test)]
 pub fn generate_prefixed_secret(prefix: &str) -> anyhow::Result<String> {
     Ok(format!("{prefix}_{}", generate_secret()?))
 }

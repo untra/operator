@@ -121,6 +121,24 @@ async fn request(
     Ok(output.body(body)?)
 }
 
+struct OidcHttp(Url);
+
+impl<'c> openidconnect::AsyncHttpClient<'c> for OidcHttp {
+    type Error = std::io::Error;
+    type Future = std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = std::result::Result<openidconnect::HttpResponse, Self::Error>,
+                > + Send
+                + 'c,
+        >,
+    >;
+    fn call(&'c self, req: openidconnect::HttpRequest) -> Self::Future {
+        let issuer = self.0.clone();
+        Box::pin(async move { request(&issuer, req).await.map_err(std::io::Error::other) })
+    }
+}
+
 fn secret(store: &AuthStore, id: &str) -> Result<Option<ClientSecret>> {
     store
         .oidc_secret_file(id)?
@@ -134,7 +152,7 @@ fn secret(store: &AuthStore, id: &str) -> Result<Option<ClientSecret>> {
 
 pub async fn start(store: &AuthStore, connection: OidcConnection, cookie: &str) -> Result<String> {
     let issuer = validate_url(&connection.issuer)?;
-    let http = |req| request(&issuer, req);
+    let http = OidcHttp(issuer);
     let metadata =
         CoreProviderMetadata::discover_async(IssuerUrl::new(connection.issuer.clone())?, &http)
             .await?;
@@ -176,7 +194,7 @@ pub async fn complete(
 ) -> Result<(String, String, chrono::DateTime<chrono::Utc>)> {
     let login = store.logins.take(&hash_secret(state), cookie)?;
     let issuer = validate_url(&login.connection.issuer)?;
-    let http = |req| request(&issuer, req);
+    let http = OidcHttp(issuer);
     let client = CoreClient::from_provider_metadata(
         login.metadata,
         ClientId::new(login.connection.client_id.clone()),

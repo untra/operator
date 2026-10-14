@@ -1,6 +1,7 @@
 use crate::rest::dto::connections::{ConnectionsResponse, McpClientStatus};
 use crate::rest::state::ApiState;
-use axum::{extract::State, Json};
+use crate::rest::state::RequestState as State;
+use axum::Json;
 
 #[utoipa::path(get, path = "/api/v1/connections", tag = "Connections", operation_id = "connections_get", responses((status = 200, body = ConnectionsResponse)))]
 pub async fn get(State(state): State<ApiState>) -> Json<ConnectionsResponse> {

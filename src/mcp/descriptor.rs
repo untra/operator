@@ -6,7 +6,7 @@
 //! clients can spawn `operator mcp` as a subprocess instead.
 
 use super::Host;
-use axum::extract::State;
+use crate::rest::state::RequestState as State;
 use axum::Json;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

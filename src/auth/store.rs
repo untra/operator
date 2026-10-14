@@ -16,13 +16,14 @@ use uuid::Uuid;
 use crate::auth::password::{hash_password, validate_password, verify_password};
 use crate::auth::schema;
 use crate::auth::scope::Principal;
-use crate::auth::secret::{
-    generate_prefixed_secret, generate_secret, generate_user_code, hash_secret,
-};
+#[cfg(test)]
+use crate::auth::secret::generate_prefixed_secret;
+use crate::auth::secret::{generate_secret, generate_user_code, hash_secret};
 use crate::auth::tokens::SigningKey;
+#[cfg(test)]
+use crate::rest::dto::auth::{MAX_ACCESS_KEY_EXPIRY_DAYS, MAX_IDENTIFIER_LENGTH};
 use crate::rest::dto::auth::{
     AccessKeySummary, BootstrapState, DeviceSummary, PrincipalKind, Scope, SessionSummary,
-    MAX_ACCESS_KEY_EXPIRY_DAYS, MAX_IDENTIFIER_LENGTH,
 };
 
 /// Filename of the auth database inside the state directory.
@@ -44,6 +45,7 @@ pub const DEVICE_POLL_INTERVAL_SECS: u64 = 5;
 
 /// Prefix marking a service access key, so a leaked one is recognizable to a
 /// secret scanner and in logs.
+#[cfg(test)]
 const ACCESS_KEY_PREFIX: &str = "opk";
 
 /// Outcome of redeeming a refresh token.
@@ -107,6 +109,9 @@ pub enum RateLimitDecision {
 pub struct AuthStore {
     conn: Arc<Mutex<Connection>>,
     path: PathBuf,
+    pub limits: Arc<super::limits::Limits>,
+    pub(super) usage: Arc<super::usage::Usage>,
+    pub(super) logins: Arc<super::oidc::LoginAttempts>,
 }
 
 impl std::fmt::Debug for AuthStore {
@@ -142,6 +147,14 @@ pub fn restrict_to_owner(_path: &Path) -> Result<()> {
 }
 
 impl AuthStore {
+    pub fn start_usage_tracking(&self) {
+        super::usage::Usage::start(&self.usage, &self.conn);
+    }
+
+    pub fn flush_usage(&self) -> Result<()> {
+        self.usage.flush(&self.conn)
+    }
+
     /// Open (creating if needed) the auth database at `state_path`.
     pub fn open(state_path: &Path) -> Result<Self> {
         std::fs::create_dir_all(state_path)
@@ -157,6 +170,9 @@ impl AuthStore {
 
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
+            usage: Arc::default(),
+            limits: Arc::default(),
+            logins: Arc::default(),
             path,
         })
     }
@@ -169,11 +185,14 @@ impl AuthStore {
         schema::migrate(&mut conn)?;
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
+            usage: Arc::default(),
+            limits: Arc::default(),
+            logins: Arc::default(),
             path: PathBuf::from(":memory:"),
         })
     }
 
-    fn with_conn<T>(&self, f: impl FnOnce(&mut Connection) -> Result<T>) -> Result<T> {
+    pub(super) fn with_conn<T>(&self, f: impl FnOnce(&mut Connection) -> Result<T>) -> Result<T> {
         let mut guard = self
             .conn
             .lock()
@@ -457,7 +476,7 @@ impl AuthStore {
         let hash = hash_secret(token);
         let now = Utc::now();
 
-        self.with_conn(|conn| {
+        let principal = self.with_conn(|conn| {
             let row: Option<(String, String)> = conn
                 .query_row(
                     "SELECT id, expires_at FROM session \
@@ -475,11 +494,6 @@ impl AuthStore {
                 return Ok(None);
             }
 
-            conn.execute(
-                "UPDATE session SET last_used_at = ?1 WHERE id = ?2",
-                rusqlite::params![now.to_rfc3339(), id],
-            )?;
-
             Ok(Some(Principal {
                 subject: ADMIN_SUBJECT.to_string(),
                 scopes: Scope::ALL.to_vec(),
@@ -489,8 +503,14 @@ impl AuthStore {
                 ticket_id: None,
                 step: None,
                 agent_session_id: None,
+                authority: None,
             }))
-        })
+        })?;
+        if let Some(id) = principal.as_ref().and_then(|p| p.session_id.as_deref()) {
+            self.usage
+                .record(super::usage::CredentialTable::Session, id, now);
+        }
+        Ok(principal)
     }
 
     /// Whether `csrf` matches the session's current or immediately previous
@@ -913,6 +933,7 @@ impl AuthStore {
 
     /// Create an access key, returning `(summary, secret)`. The secret is
     /// returned once and is unrecoverable afterward.
+    #[cfg(test)]
     pub fn create_access_key(
         &self,
         name: &str,
@@ -972,6 +993,7 @@ impl AuthStore {
     }
 
     /// Exchange an access key for its scopes, recording the use.
+    #[cfg(test)]
     pub fn redeem_access_key(&self, secret: &str) -> Result<Option<Vec<Scope>>> {
         let hash = hash_secret(secret);
         let now = Utc::now();
@@ -1002,6 +1024,7 @@ impl AuthStore {
     }
 
     /// Revoke an access key.
+    #[cfg(test)]
     pub fn revoke_access_key(&self, id: &str) -> Result<Option<DateTime<Utc>>> {
         let now = Utc::now();
         self.with_conn(|conn| {
@@ -1880,5 +1903,15 @@ mod tests {
         assert_eq!(recent.len(), 2);
         assert!(recent[0].3, "newest record should be the successful login");
         assert_eq!(recent[1].2.as_deref(), Some("failure"));
+    }
+}
+
+impl Drop for AuthStore {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.logins) == 1 {
+            if self.flush_usage().is_err() {
+                tracing::warn!("final credential usage flush failed");
+            }
+        }
     }
 }

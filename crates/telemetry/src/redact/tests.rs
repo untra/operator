@@ -58,6 +58,8 @@ fn test_secret_patterns_drop_whole_attributes_and_scrub_bodies() {
     let redactor = Redactor::new(&KEY).unwrap();
     let allowed = policy(false);
     for secret in [
+        "opk_v1_01234567-89ab-cdef-0123-456789abcdef_randomSecret123",
+        "opk_legacySecret123",
         "sk-ant-test123",
         "ghp_test123",
         "gho_test123",

@@ -28,7 +28,8 @@ export function TicketCreatePanel({ onCreated }: { onCreated: () => void }) {
   const onSubmit = useCallback(() => {
     create.mutate(
       {
-        template: value.issueType,
+        issue_type: value.issueType,
+        sync_to_kanban: null,
         project: value.project,
         summary: value.summary,
         values: {},

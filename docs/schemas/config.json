@@ -188,6 +188,8 @@
       "description": "Kanban provider configuration for syncing issues from Jira, Linear, etc.",
       "$ref": "#/$defs/KanbanConfig",
       "default": {
+        "gitea": {},
+        "forgejo": {},
         "jira": {},
         "linear": {},
         "github": {},
@@ -1662,11 +1664,11 @@
       "type": "object",
       "properties": {
         "name": {
-          "description": "Git author name applied to delegated commits.",
+          "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
           "type": "string"
         },
         "email": {
-          "description": "Git author email applied to delegated commits.",
+          "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
           "type": "string"
         }
       },
@@ -1809,9 +1811,25 @@
       }
     },
     "KanbanConfig": {
-      "description": "Kanban provider configuration for syncing issues from external systems\n\nProviders are keyed by domain/workspace:\n- Jira: keyed by domain (e.g., \"foobar.atlassian.net\")\n- Linear: keyed by workspace slug (e.g., \"myworkspace\")\n- GitHub Projects: keyed by owner login (e.g., \"my-org\")",
+      "description": "Kanban provider configuration for syncing issues from external systems\nProviders are keyed by domain/workspace:",
       "type": "object",
       "properties": {
+        "gitea": {
+          "description": "Gitea repository project boards, keyed by instance name. Import-only.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/GiteaProjectsConfig"
+          },
+          "default": {}
+        },
+        "forgejo": {
+          "description": "Reserved Forgejo project boards; enabling requires an upstream board API.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ForgejoProjectsConfig"
+          },
+          "default": {}
+        },
         "jira": {
           "description": "Jira Cloud instances keyed by domain (e.g., \"foobar.atlassian.net\")",
           "type": "object",
@@ -1846,34 +1864,44 @@
         }
       }
     },
-    "JiraConfig": {
-      "description": "Jira Cloud provider configuration\n\nThe domain is specified as the `HashMap` key in KanbanConfig.jira",
+    "GiteaProjectsConfig": {
+      "description": "Repository project board configuration; credentials are environment variable names.",
       "type": "object",
       "properties": {
         "enabled": {
-          "description": "Whether this provider is enabled",
+          "description": "Whether this instance is synced (default: false).",
           "type": "boolean",
           "default": false
         },
-        "api_key_env": {
-          "description": "Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`)",
-          "type": "string",
-          "default": "OPERATOR_JIRA_API_KEY"
+        "base_url": {
+          "description": "Instance base URL, including any deployment path prefix.",
+          "type": "string"
         },
-        "email": {
-          "description": "Atlassian account email for authentication",
+        "api_key_env": {
+          "description": "Environment variable containing the API token (default: `OPERATOR_GITEA_TOKEN`).",
           "type": "string",
-          "default": ""
+          "default": "OPERATOR_GITEA_TOKEN"
+        },
+        "repositories": {
+          "description": "Repositories to discover, in owner/name form.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
         "projects": {
-          "description": "Per-project sync configuration",
+          "description": "Keys are absolute project URLs returned by discovery.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/ProjectSyncConfig"
           },
           "default": {}
         }
-      }
+      },
+      "required": [
+        "base_url"
+      ]
     },
     "ProjectSyncConfig": {
       "description": "Per-project/team sync configuration for a kanban provider",
@@ -2011,6 +2039,74 @@
           "additionalProperties": false
         }
       ]
+    },
+    "ForgejoProjectsConfig": {
+      "description": "Repository project board configuration; credentials are environment variable names.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether this instance is synced (default: false).",
+          "type": "boolean",
+          "default": false
+        },
+        "base_url": {
+          "description": "Instance base URL, including any deployment path prefix.",
+          "type": "string"
+        },
+        "api_key_env": {
+          "description": "Environment variable containing the API token (default: `OPERATOR_FORGEJO_TOKEN`).",
+          "type": "string",
+          "default": "OPERATOR_FORGEJO_TOKEN"
+        },
+        "repositories": {
+          "description": "Repositories to discover, in owner/name form.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "projects": {
+          "description": "Keys are absolute project URLs returned by discovery.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ProjectSyncConfig"
+          },
+          "default": {}
+        }
+      },
+      "required": [
+        "base_url"
+      ]
+    },
+    "JiraConfig": {
+      "description": "Jira Cloud provider configuration\n\nThe domain is specified as the `HashMap` key in KanbanConfig.jira",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether this provider is enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "api_key_env": {
+          "description": "Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`)",
+          "type": "string",
+          "default": "OPERATOR_JIRA_API_KEY"
+        },
+        "email": {
+          "description": "Atlassian account email for authentication",
+          "type": "string",
+          "default": ""
+        },
+        "projects": {
+          "description": "Per-project sync configuration",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ProjectSyncConfig"
+          },
+          "default": {}
+        }
+      }
     },
     "LinearConfig": {
       "description": "Linear provider configuration\n\nThe workspace slug is specified as the `HashMap` key in KanbanConfig.linear",
@@ -2211,7 +2307,7 @@
       "type": "object",
       "properties": {
         "identity": {
-          "description": "Commit identity override for this delegator.",
+          "description": "Commit identity; falls back to the global `git.identity`",
           "anyOf": [
             {
               "$ref": "#/$defs/GitIdentityConfig"
@@ -2223,7 +2319,7 @@
           "default": null
         },
         "credentials": {
-          "description": "HTTPS credential bound to one repository.",
+          "description": "HTTPS credential for the ticket's repository",
           "anyOf": [
             {
               "$ref": "#/$defs/GitCredentialConfig"
@@ -2235,7 +2331,7 @@
           "default": null
         },
         "settings": {
-          "description": "Extra `git config` entries applied for this delegator.",
+          "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected",
           "type": "array",
           "items": {
             "$ref": "#/$defs/GitConfigEntry"
@@ -2249,15 +2345,15 @@
       "type": "object",
       "properties": {
         "repository_url": {
-          "description": "HTTPS repository URL this credential is bound to.",
+          "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment",
           "type": "string"
         },
         "username": {
-          "description": "HTTPS username. The token is read from `token_env`.",
+          "description": "HTTPS username sent with the token",
           "type": "string"
         },
         "token_env": {
-          "description": "Environment variable holding the HTTPS token. The secret is not stored here.",
+          "description": "Environment variable holding the token, read at launch",
           "type": "string"
         }
       },
@@ -2268,15 +2364,15 @@
       ]
     },
     "GitConfigEntry": {
-      "description": "One `git config` key and value.",
+      "description": "One `git config` entry applied to delegated work.",
       "type": "object",
       "properties": {
         "key": {
-          "description": "`git config` key (for example `user.name`).",
+          "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected",
           "type": "string"
         },
         "value": {
-          "description": "`git config` value.",
+          "description": "Config value",
           "type": "string"
         }
       },

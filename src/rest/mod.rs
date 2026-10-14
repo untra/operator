@@ -22,6 +22,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod directory;
 pub mod dto;
 pub mod error;
+pub mod local_client;
 pub mod middleware;
 pub mod openapi;
 mod profile_router;
@@ -202,6 +203,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // Ticket endpoints
         .routes(routes!(routes::tickets::get_one))
         .routes(routes!(routes::tickets::create))
+        .routes(routes!(routes::tickets::preview))
         .routes(routes!(routes::campaigns::batch_preview))
         .routes(routes!(routes::campaigns::batch_create))
         .routes(routes!(routes::tickets::update_status))
@@ -275,6 +277,8 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // MCP descriptor - always mounted so non-HTTP MCP clients can still
         // discover the stdio entrypoint.
         .routes(routes!(crate::mcp::descriptor::descriptor))
+        .routes(routes!(routes::connections::get))
+        .routes(routes!(routes::connections::clients))
 }
 
 /// The canonical OpenAPI spec for the documented API surface.
@@ -346,7 +350,7 @@ pub(crate) fn build_profile_router(state: ApiState) -> Router {
     let config = state.config();
     let cors = cors_layer(&config);
 
-    let mcp_enabled = config.mcp.http_enabled;
+    let mcp_enabled = state.mcp_http_mounted;
 
     let (mut router, _api) = documented_router().split_for_parts();
 

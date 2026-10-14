@@ -12,17 +12,15 @@ use axum::{
 
 use crate::agents::tmux::OPERATOR_SOCKET;
 use crate::config::Config;
-use crate::queue::creator::TicketCreator;
 use crate::queue::{deps, Queue, Ticket, TicketColumn, TicketStatus};
 use crate::rest::dto::{
     CreateAlertRequest, CreateAlertResponse, CreateTicketRequest, CreateTicketResponse,
-    TicketAgent, TicketDependency, TicketDetailResponse, UpdateTicketStatusRequest,
-    UpdateTicketStatusResponse,
+    TicketAgent, TicketDependency, TicketDetailResponse, TicketPreviewResponse,
+    UpdateTicketStatusRequest, UpdateTicketStatusResponse,
 };
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
-use crate::services::ticket_transitions;
-use crate::templates::TemplateType;
+use crate::services::{ticket_creation, ticket_transitions};
 
 /// Find a ticket across all directories (queue, in-progress, completed)
 pub(crate) fn find_ticket_anywhere(queue: &Queue, ticket_id: &str) -> Result<Ticket, ApiError> {
@@ -246,12 +244,12 @@ pub async fn update_status(
     }))
 }
 
-/// Create a new ticket from a template and write it to the queue.
+/// Create a new ticket and write it to the queue.
 ///
-/// Reuses the same [`TicketCreator`] the CLI (`operator create`) and MCP
-/// (`operator_create_ticket`) use, so a ticket created over HTTP is identical to
-/// one created on any other surface. Powers the AGNT `operator-create-ticket`
-/// node.
+/// Validates against the issue type's field schema, numbers and renders the
+/// ticket through [`ticket_creation`] - the same path MCP and the CLI use - and
+/// pushes it to the project's bidirectional kanban board unless
+/// `sync_to_kanban` is `false`.
 #[utoipa::path(
     operation_id = "tickets_create",
     post,
@@ -260,75 +258,45 @@ pub async fn update_status(
     request_body = CreateTicketRequest,
     responses(
         (status = 200, description = "Ticket created", body = CreateTicketResponse),
-        (status = 400, description = "Unknown template type", body = crate::rest::error::ErrorResponse)
+        (status = 400, description = "Unknown issue type or invalid field values", body = crate::rest::error::ErrorResponse)
     )
 )]
 pub async fn create(
     State(state): State<ApiState>,
     Json(request): Json<CreateTicketRequest>,
 ) -> Result<Json<CreateTicketResponse>, ApiError> {
-    let CreateTicketRequest {
-        template,
-        project,
-        summary,
-        mut values,
-    } = request;
-
-    let template_type = TemplateType::from_key(&template)
-        .ok_or_else(|| ApiError::BadRequest(format!("Unknown template type: {template}")))?;
-
-    // Explicit fields take precedence over the same keys in `values`.
-    if let Some(p) = project {
-        values.insert("project".to_string(), p);
-    }
-    if let Some(s) = summary {
-        values.insert("summary".to_string(), s);
-    }
-
-    let (ticket, path) = create_ticket_from_values(&state, template_type, values).await?;
-
-    Ok(Json(CreateTicketResponse {
-        id: ticket.id,
-        filename: ticket.filename,
-        path: path.to_string_lossy().into_owned(),
-    }))
+    ticket_creation::create(&state, request).await.map(Json)
 }
 
-/// Shared ticket-creation core for the REST surface: overlays caller `values`
-/// on top of the template's generated defaults (so the ticket gets a real id,
-/// branch, etc.), writes it to the queue via the embedded-template
-/// [`TicketCreator`], and reloads it. Used by both `create` and `create_alert`.
-pub(crate) async fn create_ticket_from_values(
-    state: &ApiState,
-    template_type: TemplateType,
-    values: HashMap<String, String>,
-) -> Result<(Ticket, std::path::PathBuf), ApiError> {
-    let config = (*state.config()).clone();
-    let path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
-        let _guard = TicketCreator::creation_lock();
-        let creator = TicketCreator::new(&config);
-        let project = values.get("project").cloned().unwrap_or_default();
-        // Start from generated defaults (id, created, branch, step, status),
-        // then overlay the caller's values so explicit fields win.
-        let mut merged = creator.generate_default_values(template_type, &project);
-        merged.extend(values);
-        creator
-            .create_ticket_headless(template_type, &merged)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| ApiError::InternalError(e.to_string()))?
-    .map_err(ApiError::InternalError)?;
-
-    let ticket = Ticket::from_file(&path).map_err(|e| ApiError::InternalError(e.to_string()))?;
-    Ok((ticket, path))
+/// Dry-run a create: field errors, rendered markdown and kanban target.
+#[utoipa::path(
+    operation_id = "tickets_preview",
+    post,
+    path = "/api/v1/tickets/preview",
+    tag = "Tickets",
+    request_body = CreateTicketRequest,
+    responses(
+        (status = 200, description = "Preview of the ticket that would be created", body = TicketPreviewResponse),
+        (status = 400, description = "Unknown issue type", body = crate::rest::error::ErrorResponse)
+    )
+)]
+pub async fn preview(
+    State(state): State<ApiState>,
+    Json(request): Json<CreateTicketRequest>,
+) -> Result<Json<TicketPreviewResponse>, ApiError> {
+    ticket_creation::preview(&state, request).await.map(Json)
 }
+
+/// Issue type alerts become.
+const ALERT_ISSUE_TYPE: &str = "INV";
+/// `source` option for tickets raised by an external alert.
+const ALERT_SOURCE: &str = "alert";
 
 /// Raise an external alert as an investigation (INV) ticket.
 ///
-/// Creates an investigation through the same embedded-template path as
-/// [`create`], folding the alert's `source`/`severity` into the ticket values.
-/// Powers the AGNT `operator-alert` node.
+/// The alert's free-form `source`/`severity` are recorded in the body; the
+/// frontmatter gets the schema's `alert` source and the severity option whose
+/// `S0`/`S1`/`S2` prefix matches, if any.
 #[utoipa::path(
     operation_id = "alerts_create",
     post,
@@ -344,43 +312,69 @@ pub async fn create_alert(
     State(state): State<ApiState>,
     Json(request): Json<CreateAlertRequest>,
 ) -> Result<Json<CreateAlertResponse>, ApiError> {
+    let severity_options = {
+        let registry = state.registry.read().await;
+        registry
+            .get(ALERT_ISSUE_TYPE)
+            .and_then(|t| t.fields.iter().find(|f| f.name == "severity"))
+            .map(|f| f.options.clone())
+            .unwrap_or_default()
+    };
+    let created = ticket_creation::create(&state, alert_request(request, &severity_options)).await?;
+    Ok(Json(CreateAlertResponse {
+        id: created.id,
+        filename: created.filename,
+    }))
+}
+
+fn alert_request(alert: CreateAlertRequest, severity_options: &[String]) -> CreateTicketRequest {
     let CreateAlertRequest {
         source,
         message,
         severity,
         project,
-    } = request;
-
-    let mut values = HashMap::new();
-    values.insert("summary".to_string(), message);
-    values.insert("source".to_string(), source);
-    values.insert("severity".to_string(), severity);
-    if let Some(p) = project {
-        values.insert("project".to_string(), p);
+    } = alert;
+    let mut values = HashMap::from([
+        ("source".to_string(), ALERT_SOURCE.to_string()),
+        (
+            "observed_behavior".to_string(),
+            format!("Raised by {source} (severity {severity}): {message}"),
+        ),
+    ]);
+    let wanted = severity.to_ascii_uppercase();
+    if let Some(option) = severity_options.iter().find(|option| {
+        option
+            .split('-')
+            .next()
+            .is_some_and(|prefix| wanted.starts_with(prefix))
+    }) {
+        values.insert("severity".to_string(), option.clone());
     }
-
-    let (ticket, _path) =
-        create_ticket_from_values(&state, TemplateType::Investigation, values).await?;
-
-    Ok(Json(CreateAlertResponse {
-        id: ticket.id,
-        filename: ticket.filename,
-    }))
+    CreateTicketRequest {
+        issue_type: ALERT_ISSUE_TYPE.to_string(),
+        project,
+        summary: Some(message),
+        values,
+        sync_to_kanban: None,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     fn make_state() -> ApiState {
-        let config = Config::default();
-        ApiState::new(config, PathBuf::from("/tmp/test-tickets"))
+        make_state_in(&tempfile::TempDir::new().unwrap().keep())
     }
 
     fn make_state_in(dir: &std::path::Path) -> ApiState {
+        let projects = dir.join("projects");
+        std::fs::create_dir_all(projects.join("gamesvc")).unwrap();
         let mut config = Config::default();
         config.paths.tickets = dir.to_string_lossy().into_owned();
+        config.paths.state = dir.join("state").to_string_lossy().into_owned();
+        config.paths.projects = projects.to_string_lossy().into_owned();
+        config.projects = vec!["gamesvc".to_string()];
         ApiState::new(config, dir.to_path_buf())
     }
 
@@ -401,10 +395,11 @@ mod tests {
         let created = create(
             State(state.clone()),
             Json(CreateTicketRequest {
-                template: "feat".to_string(),
+                issue_type: "feat".to_string(),
                 project: Some("gamesvc".to_string()),
                 summary: Some("Ship it".to_string()),
                 values: std::collections::HashMap::new(),
+                sync_to_kanban: None,
             }),
         )
         .await
@@ -470,10 +465,11 @@ mod tests {
         let created = create(
             State(state.clone()),
             Json(CreateTicketRequest {
-                template: "feat".to_string(),
+                issue_type: "feat".to_string(),
                 project: Some("gamesvc".to_string()),
                 summary: Some("Add pagination".to_string()),
                 values: std::collections::HashMap::new(),
+                sync_to_kanban: None,
             }),
         )
         .await
@@ -516,10 +512,11 @@ mod tests {
         let created = create(
             State(state.clone()),
             Json(CreateTicketRequest {
-                template: "feat".to_string(),
+                issue_type: "feat".to_string(),
                 project: Some("gamesvc".to_string()),
                 summary: Some("Stay put".to_string()),
                 values: std::collections::HashMap::new(),
+                sync_to_kanban: None,
             }),
         )
         .await
@@ -544,10 +541,11 @@ mod tests {
     async fn test_create_unknown_template_is_bad_request() {
         let state = make_state();
         let request = CreateTicketRequest {
-            template: "not-a-template".to_string(),
+            issue_type: "not-a-template".to_string(),
             project: None,
             summary: None,
             values: std::collections::HashMap::new(),
+            sync_to_kanban: None,
         };
         let result = create(State(state), Json(request)).await;
         assert!(matches!(result, Err(ApiError::BadRequest(_))));
@@ -558,10 +556,11 @@ mod tests {
         let temp = tempfile::TempDir::new().unwrap();
         let state = make_state_in(temp.path());
         let request = CreateTicketRequest {
-            template: "feat".to_string(),
+            issue_type: "feat".to_string(),
             project: Some("gamesvc".to_string()),
             summary: Some("Add pagination".to_string()),
             values: std::collections::HashMap::new(),
+            sync_to_kanban: None,
         };
         let resp = create(State(state), Json(request))
             .await
@@ -592,6 +591,40 @@ mod tests {
             .0;
         assert!(!resp.id.is_empty(), "investigation has an id");
         assert!(resp.filename.contains(".md"), "filename: {}", resp.filename);
+        let written =
+            std::fs::read_to_string(temp.path().join("queue").join(&resp.filename)).unwrap();
+        assert!(written.contains("severity: S1-major"), "{written}");
+        assert!(written.contains("source: alert"), "{written}");
+        assert!(written.contains("Raised by pagerduty"), "{written}");
+    }
+
+    #[tokio::test]
+    async fn test_create_reports_no_kanban_when_unconfigured() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = make_state_in(temp.path());
+        let request = CreateTicketRequest {
+            issue_type: "FEAT".to_string(),
+            project: Some("gamesvc".to_string()),
+            summary: Some("Add pagination".to_string()),
+            ..Default::default()
+        };
+        let resp = create(State(state), Json(request)).await.unwrap().0;
+        assert_eq!(resp.kanban, crate::rest::dto::KanbanPushOutcome::NotConfigured);
+    }
+
+    #[tokio::test]
+    async fn test_preview_returns_field_errors_instead_of_failing() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let state = make_state_in(temp.path());
+        let request = CreateTicketRequest {
+            issue_type: "FEAT".to_string(),
+            project: Some("gamesvc".to_string()),
+            ..Default::default()
+        };
+        let resp = preview(State(state), Json(request)).await.unwrap().0;
+        assert_eq!(resp.errors.len(), 1);
+        assert_eq!(resp.errors[0].field, "summary");
+        assert!(resp.markdown.is_empty());
     }
 
     fn write_ticket(root: &std::path::Path, column: &str, name: &str, frontmatter: &str) -> Ticket {

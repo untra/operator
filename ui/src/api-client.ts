@@ -1,3 +1,8 @@
+import type { ConnectionsResponse } from "@operator/bindings/ConnectionsResponse";
+import type { McpClientStatus } from "@operator/bindings/McpClientStatus";
+import type { TokenResponse } from "@operator/bindings/TokenResponse";
+import { connectionUrl, MCP_CHECK_TIMEOUT_MS } from "./connections";
+import { testMcpConnection } from "./mcp-check";
 import type { Host } from "./host";
 import type { TargetDef } from "@operator/bindings/TargetDef";
 import type { ProfileSummary } from "@operator/bindings/ProfileSummary";
@@ -339,7 +344,16 @@ async function send(
     signal?.throwIfAborted();
     const res = await fetch(
       `${base}${scopedPath}`,
-      authInit({ ...init, signal: signal ?? init?.signal }, csrf),
+      authInit(
+        {
+          ...init,
+          signal:
+            signal && init?.signal
+              ? AbortSignal.any([signal, init.signal])
+              : (signal ?? init?.signal),
+        },
+        csrf,
+      ),
     );
     signal?.throwIfAborted();
     return { res, csrf };
@@ -387,6 +401,115 @@ export class OperatorApi {
 
   constructor(host: Host) {
     this.base = { origin: host.baseUrl(), profileId: host.profileId, signal: host.signal };
+  }
+
+  connections(): Promise<ConnectionsResponse> {
+    return request(this.base, "/api/v1/connections");
+  }
+
+  mcpClients(): Promise<McpClientStatus[]> {
+    return request(this.base, "/api/v1/connections/mcp/clients");
+  }
+
+  async checkConnection(
+    cancellation: AbortSignal,
+  ): Promise<{ checkedAt: string; latencyMs: number }> {
+    const start = performance.now();
+    const signal = AbortSignal.any([
+      cancellation,
+      AbortSignal.timeout(MCP_CHECK_TIMEOUT_MS),
+      ...(this.base.signal ? [this.base.signal] : []),
+    ]);
+    signal.throwIfAborted();
+    await request(this.base, "/api/v1/health", { signal });
+    return {
+      checkedAt: new Date().toISOString(),
+      latencyMs: Math.round(performance.now() - start),
+    };
+  }
+
+  async checkMcp(
+    accessKey: string,
+    cancellation: AbortSignal,
+  ): Promise<{ checkedAt: string; latencyMs: number; authentication: string }> {
+    const signal = AbortSignal.any([
+      cancellation,
+      AbortSignal.timeout(MCP_CHECK_TIMEOUT_MS),
+      ...(this.base.signal ? [this.base.signal] : []),
+    ]);
+    signal.throwIfAborted();
+    const start = performance.now();
+    const endpoint = connectionUrl(
+      this.base.origin,
+      profileApiPath("/api/v1/mcp/sse", this.base.profileId),
+    );
+    let bearer: string | undefined;
+    if (accessKey) {
+      const res = await fetch(connectionUrl(this.base.origin, "/api/v1/auth/token"), {
+        method: "POST",
+        signal,
+        credentials: "omit",
+        redirect: "error",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grant_type: "operator:access-key", access_key: accessKey }),
+      });
+      if (!res.ok) {
+        throw new Error("Access-key exchange failed. Check the key and its expiry.");
+      }
+      const token: TokenResponse = await res.json();
+      if (
+        typeof token.access_token !== "string" ||
+        !token.access_token ||
+        token.token_type !== "Bearer"
+      ) {
+        throw new Error("Token exchange did not return a bearer token.");
+      }
+      bearer = token.access_token;
+    }
+    const csrf = bearer
+      ? null
+      : await request<CsrfTokenResponse>(this.base.origin, CSRF_PATH, { signal }).then(
+          (result) => result.csrf_token,
+        );
+    signal.throwIfAborted();
+    await testMcpConnection(
+      endpoint,
+      async (url, init) => {
+        const headers = new Headers(init?.headers);
+        if (bearer) {
+          headers.set("Authorization", `Bearer ${bearer}`);
+        } else if (csrf && isMutation(init?.method)) {
+          headers.set(CSRF_HEADER, csrf);
+        }
+        const res = await fetch(url, {
+          ...init,
+          headers,
+          signal,
+          credentials: bearer ? "omit" : "same-origin",
+          redirect: "error",
+        });
+        if (res.status === HTTP_UNAUTHORIZED) {
+          throw new Error("Authentication failed. Sign in again or exchange a valid access key.");
+        }
+        if (res.status === HTTP_FORBIDDEN) {
+          throw new Error(
+            "Permission denied. MCP requires execute scope and a valid browser CSRF token.",
+          );
+        }
+        if (!res.ok) {
+          throw new Error(
+            `MCP endpoint returned HTTP ${res.status}. Check the transport and ingress route.`,
+          );
+        }
+        return res;
+      },
+      signal,
+    );
+    return {
+      checkedAt: new Date().toISOString(),
+      latencyMs: Math.round(performance.now() - start),
+      authentication: accessKey ? "Access key" : "Browser session",
+    };
   }
 
   profiles(): Promise<ProfileSummary[]> {

@@ -134,6 +134,6 @@ pub async fn set_session_env(
     State(_state): State<ApiState>,
     Json(req): Json<SetKanbanSessionEnvRequest>,
 ) -> Result<Json<SetKanbanSessionEnvResponse>, ApiError> {
-    let resp = kanban_onboarding::set_session_env(req);
+    let resp = kanban_onboarding::set_session_env(req)?;
     Ok(Json(resp))
 }

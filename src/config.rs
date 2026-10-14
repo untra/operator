@@ -830,6 +830,7 @@ impl Config {
             cfg.config_file = Some(std::fs::canonicalize(path)?);
         }
         validate_targets(&cfg)?;
+        cfg.kanban.validate_forge_projects()?;
         crate::git::identity::validate_config(&cfg)?;
 
         Ok(cfg)
@@ -838,6 +839,7 @@ impl Config {
     /// Save config to `paths.state`/config.toml.
     pub fn save(&self) -> Result<()> {
         validate_targets(self)?;
+        self.kanban.validate_forge_projects()?;
         crate::git::identity::validate_config(self)?;
         let config_path = self.operator_config_path_for();
 

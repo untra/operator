@@ -202,7 +202,7 @@ poll_interval_ms = 1000
 tickets = ".tickets"
 projects = "."
 state = ".tickets/operator"
-worktrees = "/Users/untra/.operator/worktrees"
+worktrees = "/Users/samuelvolin/.operator/worktrees"
 
 [ui]
 refresh_rate_ms = 250
@@ -306,6 +306,10 @@ token_env = ""
 [git.gitlab]
 enabled = false
 token_env = ""
+
+[kanban.gitea]
+
+[kanban.forgejo]
 
 [kanban.jira]
 

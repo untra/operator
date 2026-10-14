@@ -5,13 +5,25 @@ use chrono::Utc;
 use handlebars::Handlebars;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::ids;
 use crate::config::Config;
 use crate::templates::schema::TemplateSchema;
 use crate::templates::TemplateType;
+
+/// Lock file guarding id allocation in the tickets directory.
+const CREATION_LOCK_FILENAME: &str = ".create.lock";
+
+/// Filename project segment for tickets that target no project.
+const DEFAULT_PROJECT: &str = "global";
+
+/// Held while allocating an id and writing a ticket. Released on drop.
+pub struct CreationLock {
+    _process: std::sync::MutexGuard<'static, ()>,
+    _file: fs::File,
+}
 
 /// Creates new tickets from templates
 pub struct TicketCreator {
@@ -34,11 +46,27 @@ impl TicketCreator {
         self.tickets_root.join("queue")
     }
 
-    /// Serializes id allocation and writes across single and batch creation.
-    pub fn creation_lock() -> std::sync::MutexGuard<'static, ()> {
+    /// Serializes id allocation and writes across single and batch creation,
+    /// both within this process and against any other operator process
+    /// (embedded TUI server, standalone `operator api`, CLI) sharing the
+    /// tickets directory.
+    pub fn creation_lock(tickets_root: &Path) -> Result<CreationLock> {
         static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        LOCK.lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        let process = LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        fs::create_dir_all(tickets_root).context("Failed to create tickets directory")?;
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(tickets_root.join(CREATION_LOCK_FILENAME))
+            .context("Failed to open ticket creation lock")?;
+        file.lock().context("Failed to acquire ticket creation lock")?;
+        Ok(CreationLock {
+            _process: process,
+            _file: file,
+        })
     }
 
     /// Ids of every ticket in queue, in-progress and completed.
@@ -61,15 +89,51 @@ impl TicketCreator {
         template_type: TemplateType,
         values: &HashMap<String, String>,
     ) -> Result<PathBuf> {
-        let now = Utc::now();
-        let timestamp = now.format("%Y%m%d-%H%M").to_string();
-        let type_str = template_type.as_str();
+        self.create_from_template(
+            template_type.as_str(),
+            template_type.template_content(),
+            values,
+        )
+    }
 
+    /// Render `template` with `values` and write it to the queue as a ticket
+    /// of issue type `type_key`.
+    pub fn create_from_template(
+        &self,
+        type_key: &str,
+        template: &str,
+        values: &HashMap<String, String>,
+    ) -> Result<PathBuf> {
+        let content = render_template(template, values)?;
+        let content = stamp_collection(&content, self.collection.as_deref());
+        let content = match values.get("project").filter(|p| !p.is_empty()) {
+            Some(project) => stamp_frontmatter_field(&content, "project", project),
+            None => content,
+        };
+        self.write_rendered(type_key, values, &content)
+    }
+
+    /// Write already-rendered ticket markdown to a fresh queue filename.
+    pub fn write_rendered(
+        &self,
+        type_key: &str,
+        values: &HashMap<String, String>,
+        content: &str,
+    ) -> Result<PathBuf> {
+        let filepath = self.next_queue_path(type_key, values);
+        fs::create_dir_all(self.queue_path()).context("Failed to create queue directory")?;
+        fs::write(&filepath, content).context("Failed to write ticket file")?;
+        Ok(filepath)
+    }
+
+    /// The filename a ticket with `values` would be written to right now.
+    pub fn next_queue_path(&self, type_key: &str, values: &HashMap<String, String>) -> PathBuf {
+        let timestamp = Utc::now().format("%Y%m%d-%H%M").to_string();
         let project = values
             .get("project")
+            .map(|p| filename_project(p))
             .filter(|p| !p.is_empty())
-            .cloned()
-            .unwrap_or_else(|| "global".to_string());
+            .unwrap_or_else(|| DEFAULT_PROJECT.to_string());
 
         let slug = values
             .get("summary")
@@ -77,20 +141,10 @@ impl TicketCreator {
             .filter(|slug| !slug.is_empty())
             .or_else(|| values.get("id").map(|id| ids::slugify(id, 50)))
             .unwrap_or_else(|| "new-ticket".to_string());
-        let queue_path = self.queue_path();
-        let filepath = ids::unique_path(
-            &queue_path,
-            &format!("{timestamp}-{type_str}-{project}-{slug}"),
-        );
-
-        let template = template_type.template_content();
-        let content = render_template(template, values)?;
-        let content = stamp_collection(&content, self.collection.as_deref());
-
-        fs::create_dir_all(&queue_path).context("Failed to create queue directory")?;
-        fs::write(&filepath, &content).context("Failed to write ticket file")?;
-
-        Ok(filepath)
+        ids::unique_path(
+            &self.queue_path(),
+            &format!("{timestamp}-{type_key}-{project}-{slug}"),
+        )
     }
 
     /// Create a new ticket from template with pre-filled values and open in editor.
@@ -127,13 +181,23 @@ impl TicketCreator {
         template_type: TemplateType,
         project: &str,
     ) -> HashMap<String, String> {
+        self.generate_default_values_for(template_type.as_str(), template_type.first_step(), project)
+    }
+
+    /// Generate auto-filled values (id, dates, status, branch, step) for any
+    /// issue type key.
+    pub fn generate_default_values_for(
+        &self,
+        type_key: &str,
+        first_step: &str,
+        project: &str,
+    ) -> HashMap<String, String> {
         let now = Utc::now();
         let date = now.format("%Y-%m-%d").to_string();
         let datetime = now.format("%Y-%m-%d %H:%M").to_string();
-        let type_str = template_type.as_str();
         let existing = self.existing_ids();
-        let id = ids::next_ticket_id(type_str, existing.iter().map(String::as_str));
-        let branch_prefix = type_str.to_lowercase();
+        let id = ids::next_ticket_id(type_key, existing.iter().map(String::as_str));
+        let branch_prefix = type_key.to_lowercase();
 
         let mut values = HashMap::new();
         values.insert("id".to_string(), id.clone());
@@ -146,7 +210,7 @@ impl TicketCreator {
             "branch".to_string(),
             format!("{branch_prefix}/{id}-short-description"),
         );
-        values.insert("step".to_string(), template_type.first_step().to_string());
+        values.insert("step".to_string(), first_step.to_string());
 
         values
     }
@@ -220,22 +284,38 @@ pub fn split_required_optional(
 /// No-op when no collection is set, the content has no frontmatter, or the
 /// template already writes its own `collection:` field.
 fn stamp_collection(content: &str, collection: Option<&str>) -> String {
-    let Some(collection) = collection else {
-        return content.to_string();
-    };
+    match collection {
+        Some(collection) => stamp_frontmatter_field(content, "collection", collection),
+        None => content.to_string(),
+    }
+}
+
+/// Prepend `field: value` to a rendered ticket's YAML frontmatter.
+///
+/// No-op when the content has no frontmatter or already sets `field`.
+pub fn stamp_frontmatter_field(content: &str, field: &str, value: &str) -> String {
     let Some(rest) = content.strip_prefix("---\n") else {
         return content.to_string();
     };
     let Some(end) = rest.find("\n---") else {
         return content.to_string();
     };
-    let has_field = rest[..end]
-        .lines()
-        .any(|line| line.starts_with("collection:"));
+    let prefix = format!("{field}:");
+    let has_field = rest[..end].lines().any(|line| line.starts_with(&prefix));
     if has_field {
         return content.to_string();
     }
-    format!("---\ncollection: {collection}\n{rest}")
+    format!("---\n{field}: {value}\n{rest}")
+}
+
+/// Project segment of a ticket filename. Filenames only carry lowercase
+/// alphanumerics there; the full name lives in the `project:` frontmatter.
+fn filename_project(project: &str) -> String {
+    project
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect::<String>()
+        .to_ascii_lowercase()
 }
 
 #[cfg(test)]

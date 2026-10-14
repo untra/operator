@@ -19,6 +19,7 @@ use utoipa::{Modify, OpenApi};
 use crate::auth::scope::{required_access, Access};
 use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
+    FieldError, KanbanPushOutcome, KanbanTarget, TicketPreviewResponse,
     AccessKeyListResponse, AccessKeySummary, ActiveAgentResponse, ActiveAgentsResponse,
     AgentDetailResponse, AssessTicketResponse, BootstrapState, BootstrapStatusResponse,
     BootstrapSubmitRequest, BootstrapSubmitResponse, CollectionResponse, CreateAccessKeyRequest,
@@ -130,6 +131,10 @@ use crate::rest::error::ErrorResponse;
             UpdateTicketStatusResponse,
             CreateTicketRequest,
             CreateTicketResponse,
+            TicketPreviewResponse,
+            KanbanPushOutcome,
+            KanbanTarget,
+            FieldError,
             CreateAlertRequest,
             CreateAlertResponse,
             // Workflow export types

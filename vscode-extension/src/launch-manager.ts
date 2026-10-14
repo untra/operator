@@ -14,6 +14,9 @@ import type { LaunchOptions, TicketInfo } from "./types";
 import { parseTicketMetadata, getCurrentSessionId } from "./ticket-parser";
 import type { LaunchTicketResponse } from "./api-client";
 import { OperatorApiClient, discoverApiUrl } from "./api-client";
+import { readConnectionSettings, usingRemoteServer } from "./connection";
+import { launchClientAction, launchWrapper } from "./command-policy";
+import { openOperatorUi } from "./open-operator-ui";
 
 /**
  * Build terminal name from ticket ID
@@ -127,13 +130,14 @@ export class LaunchManager {
 
     this.log(`Launching ticket ${ticket.id} via API`);
 
+    const remote = this.remoteAttached();
     const response: LaunchTicketResponse = await apiClient.launchTicket(ticket.id, {
       delegator: options.delegator ?? null,
       provider: null,
       model: options.delegator ? null : options.model,
       model_server: null,
       yolo_mode: options.yoloMode,
-      wrapper: "vscode",
+      wrapper: launchWrapper(remote),
       retry_reason: null,
       resume_session_id: null,
       target: options.target ?? null,
@@ -146,18 +150,37 @@ export class LaunchManager {
         `serverSide=${response.executed_server_side}`,
     );
 
-    // Non-local targets (docker/coder/ssh) run SERVER-SIDE: the server owns
-    // the session and `command` is empty - nothing to execute here.
-    if (response.executed_server_side) {
-      void vscode.window.showInformationMessage(
-        `Launched ${ticket.id} on the Operator server${
-          response.terminal_name ? ` (session ${response.terminal_name})` : ""
-        }`,
-      );
+    await this.presentLaunchResponse(response);
+  }
+
+  /** Show a launch the API already performed. Remote never starts a local terminal. */
+  async presentLaunchResponse(response: LaunchTicketResponse): Promise<void> {
+    const remote = this.remoteAttached();
+    const action = launchClientAction(remote, response.executed_server_side, response.command);
+
+    if (action === "server-session") {
+      const message = `Launched ${response.ticket_id} on the Operator server${
+        response.terminal_name ? ` (session ${response.terminal_name})` : ""
+      }`;
+      if (!remote) {
+        void vscode.window.showInformationMessage(message);
+        return;
+      }
+      const choice = await vscode.window.showInformationMessage(message, "Open Operator UI");
+      if (choice === "Open Operator UI") {
+        await openOperatorUi(this.ticketsDir, "queue");
+      }
       return;
     }
 
-    // Create terminal with API response
+    if (action === "refuse-local-command") {
+      void vscode.window.showInformationMessage(
+        "The server handed back a command for this machine. That path lives on the server, so this editor did not start a terminal.",
+      );
+      await openOperatorUi(this.ticketsDir, "queue");
+      return;
+    }
+
     this.terminalManager.create({
       name: response.terminal_name,
       workingDir: response.working_directory,
@@ -169,8 +192,12 @@ export class LaunchManager {
     const worktreeMsg = response.worktree_created ? " (worktree created)" : "";
     const branchMsg = response.branch ? ` on branch ${response.branch}` : "";
     void vscode.window.showInformationMessage(
-      `Launched agent for ${ticket.id}${worktreeMsg}${branchMsg}`,
+      `Launched agent for ${response.ticket_id}${worktreeMsg}${branchMsg}`,
     );
+  }
+
+  private remoteAttached(): boolean {
+    return usingRemoteServer(readConnectionSettings(vscode.workspace.getConfiguration("operator")));
   }
 
   /**

@@ -18,9 +18,8 @@ use crate::auth::store::AuthStore;
 use crate::auth::tokens::SigningKey;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
-use crate::rest::dto::auth::Scope;
 use crate::rest::error::ApiError;
-use crate::startup::templates::load_registry;
+use crate::startup::templates::load_active_registry;
 
 /// Shared state for the REST API
 #[derive(Clone)]
@@ -35,6 +34,7 @@ pub struct ApiState {
     pub tickets_path: PathBuf,
     /// Active MCP SSE sessions, each bound to the principal that opened it.
     pub mcp_sessions: Arc<Mutex<HashMap<String, McpSession>>>,
+    pub mcp_http_mounted: bool,
     /// Bidirectional kanban sync service (present only when at least one project has
     /// `bidirectional: true` in its sync config).
     pub kanban_sync: Option<Arc<KanbanBidirectionalSync>>,
@@ -64,12 +64,24 @@ impl Drop for OperationPermit {
 /// every message: the session id alone is a bearer credential, and binding it
 /// to an identity means a leaked id cannot be used by anyone else.
 pub struct McpSession {
+    pub observation_id: String,
     /// Channel that relays JSON-RPC responses back over the SSE stream.
     pub tx: tokio::sync::mpsc::UnboundedSender<String>,
     /// Who opened the stream.
     pub subject: String,
-    /// Scopes that principal held.
-    pub scopes: Vec<Scope>,
+    pub initialized: bool,
+    pub initialize_received: bool,
+    pub diagnostic: bool,
+    pub client_name: Option<String>,
+    pub client_version: Option<String>,
+    pub connected_at: chrono::DateTime<chrono::Utc>,
+    pub last_activity_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl McpSession {
+    pub fn is_connected_client(&self) -> bool {
+        self.initialized && !self.diagnostic && !self.tx.is_closed()
+    }
 }
 
 /// Authentication state shared by every surface.
@@ -109,6 +121,23 @@ impl AuthContext {
 }
 
 impl ApiState {
+    #[cfg(test)]
+    pub(crate) fn in_memory(config: Config) -> Self {
+        let store = AuthStore::in_memory().expect("in-memory auth store");
+        let signing_key = store
+            .load_or_create_signing_key()
+            .expect("test signing key");
+        Self::with_auth(
+            config,
+            std::env::temp_dir(),
+            Arc::new(AuthContext {
+                store,
+                signing_key,
+                local_token: None,
+            }),
+        )
+    }
+
     /// Create new API state from config
     ///
     /// Loading priority:
@@ -127,7 +156,8 @@ impl ApiState {
     /// one already-open store instead of racing to open the same database file.
     pub fn with_auth(config: Config, tickets_path: PathBuf, auth: Arc<AuthContext>) -> Self {
         // Shared loader; keeps the API's issue-type resolution identical to the CLI/TUI `workflow export` produces the same output on every surface.
-        let registry = load_registry(&tickets_path);
+        let registry =
+            load_active_registry(&tickets_path, config.templates.active_collection.as_deref());
 
         let config_arc = Arc::new(config);
         let kanban_sync = {
@@ -141,6 +171,7 @@ impl ApiState {
 
         Self {
             registry: Arc::new(RwLock::new(registry)),
+            mcp_http_mounted: config_arc.mcp.http_enabled,
             config: Arc::new(StdRwLock::new(config_arc)),
             config_update: Arc::new(Mutex::new(())),
             tickets_path,
@@ -320,6 +351,8 @@ mod tests {
 
         let config = Config {
             kanban: KanbanConfig {
+                gitea: HashMap::new(),
+                forgejo: HashMap::new(),
                 jira: jira_map,
                 linear: HashMap::new(),
                 github: HashMap::new(),

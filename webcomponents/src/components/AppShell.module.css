@@ -190,12 +190,6 @@
 .active .navDot[data-health="green"] {
   background: var(--color-green-l1);
 }
-.navDot[data-health="yellow"] {
-  background: var(--warning);
-}
-.navDot[data-health="red"] {
-  background: var(--danger);
-}
 .navDot[data-health="gray"] {
   background: var(--text-muted);
 }
@@ -233,6 +227,25 @@
 
 .navDisabled .navDot {
   box-shadow: 0 0 0 1px var(--surface-alt);
+}
+
+/* Pointed marks. The circle ring is cleared so the silhouette stays a triangle. */
+.navDot[data-health="yellow"],
+.navDot[data-health="red"] {
+  width: 13px;
+  height: 12px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.navDot[data-health="yellow"] {
+  background: var(--warning);
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
+
+.navDot[data-health="red"] {
+  background: var(--danger);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
 .main {

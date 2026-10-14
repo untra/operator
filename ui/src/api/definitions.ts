@@ -573,3 +573,24 @@ export const setKanbanSessionEnvMutation: MutationDefinition<
   sensitive: true,
   run: (api, variables) => api.setKanbanSessionEnv(variables),
 };
+
+export const connectionsQuery = staticRead(QUERY_KEYS.connections, (api) => api.connections());
+export const mcpClientsQuery = staticRead(QUERY_KEYS.mcpClients, (api) => api.mcpClients());
+export const checkConnectionMutation: MutationDefinition<
+  ApiResult<"checkConnection">,
+  { signal: AbortSignal }
+> = {
+  key: "check-connection",
+  affected: [],
+  sensitive: true,
+  run: (api, variables) => api.checkConnection(variables.signal),
+};
+export const checkMcpMutation: MutationDefinition<
+  ApiResult<"checkMcp">,
+  { accessKey: string; signal: AbortSignal }
+> = {
+  key: "check-mcp",
+  sensitive: true,
+  affected: [QUERY_KEYS.mcpClients, QUERY_KEYS.connections],
+  run: (api, variables) => api.checkMcp(variables.accessKey, variables.signal),
+};

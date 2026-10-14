@@ -244,6 +244,24 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             false,
             Alpha,
         ),
+        entry(
+            Kanban,
+            "gitea",
+            "Gitea Projects",
+            Some("getting-started/kanban/gitea"),
+            Some("gitea"),
+            true,
+            Alpha,
+        ),
+        entry(
+            Kanban,
+            "forgejo",
+            "Forgejo Projects",
+            Some("getting-started/kanban/forgejo"),
+            None,
+            false,
+            Proto,
+        ),
         // --- Model providers (mirror ModelServerKind::ALL; slug == kind slug) ---
         entry(
             Model,
@@ -330,14 +348,22 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
         ),
         entry(Git, "bitbucket", "Bitbucket", None, None, false, Proto),
         entry(Git, "azure", "Azure DevOps", None, None, false, Proto),
-        entry(Git, "forgejo", "Forgejo", None, None, false, Proto),
+        entry(
+            Git,
+            "forgejo",
+            "Forgejo",
+            Some("getting-started/git/forgejo"),
+            Some("forgejo"),
+            true,
+            Alpha,
+        ),
         entry(
             Git,
             "gitea",
             "Gitea",
             Some("getting-started/git/gitea"),
             Some("gitea"),
-            false,
+            true,
             Alpha,
         ),
         // --- Session wrappers (mirror SessionWrapperType::ALL) ---
@@ -757,7 +783,10 @@ mod tests {
 
     #[test]
     fn test_onboardable_git_is_the_alpha_or_better_set() {
-        assert_eq!(slugs(Vertical::Git), vec!["github", "gitlab", "gitea"]);
+        assert_eq!(
+            slugs(Vertical::Git),
+            vec!["github", "gitlab", "forgejo", "gitea"]
+        );
     }
 
     #[test]

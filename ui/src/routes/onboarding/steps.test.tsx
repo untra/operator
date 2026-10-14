@@ -216,3 +216,65 @@ describe("onboarding integration steps", () => {
     expect(saved.github.status_mapping.todo).toBe("B-todo");
   });
 });
+
+test("Gitea onboarding saves the selected repository board with separate credentials", async () => {
+  const writes: string[] = [];
+  const projectKey = "https://forge.test/team/repo/projects/1";
+  mockFetch((input, init) => {
+    const path = requestPath(input);
+    if (path.endsWith("/kanban/providers")) {
+      return Promise.resolve(
+        json([{ ...GITHUB_PROVIDER, slug: "gitea", display_name: "Gitea Projects" }]),
+      );
+    }
+    if (path.endsWith("/kanban/validate")) {
+      return Promise.resolve(
+        json({
+          valid: true,
+          gitea: { user_id: "4", user_name: "Agent", users: [{ id: "4", name: "Agent" }] },
+        }),
+      );
+    }
+    if (path.endsWith("/kanban/projects")) {
+      return Promise.resolve(
+        json({ projects: [{ id: projectKey, key: projectKey, name: "Work" }] }),
+      );
+    }
+    if (path.endsWith("/kanban/statuses")) {
+      return Promise.resolve(json({ statuses: ["Todo", "Done"] }));
+    }
+    if (path.endsWith("/kanban/session-env")) {
+      return Promise.resolve(json({ shell_export_block: "export OPERATOR_GITEA_TOKEN=..." }));
+    }
+    if (path.endsWith("/kanban/config")) {
+      writes.push(String(requestBody(init)));
+      return Promise.resolve(json({ written_path: "config.toml", section_header: "gitea" }));
+    }
+    return Promise.resolve(json({ message: path }, 500));
+  });
+  setCsrfToken("csrf");
+  renderKanbanInfo();
+  fireEvent.click(await screen.findByRole("button", { name: /Gitea Projects/ }));
+  fireEvent.change(screen.getByLabelText("Instance URL"), {
+    target: { value: "https://forge.test" },
+  });
+  fireEvent.change(screen.getByLabelText("Repository"), { target: { value: "team/repo" } });
+  fireEvent.change(screen.getByLabelText("API token"), { target: { value: "board-token" } });
+  fireEvent.click(screen.getByRole("button", { name: "Validate and connect" }));
+  await screen.findByText("Credentials validated. Choose a project.");
+  fireEvent.change(screen.getByLabelText("Project"), { target: { value: projectKey } });
+  await screen.findByLabelText("todo");
+  fireEvent.click(screen.getByRole("button", { name: "Save provider" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(JSON.parse(writes[0] ?? "{}")).toMatchObject({
+    provider: "gitea",
+    gitea: {
+      base_url: "https://forge.test",
+      repositories: ["team/repo"],
+      project_key: projectKey,
+      api_key_env: "OPERATOR_GITEA_TOKEN",
+      sync_user_id: "4",
+    },
+  });
+  expect(writes[0]).not.toContain("board-token");
+});

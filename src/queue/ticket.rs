@@ -314,15 +314,18 @@ impl Ticket {
             )
         };
 
-        let (depends_on, campaign, external_parent) = parse_frontmatter_mapping(&content)
-            .map(|(map, _)| {
-                (
-                    string_list(&map, "depends_on"),
-                    scalar(&map, "campaign"),
-                    scalar(&map, "external_parent"),
-                )
-            })
-            .unwrap_or_default();
+        let (depends_on, campaign, external_parent, frontmatter_project) =
+            parse_frontmatter_mapping(&content)
+                .map(|(map, _)| {
+                    (
+                        string_list(&map, "depends_on"),
+                        scalar(&map, "campaign"),
+                        scalar(&map, "external_parent"),
+                        scalar(&map, "project"),
+                    )
+                })
+                .unwrap_or_default();
+        let project = frontmatter_project.unwrap_or(project);
 
         Ok(Self {
             filename,
@@ -1360,6 +1363,22 @@ status: queued
 
         let ticket = Ticket::from_file(&ticket_path).unwrap();
         assert!(ticket.collection.is_none());
+    }
+
+    #[test]
+    fn test_frontmatter_project_wins_over_filename() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ticket_path = temp_dir
+            .path()
+            .join("20241221-1430-FEAT-gbqr-us-add-thing.md");
+        std::fs::write(
+            &ticket_path,
+            "---\nid: FEAT-0001\nproject: gbqr-us\n---\n\n# Feature: add thing\n",
+        )
+        .unwrap();
+
+        let ticket = Ticket::from_file(&ticket_path).unwrap();
+        assert_eq!(ticket.project, "gbqr-us");
     }
 
     #[test]

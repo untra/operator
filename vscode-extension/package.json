@@ -41,7 +41,8 @@
     "onCommand:operator.launchTicket",
     "onCommand:operator.openSettings",
     "onCommand:operator.openWalkthrough",
-    "onCommand:operator.selectWorkingDirectory"
+    "onCommand:operator.selectWorkingDirectory",
+    "onCommand:operator.chooseConnection"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
@@ -96,7 +97,7 @@
         "operator.autoStart": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically start webhook server on VS Code launch"
+          "description": "In local mode, start the Operator API when none is reachable. Remote mode never starts a local server."
         },
         "operator.terminalPrefix": {
           "type": "string",
@@ -108,10 +109,16 @@
           "default": ".tickets",
           "description": "Path to tickets directory (relative to workspace root or absolute)"
         },
+        "operator.connectionMode": {
+          "type": "string",
+          "enum": ["local", "remote"],
+          "default": "local",
+          "description": "local uses Operator on this machine. remote uses the saved operator.apiUrl and does not download or start a binary."
+        },
         "operator.apiUrl": {
           "type": "string",
           "default": "http://localhost:7008",
-          "description": "URL of the Operator REST API server"
+          "description": "Operator REST API origin. In remote mode this is saved in User settings as an https origin. In local mode leave it unset so the extension follows .tickets/operator/api-session.json."
         },
         "operator.opr8rPath": {
           "type": "string",
@@ -192,6 +199,10 @@
       {
         "command": "operator.downloadOperator",
         "title": "Operator: Download Operator"
+      },
+      {
+        "command": "operator.chooseConnection",
+        "title": "Operator: Choose Connection"
       },
       {
         "command": "operator.pauseQueue",
@@ -476,8 +487,8 @@
       {
         "id": "operator-setup",
         "title": "Operator! Setup",
-        "when": "!operator.workingDirectorySet",
-        "description": "Configure Operator! to orchestrate LLM coding agents across many code repositories",
+        "when": "!operator.connectionChosen",
+        "description": "Use a free local Operator, or connect to a server you already run.",
         "icon": "images/operator-icon-128.png",
         "featuredFor": [
           "CLAUDE.md",
@@ -485,9 +496,21 @@
         ],
         "steps": [
           {
+            "id": "choose-connection",
+            "title": "Choose how to connect",
+            "description": "Use Operator already running on this machine, run it for this folder, or connect to a server you operate.\n\n[Choose Connection](command:operator.chooseConnection)",
+            "media": {
+              "markdown": "walkthrough/welcome.md"
+            },
+            "completionEvents": [
+              "onContext:operator.connectionChosen"
+            ]
+          },
+          {
             "id": "download-operator",
             "title": "Download Operator",
-            "description": "Download the Operator server binary to orchestrate LLM coding agents.\n\n[Download Operator](command:operator.downloadOperator)",
+            "when": "operator.connectionMode != 'remote'",
+            "description": "Download the Operator server binary to orchestrate LLM coding agents. This step is for a local install.\n\n[Download Operator](command:operator.downloadOperator)",
             "media": {
               "markdown": "walkthrough/welcome.md"
             },
@@ -498,6 +521,7 @@
           {
             "id": "select-working-directory",
             "title": "Select Working Directory",
+            "when": "operator.connectionMode != 'remote'",
             "description": "Choose a parent directory for your repositories.\n\n[Select Directory](command:operator.selectWorkingDirectory)",
             "media": {
               "markdown": "walkthrough/select-directory.md"
@@ -641,7 +665,7 @@
     "viewsWelcome": [
       {
         "view": "operator-campaigns",
-        "contents": "Campaigns need a running Operator server.\n[Start Operator Server](command:operator.startOperatorServer)"
+        "contents": "Campaigns come from the Operator server this window is attached to.\n[Choose Connection](command:operator.chooseConnection)"
       }
     ]
   },

@@ -9,6 +9,8 @@ export const QUERY_KEYS = {
   health: "health",
   status: "status",
   sections: "sections",
+  connections: "connections",
+  mcpClients: "mcp-clients",
   queueStatus: "queue-status",
   kanban: "kanban",
   activeAgents: "active-agents",

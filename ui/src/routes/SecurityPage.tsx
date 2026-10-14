@@ -1,20 +1,13 @@
 // Security settings: browser sessions, connected devices, and service access keys.
 
-import { useState } from "react";
 import { ApiError } from "../api-client";
-import type { Scope } from "@operator/bindings/Scope";
+import { useState } from "react";
+import { AccessKeysPanel } from "../components/AccessKeysPanel";
 import { useApiMutation, useApiQuery } from "../api";
-import {
-  accessKeysQuery,
-  createAccessKeyMutation,
-  revokeAccessKeyMutation,
-  revokeSessionMutation,
-  sessionsQuery,
-} from "../api/definitions";
+import { revokeSessionMutation, sessionsQuery } from "../api/definitions";
 import { PageHeader } from "../components/PageHeader";
 import styles from "./SecurityPage.module.css";
 
-const ALL_SCOPES: Scope[] = ["read", "write", "execute", "admin"];
 const PAGE_SIZE = 10;
 
 function formatDate(iso: string | null | undefined): string {
@@ -26,58 +19,15 @@ function formatDate(iso: string | null | undefined): string {
 
 export function SecurityPage() {
   const sessions = useApiQuery(sessionsQuery());
-  const keys = useApiQuery(accessKeysQuery());
-  const createKey = useApiMutation(createAccessKeyMutation);
-  const revokeKey = useApiMutation(revokeAccessKeyMutation);
   const revokeSession = useApiMutation(revokeSessionMutation);
 
-  const [keyName, setKeyName] = useState("");
-  const [keyScopes, setKeyScopes] = useState<Scope[]>(["read"]);
-  const [keyDays, setKeyDays] = useState(90);
   const [formError, setFormError] = useState<string | null>(null);
   const [sessionPage, setSessionPage] = useState(0);
-  const [keyPage, setKeyPage] = useState(0);
   const sessionRows = sessions.data?.sessions ?? [];
   const deviceRows = sessions.data?.devices ?? [];
-  const keyRows = keys.data?.keys ?? [];
   const visibleSessions = sessionRows.slice(sessionPage * PAGE_SIZE, (sessionPage + 1) * PAGE_SIZE);
-  const visibleKeys = keyRows.slice(keyPage * PAGE_SIZE, (keyPage + 1) * PAGE_SIZE);
 
-  const error =
-    formError ??
-    sessions.error?.message ??
-    keys.error?.message ??
-    revokeKey.error?.message ??
-    revokeSession.error?.message ??
-    null;
-
-  async function onCreateKey(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFormError(null);
-    try {
-      await createKey.mutateAsync({
-        name: keyName,
-        scopes: keyScopes,
-        expires_in_days: BigInt(keyDays),
-      });
-      setKeyName("");
-      setKeyPage(0);
-    } catch (e) {
-      setFormError(e instanceof ApiError ? e.message : "Failed to create the access key.");
-    }
-  }
-
-  function onRevokeKey(id: string) {
-    setFormError(null);
-    revokeKey.mutate(
-      { id },
-      {
-        onError: (e) => {
-          setFormError(e instanceof ApiError ? e.message : "Failed to revoke the key.");
-        },
-      },
-    );
-  }
+  const error = formError ?? sessions.error?.message ?? revokeSession.error?.message ?? null;
 
   function onRevokeSession(id: string) {
     setFormError(null);
@@ -91,12 +41,6 @@ export function SecurityPage() {
     );
   }
 
-  function toggleScope(scope: Scope) {
-    setKeyScopes((current) =>
-      current.includes(scope) ? current.filter((s) => s !== scope) : [...current, scope],
-    );
-  }
-
   return (
     <div className={styles.page}>
       <PageHeader
@@ -106,7 +50,7 @@ export function SecurityPage() {
       />
 
       {error && <p className={styles.error}>{error}</p>}
-      {(sessions.error ?? keys.error) && (
+      {sessions.error && (
         <p className={styles.sectionHint}>Check the server connection, then reload this page.</p>
       )}
 
@@ -206,117 +150,7 @@ export function SecurityPage() {
         )}
       </section>
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Service access keys</h2>
-        <p className={styles.sectionHint}>
-          For integrations. Grant only the scopes the integration needs; every key expires.
-        </p>
-
-        {createKey.data?.secret && (
-          <div className={styles.secretBox}>
-            <strong>Copy this now - it is shown once and cannot be retrieved.</strong>
-            <code className={styles.secret}>{createKey.data.secret}</code>
-          </div>
-        )}
-
-        <form className={styles.form} onSubmit={onCreateKey}>
-          <label>
-            Name
-            <input
-              value={keyName}
-              onChange={(e) => setKeyName(e.target.value)}
-              placeholder="ci-pipeline"
-              required
-            />
-          </label>
-          <label>
-            Expires in (days)
-            <input
-              type="number"
-              min={1}
-              max={365}
-              value={keyDays}
-              onChange={(e) => setKeyDays(Number(e.target.value))}
-              required
-            />
-          </label>
-          <div className={styles.scopes}>
-            {ALL_SCOPES.map((scope) => (
-              <label key={scope}>
-                <input
-                  type="checkbox"
-                  checked={keyScopes.includes(scope)}
-                  onChange={() => toggleScope(scope)}
-                />
-                {scope}
-              </label>
-            ))}
-          </div>
-          <button
-            className={styles.primary}
-            type="submit"
-            disabled={createKey.isPending || !keyName || keyScopes.length === 0}
-          >
-            Create key
-          </button>
-        </form>
-
-        {keys.isLoading && <p className={styles.sectionHint}>Loading access keys…</p>}
-        {!keys.isLoading && !keys.error && keyRows.length === 0 && (
-          <p className={styles.sectionHint}>No service access keys have been created.</p>
-        )}
-        {!keys.isLoading && keyRows.length > 0 && (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Scopes</th>
-                <th>Expires</th>
-                <th>Last used</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {visibleKeys.map((k) => (
-                <tr key={k.id} className={k.revoked_at ? styles.revoked : undefined}>
-                  <td>{k.name}</td>
-                  <td>{k.scopes.join(", ")}</td>
-                  <td>{formatDate(k.expires_at)}</td>
-                  <td>{formatDate(k.last_used_at)}</td>
-                  <td>
-                    <button
-                      className={styles.danger}
-                      onClick={() => onRevokeKey(k.id)}
-                      disabled={!!k.revoked_at}
-                    >
-                      Revoke
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {keyRows.length > PAGE_SIZE && (
-          <div className={styles.pagination}>
-            <button
-              type="button"
-              disabled={keyPage === 0}
-              onClick={() => setKeyPage((page) => Math.max(0, page - 1))}
-            >
-              Previous
-            </button>
-            <span>Page {keyPage + 1}</span>
-            <button
-              type="button"
-              disabled={(keyPage + 1) * PAGE_SIZE >= keyRows.length}
-              onClick={() => setKeyPage((page) => page + 1)}
-            >
-              Next
-            </button>
-          </div>
-        )}
-      </section>
+      <AccessKeysPanel />
     </div>
   );
 }

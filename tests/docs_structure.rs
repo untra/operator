@@ -31,15 +31,16 @@ const NAV_EXTRA_PAGES: &[&str] = &[
 
 /// Published pages intentionally not linked from the sidebar.
 const NAV_ORPHAN_ALLOWLIST: &[&str] = &[
-    "index.md",                            // site home, hardcoded in the header
-    "VERSION.md",                          // raw version endpoint
-    "privacy-policy.md",                   // footer link
-    "terms-of-service.md",                 // footer link
-    "downloads/index.md",                  // hardcoded sidebar link
-    "getting-started/kanban/jira-api.md",  // generated API appendix, linked from jira.md
-    "getting-started/workflows/index.md",  // deferred nav section
+    "getting-started/kanban/forgejo.md", // Proto compatibility notes, linked from Gitea
+    "index.md",                          // site home, hardcoded in the header
+    "VERSION.md",                        // raw version endpoint
+    "privacy-policy.md",                 // footer link
+    "terms-of-service.md",               // footer link
+    "downloads/index.md",                // hardcoded sidebar link
+    "getting-started/kanban/jira-api.md", // generated API appendix, linked from jira.md
+    "getting-started/workflows/index.md", // deferred nav section
     "getting-started/workflows/claude.md", // deferred nav section
-    "getting-started/workflows/agnt.md",   // deferred nav section
+    "getting-started/workflows/agnt.md", // deferred nav section
 ];
 
 /// Nav titles allowed to differ from the target page's front-matter title

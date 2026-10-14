@@ -59,8 +59,8 @@ export const CONCEPTS: Record<string, Concept> = {
     icon: "plug",
     label: "Connections",
     route: "/connections",
-    docsUrl: `${DOCS_BASE}/configuration/`,
-    summary: "Connectivity to the operator API and webhook endpoints.",
+    docsUrl: `${DOCS_BASE}/getting-started/integrations/#connect-from-the-web-interface`,
+    summary: "Connect clients to Operator, manage access keys, and verify connection health.",
   },
   kanban: {
     key: "kanban",

@@ -5,6 +5,7 @@ pub mod auth;
 pub mod campaigns;
 pub mod collections;
 pub mod configuration;
+pub mod connections;
 pub mod delegators;
 pub mod git_onboarding;
 pub mod health;

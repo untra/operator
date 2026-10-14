@@ -24,6 +24,7 @@ table and architecture.
 |----------|--------|----------|-------|
 | [GitHub](/getting-started/git/github/) | Beta | `gh` | Full PR integration |
 | [GitLab](/getting-started/git/gitlab/) | Alpha | `glab` | Full MR integration |
+| [Forgejo](/getting-started/git/forgejo/) | Alpha | `tea` | Full PR integration via `tea api` |
 | [Gitea](/getting-started/git/gitea/) | Alpha | `tea` | Full PR integration via `tea api` |
 
 ## Provider Auto-Detection
@@ -32,7 +33,7 @@ Operator detects your Git provider from the remote URL automatically. You can ov
 
 ```toml
 [git]
-provider = "github"   # or "gitlab", "gitea"
+provider = "github"   # or "gitlab", "gitea", "forgejo"
 ```
 
 ## Shared Git Configuration

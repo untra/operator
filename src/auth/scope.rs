@@ -116,6 +116,8 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/health"),
     read("GET", "/api/v1/status"),
     read("GET", "/api/v1/sections"),
+    read("GET", "/api/v1/connections"),
+    admin("GET", "/api/v1/connections/mcp/clients"),
     read("GET", "/api/v1/integrations"),
     // --- Setup --------------------------------------------------------------
     read("GET", "/api/v1/setup/status"),
@@ -161,6 +163,7 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     // --- Tickets ------------------------------------------------------------
     read("GET", "/api/v1/tickets/{id}"),
     write("POST", "/api/v1/tickets"),
+    read("POST", "/api/v1/tickets/preview"),
     read("POST", "/api/v1/tickets/batch/preview"),
     write("POST", "/api/v1/tickets/batch"),
     write("PUT", "/api/v1/tickets/{id}/status"),
@@ -341,6 +344,18 @@ mod tests {
                 "{path} must require a credential"
             );
         }
+    }
+
+    #[test]
+    fn test_connections_require_read_and_client_details_require_admin() {
+        assert_eq!(
+            required_access("GET", "/api/v1/connections"),
+            Some(Access::Scoped(Scope::Read))
+        );
+        assert_eq!(
+            required_access("GET", "/api/v1/connections/mcp/clients"),
+            Some(Access::Scoped(Scope::Admin))
+        );
     }
 
     #[test]

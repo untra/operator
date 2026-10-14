@@ -11,6 +11,7 @@ pub mod agents;
 pub mod auth;
 pub mod campaigns;
 pub mod configuration;
+pub mod connections;
 pub mod git_onboarding;
 pub mod integrations;
 pub mod issue_types;

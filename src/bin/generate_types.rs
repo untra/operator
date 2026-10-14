@@ -225,6 +225,10 @@ fn generate_typescript() -> String {
         operator::rest::dto::CampaignSummary::decl(&cfg),
         operator::rest::dto::CampaignListResponse::decl(&cfg),
         CreateTicketResponse::decl(&cfg),
+        operator::rest::dto::TicketPreviewResponse::decl(&cfg),
+        operator::rest::dto::KanbanPushOutcome::decl(&cfg),
+        operator::rest::dto::KanbanTarget::decl(&cfg),
+        operator::rest::dto::FieldError::decl(&cfg),
         CreateAlertRequest::decl(&cfg),
         CreateAlertResponse::decl(&cfg),
         // Skills DTOs

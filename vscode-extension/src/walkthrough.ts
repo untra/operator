@@ -8,6 +8,8 @@
  */
 
 import * as vscode from "vscode";
+import { CONNECTION_CHOSEN_STATE, effectiveMode, readConnectionSettings } from "./connection";
+import { guardRemoteCommand } from "./command-policy";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { exec } from "node:child_process";
@@ -385,11 +387,25 @@ export async function updateWalkthroughContext(
   const installedLlmTools = await detectInstalledLlmTools();
   const llmToolInstalled = installedLlmTools.length > 0;
 
+  const settings = readConnectionSettings(vscode.workspace.getConfiguration("operator"));
+  const remote = effectiveMode(settings.mode, settings.explicitApiUrl) === "remote";
+  const storedChosen = context.globalState.get<boolean>(CONNECTION_CHOSEN_STATE) === true;
+  const connectionChosen = storedChosen || workingDirectorySet || settings.mode === "remote";
+  if (connectionChosen && !storedChosen) {
+    await context.globalState.update(CONNECTION_CHOSEN_STATE, true);
+  }
+
   // Update context keys
   await vscode.commands.executeCommand(
     "setContext",
     "operator.workingDirectorySet",
     workingDirectorySet,
+  );
+  await vscode.commands.executeCommand("setContext", "operator.connectionChosen", connectionChosen);
+  await vscode.commands.executeCommand(
+    "setContext",
+    "operator.connectionMode",
+    remote ? "remote" : "local",
   );
   await vscode.commands.executeCommand("setContext", "operator.kanbanConnected", kanbanConnected);
   await vscode.commands.executeCommand("setContext", "operator.llmToolInstalled", llmToolInstalled);
@@ -413,6 +429,10 @@ export async function selectWorkingDirectory(
   context: vscode.ExtensionContext,
   operatorPath?: string,
 ): Promise<void> {
+  if (await guardRemoteCommand("operator.selectWorkingDirectory", undefined)) {
+    return;
+  }
+
   const folders = await vscode.window.showOpenDialog({
     canSelectFiles: false,
     canSelectFolders: true,
@@ -463,6 +483,10 @@ export async function selectWorkingDirectory(
  * Command: Check kanban connection
  */
 export async function checkKanbanConnection(context: vscode.ExtensionContext): Promise<void> {
+  if (await guardRemoteCommand("operator.checkKanbanConnection", undefined)) {
+    return;
+  }
+
   const workspaces = await getKanbanWorkspaces();
 
   if (workspaces.length === 0) {
@@ -509,6 +533,10 @@ export async function detectLlmTools(
   context: vscode.ExtensionContext,
   getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>,
 ): Promise<void> {
+  if (await guardRemoteCommand("operator.detectLlmTools", undefined)) {
+    return;
+  }
+
   const tools = await detectInstalledLlmTools();
 
   if (tools.length === 0) {

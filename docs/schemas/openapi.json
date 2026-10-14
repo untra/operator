@@ -1943,6 +1943,79 @@
         "x-operator-scope": "admin"
       }
     },
+    "/api/v1/connections": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "connections_get",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/connections/mcp/clients": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "connections_mcp_clients",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/McpClientStatus"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
     "/api/v1/delegators": {
       "get": {
         "tags": [
@@ -4342,7 +4415,7 @@
           "MCP"
         ],
         "summary": "MCP descriptor endpoint",
-        "description": "Returns metadata for registering operator with an MCP-capable client.\nThe transport URL is derived from the request Host header so it reflects\nthe actual running port; the stdio entrypoint reflects this binary's path.",
+        "description": "Returns metadata for registering operator with an MCP-capable client.\nTransport URLs use the configured public base or relative API paths.",
         "operationId": "mcp_descriptor",
         "responses": {
           "200": {
@@ -8613,6 +8686,59 @@
           }
         }
       },
+      "ConnectionsResponse": {
+        "type": "object",
+        "required": [
+          "version",
+          "profile_name",
+          "observed_at",
+          "api_path",
+          "mcp_path",
+          "mcp_http_mounted",
+          "mcp_stdio_advertised",
+          "acp_stdio_advertised",
+          "mcp_connected_clients"
+        ],
+        "properties": {
+          "acp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "api_path": {
+            "type": "string"
+          },
+          "mcp_connected_clients": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mcp_http_mounted": {
+            "type": "boolean",
+            "description": "Whether this running router mounted the SSE transport."
+          },
+          "mcp_path": {
+            "type": "string"
+          },
+          "mcp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "profile_name": {
+            "type": "string"
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Externally configured base URL, if present."
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
       "CreateAccessKeyRequest": {
         "type": "object",
         "description": "Create a service access key for an integration.",
@@ -10040,6 +10166,89 @@
           }
         }
       },
+      "GiteaCredentials": {
+        "type": "object",
+        "description": "Ephemeral Gitea credentials for repository board discovery.",
+        "required": [
+          "base_url",
+          "repositories",
+          "token"
+        ],
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "GiteaSessionEnv": {
+        "type": "object",
+        "required": [
+          "base_url",
+          "api_key_env",
+          "token"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "GiteaUserDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "GiteaValidationDetailsDto": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "user_name",
+          "users"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GiteaUserDto"
+            }
+          }
+        }
+      },
       "GithubCredentials": {
         "type": "object",
         "description": "Ephemeral GitHub Projects credentials supplied by a client during onboarding.\n\nThe token must have `project` (or `read:project`) scope. A repo-only token\n(the kind used for `GITHUB_TOKEN` and operator's git provider) will be\nrejected at validation time with a friendly \"lacks `project` scope\" error.",
@@ -10701,12 +10910,13 @@
       },
       "KanbanProviderKind": {
         "type": "string",
-        "description": "Which external kanban provider an onboarding request targets.\nDeliberately one variant smaller than [`KanbanProviderType`]\n\n[`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType",
+        "description": "Which external kanban provider an onboarding request targets.\nExcludes the built-in board and providers without an operational adapter.\n\n[`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType",
         "enum": [
           "jira",
           "linear",
           "github",
-          "openspec"
+          "openspec",
+          "gitea"
         ]
       },
       "KanbanStatusMapping": {
@@ -11313,6 +11523,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -11381,6 +11601,16 @@
           "project_key"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -11560,6 +11790,44 @@
           }
         }
       },
+      "McpClientStatus": {
+        "type": "object",
+        "required": [
+          "id",
+          "initialized",
+          "connected_at",
+          "last_activity_at"
+        ],
+        "properties": {
+          "client_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "description": "Display identifier, unrelated to the transport session credential."
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "last_activity_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "McpDescriptorResponse": {
         "type": "object",
         "description": "MCP server descriptor for client discovery",
@@ -11568,9 +11836,14 @@
           "server_id",
           "version",
           "transport_url",
+          "http_available",
           "label"
         ],
         "properties": {
+          "http_available": {
+            "type": "boolean",
+            "description": "Whether the running API has mounted the SSE transport."
+          },
           "label": {
             "type": "string",
             "description": "Human-readable label for the server"
@@ -11603,7 +11876,7 @@
           },
           "transport_url": {
             "type": "string",
-            "description": "Full URL of the MCP SSE transport endpoint"
+            "description": "SSE endpoint, relative unless a public URL is configured."
           },
           "version": {
             "type": "string",
@@ -12833,6 +13106,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaSessionEnv"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -14581,6 +14864,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -14637,6 +14930,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaValidationDetailsDto"
+              }
             ]
           },
           "github": {
@@ -14850,6 +15153,50 @@
           }
         }
       },
+      "WriteGiteaConfigBody": {
+        "type": "object",
+        "required": [
+          "instance",
+          "base_url",
+          "repositories",
+          "api_key_env",
+          "project_key",
+          "sync_user_id"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "project_key": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status_mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KanbanStatusMapping"
+              }
+            ]
+          },
+          "sync_user_id": {
+            "type": "string"
+          }
+        }
+      },
       "WriteGithubConfigBody": {
         "type": "object",
         "description": "Body for writing a GitHub Projects v2 config section.",
@@ -14935,6 +15282,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WriteGiteaConfigBody"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {

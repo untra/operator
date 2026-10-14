@@ -12,7 +12,7 @@ use std::time::Duration;
 use super::Host;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, Sse};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Deserialize;
 use serde_json::json;
@@ -24,6 +24,11 @@ use crate::mcp::handler::{handle_jsonrpc, JsonRpcRequest};
 use crate::mcp::profile_api_base;
 use crate::rest::middleware::auth::Authenticated;
 use crate::rest::state::{ApiState, McpSession};
+
+const SESSION_TTL: Duration = Duration::from_hours(1);
+const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
+const DIAGNOSTIC_CLIENT: &str = "operator-connections-check";
+const MAX_CLIENT_LABEL_CHARS: usize = 128;
 
 /// Query parameters for the message endpoint
 #[derive(Debug, Deserialize)]
@@ -54,19 +59,31 @@ pub async fn sse_handler(
     // Bind the session to whoever opened it. The session id travels in a URL
     // and is therefore a bearer credential; recording the principal means a
     // leaked id is not enough on its own to drive the session.
+    let (disconnect_tx, disconnect_rx) = tokio::sync::oneshot::channel::<()>();
     state.mcp_sessions.lock().await.insert(
         session_id.clone(),
         McpSession {
+            observation_id: uuid::Uuid::new_v4().to_string(),
             tx,
             subject: principal.subject.clone(),
-            scopes: principal.scopes.clone(),
+            initialized: false,
+            initialize_received: false,
+            diagnostic: false,
+            client_name: None,
+            client_version: None,
+            connected_at: chrono::Utc::now(),
+            last_activity_at: chrono::Utc::now(),
         },
     );
 
     // Generated from the configured public URL, not the request `Host` header,
     // which a caller controls and which is plain `http` behind TLS termination.
     let base = profile_api_base(&state, &host);
-    let message_url = format!("{base}/mcp/message?sessionId={session_id}");
+    let message_url = if state.config().rest_api.public_base_url().is_some() {
+        format!("{base}/mcp/message?sessionId={session_id}")
+    } else {
+        format!("message?sessionId={session_id}")
+    };
 
     let session_id_cleanup = session_id.clone();
     let sessions_cleanup = Arc::clone(&state.mcp_sessions);
@@ -76,21 +93,26 @@ pub async fn sse_handler(
         Event::default().event("endpoint").data(message_url),
     ));
 
-    let message_stream = UnboundedReceiverStream::new(rx)
-        .map(|msg| Ok::<_, Infallible>(Event::default().event("message").data(msg)));
+    let message_stream = UnboundedReceiverStream::new(rx).map(move |msg| {
+        let _disconnect = &disconnect_tx;
+        Ok::<_, Infallible>(Event::default().event("message").data(msg))
+    });
 
     let combined = endpoint_event.chain(message_stream);
 
     // Clean up session after 1 hour or when stream ends
     tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_hours(1)).await;
+        tokio::select! {
+            _ = disconnect_rx => {},
+            () = tokio::time::sleep(SESSION_TTL) => {},
+        }
         sessions_cleanup.lock().await.remove(&session_id_cleanup);
     });
 
     // Axum's KeepAlive handles keepalive pings automatically
     Sse::new(combined).keep_alive(
         axum::response::sse::KeepAlive::new()
-            .interval(Duration::from_secs(15))
+            .interval(KEEPALIVE_INTERVAL)
             .text("keepalive"),
     )
 }
@@ -114,15 +136,16 @@ pub async fn message_handler(
     State(state): State<ApiState>,
     Authenticated(principal): Authenticated,
     Json(request): Json<JsonRpcRequest>,
-) -> impl IntoResponse {
+) -> Response {
     // Clone the sender and drop the lock before async work.
     let (tx, scopes) = {
-        let sessions = state.mcp_sessions.lock().await;
-        let Some(session) = sessions.get(&query.session_id) else {
+        let mut sessions = state.mcp_sessions.lock().await;
+        let Some(session) = sessions.get_mut(&query.session_id) else {
             return (
                 axum::http::StatusCode::NOT_FOUND,
                 Json(json!({"error": "Session not found"})),
-            );
+            )
+                .into_response();
         };
         // The caller must be the principal that opened this stream. Without
         // this, anyone who learns a session id inherits its authority.
@@ -130,11 +153,39 @@ pub async fn message_handler(
             return (
                 axum::http::StatusCode::FORBIDDEN,
                 Json(json!({"error": "Session belongs to a different principal"})),
-            );
+            )
+                .into_response();
         }
-        (session.tx.clone(), session.scopes.clone())
+        if session.tx.is_closed() {
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                Json(json!({"error": "Session disconnected"})),
+            )
+                .into_response();
+        }
+        session.last_activity_at = chrono::Utc::now();
+        if request.method == "initialize" && request.id.is_some() {
+            session.initialize_received = true;
+            session.client_name = request.params["clientInfo"]["name"]
+                .as_str()
+                .map(|name| name.chars().take(MAX_CLIENT_LABEL_CHARS).collect());
+            session.client_version = request.params["clientInfo"]["version"]
+                .as_str()
+                .map(|version| version.chars().take(MAX_CLIENT_LABEL_CHARS).collect());
+            session.diagnostic = session.client_name.as_deref() == Some(DIAGNOSTIC_CLIENT);
+        }
+        if request.method == "notifications/initialized"
+            && request.id.is_none()
+            && session.initialize_received
+        {
+            session.initialized = true;
+        }
+        (session.tx.clone(), principal.scopes.clone())
     };
 
+    if request.id.is_none() {
+        return axum::http::StatusCode::ACCEPTED.into_response();
+    }
     let response = handle_jsonrpc(&request, &state, &scopes).await;
 
     // Send response through SSE channel
@@ -142,5 +193,202 @@ pub async fn message_handler(
         let _ = tx.send(json_str);
     }
 
-    (axum::http::StatusCode::ACCEPTED, Json(json!({})))
+    axum::http::StatusCode::ACCEPTED.into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::scope::Principal;
+    use crate::rest::dto::auth::{PrincipalKind, Scope};
+    use axum::body::to_bytes;
+
+    fn principal() -> Principal {
+        Principal {
+            subject: "test-client".into(),
+            kind: PrincipalKind::AccessToken,
+            expires_at: None,
+            session_id: None,
+            ticket_id: None,
+            step: None,
+            scopes: vec![Scope::Read, Scope::Execute],
+        }
+    }
+
+    #[tokio::test]
+    async fn test_stream_disconnect_removes_session() {
+        let state = ApiState::in_memory(crate::config::Config::default());
+        let stream = sse_handler(
+            Host("internal:7008".into()),
+            State(state.clone()),
+            Authenticated(principal()),
+        )
+        .await;
+        assert_eq!(state.mcp_sessions.lock().await.len(), 1);
+        drop(stream);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while !state.mcp_sessions.lock().await.is_empty() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("disconnected sessions must be removed");
+    }
+
+    #[tokio::test]
+    async fn test_notification_has_no_jsonrpc_response() {
+        let state = ApiState::in_memory(crate::config::Config::default());
+        let stream = sse_handler(
+            Host("internal:7008".into()),
+            State(state.clone()),
+            Authenticated(principal()),
+        )
+        .await;
+        let session_id = state
+            .mcp_sessions
+            .lock()
+            .await
+            .keys()
+            .next()
+            .unwrap()
+            .clone();
+        let response = Box::pin(message_handler(
+            Query(MessageQuery { session_id }),
+            State(state),
+            Authenticated(principal()),
+            Json(JsonRpcRequest {
+                jsonrpc: "2.0".into(),
+                id: None,
+                method: "notifications/initialized".into(),
+                params: json!({}),
+            }),
+        ))
+        .await
+        .into_response();
+        assert_eq!(response.status(), axum::http::StatusCode::ACCEPTED);
+        assert!(to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap()
+            .is_empty());
+        drop(stream);
+    }
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+    use crate::auth::scope::Principal;
+    use crate::rest::routes::connections;
+    use http_body_util::BodyExt;
+
+    async fn initialize(state: &ApiState, session_id: &str, client: &str) {
+        for (method, id, params) in [
+            (
+                "initialize",
+                Some(json!(1)),
+                json!({"clientInfo": {"name": client, "version": "1"}}),
+            ),
+            ("notifications/initialized", None, json!({})),
+        ] {
+            let response = Box::pin(message_handler(
+                Query(MessageQuery {
+                    session_id: session_id.into(),
+                }),
+                State(state.clone()),
+                Authenticated(Principal::local("test")),
+                Json(JsonRpcRequest {
+                    jsonrpc: "2.0".into(),
+                    method: method.into(),
+                    id,
+                    params,
+                }),
+            ))
+            .await;
+            assert_eq!(response.status(), axum::http::StatusCode::ACCEPTED);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_initialized_clients_exclude_diagnostics_and_closed_streams() {
+        let state = ApiState::in_memory(crate::config::Config::default());
+        let stream = sse_handler(
+            Host("internal:7008".into()),
+            State(state.clone()),
+            Authenticated(Principal::local("test")),
+        )
+        .await;
+        let id = state
+            .mcp_sessions
+            .lock()
+            .await
+            .keys()
+            .next()
+            .unwrap()
+            .clone();
+        assert_eq!(
+            connections::get(State(state.clone()))
+                .await
+                .0
+                .mcp_connected_clients,
+            0
+        );
+        Box::pin(initialize(&state, &id, "Claude Code")).await;
+        assert_eq!(
+            connections::get(State(state.clone()))
+                .await
+                .0
+                .mcp_connected_clients,
+            1
+        );
+        let clients = connections::clients(State(state.clone())).await.0;
+        assert_eq!(clients[0].client_name.as_deref(), Some("Claude Code"));
+        assert_ne!(clients[0].id, id);
+        Box::pin(initialize(&state, &id, DIAGNOSTIC_CLIENT)).await;
+        assert!(connections::clients(State(state.clone()))
+            .await
+            .0
+            .is_empty());
+        assert_eq!(
+            connections::get(State(state.clone()))
+                .await
+                .0
+                .mcp_connected_clients,
+            0
+        );
+        drop(stream);
+    }
+
+    #[tokio::test]
+    async fn test_clearing_sessions_closes_streams_during_shutdown() {
+        let state = ApiState::in_memory(crate::config::Config::default());
+        let stream = sse_handler(
+            Host("internal:7008".into()),
+            State(state.clone()),
+            Authenticated(Principal::local("test")),
+        )
+        .await;
+        let mut body = stream.into_response().into_body();
+        body.frame().await.unwrap().unwrap();
+        state.mcp_sessions.lock().await.clear();
+        let next = tokio::time::timeout(Duration::from_secs(1), body.frame())
+            .await
+            .expect("shutdown must close the stream");
+        assert!(next.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_sse_endpoint_is_relative_without_public_url() {
+        let state = ApiState::in_memory(crate::config::Config::default());
+        let stream = sse_handler(
+            Host("internal:7008".into()),
+            State(state),
+            Authenticated(Principal::local("test")),
+        )
+        .await;
+        let mut body = stream.into_response().into_body();
+        let frame = body.frame().await.unwrap().unwrap().into_data().unwrap();
+        let text = std::str::from_utf8(&frame).unwrap();
+        assert!(text.contains("data: message?sessionId="));
+        assert!(!text.contains("internal"));
+    }
 }

@@ -20,6 +20,7 @@ use crate::services::kanban_issuetype_service::KanbanIssueTypeService;
 fn build_provider_catalog(kanban: &KanbanConfig) -> Vec<KanbanProviderCatalogEntry> {
     KanbanProviderType::ALL
         .into_iter()
+        .filter(KanbanProviderType::is_operational)
         .map(|p| {
             let configured = match p {
                 // The built-in board needs no configuration to exist.
@@ -28,6 +29,8 @@ fn build_provider_catalog(kanban: &KanbanConfig) -> Vec<KanbanProviderCatalogEnt
                 KanbanProviderType::Linear => !kanban.linear.is_empty(),
                 KanbanProviderType::Github => !kanban.github.is_empty(),
                 KanbanProviderType::Openspec => !kanban.openspec.is_empty(),
+                KanbanProviderType::Gitea => kanban.gitea.values().any(|cfg| cfg.enabled),
+                KanbanProviderType::Forgejo => false,
             };
             KanbanProviderCatalogEntry {
                 slug: p.slug().to_string(),
@@ -277,7 +280,7 @@ mod tests {
         let slugs: Vec<&str> = catalog.iter().map(|e| e.slug.as_str()).collect();
         assert_eq!(
             slugs,
-            vec!["operator", "jira", "linear", "github", "openspec"]
+            vec!["operator", "jira", "linear", "github", "openspec", "gitea"]
         );
 
         let github = catalog.iter().find(|e| e.slug == "github").unwrap();

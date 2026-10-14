@@ -5,14 +5,16 @@ use ts_rs::TS;
 // ─── Kanban Provider Configuration ─────────────────────────────────────────
 
 /// Kanban provider configuration for syncing issues from external systems
-///
 /// Providers are keyed by domain/workspace:
-/// - Jira: keyed by domain (e.g., "foobar.atlassian.net")
-/// - Linear: keyed by workspace slug (e.g., "myworkspace")
-/// - GitHub Projects: keyed by owner login (e.g., "my-org")
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
 #[ts(export)]
 pub struct KanbanConfig {
+    /// Gitea repository project boards, keyed by instance name. Import-only.
+    #[serde(default)]
+    pub gitea: std::collections::HashMap<String, GiteaProjectsConfig>,
+    /// Reserved Forgejo project boards; enabling requires an upstream board API.
+    #[serde(default)]
+    pub forgejo: std::collections::HashMap<String, ForgejoProjectsConfig>,
     /// Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net")
     #[serde(default)]
     pub jira: std::collections::HashMap<String, JiraConfig>,
@@ -162,6 +164,25 @@ pub struct OpenspecConfig {
 }
 
 impl KanbanConfig {
+    pub fn validate_forge_projects(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.forgejo.values().any(|cfg| cfg.enabled),
+            "{}",
+            crate::api::providers::kanban::FORGEJO_BOARDS_UNSUPPORTED
+        );
+        let mut boards = std::collections::HashSet::new();
+        for cfg in self.gitea.values().filter(|cfg| cfg.enabled) {
+            crate::api::providers::kanban::GiteaProjectsProvider::validate_config(cfg)?;
+            for board in cfg.projects.keys() {
+                anyhow::ensure!(
+                    boards.insert(board),
+                    "Gitea board is configured in multiple instances: {board}"
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// Insert or update a Jira project entry in the config.
     ///
     /// If the workspace (keyed by domain) doesn't exist, it is created with
@@ -414,4 +435,48 @@ impl ProjectSyncConfig {
             .cloned()
             .collect()
     }
+}
+
+/// Repository project board configuration; credentials are environment variable names.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct GiteaProjectsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Instance base URL, including any deployment path prefix.
+    pub base_url: String,
+    #[serde(default = "default_gitea_projects_token_env")]
+    pub api_key_env: String,
+    /// Repositories to discover, in owner/name form.
+    #[serde(default)]
+    pub repositories: Vec<String>,
+    /// Keys are absolute project URLs returned by discovery.
+    #[serde(default)]
+    pub projects: std::collections::HashMap<String, ProjectSyncConfig>,
+}
+
+fn default_gitea_projects_token_env() -> String {
+    "OPERATOR_GITEA_TOKEN".into()
+}
+
+/// Repository project board configuration; credentials are environment variable names.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct ForgejoProjectsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Instance base URL, including any deployment path prefix.
+    pub base_url: String,
+    #[serde(default = "default_forgejo_projects_token_env")]
+    pub api_key_env: String,
+    /// Repositories to discover, in owner/name form.
+    #[serde(default)]
+    pub repositories: Vec<String>,
+    /// Keys are absolute project URLs returned by discovery.
+    #[serde(default)]
+    pub projects: std::collections::HashMap<String, ProjectSyncConfig>,
+}
+
+fn default_forgejo_projects_token_env() -> String {
+    "OPERATOR_FORGEJO_TOKEN".into()
 }

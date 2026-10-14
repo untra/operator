@@ -17,13 +17,13 @@ Statuses follow the [feature maturity](/maturity/) scale.
 | [GitLab](/getting-started/git/gitlab/) | `glab` | Alpha | Full - read, create, list, read comments |
 | Bitbucket | `bb` | Proto | Detection only |
 | Azure DevOps | `az` | Proto | Detection only |
-| Forgejo | `fj` | Proto | Detection only |
+| [Forgejo](/getting-started/git/forgejo/) | `tea api` | Alpha | Read, create, list, comments, reviews |
 | [Gitea](/getting-started/git/gitea/) | `tea api` | Alpha | Read, create, list, comments, reviews |
 
 "Detection only" means Operator recognizes the provider from its remote URL and can report which CLI to install, but has no operational `PrService`
 implementation yet - creating, reading, or listing code review requests (including reading their comments) for that provider isn't wired up.
 
-Delegator Git identity and supplied HTTPS credentials are provider-independent, including for detect-only providers. PR authentication is operational for GitHub, GitLab, and Gitea. Forgejo CLI integration remains deferred.
+Delegator Git identity and supplied HTTPS credentials are provider-independent, including for detect-only providers. PR authentication is operational for GitHub, GitLab, Gitea, and Forgejo.
 
 ## Architecture
 
@@ -44,8 +44,7 @@ Gitea uses Tea's JSON API interface and per-invocation private login configurati
 
 `GitHubService` and `GitLabService` both wrap their CLI with exponential
 backoff retry (via `backon`) and implement the same trait, so every layer
-above the retry services is provider-agnostic. Bitbucket, Azure DevOps,
-Forgejo, and Gitea are detected (`GitProvider::from_remote_url`) but have no
+above the retry services is provider-agnostic. Bitbucket and Azure DevOps are detected (`GitProvider::from_remote_url`) but have no
 service/CLI-wrapper pair yet, so `pr_service_for` returns an
 `UnsupportedProviderError` for them.
 

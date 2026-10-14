@@ -13,6 +13,7 @@
 
 import * as vscode from "vscode";
 import { discoverApiUrl, OperatorApiClient } from "./api-client";
+import { isLoopbackUrl } from "./auth/credentials";
 
 /** Sections of the hosted UI we can deep-link to (hash routes from ui/src/main.tsx). */
 export type OperatorUiRoute =
@@ -25,7 +26,12 @@ export type OperatorUiRoute =
   | "workflows"
   | "remote-targets"
   | "campaigns"
-  | "license";
+  | "license"
+  | "setup"
+  | "delegators"
+  | "llm"
+  | "git"
+  | "tickets";
 
 const ROUTE_HASH: Record<OperatorUiRoute, string> = {
   dashboard: "#/",
@@ -38,6 +44,11 @@ const ROUTE_HASH: Record<OperatorUiRoute, string> = {
   "remote-targets": "#/remote-targets",
   campaigns: "#/campaigns",
   license: "#/settings/license",
+  setup: "#/setup",
+  delegators: "#/delegators",
+  llm: "#/llm",
+  git: "#/git",
+  tickets: "#/tickets",
 };
 
 /**
@@ -58,15 +69,33 @@ export async function openOperatorUi(
   // The hosted UI is served by the daemon; if it's down there is nothing to
   // show. Probe health before opening so the user gets an actionable message
   // rather than a blank Simple Browser tab.
-  if (!(await new OperatorApiClient(apiUrl).isReachable())) {
-    const choice = await vscode.window.showErrorMessage(
-      "The Operator daemon is not running, so the Operator UI is unavailable. " +
-        "Start the daemon, then try again.",
-      "Start Operator Server",
+  if (!apiUrl) {
+    void vscode.window.showErrorMessage(
+      "No Operator server is configured. Run Operator: Choose Connection.",
     );
-    if (choice === "Start Operator Server") {
-      await vscode.commands.executeCommand("operator.startOperatorServer");
+    return;
+  }
+
+  if (!(await new OperatorApiClient(apiUrl).isReachable())) {
+    if (isLoopbackUrl(apiUrl)) {
+      const choice = await vscode.window.showErrorMessage(
+        "The Operator daemon is not running, so the Operator UI is unavailable. " +
+          "Start the daemon, then try again.",
+        "Start Operator Server",
+      );
+      if (choice === "Start Operator Server") {
+        await vscode.commands.executeCommand("operator.startOperatorServer");
+      }
+    } else {
+      void vscode.window.showErrorMessage(`Can't reach Operator at ${apiUrl}.`);
     }
+    return;
+  }
+
+  const detail = id ? `/${encodeURIComponent(id)}` : "";
+  if (!isLoopbackUrl(apiUrl)) {
+    const url = `${apiUrl.replace(/\/+$/, "")}/${ROUTE_HASH[route]}${detail}`;
+    await vscode.env.openExternal(vscode.Uri.parse(url));
     return;
   }
 
@@ -74,7 +103,6 @@ export async function openOperatorUi(
   // route is appended after mapping because asExternalUri can drop a fragment.
   const external = await vscode.env.asExternalUri(vscode.Uri.parse(apiUrl));
   const base = external.toString().replace(/\/+$/, "");
-  const detail = id ? `/${encodeURIComponent(id)}` : "";
   const url = `${base}/${ROUTE_HASH[route]}${detail}`;
 
   try {

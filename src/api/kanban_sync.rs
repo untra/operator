@@ -5,11 +5,12 @@ use std::sync::Arc;
 use tracing::warn;
 
 use crate::api::providers::kanban::{
-    ActivityLogEntry, CreateIssueRequest, GithubProjectsProvider, JiraProvider, KanbanProvider,
-    LinearProvider, UpdateStatusRequest,
+    ActivityLogEntry, CreateIssueRequest, CreateIssueResponse, GithubProjectsProvider,
+    JiraProvider, KanbanProvider, KanbanProviderType, LinearProvider, UpdateStatusRequest,
 };
 use crate::config::{Config, ProjectSyncConfig};
 use crate::queue::Ticket;
+use crate::rest::dto::{KanbanPushOutcome, KanbanTarget};
 
 /// Orchestrates outbound synchronisation from operator tickets to upstream kanban providers.
 ///
@@ -100,83 +101,100 @@ impl KanbanBidirectionalSync {
         }
     }
 
-    /// Called at ticket creation when bidirectional sync is enabled.
-    /// Creates an upstream issue and returns `(external_id, external_url, provider_name)`.
-    /// Returns `None` if no bidirectional project config can be matched.
-    pub async fn create_external_ticket(
+    /// The bidirectional kanban project tickets for operator `project` push
+    /// to: the one whose effective ticket project (`ticket_project`, or the
+    /// project key) matches.
+    pub fn resolve_target(&self, project: &str) -> Option<KanbanTarget> {
+        self.find_target(project).map(|found| found.target)
+    }
+
+    /// Create the upstream issue for a newly created ticket. Never fails the
+    /// caller: every error is reported in the returned outcome.
+    pub async fn push_new_ticket(
         &self,
         ticket: &Ticket,
-    ) -> Option<(String, String, String)> {
-        // Try Jira
-        for (domain, jira_cfg) in &self.config.kanban.jira {
-            for (proj_key, sync_cfg) in &jira_cfg.projects {
-                if !sync_cfg.bidirectional {
-                    continue;
-                }
-                if let Ok(provider) = JiraProvider::from_config(domain, jira_cfg) {
-                    let req = build_create_request(ticket, sync_cfg);
-                    match provider.create_issue(proj_key, req).await {
-                        Ok(resp) => {
-                            return Some((resp.issue.key, resp.issue.url, "jira".to_string()))
-                        }
-                        Err(e) => {
-                            warn!(
-                                ticket_id = %ticket.id,
-                                error = %e,
-                                "Bidirectional sync: Jira create_issue failed"
-                            );
-                        }
-                    }
+        description: Option<String>,
+    ) -> KanbanPushOutcome {
+        let Some(found) = self.find_target(&ticket.project) else {
+            return KanbanPushOutcome::NotConfigured;
+        };
+        let provider = match self.build_provider(&found) {
+            Ok(provider) => provider,
+            Err(e) => {
+                return KanbanPushOutcome::Failed {
+                    provider: found.target.provider,
+                    message: e.to_string(),
                 }
             }
+        };
+        let request = build_create_request(ticket, found.sync_cfg, description);
+        let result = provider
+            .create_issue(&found.target.project_key, request)
+            .await;
+        if let Err(e) = &result {
+            warn!(
+                ticket_id = %ticket.id,
+                provider = %found.target.provider,
+                error = %e,
+                "Bidirectional sync: create_issue failed"
+            );
         }
-        // Try Linear
-        for (workspace, linear_cfg) in &self.config.kanban.linear {
-            for (proj_key, sync_cfg) in &linear_cfg.projects {
-                if !sync_cfg.bidirectional {
-                    continue;
-                }
-                if let Ok(provider) = LinearProvider::from_config(workspace, linear_cfg) {
-                    let req = build_create_request(ticket, sync_cfg);
-                    match provider.create_issue(proj_key, req).await {
-                        Ok(resp) => {
-                            return Some((resp.issue.key, resp.issue.url, "linear".to_string()))
-                        }
-                        Err(e) => {
-                            warn!(
-                                ticket_id = %ticket.id,
-                                error = %e,
-                                "Bidirectional sync: Linear create_issue failed"
-                            );
-                        }
-                    }
-                }
+        push_outcome(found.target, result)
+    }
+
+    fn find_target(&self, project: &str) -> Option<FoundTarget<'_>> {
+        let wanted = normalize_project(project);
+        if wanted.is_empty() {
+            return None;
+        }
+        let kanban = &self.config.kanban;
+        let jira = kanban
+            .jira
+            .iter()
+            .flat_map(|(instance, cfg)| tag(KanbanProviderType::Jira, instance, &cfg.projects));
+        let linear = kanban.linear.iter().flat_map(|(instance, cfg)| {
+            tag(KanbanProviderType::Linear, instance, &cfg.projects)
+        });
+        let github = kanban.github.iter().flat_map(|(instance, cfg)| {
+            tag(KanbanProviderType::Github, instance, &cfg.projects)
+        });
+        jira.chain(linear)
+            .chain(github)
+            .filter(|found| found.sync_cfg.bidirectional)
+            .find(|found| {
+                normalize_project(&crate::services::kanban_sync::ticket_project(
+                    found.sync_cfg,
+                    &found.target.project_key,
+                )) == wanted
+            })
+    }
+
+    fn build_provider(
+        &self,
+        found: &FoundTarget<'_>,
+    ) -> Result<Box<dyn KanbanProvider>, crate::api::error::ApiError> {
+        let kanban = &self.config.kanban;
+        let missing = || {
+            crate::api::error::ApiError::not_configured(found.target.provider.as_str())
+        };
+        match found.kind {
+            KanbanProviderType::Jira => {
+                let cfg = kanban.jira.get(found.instance).ok_or_else(missing)?;
+                Ok(Box::new(JiraProvider::from_config(found.instance, cfg)?))
             }
-        }
-        // Try GitHub
-        for (owner, github_cfg) in &self.config.kanban.github {
-            for (proj_key, sync_cfg) in &github_cfg.projects {
-                if !sync_cfg.bidirectional {
-                    continue;
-                }
-                if let Ok(provider) = GithubProjectsProvider::from_config(owner, github_cfg) {
-                    let req = build_create_request(ticket, sync_cfg);
-                    match provider.create_issue(proj_key, req).await {
-                        Ok(resp) => {
-                            return Some((resp.issue.key, resp.issue.url, "github".to_string()))
-                        }
-                        Err(e) => {
-                            warn!(
-                                ticket_id = %ticket.id,
-                                error = %e,
-                                "Bidirectional sync: GitHub create_issue failed"
-                            );
-                        }
-                    }
-                }
+            KanbanProviderType::Linear => {
+                let cfg = kanban.linear.get(found.instance).ok_or_else(missing)?;
+                Ok(Box::new(LinearProvider::from_config(found.instance, cfg)?))
             }
+            KanbanProviderType::Github => {
+                let cfg = kanban.github.get(found.instance).ok_or_else(missing)?;
+                Ok(Box::new(GithubProjectsProvider::from_config(
+                    found.instance,
+                    cfg,
+                )?))
+            }
+            _ => Err(missing()),
         }
-        None
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────
@@ -263,16 +281,72 @@ fn done_status(sync_cfg: &ProjectSyncConfig) -> &str {
     sync_cfg.status_mapping.done.as_deref().unwrap_or("Done")
 }
 
-fn build_create_request(ticket: &Ticket, sync_cfg: &ProjectSyncConfig) -> CreateIssueRequest {
+/// A bidirectional kanban project, with where its provider config lives.
+struct FoundTarget<'a> {
+    target: KanbanTarget,
+    kind: KanbanProviderType,
+    instance: &'a str,
+    sync_cfg: &'a ProjectSyncConfig,
+}
+
+fn tag<'a>(
+    kind: KanbanProviderType,
+    instance: &'a str,
+    projects: &'a std::collections::HashMap<String, ProjectSyncConfig>,
+) -> impl Iterator<Item = FoundTarget<'a>> {
+    projects.iter().map(move |(project_key, sync_cfg)| FoundTarget {
+        target: KanbanTarget {
+            provider: kind.slug().to_string(),
+            project_key: project_key.clone(),
+        },
+        kind,
+        instance,
+        sync_cfg,
+    })
+}
+
+/// Operator project names compare case-insensitively on alphanumerics,
+/// matching how `ticket_project` and ticket filenames strip them.
+fn normalize_project(project: &str) -> String {
+    project
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+fn push_outcome(
+    target: KanbanTarget,
+    result: Result<CreateIssueResponse, crate::api::error::ApiError>,
+) -> KanbanPushOutcome {
+    match result {
+        Ok(response) => KanbanPushOutcome::Pushed {
+            provider: target.provider,
+            project_key: target.project_key,
+            external_id: response.issue.key,
+            external_url: Some(response.issue.url).filter(|url| !url.is_empty()),
+        },
+        Err(e) => KanbanPushOutcome::Failed {
+            provider: target.provider,
+            message: e.to_string(),
+        },
+    }
+}
+
+fn build_create_request(
+    ticket: &Ticket,
+    sync_cfg: &ProjectSyncConfig,
+    description: Option<String>,
+) -> CreateIssueRequest {
     CreateIssueRequest {
         summary: ticket.summary.clone(),
-        description: None,
+        description,
         assignee_id: if sync_cfg.sync_user_id.is_empty() {
             None
         } else {
             Some(sync_cfg.sync_user_id.clone())
         },
-        status: None,
+        status: todo_status(sync_cfg).map(ToString::to_string),
         priority: None,
     }
 }

@@ -74,13 +74,10 @@ impl App {
 
         // Reload the issue type registry so the chosen collection is active
         // without requiring a restart (mirrors App::new's load path).
-        let mut registry = crate::startup::templates::load_registry(&self.config.tickets_path());
-        if let Some(ref active) = self.config.templates.active_collection {
-            if let Err(e) = registry.activate_collection(active) {
-                tracing::warn!("Failed to activate collection '{}': {}", active, e);
-            }
-        }
-        self.issue_type_registry = registry;
+        self.issue_type_registry = crate::startup::templates::load_active_registry(
+            &self.config.tickets_path(),
+            self.config.templates.active_collection.as_deref(),
+        );
 
         // Update the create dialog with discovered projects
         self.create_dialog.set_projects(discovered_projects.clone());

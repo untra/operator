@@ -67,11 +67,6 @@ impl TicketCreator {
             _process: process,
             _file: file,
         })
-    /// Serializes id allocation and writes across single and batch creation.
-    pub fn creation_lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        LOCK.lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Ids of every ticket in queue, in-progress and completed.
@@ -109,25 +104,6 @@ impl TicketCreator {
         template: &str,
         values: &HashMap<String, String>,
     ) -> Result<PathBuf> {
-        let project = values
-            .get("project")
-            .filter(|p| !p.is_empty())
-            .cloned()
-            .unwrap_or_else(|| "global".to_string());
-
-        let slug = values
-            .get("summary")
-            .map(|summary| ids::slugify(summary, 50))
-            .filter(|slug| !slug.is_empty())
-            .or_else(|| values.get("id").map(|id| ids::slugify(id, 50)))
-            .unwrap_or_else(|| "new-ticket".to_string());
-        let queue_path = self.queue_path();
-        let filepath = ids::unique_path(
-            &queue_path,
-            &format!("{timestamp}-{type_str}-{project}-{slug}"),
-        );
-
-        let template = template_type.template_content();
         let content = render_template(template, values)?;
         let content = stamp_collection(&content, self.collection.as_deref());
         let content = match values.get("project").filter(|p| !p.is_empty()) {
@@ -137,9 +113,16 @@ impl TicketCreator {
         self.write_rendered(type_key, values, &content)
     }
 
-        fs::create_dir_all(&queue_path).context("Failed to create queue directory")?;
-        fs::write(&filepath, &content).context("Failed to write ticket file")?;
-
+    /// Write already-rendered ticket markdown to a fresh queue filename.
+    pub fn write_rendered(
+        &self,
+        type_key: &str,
+        values: &HashMap<String, String>,
+        content: &str,
+    ) -> Result<PathBuf> {
+        let filepath = self.next_queue_path(type_key, values);
+        fs::create_dir_all(self.queue_path()).context("Failed to create queue directory")?;
+        fs::write(&filepath, content).context("Failed to write ticket file")?;
         Ok(filepath)
     }
 
@@ -212,10 +195,9 @@ impl TicketCreator {
         let now = Utc::now();
         let date = now.format("%Y-%m-%d").to_string();
         let datetime = now.format("%Y-%m-%d %H:%M").to_string();
-        let type_str = template_type.as_str();
         let existing = self.existing_ids();
-        let id = ids::next_ticket_id(type_str, existing.iter().map(String::as_str));
-        let branch_prefix = type_str.to_lowercase();
+        let id = ids::next_ticket_id(type_key, existing.iter().map(String::as_str));
+        let branch_prefix = type_key.to_lowercase();
 
         let mut values = HashMap::new();
         values.insert("id".to_string(), id.clone());

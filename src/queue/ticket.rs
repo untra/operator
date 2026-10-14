@@ -326,15 +326,6 @@ impl Ticket {
                 })
                 .unwrap_or_default();
         let project = frontmatter_project.unwrap_or(project);
-        let (depends_on, campaign, external_parent) = parse_frontmatter_mapping(&content)
-            .map(|(map, _)| {
-                (
-                    string_list(&map, "depends_on"),
-                    scalar(&map, "campaign"),
-                    scalar(&map, "external_parent"),
-                )
-            })
-            .unwrap_or_default();
 
         Ok(Self {
             filename,

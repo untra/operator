@@ -211,6 +211,7 @@ mod tests {
             session_id: None,
             ticket_id: None,
             step: None,
+            agent_session_id: None,
             scopes: vec![Scope::Read, Scope::Execute],
         }
     }

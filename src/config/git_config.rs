@@ -133,9 +133,7 @@ fn default_gitlab_token_env() -> String {
 pub struct GitIdentityConfig {
     /// Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`
     pub name: String,
-    /// Git author name applied to delegated commits.
-    pub name: String,
-    /// Git author email applied to delegated commits.
+    /// Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`
     pub email: String,
 }
 
@@ -143,21 +141,22 @@ pub struct GitIdentityConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
 #[ts(export)]
 pub struct GitCredentialConfig {
-    /// HTTPS repository URL this credential is bound to.
+    /// HTTPS repository URL the credential is bound to, with no embedded credentials, query or
+    /// fragment
     pub repository_url: String,
-    /// HTTPS username. The token is read from `token_env`.
+    /// HTTPS username sent with the token
     pub username: String,
-    /// Environment variable holding the HTTPS token. The secret is not stored here.
+    /// Environment variable holding the token, read at launch
     pub token_env: String,
 }
 
-/// One `git config` key and value.
+/// One `git config` entry applied to delegated work.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
 #[ts(export)]
 pub struct GitConfigEntry {
-    /// `git config` key (for example `user.name`).
+    /// Dotted config key (e.g. "commit.gpgsign"); identity and authentication keys are rejected
     pub key: String,
-    /// `git config` value.
+    /// Config value
     pub value: String,
 }
 
@@ -167,14 +166,25 @@ pub struct GitConfigEntry {
 )]
 #[ts(export)]
 pub struct GitExecutionConfig {
-    /// Commit identity override for this delegator.
+    /// Commit identity; falls back to the global `git.identity`
     #[serde(default)]
     pub identity: Option<GitIdentityConfig>,
-    /// HTTPS credential bound to one repository.
+    /// HTTPS credential for the ticket's repository
     #[serde(default)]
     pub credentials: Option<GitCredentialConfig>,
-    /// Extra `git config` entries applied for this delegator.
+    /// Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,
+    /// `user.email`, `core.askpass` and `core.sshCommand` are rejected
     #[serde(default)]
+    pub settings: Vec<GitConfigEntry>,
+}
+
+/// Gitea forge settings for pull requests.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct GiteaConfig {
+    /// Whether Gitea integration is enabled (default: false).
+    #[serde(default)]
+    pub enabled: bool,
     /// Environment variable containing the Gitea token (default: `GITEA_TOKEN`).
     #[serde(default = "default_gitea_token_env")]
     pub token_env: String,
@@ -182,6 +192,7 @@ pub struct GitExecutionConfig {
     #[serde(default)]
     pub host: Option<String>,
     /// Prefix applied to draft pull request titles (default: `WIP: `).
+    #[serde(default = "default_wip_prefix")]
     pub wip_prefix: String,
 }
 

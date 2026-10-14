@@ -18,6 +18,7 @@ pub mod issue_types;
 pub mod kanban;
 pub mod sections;
 pub mod setup;
+pub mod telemetry;
 pub mod tickets;
 pub mod workflow;
 
@@ -31,6 +32,7 @@ pub use issue_types::*;
 pub use kanban::*;
 pub use sections::*;
 pub use setup::*;
+pub use telemetry::*;
 pub use tickets::*;
 pub use workflow::*;
 

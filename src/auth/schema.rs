@@ -143,6 +143,15 @@ const MIGRATIONS: &[&str] = &[
     r"
     ALTER TABLE session ADD COLUMN csrf_prev_hash TEXT;
     ",
+    // v3 - telemetry installation key for keyed hashing of personal-class
+    // attributes. Pinned to one row so concurrent first starts agree on a key.
+    r"
+    CREATE TABLE telemetry_key (
+        id          INTEGER PRIMARY KEY CHECK (id = 1),
+        key         BLOB NOT NULL CHECK (length(key) = 32),
+        created_at  TEXT NOT NULL
+    );
+    ",
 ];
 
 /// Apply any migrations the database has not seen.
@@ -246,6 +255,7 @@ mod tests {
             "access_key",
             "audit_log",
             "rate_limit",
+            "telemetry_key",
         ] {
             let count: i64 = conn
                 .query_row(

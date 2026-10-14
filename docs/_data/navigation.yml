@@ -200,6 +200,12 @@ docs:
       - title: Delegators
         url: /delegators/
         codicon: organization
+      - title: Telemetry
+        url: /telemetry/
+        codicon: pulse
+        children:
+          - title: OTLP Event Catalog
+            url: /telemetry/catalog/
       - title: Relay
         url: /relay/
         codicon: radio-tower

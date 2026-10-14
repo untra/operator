@@ -36,6 +36,7 @@ pub mod services;
 mod steps;
 #[allow(dead_code)]
 pub mod taxonomy;
+pub mod telemetry;
 mod templates;
 pub mod version;
 

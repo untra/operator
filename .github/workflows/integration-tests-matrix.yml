@@ -54,9 +54,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
-  # ============================================================================
   # BUILD ARTIFACTS FIRST
-  # ============================================================================
 
   build-operator:
     name: Build Operator (${{ matrix.artifact }})
@@ -145,9 +143,7 @@ jobs:
           path: opr8r/target/release/opr8r${{ matrix.extension || '' }}
           retention-days: 1
 
-  # ============================================================================
   # TMUX INTEGRATION TESTS (Linux/macOS only)
-  # ============================================================================
 
   test-tmux-launch:
     name: TMux Launch (${{ matrix.os }})
@@ -215,9 +211,7 @@ jobs:
         if: always()
         run: tmux kill-server 2>/dev/null || true
 
-  # ============================================================================
   # ZELLIJ INTEGRATION TESTS (Linux only)
-  # ============================================================================
 
   test-zellij-launch:
     name: Zellij Launch (${{ matrix.os }})
@@ -287,9 +281,7 @@ jobs:
           pkill -f zellij 2>/dev/null || true
           rm -rf /tmp/operator-zellij-mock-output
 
-  # ============================================================================
   # CMUX INTEGRATION TESTS (mock-based, macOS)
-  # ============================================================================
 
   test-cmux-launch:
     name: cmux Launch (mock, ${{ matrix.os }})
@@ -339,9 +331,7 @@ jobs:
           OPERATOR_CMUX_TEST_ENABLED: 'true'
         run: cargo test --locked --test launch_integration_cmux -- --nocapture --test-threads=1
 
-  # ============================================================================
   # VSCODE WRAPPER LAUNCH TESTS (Rust library-level, all platforms)
-  # ============================================================================
 
   # No `needs: build-operator`: `cargo test` compiles the library from source and
   # this suite never executes the release binary, so waiting on it was dead time.
@@ -376,9 +366,7 @@ jobs:
           OPERATOR_VSCODE_TEST_ENABLED: 'true'
         run: cargo test --locked --test launch_integration_vscode -- --nocapture --test-threads=1
 
-  # ============================================================================
   # REST API INTEGRATION TESTS (All platforms)
-  # ============================================================================
 
   test-rest-api:
     name: REST API (${{ matrix.os }})
@@ -413,9 +401,7 @@ jobs:
           OPERATOR_REST_API_TEST_ENABLED: 'true'
         run: cargo test --locked --test rest_api_integration -- --nocapture --test-threads=1
 
-  # ============================================================================
   # OPR8R CLI INTEGRATION TESTS (All platforms)
-  # ============================================================================
 
   test-opr8r-cli:
     name: opr8r CLI (${{ matrix.os }})
@@ -466,9 +452,7 @@ jobs:
         run: .\opr8r-bin\opr8r.exe --ticket-id TEST-001 --step plan --dry-run -- cmd /C "echo test"
         shell: pwsh
 
-  # ============================================================================
   # VSCODE EXTENSION INTEGRATION TESTS (Headless)
-  # ============================================================================
 
   test-vscode-extension:
     name: VSCode Extension (${{ matrix.os }})

@@ -30,6 +30,7 @@ mod state;
 mod steps;
 #[allow(dead_code)]
 mod taxonomy;
+mod telemetry;
 mod templates;
 mod types;
 

@@ -253,6 +253,8 @@ pub enum PrincipalKind {
     LocalProcess,
     /// A single-purpose agent step-completion callback token.
     AgentCallback,
+    /// An agent session's scopeless OTLP ingest token.
+    TelemetryIngest,
 }
 
 /// A freshly minted CSRF token for the current session.

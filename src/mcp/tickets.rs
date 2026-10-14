@@ -114,6 +114,9 @@ pub async fn create_ticket(mut args: Value, state: &ApiState) -> Result<Value, S
         })?;
     serde_json::to_value(created).map_err(|e| e.to_string())
 }
+pub async fn create_ticket(args: Value, state: &ApiState) -> Result<Value, String> {
+    use crate::templates::TemplateType;
+    use std::collections::HashMap;
 
 /// MCP clients send numbers and booleans for integer/bool fields; the
 /// contract carries every field value as a string.
@@ -126,6 +129,20 @@ fn stringify_values(args: &mut Value) {
             *value = Value::String(value.to_string());
         }
     }
+
+    let (ticket, path) =
+        crate::rest::routes::tickets::create_ticket_from_values(state, template_type, values)
+            .await
+            .map_err(|e| {
+                let (_, code, message) = e.parts();
+                format!("{code}: {message}")
+            })?;
+
+    Ok(json!({
+        "id": ticket.id,
+        "path": path.to_string_lossy(),
+        "filename": ticket.filename,
+    }))
 }
 
 #[cfg(test)]

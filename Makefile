@@ -6,7 +6,7 @@
 # hook, which runs the fast gate (root fmt-check + clippy, no tests).
 
 .PHONY: check fmt fmt-check lint test clippy build run install-hooks bindings \
-	webcomponents storybook ui docs vscode-extension relay opr8r e2e \
+	webcomponents storybook ui docs vscode-extension relay telemetry telemetry-registry opr8r e2e \
 	fmt-rust fmt-ts fmt-tf fmt-check-rust fmt-check-ts fmt-check-tf \
 	lint-rust lint-ts lint-shell lint-helm lint-tf test-rust test-ts
 
@@ -23,17 +23,19 @@ fmt: fmt-rust fmt-ts fmt-tf
 
 fmt-check: fmt-check-rust fmt-check-ts fmt-check-tf
 
-# crates/relay, opr8r and zed-extension have their own Cargo.lock and are not
+# crates/relay, crates/telemetry, opr8r and zed-extension have their own Cargo.lock and are not
 # workspace members, so `--all` never reaches them.
 fmt-rust:
 	cargo fmt --all
 	cd crates/relay && cargo fmt
+	cd crates/telemetry && cargo fmt
 	cd opr8r && cargo fmt
 	cd zed-extension && cargo fmt
 
 fmt-check-rust:
 	cargo fmt --all -- --check
 	cd crates/relay && cargo fmt -- --check
+	cd crates/telemetry && cargo fmt -- --check
 	cd opr8r && cargo fmt -- --check
 	cd zed-extension && cargo fmt -- --check
 
@@ -62,6 +64,7 @@ clippy:
 # zed-extension compiles to wasm, so its lints only resolve under that target.
 lint-rust: clippy
 	cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd crates/telemetry && cargo clippy --locked --all-targets --all-features -- -D warnings
 	cd opr8r && cargo clippy --locked --all-targets --all-features -- -D warnings
 	cd zed-extension && cargo clippy --locked --target wasm32-wasip1 -- -D warnings
 
@@ -93,6 +96,7 @@ test: test-rust test-ts
 test-rust:
 	cargo test --locked --all-features
 	cd crates/relay && cargo test --locked --all-features
+	cd crates/telemetry && cargo test --locked --all-features
 	cd opr8r && cargo test --locked --all-features
 
 # Display-bound suites (vscode-extension, storybook) stay on their own targets.
@@ -107,6 +111,15 @@ relay:
 	cd crates/relay && cargo fmt -- --check
 	cd crates/relay && cargo clippy --locked --all-targets --all-features -- -D warnings
 	cd crates/relay && cargo test --locked --all-features
+
+telemetry:
+	cd crates/telemetry && cargo fmt -- --check
+	cd crates/telemetry && cargo clippy --locked --all-targets --all-features -- -D warnings
+	cd crates/telemetry && cargo test --locked --all-features
+	cd crates/telemetry && cargo test --locked --no-default-features
+
+telemetry-registry:
+	scripts/check-telemetry-registry.sh
 
 opr8r:
 	cd opr8r && cargo fmt -- --check

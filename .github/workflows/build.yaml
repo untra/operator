@@ -149,6 +149,43 @@ jobs:
           arguments: --all-features
           command: check
 
+      - name: crates/telemetry
+        run: |
+          cd crates/telemetry
+          cargo fmt -- --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all-features
+          cargo test --locked --no-default-features
+          cargo check --locked --no-default-features --features redact
+          cargo check --locked --no-default-features --features schema
+
+      - name: cargo-deny (crates/telemetry)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: crates/telemetry/Cargo.toml
+          arguments: --all-features
+          command: check
+
+      - name: Validate telemetry registry with Weaver
+        env:
+          WEAVER_VERSION: "0.27.0"
+        run: |
+          archive="weaver-x86_64-unknown-linux-gnu.tar.xz"
+          download_dir="${RUNNER_TEMP}/operator-weaver"
+          mkdir -p "$download_dir"
+          curl --fail --silent --show-error --location \
+            "https://github.com/open-telemetry/weaver/releases/download/v${WEAVER_VERSION}/${archive}" \
+            --output "$download_dir/$archive"
+          curl --fail --silent --show-error --location \
+            "https://github.com/open-telemetry/weaver/releases/download/v${WEAVER_VERSION}/${archive}.sha256" \
+            --output "$download_dir/$archive.sha256"
+          (cd "$download_dir" && sha256sum --check "$archive.sha256")
+          tar -xf "$download_dir/$archive" -C "$download_dir"
+          OPERATOR_WEAVER="$download_dir/weaver-x86_64-unknown-linux-gnu/weaver" make telemetry-registry
+
+      - name: Check generated telemetry catalog and types
+        run: cargo run --locked --bin generate_types -- --check
+
       - name: Lint and render Helm chart
         run: |
           helm lint charts/operator

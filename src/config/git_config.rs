@@ -13,8 +13,10 @@ pub struct GitConfig {
     /// Default commit identity for delegated work.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<GitIdentityConfig>,
+    /// Gitea forge settings for pull requests.
     #[serde(default)]
     pub gitea: GiteaConfig,
+    /// Forgejo forge settings for pull requests.
     #[serde(default)]
     pub forgejo: ForgejoConfig,
     /// Active provider (auto-detected from remote URL if not specified)
@@ -131,7 +133,9 @@ fn default_gitlab_token_env() -> String {
 pub struct GitIdentityConfig {
     /// Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`
     pub name: String,
-    /// Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`
+    /// Git author name applied to delegated commits.
+    pub name: String,
+    /// Git author email applied to delegated commits.
     pub email: String,
 }
 
@@ -139,22 +143,21 @@ pub struct GitIdentityConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
 #[ts(export)]
 pub struct GitCredentialConfig {
-    /// HTTPS repository URL the credential is bound to, with no embedded credentials, query or
-    /// fragment
+    /// HTTPS repository URL this credential is bound to.
     pub repository_url: String,
-    /// HTTPS username sent with the token
+    /// HTTPS username. The token is read from `token_env`.
     pub username: String,
-    /// Environment variable holding the token, read at launch
+    /// Environment variable holding the HTTPS token. The secret is not stored here.
     pub token_env: String,
 }
 
-/// One `git config` entry applied to delegated work.
+/// One `git config` key and value.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema, PartialEq, Eq)]
 #[ts(export)]
 pub struct GitConfigEntry {
-    /// Dotted config key (e.g. "commit.gpgsign"); identity and authentication keys are rejected
+    /// `git config` key (for example `user.name`).
     pub key: String,
-    /// Config value
+    /// `git config` value.
     pub value: String,
 }
 
@@ -164,29 +167,21 @@ pub struct GitConfigEntry {
 )]
 #[ts(export)]
 pub struct GitExecutionConfig {
-    /// Commit identity; falls back to the global `git.identity`
+    /// Commit identity override for this delegator.
     #[serde(default)]
     pub identity: Option<GitIdentityConfig>,
-    /// HTTPS credential for the ticket's repository
+    /// HTTPS credential bound to one repository.
     #[serde(default)]
     pub credentials: Option<GitCredentialConfig>,
-    /// Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,
-    /// `user.email`, `core.askpass` and `core.sshCommand` are rejected
+    /// Extra `git config` entries applied for this delegator.
     #[serde(default)]
-    pub settings: Vec<GitConfigEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
-#[ts(export)]
-pub struct GiteaConfig {
-    #[serde(default)]
-    pub enabled: bool,
+    /// Environment variable containing the Gitea token (default: `GITEA_TOKEN`).
     #[serde(default = "default_gitea_token_env")]
     pub token_env: String,
     /// HTTPS host or base URL; defaults to gitea.com.
     #[serde(default)]
     pub host: Option<String>,
-    #[serde(default = "default_wip_prefix")]
+    /// Prefix applied to draft pull request titles (default: `WIP: `).
     pub wip_prefix: String,
 }
 
@@ -205,16 +200,20 @@ impl Default for GiteaConfig {
     }
 }
 
+/// Forgejo forge settings for pull requests.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct ForgejoConfig {
+    /// Whether Forgejo integration is enabled (default: false).
     #[serde(default)]
     pub enabled: bool,
+    /// Environment variable containing the Forgejo token (default: `FORGEJO_TOKEN`).
     #[serde(default = "default_forgejo_token_env")]
     pub token_env: String,
     /// HTTPS host or base URL; defaults to codeberg.org.
     #[serde(default)]
     pub host: Option<String>,
+    /// Prefix applied to draft pull request titles (default: `WIP: `).
     #[serde(default = "default_wip_prefix")]
     pub wip_prefix: String,
 }

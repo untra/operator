@@ -285,6 +285,34 @@ pub async fn preview(
     Json(request): Json<CreateTicketRequest>,
 ) -> Result<Json<TicketPreviewResponse>, ApiError> {
     ticket_creation::preview(&state, request).await.map(Json)
+/// Shared ticket-creation core for the REST surface: overlays caller `values`
+/// on top of the template's generated defaults (so the ticket gets a real id,
+/// branch, etc.), writes it to the queue via the embedded-template
+/// [`TicketCreator`], and reloads it. Used by both `create` and `create_alert`.
+pub(crate) async fn create_ticket_from_values(
+    state: &ApiState,
+    template_type: TemplateType,
+    values: HashMap<String, String>,
+) -> Result<(Ticket, std::path::PathBuf), ApiError> {
+    let config = (*state.config()).clone();
+    let path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
+        let _guard = TicketCreator::creation_lock();
+        let creator = TicketCreator::new(&config);
+        let project = values.get("project").cloned().unwrap_or_default();
+        // Start from generated defaults (id, created, branch, step, status),
+        // then overlay the caller's values so explicit fields win.
+        let mut merged = creator.generate_default_values(template_type, &project);
+        merged.extend(values);
+        creator
+            .create_ticket_headless(template_type, &merged)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| ApiError::InternalError(e.to_string()))?
+    .map_err(ApiError::InternalError)?;
+
+    let ticket = Ticket::from_file(&path).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    Ok((ticket, path))
 }
 
 /// Issue type alerts become.
@@ -362,6 +390,7 @@ fn alert_request(alert: CreateAlertRequest, severity_options: &[String]) -> Crea
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn make_state() -> ApiState {
         make_state_in(&tempfile::TempDir::new().unwrap().keep())
@@ -625,6 +654,135 @@ mod tests {
         assert_eq!(resp.errors.len(), 1);
         assert_eq!(resp.errors[0].field, "summary");
         assert!(resp.markdown.is_empty());
+    }
+
+    fn write_ticket(root: &std::path::Path, column: &str, name: &str, frontmatter: &str) -> Ticket {
+        let dir = root.join(column);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        std::fs::write(
+            &path,
+            format!("---\n{frontmatter}\n---\n\n# Body of {name}\n"),
+        )
+        .unwrap();
+        Ticket::from_file(&path).unwrap()
+    }
+
+    fn agent_for(ticket_id: &str) -> crate::state::AgentState {
+        serde_json::from_value(serde_json::json!({
+            "id": "agent-1", "ticket_id": ticket_id, "ticket_type": "FEAT", "project": "api",
+            "status": "running", "started_at": "2026-01-01T00:00:00Z",
+            "last_activity": "2026-01-01T00:00:00Z", "paired": false,
+            "session_wrapper": "tmux", "session_name": "op-feat-2",
+            "current_step": "build", "completed_steps": ["plan"],
+            "pr_url": "https://example.test/pr/9", "pr_number": 9
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn test_ticket_detail_resolves_dependencies_and_dependents() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path();
+        let done = write_ticket(
+            root,
+            "completed",
+            "20260101-0000-FEAT-api-a.md",
+            "id: FEAT-1\nstatus: completed",
+        );
+        let me = write_ticket(
+            root,
+            "in-progress",
+            "20260101-0001-FEAT-api-b.md",
+            "id: FEAT-2\ncampaign: CAMP-0001\ndepends_on:\n  - FEAT-1\n  - jira:PROJ-9",
+        );
+        let child = write_ticket(
+            root,
+            "queue",
+            "20260101-0002-FEAT-api-c.md",
+            "id: FEAT-3\ndepends_on:\n  - FEAT-2",
+        );
+        let all = vec![done, me.clone(), child];
+
+        let detail = ticket_detail(&Config::default(), &me, &all, None);
+
+        assert_eq!(detail.body, "# Body of 20260101-0001-FEAT-api-b.md\n");
+        assert_eq!(detail.column, "in-progress");
+        assert_eq!(detail.campaign.as_deref(), Some("CAMP-0001"));
+        assert_eq!(detail.depends_on, vec!["FEAT-1", "jira:PROJ-9"]);
+        assert_eq!(
+            detail.dependencies,
+            vec![
+                TicketDependency {
+                    reference: "FEAT-1".into(),
+                    ticket_id: Some("FEAT-1".into()),
+                    column: Some("completed".into()),
+                    satisfied: true,
+                },
+                TicketDependency {
+                    reference: "jira:PROJ-9".into(),
+                    ticket_id: None,
+                    column: None,
+                    satisfied: false,
+                },
+            ]
+        );
+        assert_eq!(detail.dependents, vec!["FEAT-3"]);
+        assert!(detail.agent.is_none());
+    }
+
+    #[test]
+    fn test_ticket_detail_carries_the_live_agent() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let me = write_ticket(
+            temp.path(),
+            "in-progress",
+            "20260101-0001-FEAT-api-b.md",
+            "id: FEAT-2",
+        );
+        let agent = agent_for("FEAT-2");
+
+        let detail = ticket_detail(
+            &Config::default(),
+            &me,
+            std::slice::from_ref(&me),
+            Some(&agent),
+        );
+
+        let live = detail.agent.expect("agent");
+        assert_eq!(live.id, "agent-1");
+        assert_eq!(live.session_wrapper.as_deref(), Some("tmux"));
+        assert_eq!(live.session_name.as_deref(), Some("op-feat-2"));
+        assert_eq!(live.completed_steps, vec!["plan"]);
+        assert_eq!(live.pr_number, Some(9));
+        assert_eq!(
+            live.attach_command.as_deref(),
+            Some("tmux attach -t op-feat-2")
+        );
+    }
+
+    #[test]
+    fn test_attach_command_uses_the_operator_socket_when_configured() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.paths.tickets = temp.path().to_string_lossy().into_owned();
+        config.tmux.config_generated = true;
+        let conf = config.tmux_config_path();
+        std::fs::create_dir_all(conf.parent().unwrap()).unwrap();
+        std::fs::write(conf, "").unwrap();
+        assert_eq!(
+            attach_command(&config, &agent_for("FEAT-2")).as_deref(),
+            Some("tmux -L operator attach -t op-feat-2")
+        );
+    }
+
+    #[test]
+    fn test_attach_command_is_absent_for_other_wrappers() {
+        let mut agent = agent_for("FEAT-2");
+        agent.session_wrapper = Some("zellij".into());
+        assert_eq!(attach_command(&Config::default(), &agent), None);
+        agent.session_wrapper = Some("cmux".into());
+        assert_eq!(attach_command(&Config::default(), &agent), None);
     }
 
     fn write_ticket(root: &std::path::Path, column: &str, name: &str, frontmatter: &str) -> Ticket {

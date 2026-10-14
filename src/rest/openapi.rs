@@ -263,6 +263,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Auth", description = "Bootstrap, sessions, OAuth device flow, and access keys"),
         (name = "Setup", description = "First-run workspace initialization"),
         (name = "Git", description = "Git provider onboarding"),
+        (name = "Telemetry", description = "OTLP ingest from agent sessions and the per-session telemetry window"),
     )
 )]
 pub struct ApiDoc;
@@ -468,6 +469,29 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
 
     match access {
         Access::Public => operation.security = Some(Vec::new()),
+        Access::TelemetryIngest => {
+            operation.security = Some(vec![SecurityRequirement::new(
+                "bearerAuth",
+                Vec::<String>::new(),
+            )]);
+            operation
+                .extensions
+                .get_or_insert_with(Extensions::default)
+                .insert(
+                    "x-operator-scope".to_string(),
+                    serde_json::json!(crate::auth::tokens::AUDIENCE_TELEMETRY),
+                );
+            operation
+                .responses
+                .responses
+                .entry("401".to_string())
+                .or_insert_with(|| Ref::from_response_name(UNAUTHORIZED_RESPONSE_NAME).into());
+            operation
+                .responses
+                .responses
+                .entry("403".to_string())
+                .or_insert_with(|| Ref::from_response_name(FORBIDDEN_RESPONSE_NAME).into());
+        }
         Access::Scoped(scope) => {
             operation.security = Some(vec![
                 SecurityRequirement::new("bearerAuth", Vec::<String>::new()),
@@ -611,6 +635,16 @@ mod tests {
             );
             match rule.access {
                 Access::Public => assert_eq!(operation["security"], serde_json::json!([])),
+                Access::TelemetryIngest => {
+                    assert_eq!(
+                        operation["security"],
+                        serde_json::json!([{ "bearerAuth": [] }])
+                    );
+                    assert_eq!(
+                        operation["x-operator-scope"],
+                        crate::auth::tokens::AUDIENCE_TELEMETRY
+                    );
+                }
                 Access::Scoped(scope) => {
                     assert_eq!(
                         operation["security"],
@@ -629,7 +663,7 @@ mod tests {
     fn test_protected_mutations_document_csrf_header() {
         let spec = parsed_spec();
         for rule in crate::auth::scope::ROUTE_RULES {
-            if matches!(rule.access, Access::Public)
+            if matches!(rule.access, Access::Public | Access::TelemetryIngest)
                 || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
             {
                 continue;

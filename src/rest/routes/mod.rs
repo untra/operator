@@ -26,5 +26,6 @@ pub mod setup;
 pub mod skills;
 pub mod steps;
 pub mod targets;
+pub mod telemetry;
 pub mod tickets;
 pub mod workflow;

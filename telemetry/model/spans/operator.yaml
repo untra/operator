@@ -1,0 +1,50 @@
+groups:
+  - id: operator.agent.launch
+    type: "span"
+    brief: "Operator agent launch."
+    stability: "development"
+    span_kind: "internal"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+  - id: opr8r.step
+    type: "span"
+    brief: "Opr8r step."
+    stability: "development"
+    span_kind: "internal"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+  - id: operator.otlp.ingest
+    type: "span"
+    brief: "Operator otlp ingest."
+    stability: "development"
+    span_kind: "server"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+  - id: operator.redacted.span
+    type: span
+    brief: Span whose original name is not approved by the catalog.
+    stability: development
+    span_kind: internal
+    attributes:
+      - ref: operator.redacted.count

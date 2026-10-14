@@ -1,0 +1,41 @@
+groups:
+  - id: event.operator.step.started
+    type: "event"
+    name: "operator.step.started"
+    brief: "Operator step started."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+  - id: event.operator.step.completed
+    type: "event"
+    name: "operator.step.completed"
+    brief: "Operator step completed."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.exit_code
+      - ref: operator.duration
+      - ref: operator.output.status
+      - ref: operator.output.exit_signal
+      - ref: operator.output.confidence
+      - ref: operator.output.files_modified
+      - ref: operator.output.tests_status
+      - ref: operator.output.error_count
+      - ref: operator.output.tasks_completed
+      - ref: operator.output.tasks_remaining
+      - ref: operator.output.summary
+      - ref: operator.output.recommendation

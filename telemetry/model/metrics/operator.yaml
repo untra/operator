@@ -1,0 +1,68 @@
+groups:
+  - id: metric.operator.agents.active
+    type: "metric"
+    metric_name: "operator.agents.active"
+    brief: "Operator agents active."
+    stability: "development"
+    instrument: "gauge"
+    unit: "{agent}"
+    attributes:
+      - ref: operator.profile.id
+  - id: metric.operator.queue.depth
+    type: "metric"
+    metric_name: "operator.queue.depth"
+    brief: "Operator queue depth."
+    stability: "development"
+    instrument: "gauge"
+    unit: "{ticket}"
+    attributes:
+      - ref: operator.profile.id
+  - id: metric.operator.step.duration
+    type: "metric"
+    metric_name: "operator.step.duration"
+    brief: "Operator step duration."
+    stability: "development"
+    instrument: "histogram"
+    unit: "s"
+    attributes:
+      - ref: operator.profile.id
+  - id: metric.operator.telemetry.received
+    type: "metric"
+    metric_name: "operator.telemetry.received"
+    brief: "Operator telemetry received."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason
+  - id: metric.operator.telemetry.dropped
+    type: "metric"
+    metric_name: "operator.telemetry.dropped"
+    brief: "Operator telemetry dropped."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason
+  - id: metric.operator.telemetry.forwarded
+    type: "metric"
+    metric_name: "operator.telemetry.forwarded"
+    brief: "Operator telemetry forwarded."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason
+  - id: metric.operator.telemetry.redacted
+    type: "metric"
+    metric_name: "operator.telemetry.redacted"
+    brief: "Operator telemetry redacted."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason

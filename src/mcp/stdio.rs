@@ -33,7 +33,7 @@ where
                 continue;
             }
         };
-        let response = handle_jsonrpc(&request, &state, &Scope::ALL).await;
+        let response = Box::pin(handle_jsonrpc(&request, &state, &Scope::ALL)).await;
         let json = serde_json::to_string(&response).unwrap_or_else(|_| {
             r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"serialization failed"}}"#
                 .to_string()

@@ -1106,21 +1106,28 @@ impl AuthStore {
     // =========================================================================
 
     /// Append an audit record. Callers must never pass secret material.
-    pub fn audit(&self, event: &str, detail: Option<&str>, succeeded: bool) -> Result<()> {
+    pub fn audit(
+        &self,
+        action: crate::auth::audit::AuditAction,
+        detail: Option<&str>,
+        succeeded: bool,
+    ) -> Result<()> {
         self.with_conn(|conn| {
             conn.execute(
                 "INSERT INTO audit_log (at, event, subject, detail, succeeded) \
                  VALUES (?1, ?2, ?3, ?4, ?5)",
                 rusqlite::params![
                     Utc::now().to_rfc3339(),
-                    event,
+                    action.as_str(),
                     ADMIN_SUBJECT,
                     detail,
                     i64::from(succeeded),
                 ],
             )?;
             Ok(())
-        })
+        })?;
+        crate::telemetry::events::audit_event(action, succeeded, detail);
+        Ok(())
     }
 
     /// Recent audit records, newest first, as `(at, event, detail, succeeded)`.
@@ -1802,8 +1809,14 @@ mod tests {
     #[test]
     fn test_audit_records_are_appended_newest_first() {
         let s = store();
-        s.audit("login", Some("failure"), false).unwrap();
-        s.audit("login", None, true).unwrap();
+        s.audit(
+            crate::auth::audit::AuditAction::Login,
+            Some("failure"),
+            false,
+        )
+        .unwrap();
+        s.audit(crate::auth::audit::AuditAction::Login, None, true)
+            .unwrap();
 
         let recent = s.recent_audit(10).unwrap();
         assert_eq!(recent.len(), 2);

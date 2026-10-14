@@ -13586,6 +13586,10 @@
             "format": "int32",
             "description": "Exit code from the LLM command"
           },
+          "no_auto_proceed": {
+            "type": "boolean",
+            "description": "Finish this session without executing another step."
+          },
           "output": {
             "oneOf": [
               {
@@ -13624,6 +13628,13 @@
               "null"
             ],
             "description": "Session ID from the LLM session"
+          },
+          "traceparent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "W3C context of the completed opr8r step."
           }
         }
       },
@@ -13667,6 +13678,19 @@
               "null"
             ],
             "description": "Command to execute for the next step (opr8r wrapped)"
+          },
+          "next_env": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Per-step telemetry credentials and context for the next command.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "next_step": {
             "oneOf": [
@@ -13881,6 +13905,251 @@
           "total": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "TickReport": {
+        "type": "object",
+        "description": "What one tick did, or would do when assessed.",
+        "required": [
+          "status",
+          "launched",
+          "awaiting_operator",
+          "stalled",
+          "blocked"
+        ],
+        "properties": {
+          "awaiting_operator": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blocked": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BlockReason"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "launched": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pause_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stalled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/CampaignStatus"
+          }
+        }
+      },
+      "TicketAgent": {
+        "type": "object",
+        "description": "The agent working a ticket, as shown on the ticket page.",
+        "required": [
+          "id",
+          "status",
+          "paired",
+          "started_at",
+          "completed_steps"
+        ],
+        "properties": {
+          "attach_command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Shell command that attaches to the session (tmux)"
+          },
+          "completed_steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Workflow steps already completed"
+          },
+          "current_step": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Current workflow step (e.g. \"plan\", \"implement\", \"test\")"
+          },
+          "id": {
+            "type": "string",
+            "description": "Agent ID"
+          },
+          "last_message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Latest status message from the agent"
+          },
+          "llm_model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM model alias (e.g. \"opus\", \"sonnet\")"
+          },
+          "llm_tool": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "LLM tool (e.g. \"claude\", \"gemini\", \"codex\")"
+          },
+          "paired": {
+            "type": "boolean",
+            "description": "Whether the operator works alongside the agent (SPIKE and INV tickets)"
+          },
+          "pr_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "PR/MR number",
+            "minimum": 0
+          },
+          "pr_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Last known PR/MR status: open, approved, `changes_requested`, merged or closed"
+          },
+          "pr_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the PR/MR opened by the \"pr\" step"
+          },
+          "remote_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SSH host the agent runs on, when remote"
+          },
+          "review_state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pending review gate while `awaiting_input`: `pending_plan`, `pending_visual`, `pending_proof`, `pending_pr_creation` or `pending_pr_merge`"
+          },
+          "session_context_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session context reference (cmux workspace, tmux window)"
+          },
+          "session_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Terminal session name"
+          },
+          "session_pane_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session pane reference (cmux surface, tmux pane)"
+          },
+          "session_window_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session window reference (cmux window, tmux session)"
+          },
+          "session_wrapper": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "tmux, vscode, cmux or zellij"
+          },
+          "started_at": {
+            "type": "string",
+            "description": "RFC 3339 start time"
+          },
+          "status": {
+            "type": "string",
+            "description": "running, `awaiting_input`, completing or orphaned"
+          },
+          "target_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Execution target the agent launched on"
+          },
+          "workspace_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Coder dashboard URL of the agent's workspace"
+          },
+          "worktree_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Git worktree the agent works in"
+          }
+        }
+      },
+      "TicketDependency": {
+        "type": "object",
+        "description": "One `depends_on` reference and where it points.",
+        "required": [
+          "reference",
+          "satisfied"
+        ],
+        "properties": {
+          "column": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Column of the resolved ticket"
+          },
+          "reference": {
+            "type": "string",
+            "description": "The reference as written (local id or `provider:key`)"
+          },
+          "satisfied": {
+            "type": "boolean",
+            "description": "Whether the dependency is completed"
+          },
+          "ticket_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Local ticket it resolves to; absent while unsynced"
           }
         }
       },

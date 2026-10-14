@@ -8,6 +8,36 @@
 // To verify:     cargo run --bin generate_types --check
 // =============================================================================
 
+export type RedactionClass = "public" | "internal" | "personal" | "content" | "secret";
+
+export type NativeLlmConfig = { 
+/**
+ * Model that picks the winner of `multi_model` (`voting_mode = single_judge`)
+ * and `multi_prompt` (`selection_strategy = model_choice`) steps. Unset keeps
+ * the deterministic first/longest rule.
+ */
+judge?: JudgeConfig | null, };
+
+export type JudgeConfig = { 
+/**
+ * Name of a declared or implicit model server (e.g. "anthropic-api")
+ */
+model_server: string, 
+/**
+ * Full API model id (e.g. "claude-sonnet-5"), not a CLI alias like "sonnet"
+ */
+model: string, 
+/**
+ * Seconds before the judge is abandoned and the deterministic rule applies
+ */
+timeout_secs: bigint, };
+
+export type JudgeAttempt = { attempt_id: string, started_at: string, 
+/**
+ * Judge timeout copied at start, so a config edit can't strand the attempt
+ */
+timeout_secs: bigint, };
+
 export type Project = { 
 /**
  * Unique identifier
@@ -264,15 +294,75 @@ agent_session_id: string | null,
  */
 summary: string | null, created_at: string, updated_at: string, };
 
-export type Config = { profile: ProfileIdentity, 
+export type Config = { 
+/**
+ * Active configuration profile (id and name).
+ */
+profile: ProfileIdentity, 
 /**
  * List of projects operator can assign work to
  */
-projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfig, queue: QueueConfig, paths: PathsConfig, ui: UiConfig, launch: LaunchConfig, templates: TemplatesConfig, api: ApiConfig, logging: LoggingConfig, tmux: TmuxConfig, 
+projects: Array<string>, 
+/**
+ * Agent lifecycle, parallelism, and health monitoring.
+ */
+agents: AgentsConfig, 
+/**
+ * Notification integrations.
+ */
+notifications: NotificationsConfig, 
+/**
+ * Queue ordering and assignment.
+ */
+queue: QueueConfig, 
+/**
+ * Ticket, project, state, and worktree directories.
+ */
+paths: PathsConfig, 
+/**
+ * Terminal UI appearance and behavior.
+ */
+ui: UiConfig, 
+/**
+ * Launch confirmations and execution defaults.
+ */
+launch: LaunchConfig, 
+/**
+ * Issue type collections and presets.
+ */
+templates: TemplatesConfig, 
+/**
+ * Pull-request and rate-limit polling.
+ */
+api: ApiConfig, 
+/**
+ * Log level and output.
+ */
+logging: LoggingConfig, 
+/**
+ * OTLP ingest, session window, and export.
+ */
+telemetry: TelemetryConfig, 
+/**
+ * Tmux integration configuration.
+ */
+tmux: TmuxConfig, 
 /**
  * Session wrapper configuration (tmux, vscode, or cmux)
  */
-sessions: SessionsConfig, llm_tools: LlmToolsConfig, rest_api: RestApiConfig, git: GitConfig, 
+sessions: SessionsConfig, 
+/**
+ * Detected LLM CLIs and provider preferences.
+ */
+llm_tools: LlmToolsConfig, 
+/**
+ * Embedded REST API server.
+ */
+rest_api: RestApiConfig, 
+/**
+ * Git provider, identity, and worktree settings.
+ */
+git: GitConfig, 
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */
@@ -321,12 +411,25 @@ acp: AcpConfig,
  */
 native_llm: NativeLlmConfig, };
 
-export type AgentsConfig = { max_parallel: number, cores_reserved: number, 
+export type AgentsConfig = { 
+/**
+ * Upper bound on concurrent agents (default: 5).
+ * The effective cap is also limited by CPU cores minus `cores_reserved`.
+ */
+max_parallel: number, 
+/**
+ * CPU cores kept free when computing the effective agent cap (default: 1).
+ */
+cores_reserved: number, 
 /**
  * Maximum concurrent agents per project/repo (default: 1).
  * Requires `git.use_worktrees` = true when > 1 to avoid conflicts.
  */
-max_agents_per_repo: number, health_check_interval: bigint, 
+max_agents_per_repo: number, 
+/**
+ * Seconds between agent health checks (default: 30).
+ */
+health_check_interval: bigint, 
 /**
  * Timeout in seconds for each agent generation (default: 300 = 5 min)
  */
@@ -362,19 +465,87 @@ webhook: WebhookConfig | null,
  */
 webhooks: Array<WebhookConfig>, };
 
-export type QueueConfig = { auto_assign: boolean, priority_order: Array<string>, poll_interval_ms: bigint, };
+export type QueueConfig = { 
+/**
+ * Assign the next ticket when an agent slot frees (default: true).
+ */
+auto_assign: boolean, 
+/**
+ * Issue-type keys, highest priority first (default: INV, FIX, TASK, FEAT, SPIKE).
+ */
+priority_order: Array<string>, 
+/**
+ * How often the queue is polled, in milliseconds (default: 1000).
+ */
+poll_interval_ms: bigint, };
 
-export type PathsConfig = { tickets: string, projects: string, state: string, 
+export type PathsConfig = { 
+/**
+ * Ticket root, relative to the working directory or absolute (default: `.tickets`).
+ */
+tickets: string, 
+/**
+ * Projects root scanned for agent marker files (default: `.`).
+ */
+projects: string, 
+/**
+ * Operator state directory (default: `.tickets/operator`).
+ */
+state: string, 
 /**
  * Base directory for per-ticket worktrees (default: ~/.operator/worktrees)
  */
 worktrees: string, };
 
-export type UiConfig = { refresh_rate_ms: bigint, completed_history_hours: bigint, summary_max_length: number, panel_names: PanelNamesConfig, };
+export type UiConfig = { 
+/**
+ * TUI redraw interval in milliseconds (default: 250).
+ */
+refresh_rate_ms: bigint, 
+/**
+ * Hours of completed tickets shown on the dashboard (default: 24).
+ */
+completed_history_hours: bigint, 
+/**
+ * Maximum characters shown for a ticket summary (default: 40).
+ */
+summary_max_length: number, 
+/**
+ * Custom titles for the dashboard panels.
+ */
+panel_names: PanelNamesConfig, };
 
-export type PanelNamesConfig = { status: string, queue: string, in_progress: string, completed: string, };
+export type PanelNamesConfig = { 
+/**
+ * Status panel title (default: `STATUS`).
+ */
+status: string, 
+/**
+ * Queue panel title (default: `TODO QUEUE`).
+ */
+queue: string, 
+/**
+ * In-progress panel title (default: `IN PROGRESS`). The key `agents` is accepted as an alias.
+ */
+in_progress: string, 
+/**
+ * Completed panel title (default: `DONE`).
+ */
+completed: string, };
 
-export type LaunchConfig = { confirm_autonomous: boolean, confirm_paired: boolean, launch_delay_ms: bigint, 
+export type LaunchConfig = { 
+/**
+ * Ask before launching an autonomous ticket (default: true).
+ */
+confirm_autonomous: boolean, 
+/**
+ * Ask before launching a paired ticket (default: true).
+ */
+confirm_paired: boolean, 
+/**
+ * Milliseconds to wait after confirmation before the agent starts (default: 2000).
+ */
+launch_delay_ms: bigint, 
 /**
  * Default named execution target. Per-launch and per-delegator choices take precedence.
  */
@@ -827,7 +998,96 @@ level: string,
 /**
  * Whether to log to file in TUI mode (false = stderr for debugging)
  */
-to_file: boolean, };
+to_file: boolean, 
+/**
+ * Line format for console and file logs (default: text).
+ *
+ * `json` emits one JSON object per line with `trace_id` and `span_id`.
+ * Override with `OPERATOR_LOGGING__FORMAT=json`.
+ */
+format: LogFormat, };
+
+export type LogFormat = "text" | "json";
+
+export type TelemetryConfig = { 
+/**
+ * Accept OTLP from agent sessions on `/otlp/v1/*` and inject agent OTLP env
+ */
+enabled: boolean, 
+/**
+ * Hash personal data and drop content and unapproved signal names, while secrets are protected in both modes.
+ */
+enable_redaction: boolean, 
+/**
+ * Inbound OTLP limits and agent environment injection.
+ */
+ingest: TelemetryIngestConfig, 
+/**
+ * Upstream OTLP export.
+ */
+export: TelemetryExportConfig, 
+/**
+ * Bounded in-memory session window.
+ */
+window: TelemetryWindowConfig, };
+
+export type TelemetryIngestConfig = { 
+/**
+ * Maximum request body size, enforced both compressed and decompressed
+ */
+max_body_bytes: bigint, 
+/**
+ * Bounded ingest queue; a full queue answers 503 with Retry-After
+ */
+queue_capacity: number, 
+/**
+ * Export OTLP endpoint, token and trace context into launched agent sessions
+ */
+inject_agent_env: boolean, };
+
+export type TelemetryExportConfig = { 
+/**
+ * Upstream OTLP base URL; falls back to the standard `OTEL_EXPORTER_OTLP_*` variables
+ */
+endpoint: string | null, 
+/**
+ * OTLP encoding. Default is `http/protobuf`.
+ */
+protocol: OtlpProtocol | null, 
+/**
+ * Name of an environment variable holding OTLP headers (`key=value,...`)
+ */
+headers_env: string | null, 
+/**
+ * Request compression. Default is `gzip`.
+ */
+compression: OtlpCompression | null, 
+/**
+ * Upstream export timeout in seconds (default: 10).
+ */
+timeout_secs: bigint | null, 
+/**
+ * Export Operator's own traces, logs and metrics alongside forwarded agent telemetry
+ */
+self_telemetry: boolean, };
+
+export type TelemetryWindowConfig = { 
+/**
+ * Sessions retained; the least recently updated is evicted first
+ */
+max_sessions: number, 
+/**
+ * Records retained per session; the oldest are evicted first
+ */
+records_per_session: number, 
+/**
+ * Seconds an ended session stays readable before eviction
+ */
+grace_secs: bigint, };
+
+export type OtlpProtocol = "http/protobuf" | "http/json";
+
+export type OtlpCompression = "gzip" | "none";
 
 export type ApiConfig = { 
 /**
@@ -1013,7 +1273,15 @@ export type GitConfig = {
 /**
  * Default commit identity for delegated work.
  */
-identity?: GitIdentityConfig | null, gitea: GiteaConfig, forgejo: ForgejoConfig, 
+identity?: GitIdentityConfig | null, 
+/**
+ * Gitea forge settings for pull requests.
+ */
+gitea: GiteaConfig, 
+/**
+ * Forgejo forge settings for pull requests.
+ */
+forgejo: ForgejoConfig, 
 /**
  * Active provider (auto-detected from remote URL if not specified)
  */
@@ -1060,17 +1328,41 @@ token_env: string,
  */
 host: string | null, };
 
-export type GiteaConfig = { enabled: boolean, token_env: string, 
+export type GiteaConfig = { 
+/**
+ * Whether Gitea integration is enabled (default: false).
+ */
+enabled: boolean, 
+/**
+ * Environment variable containing the Gitea token (default: `GITEA_TOKEN`).
+ */
+token_env: string, 
 /**
  * HTTPS host or base URL; defaults to gitea.com.
  */
-host: string | null, wip_prefix: string, };
+host: string | null, 
+/**
+ * Prefix applied to draft pull request titles (default: `WIP: `).
+ */
+wip_prefix: string, };
 
-export type ForgejoConfig = { enabled: boolean, token_env: string, 
+export type ForgejoConfig = { 
+/**
+ * Whether Forgejo integration is enabled (default: false).
+ */
+enabled: boolean, 
+/**
+ * Environment variable containing the Forgejo token (default: `FORGEJO_TOKEN`).
+ */
+token_env: string, 
 /**
  * HTTPS host or base URL; defaults to codeberg.org.
  */
-host: string | null, wip_prefix: string, };
+host: string | null, 
+/**
+ * Prefix applied to draft pull request titles (default: `WIP: `).
+ */
+wip_prefix: string, };
 
 export type KanbanConfig = { 
 /**
@@ -1292,7 +1584,15 @@ delete_on_complete: boolean,
  */
 delete_on_merge: boolean, };
 
-export type ProfileIdentity = { id: string, name: string, };
+export type ProfileIdentity = { 
+/**
+ * Stable profile id. Nil until the profile is registered.
+ */
+id: string, 
+/**
+ * Profile name. The default primary profile is `legacy`.
+ */
+name: string, };
 
 export type State = { paused: boolean, agents: Array<AgentState>, completed: Array<CompletedTicket>, 
 /**
@@ -1536,6 +1836,56 @@ prompt: string,
  * Key under which this sub-agent's output is recorded (see `individual_outputs`).
  */
 variant_key: string, };
+
+export type TelemetrySignal = "traces" | "metrics" | "logs";
+
+export type TelemetryRecord = { 
+/**
+ * Identifies the OTLP signal that supplied this record.
+ */
+signal: TelemetrySignal, 
+/**
+ * Span name, log event name, or metric name
+ */
+name: string, 
+/**
+ * Nanoseconds since the Unix epoch, as a decimal string (OTLP JSON convention)
+ */
+time_unix_nano: string, 
+/**
+ * Lowercase hex trace id, when the record is trace-correlated
+ */
+trace_id: string | null, 
+/**
+ * Lowercase hex span id, when the record is trace-correlated
+ */
+span_id: string | null, 
+/**
+ * Record attributes merged over resource attributes
+ */
+attributes: Record<string, unknown>, 
+/**
+ * Log body retained with secret scrubbing only when optional redaction is disabled
+ */
+body: unknown, };
+
+export type TelemetrySessionWindow = { 
+/**
+ * Identifies the agent session whose sanitized records are retained.
+ */
+session_id: string, 
+/**
+ * Whether the session has ended and is within its grace period
+ */
+ended: boolean, 
+/**
+ * Records evicted from this session because the ring was full
+ */
+evicted_records: bigint, 
+/**
+ * Oldest first
+ */
+records: Array<TelemetryRecord>, };
 
 export type IssueTypeResponse = { key: string, name: string, description: string, mode: string, glyph: string, color: string | null, project_required: boolean, source: string, 
 /**

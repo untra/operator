@@ -8,6 +8,7 @@
   "type": "object",
   "properties": {
     "profile": {
+      "description": "Active configuration profile (id and name).",
       "$ref": "#/$defs/ProfileIdentity",
       "default": {
         "id": "00000000-0000-0000-0000-000000000000",
@@ -23,27 +24,35 @@
       "default": []
     },
     "agents": {
+      "description": "Agent lifecycle, parallelism, and health monitoring.",
       "$ref": "#/$defs/AgentsConfig"
     },
     "notifications": {
+      "description": "Notification integrations.",
       "$ref": "#/$defs/NotificationsConfig"
     },
     "queue": {
+      "description": "Queue ordering and assignment.",
       "$ref": "#/$defs/QueueConfig"
     },
     "paths": {
+      "description": "Ticket, project, state, and worktree directories.",
       "$ref": "#/$defs/PathsConfig"
     },
     "ui": {
+      "description": "Terminal UI appearance and behavior.",
       "$ref": "#/$defs/UiConfig"
     },
     "launch": {
+      "description": "Launch confirmations and execution defaults.",
       "$ref": "#/$defs/LaunchConfig"
     },
     "templates": {
+      "description": "Issue type collections and presets.",
       "$ref": "#/$defs/TemplatesConfig"
     },
     "api": {
+      "description": "Pull-request and rate-limit polling.",
       "$ref": "#/$defs/ApiConfig",
       "default": {
         "pr_check_interval_secs": 60,
@@ -52,13 +61,42 @@
       }
     },
     "logging": {
+      "description": "Log level and output.",
       "$ref": "#/$defs/LoggingConfig",
       "default": {
         "level": "info",
-        "to_file": true
+        "to_file": true,
+        "format": "text"
+      }
+    },
+    "telemetry": {
+      "description": "OTLP ingest, session window, and export.",
+      "$ref": "#/$defs/TelemetryConfig",
+      "default": {
+        "enabled": false,
+        "enable_redaction": false,
+        "ingest": {
+          "max_body_bytes": 67108864,
+          "queue_capacity": 1024,
+          "inject_agent_env": true
+        },
+        "export": {
+          "endpoint": null,
+          "protocol": null,
+          "headers_env": null,
+          "compression": null,
+          "timeout_secs": null,
+          "self_telemetry": true
+        },
+        "window": {
+          "max_sessions": 64,
+          "records_per_session": 2048,
+          "grace_secs": 300
+        }
       }
     },
     "tmux": {
+      "description": "Tmux integration configuration.",
       "$ref": "#/$defs/TmuxConfig",
       "default": {
         "config_generated": false
@@ -92,6 +130,7 @@
       }
     },
     "llm_tools": {
+      "description": "Detected LLM CLIs and provider preferences.",
       "$ref": "#/$defs/LlmToolsConfig",
       "default": {
         "detected": [],
@@ -103,6 +142,7 @@
       }
     },
     "rest_api": {
+      "description": "Embedded REST API server.",
       "$ref": "#/$defs/RestApiConfig",
       "default": {
         "enabled": true,
@@ -115,6 +155,7 @@
       }
     },
     "git": {
+      "description": "Git provider, identity, and worktree settings.",
       "$ref": "#/$defs/GitConfig",
       "default": {
         "gitea": {
@@ -250,10 +291,12 @@
       "type": "object",
       "properties": {
         "id": {
+          "description": "Stable profile id. Nil until the profile is registered.",
           "type": "string",
           "format": "uuid"
         },
         "name": {
+          "description": "Profile name. The default primary profile is `legacy`.",
           "type": "string"
         }
       },
@@ -263,14 +306,17 @@
       ]
     },
     "AgentsConfig": {
+      "description": "Agent lifecycle, parallelism, and health monitoring.",
       "type": "object",
       "properties": {
         "max_parallel": {
+          "description": "Upper bound on concurrent agents (default: 5).\nThe effective cap is also limited by CPU cores minus `cores_reserved`.",
           "type": "integer",
           "format": "uint",
           "minimum": 0
         },
         "cores_reserved": {
+          "description": "CPU cores kept free when computing the effective agent cap (default: 1).",
           "type": "integer",
           "format": "uint",
           "minimum": 0
@@ -283,6 +329,7 @@
           "default": 1
         },
         "health_check_interval": {
+          "description": "Seconds between agent health checks (default: 30).",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
@@ -456,18 +503,22 @@
       }
     },
     "QueueConfig": {
+      "description": "Queue ordering and assignment.",
       "type": "object",
       "properties": {
         "auto_assign": {
+          "description": "Assign the next ticket when an agent slot frees (default: true).",
           "type": "boolean"
         },
         "priority_order": {
+          "description": "Issue-type keys, highest priority first (default: INV, FIX, TASK, FEAT, SPIKE).",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "poll_interval_ms": {
+          "description": "How often the queue is polled, in milliseconds (default: 1000).",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
@@ -480,21 +531,25 @@
       ]
     },
     "PathsConfig": {
+      "description": "Directories for tickets, projects, state, and worktrees.",
       "type": "object",
       "properties": {
         "tickets": {
+          "description": "Ticket root, relative to the working directory or absolute (default: `.tickets`).",
           "type": "string"
         },
         "projects": {
+          "description": "Projects root scanned for agent marker files (default: `.`).",
           "type": "string"
         },
         "state": {
+          "description": "Operator state directory (default: `.tickets/operator`).",
           "type": "string"
         },
         "worktrees": {
           "description": "Base directory for per-ticket worktrees (default: ~/.operator/worktrees)",
           "type": "string",
-          "default": "/Users/untra/.operator/worktrees"
+          "default": "/Users/samuelvolin/.operator/worktrees"
         }
       },
       "required": [
@@ -504,24 +559,29 @@
       ]
     },
     "UiConfig": {
+      "description": "Terminal UI appearance and behavior.",
       "type": "object",
       "properties": {
         "refresh_rate_ms": {
+          "description": "TUI redraw interval in milliseconds (default: 250).",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
         },
         "completed_history_hours": {
+          "description": "Hours of completed tickets shown on the dashboard (default: 24).",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
         },
         "summary_max_length": {
+          "description": "Maximum characters shown for a ticket summary (default: 40).",
           "type": "integer",
           "format": "uint",
           "minimum": 0
         },
         "panel_names": {
+          "description": "Custom titles for the dashboard panels.",
           "$ref": "#/$defs/PanelNamesConfig",
           "default": {
             "status": "STATUS",
@@ -538,36 +598,45 @@
       ]
     },
     "PanelNamesConfig": {
+      "description": "Custom titles for the dashboard panels.",
       "type": "object",
       "properties": {
         "status": {
+          "description": "Status panel title (default: `STATUS`).",
           "type": "string",
           "default": "STATUS"
         },
         "queue": {
+          "description": "Queue panel title (default: `TODO QUEUE`).",
           "type": "string",
           "default": "TODO QUEUE"
         },
         "in_progress": {
+          "description": "In-progress panel title (default: `IN PROGRESS`). The key `agents` is accepted as an alias.",
           "type": "string",
           "default": "IN PROGRESS"
         },
         "completed": {
+          "description": "Completed panel title (default: `DONE`).",
           "type": "string",
           "default": "DONE"
         }
       }
     },
     "LaunchConfig": {
+      "description": "Agent launch behavior and confirmations.",
       "type": "object",
       "properties": {
         "confirm_autonomous": {
+          "description": "Ask before launching an autonomous ticket (default: true).",
           "type": "boolean"
         },
         "confirm_paired": {
+          "description": "Ask before launching a paired ticket (default: true).",
           "type": "boolean"
         },
         "launch_delay_ms": {
+          "description": "Milliseconds to wait after confirmation before the agent starts (default: 2000).",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
@@ -654,6 +723,7 @@
       }
     },
     "TemplatesConfig": {
+      "description": "Issue type collections and presets.",
       "type": "object",
       "properties": {
         "preset": {
@@ -763,10 +833,223 @@
           "description": "Whether to log to file in TUI mode (false = stderr for debugging)",
           "type": "boolean",
           "default": true
+        },
+        "format": {
+          "description": "Line format for console and file logs (default: text).\n\n`json` emits one JSON object per line with `trace_id` and `span_id`.\nOverride with `OPERATOR_LOGGING__FORMAT=json`.",
+          "$ref": "#/$defs/LogFormat",
+          "default": "text"
         }
       }
     },
+    "LogFormat": {
+      "description": "Console and file log line format.",
+      "oneOf": [
+        {
+          "description": "Human-readable lines.",
+          "type": "string",
+          "const": "text"
+        },
+        {
+          "description": "One JSON object per line, with `trace_id`/`span_id` when a trace is active.",
+          "type": "string",
+          "const": "json"
+        }
+      ]
+    },
+    "TelemetryConfig": {
+      "description": "OTLP telemetry: ingest from agents, a bounded per-session window, and export upstream.\n\nOff by default. Operator never configures a destination of its own.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Accept OTLP from agent sessions on `/otlp/v1/*` and inject agent OTLP env",
+          "type": "boolean",
+          "default": false
+        },
+        "enable_redaction": {
+          "description": "Hash personal data and drop content and unapproved signal names, while secrets are protected in both modes.",
+          "type": "boolean",
+          "default": false
+        },
+        "ingest": {
+          "description": "Inbound OTLP limits and agent environment injection.",
+          "$ref": "#/$defs/TelemetryIngestConfig",
+          "default": {
+            "max_body_bytes": 67108864,
+            "queue_capacity": 1024,
+            "inject_agent_env": true
+          }
+        },
+        "export": {
+          "description": "Upstream OTLP export.",
+          "$ref": "#/$defs/TelemetryExportConfig",
+          "default": {
+            "endpoint": null,
+            "protocol": null,
+            "headers_env": null,
+            "compression": null,
+            "timeout_secs": null,
+            "self_telemetry": true
+          }
+        },
+        "window": {
+          "description": "Bounded in-memory session window.",
+          "$ref": "#/$defs/TelemetryWindowConfig",
+          "default": {
+            "max_sessions": 64,
+            "records_per_session": 2048,
+            "grace_secs": 300
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TelemetryIngestConfig": {
+      "description": "Limits incoming OTLP requests and controls agent environment injection.",
+      "type": "object",
+      "properties": {
+        "max_body_bytes": {
+          "description": "Maximum request body size, enforced both compressed and decompressed",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 67108864
+        },
+        "queue_capacity": {
+          "description": "Bounded ingest queue; a full queue answers 503 with Retry-After",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 1024
+        },
+        "inject_agent_env": {
+          "description": "Export OTLP endpoint, token and trace context into launched agent sessions",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "TelemetryExportConfig": {
+      "description": "Describes the user-configured upstream OTLP destination.",
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "description": "Upstream OTLP base URL; falls back to the standard `OTEL_EXPORTER_OTLP_*` variables",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "protocol": {
+          "description": "OTLP encoding. Default is `http/protobuf`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OtlpProtocol"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "headers_env": {
+          "description": "Name of an environment variable holding OTLP headers (`key=value,...`)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "compression": {
+          "description": "Request compression. Default is `gzip`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OtlpCompression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timeout_secs": {
+          "description": "Upstream export timeout in seconds (default: 10).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "self_telemetry": {
+          "description": "Export Operator's own traces, logs and metrics alongside forwarded agent telemetry",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "OtlpProtocol": {
+      "description": "Selects the OTLP HTTP payload encoding.",
+      "oneOf": [
+        {
+          "description": "OTLP/HTTP protobuf (`http/protobuf`).",
+          "type": "string",
+          "const": "http/protobuf"
+        },
+        {
+          "description": "OTLP/HTTP JSON (`http/json`).",
+          "type": "string",
+          "const": "http/json"
+        }
+      ]
+    },
+    "OtlpCompression": {
+      "description": "Selects compression for outgoing OTLP requests.",
+      "oneOf": [
+        {
+          "description": "gzip request compression.",
+          "type": "string",
+          "const": "gzip"
+        },
+        {
+          "description": "Send the OTLP body uncompressed.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "TelemetryWindowConfig": {
+      "description": "Bounds session retention in the in-memory telemetry window.",
+      "type": "object",
+      "properties": {
+        "max_sessions": {
+          "description": "Sessions retained; the least recently updated is evicted first",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 64
+        },
+        "records_per_session": {
+          "description": "Records retained per session; the oldest are evicted first",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "default": 2048
+        },
+        "grace_secs": {
+          "description": "Seconds an ended session stays readable before eviction",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 300
+        }
+      },
+      "additionalProperties": false
+    },
     "TmuxConfig": {
+      "description": "Tmux integration configuration.",
       "type": "object",
       "properties": {
         "config_generated": {
@@ -1314,6 +1597,7 @@
           ]
         },
         "gitea": {
+          "description": "Gitea forge settings for pull requests.",
           "$ref": "#/$defs/GiteaConfig",
           "default": {
             "enabled": false,
@@ -1323,6 +1607,7 @@
           }
         },
         "forgejo": {
+          "description": "Forgejo forge settings for pull requests.",
           "$ref": "#/$defs/ForgejoConfig",
           "default": {
             "enabled": false,
@@ -1377,11 +1662,11 @@
       "type": "object",
       "properties": {
         "name": {
-          "description": "Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
+          "description": "Git author name applied to delegated commits.",
           "type": "string"
         },
         "email": {
-          "description": "Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}`",
+          "description": "Git author email applied to delegated commits.",
           "type": "string"
         }
       },
@@ -1391,13 +1676,16 @@
       ]
     },
     "GiteaConfig": {
+      "description": "Gitea forge settings for pull requests.",
       "type": "object",
       "properties": {
         "enabled": {
+          "description": "Whether Gitea integration is enabled (default: false).",
           "type": "boolean",
           "default": false
         },
         "token_env": {
+          "description": "Environment variable containing the Gitea token (default: `GITEA_TOKEN`).",
           "type": "string",
           "default": "GITEA_TOKEN"
         },
@@ -1410,19 +1698,23 @@
           "default": null
         },
         "wip_prefix": {
+          "description": "Prefix applied to draft pull request titles (default: `WIP: `).",
           "type": "string",
           "default": "WIP: "
         }
       }
     },
     "ForgejoConfig": {
+      "description": "Forgejo forge settings for pull requests.",
       "type": "object",
       "properties": {
         "enabled": {
+          "description": "Whether Forgejo integration is enabled (default: false).",
           "type": "boolean",
           "default": false
         },
         "token_env": {
+          "description": "Environment variable containing the Forgejo token (default: `FORGEJO_TOKEN`).",
           "type": "string",
           "default": "FORGEJO_TOKEN"
         },
@@ -1435,6 +1727,7 @@
           "default": null
         },
         "wip_prefix": {
+          "description": "Prefix applied to draft pull request titles (default: `WIP: `).",
           "type": "string",
           "default": "WIP: "
         }
@@ -1918,7 +2211,7 @@
       "type": "object",
       "properties": {
         "identity": {
-          "description": "Commit identity; falls back to the global `git.identity`",
+          "description": "Commit identity override for this delegator.",
           "anyOf": [
             {
               "$ref": "#/$defs/GitIdentityConfig"
@@ -1930,7 +2223,7 @@
           "default": null
         },
         "credentials": {
-          "description": "HTTPS credential for the ticket's repository",
+          "description": "HTTPS credential bound to one repository.",
           "anyOf": [
             {
               "$ref": "#/$defs/GitCredentialConfig"
@@ -1942,7 +2235,7 @@
           "default": null
         },
         "settings": {
-          "description": "Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`,\n`user.email`, `core.askpass` and `core.sshCommand` are rejected",
+          "description": "Extra `git config` entries applied for this delegator.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/GitConfigEntry"
@@ -1956,15 +2249,15 @@
       "type": "object",
       "properties": {
         "repository_url": {
-          "description": "HTTPS repository URL the credential is bound to, with no embedded credentials, query or\nfragment",
+          "description": "HTTPS repository URL this credential is bound to.",
           "type": "string"
         },
         "username": {
-          "description": "HTTPS username sent with the token",
+          "description": "HTTPS username. The token is read from `token_env`.",
           "type": "string"
         },
         "token_env": {
-          "description": "Environment variable holding the token, read at launch",
+          "description": "Environment variable holding the HTTPS token. The secret is not stored here.",
           "type": "string"
         }
       },
@@ -1975,15 +2268,15 @@
       ]
     },
     "GitConfigEntry": {
-      "description": "One `git config` entry applied to delegated work.",
+      "description": "One `git config` key and value.",
       "type": "object",
       "properties": {
         "key": {
-          "description": "Dotted config key (e.g. \"commit.gpgsign\"); identity and authentication keys are rejected",
+          "description": "`git config` key (for example `user.name`).",
           "type": "string"
         },
         "value": {
-          "description": "Config value",
+          "description": "`git config` value.",
           "type": "string"
         }
       },

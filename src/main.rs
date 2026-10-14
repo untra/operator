@@ -608,7 +608,13 @@ async fn main() -> Result<()> {
         None => {
             // No subcommand = launch TUI dashboard
             #[allow(clippy::large_futures)] // TUI state is inherently large
-            run_tui(config, logging_handle.log_file_path, cli.web, cli.ui).await?;
+            run_tui(
+                config,
+                logging_handle.log_file_path.clone(),
+                cli.web,
+                cli.ui,
+            )
+            .await?;
         }
     }
 
@@ -1114,7 +1120,11 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
             // Everything issued under the old password is now suspect: the
             // reason for a reset is usually that something leaked.
             store.revoke_all_credentials("admin password reset")?;
-            store.audit("password reset", Some("via local CLI"), true)?;
+            store.audit(
+                crate::auth::audit::AuditAction::PasswordReset,
+                Some("via local CLI"),
+                true,
+            )?;
 
             println!("Admin password reset.");
             println!(

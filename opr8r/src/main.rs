@@ -5,6 +5,7 @@ mod http_client;
 mod operator_relay;
 mod output_parser;
 mod runner;
+mod telemetry;
 mod tools;
 mod transition;
 
@@ -46,6 +47,8 @@ fn build_step_complete_request(
     output: Option<api::OperatorOutput>,
 ) -> StepCompleteRequest {
     StepCompleteRequest {
+        no_auto_proceed: false,
+        traceparent: None,
         exit_code,
         session_id,
         duration_secs,
@@ -120,15 +123,38 @@ async fn main() -> ExitCode {
     print_step_starting(ticket_id, step, args.verbose);
 
     // Configure runner with output capture enabled
-    let config = RunConfig::new()
+    let telemetry = telemetry::StepTelemetry::from_env(args.verbose);
+    let started_send = telemetry.as_ref().map(|telemetry| {
+        let telemetry = telemetry.clone();
+        let ticket = ticket_id.to_owned();
+        let step = step.to_owned();
+        tokio::spawn(async move {
+            telemetry.step_started(&ticket, &step).await;
+        })
+    });
+    let mut config = RunConfig::new()
         .with_verbose(args.verbose)
         .with_capture(true); // Always capture to parse OPERATOR_STATUS blocks
+
+    if let Some(telemetry) = &telemetry {
+        config
+            .envs
+            .push(("TRACEPARENT".into(), telemetry.child_traceparent()));
+    }
 
     // Run the LLM command
     let run_result = match run_command(program, cmd_args, config).await {
         Ok(result) => result,
         Err(e) => {
             eprintln!("[opr8r] Error: Failed to run command: {}", e);
+            if let Some(telemetry) = &telemetry {
+                telemetry
+                    .step_completed(ticket_id, step, i32::from(EXIT_CONFIG_ERROR), 0, None)
+                    .await;
+            }
+            if let Some(task) = &started_send {
+                task.abort();
+            }
             return ExitCode::from(EXIT_CONFIG_ERROR);
         }
     };
@@ -167,22 +193,55 @@ async fn main() -> ExitCode {
         Ok(client) => client,
         Err(e) => {
             print_api_unreachable_error(&e.to_string());
+            if let Some(telemetry) = &telemetry {
+                telemetry
+                    .step_completed(
+                        ticket_id,
+                        step,
+                        exit_code,
+                        duration_secs,
+                        operator_output.as_ref(),
+                    )
+                    .await;
+            }
+            if let Some(task) = &started_send {
+                task.abort();
+            }
             return ExitCode::from(EXIT_API_UNREACHABLE);
         }
     };
 
     // Report completion to API with operator output
-    let request = build_step_complete_request(
+    let mut request = build_step_complete_request(
         exit_code,
         args.session_id.clone(),
         duration_secs,
-        operator_output,
+        operator_output.clone(),
     );
+    request.no_auto_proceed = args.no_auto_proceed;
+    request.traceparent = telemetry
+        .as_ref()
+        .map(telemetry::StepTelemetry::child_traceparent);
 
-    let response = match api_client.complete_step(ticket_id, step, request).await {
-        Ok(r) => r,
-        Err(e) => {
-            print_api_unreachable_error(&e.to_string());
+    let completion = api_client.complete_step(ticket_id, step, request).await;
+    if let Some(telemetry) = &telemetry {
+        telemetry
+            .step_completed(
+                ticket_id,
+                step,
+                exit_code,
+                duration_secs,
+                operator_output.as_ref(),
+            )
+            .await;
+    }
+    if let Some(task) = started_send {
+        task.abort();
+    }
+    let response = match completion {
+        Ok(response) => response,
+        Err(error) => {
+            print_api_unreachable_error(&error.to_string());
             return ExitCode::from(EXIT_API_UNREACHABLE);
         }
     };
@@ -194,7 +253,7 @@ async fn main() -> ExitCode {
             if let Some(next_command) = response.next_command {
                 if response.auto_proceed && !args.no_auto_proceed {
                     // exec() to next step - this will not return
-                    exec_next_command(&next_command, args.verbose);
+                    exec_next_command(&next_command, response.next_env.as_ref(), args.verbose);
                 } else {
                     print_auto_proceed_disabled();
                 }

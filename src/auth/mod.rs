@@ -17,3 +17,5 @@ pub mod scope;
 pub mod secret;
 pub mod store;
 pub mod tokens;
+
+pub mod audit;

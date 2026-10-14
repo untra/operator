@@ -515,6 +515,7 @@ use crate::agents::tmux::TmuxClient;
 
 fn make_test_operator_env() -> OperatorEnvVars {
     OperatorEnvVars {
+        telemetry_env: std::collections::HashMap::new(),
         profile_id: Uuid::nil(),
         git_context: None,
         agent_id: Uuid::new_v4().to_string(),

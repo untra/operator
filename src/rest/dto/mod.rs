@@ -153,6 +153,8 @@ mod tests {
         };
 
         let request = StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 0,
             output_valid: true,
             output_schema_errors: None,

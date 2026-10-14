@@ -97,6 +97,7 @@ fn handle_multi_agent_completion(
         });
 
     Ok(Some(StepCompleteResponse {
+        next_env: None,
         status: if all_done {
             "group_complete".to_string()
         } else {
@@ -753,6 +754,15 @@ pub async fn complete_step(
     // write its individual output file and return a group_* status.
     // The sync loop owns aggregation, advancement, and artifact writing.
     if let Some(response) = handle_multi_agent_completion(&state, &ticket, &step_name, &request)? {
+        let mut response = response;
+        finish_telemetry(
+            &state,
+            &principal,
+            &request,
+            &ticket_id,
+            &step_name,
+            &mut response,
+        );
         return Ok(Json(response));
     }
 
@@ -864,10 +874,11 @@ pub async fn complete_step(
         .and_then(|o| o.error_count)
         .unwrap_or(0);
 
-    Ok(Json(StepCompleteResponse {
+    let mut response = StepCompleteResponse {
+        next_env: None,
         status,
         next_step: next_step_info,
-        auto_proceed: auto_proceed && next_command.is_some(),
+        auto_proceed: auto_proceed && !request.no_auto_proceed && next_command.is_some(),
         next_command,
         output_valid,
         should_iterate,
@@ -877,7 +888,94 @@ pub async fn complete_step(
         previous_recommendation,
         cumulative_files_modified,
         cumulative_errors,
-    }))
+    };
+    finish_telemetry(
+        &state,
+        &principal,
+        &request,
+        &ticket_id,
+        &step_name,
+        &mut response,
+    );
+    Ok(Json(response))
+}
+
+fn finish_telemetry(
+    state: &ApiState,
+    principal: &crate::auth::scope::Principal,
+    request: &StepCompleteRequest,
+    ticket: &str,
+    step: &str,
+    response: &mut StepCompleteResponse,
+) {
+    use crate::telemetry::{agent_env, metrics};
+    use operator_telemetry::traceparent::TraceParent;
+    let config = state.config();
+    metrics::record_step_duration(request.duration_secs as f64, &config.profile.id.to_string());
+    let Some(session) = principal.agent_session_id.as_deref() else {
+        return;
+    };
+    if !response.auto_proceed || response.next_command.is_none() {
+        if let Ok(Some(hub)) = state.telemetry() {
+            hub.end_session(session);
+        }
+        return;
+    }
+    let next_step = response
+        .next_step
+        .as_ref()
+        .map_or(step, |next| next.name.as_str());
+    match crate::auth::callback::mint(&config, ticket, next_step, session) {
+        Ok(token) => {
+            if let Some(command) = &mut response.next_command {
+                *command = format!(
+                    "export OPERATOR_API_TOKEN={}; {command}",
+                    crate::agents::launcher::prompt::shell_escape(&token)
+                );
+            }
+        }
+        Err(_) => {
+            response.auto_proceed = false;
+            response.next_command = None;
+            if let Ok(Some(hub)) = state.telemetry() {
+                hub.end_session(session);
+            }
+            return;
+        }
+    }
+    if !config.telemetry.enabled || !config.telemetry.ingest.inject_agent_env {
+        return;
+    }
+    let token = match crate::auth::callback::mint_telemetry(&config, ticket, next_step, session) {
+        Ok(token) => token,
+        Err(_) => {
+            tracing::warn!("next-step telemetry credentials unavailable");
+            response.next_env = Some(
+                [
+                    "TRACEPARENT",
+                    "OTEL_EXPORTER_OTLP_HEADERS",
+                    "OPERATOR_OTLP_TOKEN",
+                ]
+                .map(|key| (key.to_owned(), String::new()))
+                .into(),
+            );
+            return;
+        }
+    };
+    let parent = agent_env::launch_span(
+        ticket,
+        next_step,
+        session,
+        request.traceparent.as_deref().and_then(TraceParent::parse),
+    );
+    response.next_env = Some(agent_env::step_rotation_env(
+        &token,
+        parent,
+        ticket,
+        next_step,
+        session,
+        &config.profile.id.to_string(),
+    ));
 }
 
 #[cfg(test)]
@@ -1344,6 +1442,8 @@ mod tests {
 
     fn make_complete_request(session_id: &str) -> StepCompleteRequest {
         StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 0,
             output_valid: true,
             output_schema_errors: None,
@@ -1367,6 +1467,8 @@ mod tests {
 
         // Fresh state - no groups, no agents.
         let req = StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 0,
             output_valid: true,
             output_schema_errors: None,
@@ -1626,6 +1728,8 @@ mod tests {
 
     fn make_chain_complete_request(session_id: &str) -> StepCompleteRequest {
         StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 0,
             output_valid: true,
             output_schema_errors: None,
@@ -1673,6 +1777,114 @@ mod tests {
     /// Workflow continuity: an agent that finishes a step on a remote host
     /// while the licence is gone must still have its completion recorded. What
     /// stops is the *next* command - never the report of work already done.
+    #[tokio::test]
+    async fn test_completion_without_auto_proceed_ends_telemetry_window() {
+        let fixture = make_chain_fixture();
+        let mut config = (*fixture.state.config()).clone();
+        config.telemetry.enabled = true;
+        fixture.state.replace_config(config);
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9198", "scan");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "opus", "session-current");
+        let mut principal = crate::auth::scope::Principal::local("admin");
+        principal.kind = PrincipalKind::AgentCallback;
+        principal.ticket_id = Some(ticket.id.clone());
+        principal.step = Some("scan".into());
+        principal.agent_session_id = Some(agent_id.clone());
+        let mut request = make_chain_complete_request("session-current");
+        request.no_auto_proceed = true;
+        let response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id, "scan".into())),
+            Authenticated(principal),
+            Json(request),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert!(!response.auto_proceed);
+        assert!(response.next_command.is_some());
+        assert!(response.next_env.is_none());
+        assert!(
+            fixture
+                .state
+                .telemetry()
+                .unwrap()
+                .unwrap()
+                .session_window(&agent_id)
+                .unwrap()
+                .ended
+        );
+    }
+
+    #[tokio::test]
+    async fn test_chained_completion_rotates_credentials_and_preserves_trace() {
+        use crate::auth::{
+            scope::Principal,
+            tokens::{AUDIENCE_CALLBACK, AUDIENCE_TELEMETRY},
+        };
+        use operator_telemetry::traceparent::TraceParent;
+        let fixture = make_chain_fixture();
+        let mut config = (*fixture.state.config()).clone();
+        config.telemetry.enabled = true;
+        fixture.state.replace_config(config);
+        let ticket = write_sync_ticket(&fixture.state, "SYNC-9199", "scan");
+        let agent_id = add_chain_agent(&fixture.state, &ticket, "opus", "session-current");
+        let mut principal = Principal::local("admin");
+        principal.kind = PrincipalKind::AgentCallback;
+        principal.ticket_id = Some(ticket.id.clone());
+        principal.step = Some("scan".into());
+        principal.agent_session_id = Some(agent_id.clone());
+        let parent = TraceParent {
+            trace_id: [1; 16],
+            span_id: [2; 8],
+            sampled: true,
+        };
+        let mut request = make_chain_complete_request("session-current");
+        request.traceparent = Some(parent.to_string());
+        let mut response = complete_step(
+            State(fixture.state.clone()),
+            Path((ticket.id.clone(), "scan".into())),
+            Authenticated(principal.clone()),
+            Json(request),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert!(response.auto_proceed);
+        let env = response.next_env.as_ref().unwrap();
+        let child = TraceParent::parse(&env["TRACEPARENT"]).unwrap();
+        assert_eq!(parent.trace_id, child.trace_id);
+        assert_ne!(parent.span_id, child.span_id);
+        let key = fixture
+            .state
+            .auth
+            .store
+            .load_or_create_signing_key()
+            .unwrap();
+        let claims = key
+            .verify(&env["OPERATOR_OTLP_TOKEN"], AUDIENCE_TELEMETRY)
+            .unwrap();
+        assert_eq!(claims.step.as_deref(), Some("validate"));
+        assert!(key
+            .verify(&env["OPERATOR_OTLP_TOKEN"], AUDIENCE_CALLBACK)
+            .is_err());
+        let hub = fixture.state.telemetry().unwrap().unwrap();
+        assert!(hub
+            .session_window(&agent_id)
+            .is_none_or(|window| !window.ended));
+        response.auto_proceed = false;
+        response.next_command = None;
+        finish_telemetry(
+            &fixture.state,
+            &principal,
+            &make_chain_complete_request("session-current"),
+            &ticket.id,
+            "validate",
+            &mut response,
+        );
+        assert!(hub.session_window(&agent_id).unwrap().ended);
+    }
+
     #[tokio::test]
     async fn completion_is_recorded_when_entitlement_is_unavailable() {
         let fixture = make_chain_fixture();

@@ -140,7 +140,6 @@ export const DarkTheme: Story = {
   globals: { theme: "dark" },
 };
 
-/** The nav rail is a fixed 260px; check the main column still works beside it. */
 export const Narrow: Story = {
   globals: { viewport: { value: "narrow" } },
 };

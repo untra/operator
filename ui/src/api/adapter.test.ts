@@ -1,7 +1,8 @@
+import { createAccessKeyMutation } from "./definitions";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { asyncableEmoji } from "@untra/naiveasync";
 import type { Host } from "../host";
-import type { OperatorApi } from "../api-client";
+import { OperatorApi } from "../api-client";
 import {
   createApiStore,
   lifecycleId,
@@ -532,4 +533,51 @@ describe("mutationController", () => {
     await flushAsync();
     expect(reads).toBe(1);
   });
+});
+
+test("issued API key secrets never enter Redux lifecycle state", async () => {
+  const store = createApiStore();
+  const grants = {
+    profile_id: "00000000-0000-0000-0000-000000000001",
+    capabilities: ["tickets:read"],
+    projects: ["operator"],
+    instance_wide: false,
+  };
+  const key = {
+    id: "key",
+    name: "CI",
+    scopes: [],
+    created_at: "2026-01-01T00:00:00Z",
+    expires_at: "2026-04-01T00:00:00Z",
+    last_used_at: null,
+    revoked_at: null,
+    owner_id: "owner",
+    profile_id: grants.profile_id,
+    display_prefix: "opk_v1_key_",
+    grants,
+    replaces_id: null,
+  };
+  const api = jest
+    .spyOn(OperatorApi.prototype, "createAccessKey")
+    .mockResolvedValue({ key, secret: TOKEN });
+  try {
+    const onIssued = jest.fn();
+    const mutation = mutationController(store, host(), createAccessKeyMutation);
+    await mutation.mutateAsync({ request: { name: "CI", expires_in_days: 90, grants }, onIssued });
+    expect(onIssued).toHaveBeenCalledWith(TOKEN);
+    expect(JSON.stringify(store.getState())).not.toContain(TOKEN);
+    expect(snapshotSecrets()).toEqual([]);
+    const lateIssued = jest.fn();
+    api.mockImplementation(() => {
+      resetSessionState();
+      return Promise.resolve({ key, secret: TOKEN });
+    });
+    await createAccessKeyMutation.run(new OperatorApi(host()), {
+      request: { name: "CI", expires_in_days: 90, grants },
+      onIssued: lateIssued,
+    });
+    expect(lateIssued).not.toHaveBeenCalled();
+  } finally {
+    api.mockRestore();
+  }
 });

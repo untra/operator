@@ -240,3 +240,60 @@ fn test_chart_directory_exists() {
         "charts/operator/Chart.yaml is missing"
     );
 }
+
+#[test]
+fn test_telemetry_chart_default_and_export_only_contract() {
+    if !helm_available() {
+        return;
+    }
+    let chart = chart_dir();
+    let chart = chart.to_str().unwrap();
+    let default = helm(&["template", "op", chart]);
+    assert!(!default.contains("OTEL_EXPORTER_OTLP_ENDPOINT"));
+    let export = helm(&[
+        "template",
+        "op",
+        chart,
+        "--set",
+        "telemetry.export.endpoint=http://collector:4318",
+        "--set",
+        "telemetry.export.headers.existingSecret=otlp-auth",
+    ]);
+    for expected in [
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "http://collector:4318",
+        "OPERATOR_LOGGING__FORMAT",
+        "OPERATOR_TELEMETRY__EXPORT__HEADERS_ENV",
+        "secretKeyRef:",
+        "otlp-auth",
+        "metadata.name",
+        "metadata.namespace",
+    ] {
+        assert!(export.contains(expected), "{expected}");
+    }
+    assert!(
+        export.find("name: POD_NAME").unwrap()
+            < export.find("name: OTEL_RESOURCE_ATTRIBUTES").unwrap()
+    );
+    assert!(export.contains("name: OPERATOR_TELEMETRY__ENABLED\n              value: \"false\""));
+}
+
+#[test]
+fn test_telemetry_collector_egress_is_port_scoped() {
+    if !helm_available() {
+        return;
+    }
+    let rendered = helm(&[
+        "template",
+        "op",
+        chart_dir().to_str().unwrap(),
+        "--set",
+        "networkPolicy.enabled=true",
+        "--set",
+        "telemetry.collectorEgress.enabled=true",
+        "--set",
+        "telemetry.collectorEgress.peers[0].podSelector.matchLabels.app=collector",
+    ]);
+    assert!(rendered.contains("app: collector"));
+    assert!(rendered.contains("port: 4318"));
+}

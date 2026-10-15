@@ -72,6 +72,9 @@ pub async fn handle_jsonrpc(
             let tool_defs = tools::all_tool_definitions();
             let tools_json: Vec<Value> = tool_defs
                 .into_iter()
+                .filter(|t| {
+                    crate::auth::policy::tool_allowed(state.authorization.as_deref(), &t.name)
+                })
                 .map(|t| {
                     json!({
                         "name": t.name,

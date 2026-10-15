@@ -30,7 +30,7 @@ async function buildClient(): Promise<OperatorApiClient> {
  * the Operator API is not running.
  */
 async function syncAndNudgeIssueTypes(
-  provider: "jira" | "linear" | "github",
+  provider: "jira" | "linear" | "github" | "gitea",
   projectKey: string,
   displayName: string,
 ): Promise<void> {
@@ -875,6 +875,11 @@ interface ProviderPickItem extends vscode.QuickPickItem {
  */
 const FALLBACK_PROVIDER_ITEMS: ProviderPickItem[] = [
   {
+    label: "$(project) Gitea Projects",
+    description: "Import repository boards (alpha)",
+    provider: "gitea",
+  },
+  {
     label: "$(operator-atlassian) Jira Cloud",
     description: "Connect to Jira Cloud",
     provider: "jira",
@@ -943,6 +948,9 @@ export async function startKanbanOnboarding(context: vscode.ExtensionContext): P
     case "linear":
       await onboardLinear(context);
       break;
+    case "gitea":
+      await onboardGitea(context);
+      break;
     case "github":
       await onboardGithub(context);
       break;
@@ -995,4 +1003,114 @@ export async function addGithubProject(
 ): Promise<void> {
   void owner;
   await onboardGithub(context);
+}
+
+async function onboardGitea(context: vscode.ExtensionContext): Promise<void> {
+  const baseUrl = await vscode.window.showInputBox({
+    title: "Gitea Projects",
+    prompt: "Instance URL",
+    placeHolder: "https://git.example.com",
+    ignoreFocusOut: true,
+  });
+  if (!baseUrl) {
+    return;
+  }
+  const repository = await vscode.window.showInputBox({
+    title: "Gitea Projects",
+    prompt: "Repository (owner/name)",
+    ignoreFocusOut: true,
+  });
+  if (!repository) {
+    return;
+  }
+  const token = await vscode.window.showInputBox({
+    title: "Gitea Projects",
+    prompt: "Token with read:repository, read:issue and read:user access",
+    password: true,
+    ignoreFocusOut: true,
+  });
+  if (!token) {
+    return;
+  }
+  const client = await buildClient();
+  const credentials = {
+    provider: "gitea" as const,
+    gitea: { base_url: baseUrl, repositories: [repository], token },
+    jira: null,
+    linear: null,
+    github: null,
+    openspec: null,
+  };
+  try {
+    const validation = await client.validateKanbanCredentials(credentials);
+    if (!validation.valid || !validation.gitea) {
+      throw new Error(validation.error ?? "Gitea validation failed");
+    }
+    const projects = await client.listKanbanProjects(credentials);
+    const project = await vscode.window.showQuickPick(
+      projects.map((p) => ({ label: p.name, key: p.key })),
+      { title: "Select repository board", ignoreFocusOut: true },
+    );
+    if (!project) {
+      return;
+    }
+    const user = await vscode.window.showQuickPick(
+      validation.gitea.users.map((u) => ({ label: u.name, id: u.id })),
+      { title: "Select sync user", ignoreFocusOut: true },
+    );
+    if (!user) {
+      return;
+    }
+    const { statuses } = await client.listKanbanStatuses({
+      ...credentials,
+      project_key: project.key,
+    });
+    const todo = await vscode.window.showQuickPick(statuses, {
+      title: "Select column to import",
+      ignoreFocusOut: true,
+    });
+    if (!todo) {
+      return;
+    }
+    const instance = await vscode.window.showInputBox({
+      title: "Gitea Projects",
+      prompt: "Instance configuration name",
+      value: new URL(baseUrl).hostname,
+      ignoreFocusOut: true,
+    });
+    if (!instance) {
+      return;
+    }
+    const apiKeyEnv = "OPERATOR_GITEA_TOKEN";
+    const env = await client.setKanbanSessionEnv({
+      provider: "gitea",
+      gitea: { base_url: baseUrl, token, api_key_env: apiKeyEnv },
+      jira: null,
+      linear: null,
+      github: null,
+    });
+    await client.writeKanbanConfig({
+      provider: "gitea",
+      gitea: {
+        instance,
+        base_url: baseUrl,
+        repositories: [repository],
+        api_key_env: apiKeyEnv,
+        project_key: project.key,
+        sync_user_id: user.id,
+        status_mapping: { todo, doing: null, done: null },
+      },
+      jira: null,
+      linear: null,
+      github: null,
+      openspec: null,
+    });
+    await updateWalkthroughContext(context);
+    await showEnvVarInstructions(env.shell_export_block);
+    await syncAndNudgeIssueTypes("gitea", project.key, "Gitea Projects");
+  } catch (error) {
+    void vscode.window.showErrorMessage(
+      error instanceof Error ? error.message : "Gitea onboarding failed",
+    );
+  }
 }

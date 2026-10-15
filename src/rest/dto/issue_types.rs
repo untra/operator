@@ -211,7 +211,8 @@ pub struct UpdateIssueTypeRequest {
 pub struct FieldResponse {
     pub name: String,
     pub description: String,
-    pub field_type: String,
+    #[schema(value_type = String)]
+    pub field_type: FieldType,
     pub required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<String>,
@@ -221,6 +222,9 @@ pub struct FieldResponse {
     pub placeholder: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_length: Option<usize>,
+    /// Form position (lower first); unordered fields sort last.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_order: Option<i32>,
     pub user_editable: bool,
 }
 
@@ -229,19 +233,13 @@ impl From<&FieldSchema> for FieldResponse {
         Self {
             name: f.name.clone(),
             description: f.description.clone(),
-            field_type: match f.field_type {
-                FieldType::String => "string".to_string(),
-                FieldType::Enum => "enum".to_string(),
-                FieldType::Bool => "bool".to_string(),
-                FieldType::Date => "date".to_string(),
-                FieldType::Text => "text".to_string(),
-                FieldType::Integer => "integer".to_string(),
-            },
+            field_type: f.field_type.clone(),
             required: f.required,
             default: f.default.clone(),
             options: f.options.clone(),
             placeholder: f.placeholder.clone(),
             max_length: f.max_length,
+            display_order: f.display_order,
             user_editable: f.user_editable,
         }
     }
@@ -671,12 +669,13 @@ mod tests {
         let resp = FieldResponse {
             name: "title".to_string(),
             description: "Title".to_string(),
-            field_type: "string".to_string(),
+            field_type: FieldType::String,
             required: true,
             default: None,
             options: vec![],
             placeholder: None,
             max_length: None,
+            display_order: None,
             user_editable: true,
         };
         let json = serde_json::to_string(&resp).unwrap();
@@ -692,12 +691,13 @@ mod tests {
         let resp = FieldResponse {
             name: "priority".to_string(),
             description: "Priority".to_string(),
-            field_type: "enum".to_string(),
+            field_type: FieldType::Enum,
             required: false,
             default: Some("P2".to_string()),
             options: vec!["P0".to_string(), "P2".to_string()],
             placeholder: None,
             max_length: None,
+            display_order: None,
             user_editable: true,
         };
         let json = serde_json::to_string(&resp).unwrap();

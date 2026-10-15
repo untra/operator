@@ -3,114 +3,248 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "nameOverride": { "type": "string" },
-    "fullnameOverride": { "type": "string" },
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
     "image": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["repository", "tag", "pullPolicy"],
+      "required": [
+        "repository",
+        "tag",
+        "pullPolicy"
+      ],
       "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "tag": { "type": "string", "not": { "const": "latest" } },
-        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string",
+          "not": {
+            "const": "latest"
+          }
+        },
+        "pullPolicy": {
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
       }
     },
-    "imagePullSecrets": { "type": "array", "items": { "type": "object" } },
-    "publicUrl": { "type": "string" },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "publicUrl": {
+      "type": "string"
+    },
     "bootstrap": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["existingSecret", "passwordKey"],
+      "required": [
+        "existingSecret",
+        "passwordKey"
+      ],
       "properties": {
-        "existingSecret": { "type": "string" },
-        "passwordKey": { "type": "string", "minLength": 1 }
+        "existingSecret": {
+          "type": "string"
+        },
+        "passwordKey": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "serviceAccount": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "annotations"],
+      "required": [
+        "name",
+        "annotations"
+      ],
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string"
+        },
         "annotations": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
     "service": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["port"],
+      "required": [
+        "port"
+      ],
       "properties": {
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
       }
     },
     "persistence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["size", "storageClass"],
+      "required": [
+        "size",
+        "storageClass"
+      ],
       "properties": {
-        "size": { "type": "string", "pattern": "^[0-9]+([EPTGMK]i?)?$" },
-        "storageClass": { "type": "string" }
+        "size": {
+          "type": "string",
+          "pattern": "^[0-9]+([EPTGMK]i?)?$"
+        },
+        "storageClass": {
+          "type": "string"
+        }
       }
     },
     "podAnnotations": {
       "type": "object",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "podLabels": {
       "type": "object",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
-    "podSecurityContext": { "type": "object" },
-    "containerSecurityContext": { "type": "object" },
-    "resources": { "type": "object" },
-    "extraEnv": { "type": "array", "items": { "type": "object" } },
-    "extraEnvFrom": { "type": "array", "items": { "type": "object" } },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "containerSecurityContext": {
+      "type": "object"
+    },
+    "resources": {
+      "type": "object"
+    },
+    "extraEnv": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "extraEnvFrom": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
     "extraVolumes": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name"],
-        "properties": { "name": { "type": "string", "minLength": 1 } }
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     },
     "extraVolumeMounts": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "mountPath"],
+        "required": [
+          "name",
+          "mountPath"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "mountPath": { "type": "string", "pattern": "^/" }
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mountPath": {
+            "type": "string",
+            "pattern": "^/"
+          }
         }
       }
     },
-    "lifecycle": { "type": "object" },
-    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 1 },
-    "shutdownDrainSeconds": { "type": "integer", "minimum": 0 },
-    "shutdownCleanupSeconds": { "type": "integer", "minimum": 0 },
+    "lifecycle": {
+      "type": "object"
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "shutdownDrainSeconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "shutdownCleanupSeconds": {
+      "type": "integer",
+      "minimum": 0
+    },
     "ingress": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "className", "annotations", "host", "path", "pathType", "tls"],
+      "required": [
+        "enabled",
+        "className",
+        "annotations",
+        "host",
+        "path",
+        "pathType",
+        "tls"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "className": { "type": "string" },
+        "enabled": {
+          "type": "boolean"
+        },
+        "className": {
+          "type": "string"
+        },
         "annotations": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "host": { "type": "string" },
-        "path": { "type": "string", "pattern": "^/" },
-        "pathType": { "enum": ["Exact", "Prefix", "ImplementationSpecific"] },
+        "host": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "pathType": {
+          "enum": [
+            "Exact",
+            "Prefix",
+            "ImplementationSpecific"
+          ]
+        },
         "tls": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["secretName"],
+          "required": [
+            "secretName"
+          ],
           "properties": {
-            "secretName": { "type": "string" }
+            "secretName": {
+              "type": "string"
+            }
           }
         }
       },
@@ -119,40 +253,162 @@
           "if": {
             "properties": {
               "tls": {
-                "properties": { "secretName": { "minLength": 1 } }
+                "properties": {
+                  "secretName": {
+                    "minLength": 1
+                  }
+                }
               }
             }
           },
-          "then": { "properties": { "host": { "minLength": 1 } } }
+          "then": {
+            "properties": {
+              "host": {
+                "minLength": 1
+              }
+            }
+          }
         }
       ]
     },
     "networkPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "ingress", "egress"],
+      "required": [
+        "enabled",
+        "ingress",
+        "egress"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
+        "enabled": {
+          "type": "boolean"
+        },
         "ingress": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["from"],
+          "required": [
+            "from"
+          ],
           "properties": {
             "from": {
               "type": "array",
-              "items": { "$ref": "#/definitions/networkPeer" }
+              "items": {
+                "$ref": "#/definitions/networkPeer"
+              }
             }
           }
         },
         "egress": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["allowDNS", "to"],
+          "required": [
+            "allowDNS",
+            "to"
+          ],
           "properties": {
-            "allowDNS": { "type": "boolean" },
+            "allowDNS": {
+              "type": "boolean"
+            },
             "to": {
               "type": "array",
-              "items": { "$ref": "#/definitions/networkPeer" }
+              "items": {
+                "$ref": "#/definitions/networkPeer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "enableRedaction": {
+          "type": "boolean"
+        },
+        "injectAgentEnv": {
+          "type": "boolean"
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxSessions": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "recordsPerSession": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "graceSeconds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "export": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "endpoint": {
+              "type": "string"
+            },
+            "protocol": {
+              "enum": [
+                "http/protobuf",
+                "http/json"
+              ]
+            },
+            "compression": {
+              "enum": [
+                "gzip",
+                "none"
+              ]
+            },
+            "timeoutMillis": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "serviceName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "headers": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "existingSecret": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "collectorEgress": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "peers": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
             }
           }
         }
@@ -166,18 +422,38 @@
       "properties": {
         "matchLabels": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "matchExpressions": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["key", "operator"],
+            "required": [
+              "key",
+              "operator"
+            ],
             "properties": {
-              "key": { "type": "string", "minLength": 1 },
-              "operator": { "enum": ["In", "NotIn", "Exists", "DoesNotExist"] },
-              "values": { "type": "array", "items": { "type": "string" } }
+              "key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "operator": {
+                "enum": [
+                  "In",
+                  "NotIn",
+                  "Exists",
+                  "DoesNotExist"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
@@ -186,10 +462,20 @@
     "ipBlock": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cidr"],
+      "required": [
+        "cidr"
+      ],
       "properties": {
-        "cidr": { "type": "string", "minLength": 1 },
-        "except": { "type": "array", "items": { "type": "string" } }
+        "cidr": {
+          "type": "string",
+          "minLength": 1
+        },
+        "except": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "networkPeer": {
@@ -198,9 +484,15 @@
       "minProperties": 1,
       "maxProperties": 1,
       "properties": {
-        "podSelector": { "$ref": "#/definitions/labelSelector" },
-        "namespaceSelector": { "$ref": "#/definitions/labelSelector" },
-        "ipBlock": { "$ref": "#/definitions/ipBlock" }
+        "podSelector": {
+          "$ref": "#/definitions/labelSelector"
+        },
+        "namespaceSelector": {
+          "$ref": "#/definitions/labelSelector"
+        },
+        "ipBlock": {
+          "$ref": "#/definitions/ipBlock"
+        }
       }
     }
   }

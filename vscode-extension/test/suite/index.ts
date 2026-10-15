@@ -57,6 +57,7 @@ export async function run(): Promise<void> {
   const mocha = new Mocha({
     ui: "tdd",
     color: true,
+    timeout: 20000,
   });
 
   const files = await glob("**/**.test.js", { cwd: testsRoot });

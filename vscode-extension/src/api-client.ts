@@ -11,6 +11,7 @@ import * as path from "node:path";
 
 import { credentialProvider } from "./auth/credentials";
 import { ApiError, AuthRequiredError } from "./auth/errors";
+import { CONNECTION_MODE_REMOTE, readConnectionSettings } from "./connection";
 
 // Import generated types from Rust bindings (source of truth)
 import type {
@@ -31,6 +32,8 @@ import type {
   ValidateKanbanCredentialsRequest,
   ValidateKanbanCredentialsResponse,
   ListKanbanProjectsRequest,
+  ListKanbanStatusesRequest,
+  ListKanbanStatusesResponse,
   ListKanbanProjectsResponse,
   KanbanProjectInfo,
   KanbanProviderCatalogEntry,
@@ -210,24 +213,15 @@ export function toJson(value: unknown): string {
   return JSON.stringify(value, (_key, v: unknown) => (typeof v === "bigint" ? Number(v) : v));
 }
 
-/**
- * Discover Operator API URL.
- *
- * Checks in order:
- * 1. Explicitly-set operator.apiUrl (config.inspect distinguishes a user
- *    setting from the default value)
- * 2. .tickets/operator/api-session.json (written by a running Operator)
- * 3. The default http://localhost:7008
- */
-export async function discoverApiUrl(ticketsDir: string | undefined): Promise<string> {
-  const config = vscode.workspace.getConfiguration("operator");
-  const inspected = config.inspect<string>("apiUrl");
-  const explicit =
-    inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
-  if (explicit) {
-    return explicit;
-  }
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, "");
+}
 
+/**
+ * Port advertised by a local daemon in `.tickets/operator/api-session.json`.
+ * Remote mode does not consult this file.
+ */
+export async function discoverLocalApiUrl(ticketsDir: string | undefined): Promise<string> {
   if (ticketsDir) {
     const sessionFile = path.join(ticketsDir, "operator", "api-session.json");
     try {
@@ -242,8 +236,28 @@ export async function discoverApiUrl(ticketsDir: string | undefined): Promise<st
       // Session file doesn't exist or is invalid, fall through
     }
   }
-
   return DEFAULT_API_URL;
+}
+
+/**
+ * Discover Operator API URL.
+ *
+ * Remote mode returns only the saved `operator.apiUrl`. Local mode checks:
+ * 1. Explicitly-set operator.apiUrl (config.inspect distinguishes a user
+ *    setting from the default value)
+ * 2. .tickets/operator/api-session.json (written by a running Operator)
+ * 3. The default http://localhost:7008
+ */
+export async function discoverApiUrl(ticketsDir: string | undefined): Promise<string> {
+  const config = vscode.workspace.getConfiguration("operator");
+  const settings = readConnectionSettings(config);
+  if (settings.mode === CONNECTION_MODE_REMOTE) {
+    return settings.explicitApiUrl ? stripTrailingSlash(settings.explicitApiUrl) : "";
+  }
+  if (settings.explicitApiUrl) {
+    return stripTrailingSlash(settings.explicitApiUrl);
+  }
+  return discoverLocalApiUrl(ticketsDir);
 }
 
 function withBearer(init: RequestInit, token: string | undefined): RequestInit {
@@ -587,6 +601,10 @@ export class OperatorApiClient {
    * List available projects/teams from a kanban provider using ephemeral
    * credentials. No persistence side effects.
    */
+  async listKanbanStatuses(req: ListKanbanStatusesRequest): Promise<ListKanbanStatusesResponse> {
+    return this.request("/api/v1/kanban/statuses", jsonInit("POST", req));
+  }
+
   async listKanbanProjects(req: ListKanbanProjectsRequest): Promise<KanbanProjectInfo[]> {
     const body = await this.request<ListKanbanProjectsResponse>(
       "/api/v1/kanban/projects",

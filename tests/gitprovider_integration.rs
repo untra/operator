@@ -133,6 +133,14 @@ const PROVIDER_CASES: &[ProviderCase] = &[
         apply_host: Some(|git, origin| git.gitea.host = Some(origin)),
         service: |git| pr_service_for(GitProvider::Gitea, git).expect("gitea is operational"),
     },
+    ProviderCase {
+        slug: "forgejo",
+        cli: "tea",
+        repo_env: "OPERATOR_GITPROVIDER_TEST_REPO_FORGEJO",
+        pr_env: "OPERATOR_GITPROVIDER_TEST_PR_FORGEJO",
+        apply_host: Some(|git, origin| git.forgejo.host = Some(origin)),
+        service: |git| pr_service_for(GitProvider::Forgejo, git).expect("forgejo is operational"),
+    },
     // Template for a future row (documentation only, NOT dead code -- copy
     // this into a real `ProviderCase` once the provider gets an operational
     // `PrService` impl in `src/api/pr_service.rs::pr_service_for`):
@@ -146,7 +154,7 @@ const PROVIDER_CASES: &[ProviderCase] = &[
     //     service: |git| pr_service_for(GitProvider::Bitbucket, git).expect("operational"),
     // },
     //
-    // Azure DevOps and Forgejo follow the same shape once `pr_service_for`
+    // Azure DevOps follows the same shape once `pr_service_for`
     // stops returning `UnsupportedProviderError` for them. A self-hosted row
     // also needs `apply_host`, as the `gitea` row above does.
 ];
@@ -425,4 +433,9 @@ fn provider_case_table_env_names_unique_and_slugs_match() {
             case.slug
         );
     }
+}
+
+#[tokio::test]
+async fn test_forgejo_provider_live() {
+    run_provider_case(case_by_slug("forgejo")).await;
 }

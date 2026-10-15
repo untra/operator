@@ -18,7 +18,7 @@ token_env = "GITEA_TOKEN"
 wip_prefix = "WIP: "
 ```
 
-Set `GITEA_TOKEN` in Operator's environment to an existing account's PAT. The token needs repository access and permission to read the authenticated user. Create it at your instance's `/user/settings/applications` page. Private network hosts are supported; external CLI networking is outside Operator's Rust egress policy. Use deployment network controls to restrict destinations.
+Set `GITEA_TOKEN` in Operator's environment to an existing account's PAT. Use `read:user` for authentication, `write:repository` for PR operations, and `write:issue` for issue comments, with repository write permission on the account. Read-only monitoring can use the corresponding read scopes. Create it at your instance's `/user/settings/applications` page. Private network hosts are supported; external CLI networking is outside Operator's Rust egress policy. Use deployment network controls to restrict destinations.
 
 ## Delegator configuration
 
@@ -55,4 +55,4 @@ Draft creation prefixes the title with the configured WIP prefix. Configure this
 
 The optional read-only live test uses `OPERATOR_GITPROVIDER_TEST_ENABLED=true`, `OPERATOR_GITPROVIDER_TEST_REPO_GITEA` (an HTTPS URL), `OPERATOR_GITPROVIDER_TEST_PR_GITEA`, and `GITEA_TOKEN`. Run `cargo test --test gitprovider_integration gitea_provider_live`.
 
-Forgejo host detection and provider-independent Git settings are available. Forgejo PR operations and `fj` integration remain deferred.
+[Forgejo](/getting-started/git/forgejo/) has separate Alpha Git support using the compatible Tea transport. [Gitea Projects](/getting-started/kanban/gitea/) is a separate import-only kanban provider using `OPERATOR_GITEA_TOKEN`.

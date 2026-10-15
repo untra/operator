@@ -59,6 +59,22 @@ suite("MCP Connect Test Suite", () => {
   });
 
   suite("fetchMcpDescriptor()", () => {
+    test("resolves relative descriptors against the active HTTPS API base", async () => {
+      const descriptor = await loadFixture("mcp-descriptor-response.json");
+      fetchStub.resolves(
+        new Response(
+          JSON.stringify({
+            ...descriptor,
+            transport_url: "/api/v1/mcp/sse",
+            openapi_url: "/api-docs/openapi.json",
+          }),
+          { status: 200 },
+        ),
+      );
+      const result = await fetchMcpDescriptor("https://operator.test/prefix");
+      assert.strictEqual(result.transport_url, "https://operator.test/prefix/api/v1/mcp/sse");
+      assert.strictEqual(result.openapi_url, "https://operator.test/prefix/api-docs/openapi.json");
+    });
     test("fetches descriptor from correct URL", async () => {
       const descriptorResponse = await loadFixture("mcp-descriptor-response.json");
 
@@ -708,6 +724,53 @@ suite("MCP Connect Test Suite", () => {
       } finally {
         await fs.rm(tmpDir, { recursive: true, force: true });
       }
+    });
+
+    test("a remote origin registers SSE and does not write a stdio path", async () => {
+      detectHostStub.returns("Visual Studio Code");
+      (apiClient.discoverApiUrl as sinon.SinonStub).resolves("https://operator.kube.untra.casa");
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "op-connect-remote-"));
+      const portablePath = path.join(tmpDir, ".mcp.json");
+      sinon.stub(_testable, "workspacePortableMcpPath").returns(portablePath);
+      const info = vscode.window.showInformationMessage as sinon.SinonStub;
+      try {
+        const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+        descriptor.transport_url = "https://operator.kube.untra.casa/api/v1/mcp/sse";
+        fetchStub.resolves(new Response(JSON.stringify(descriptor), { status: 200 }));
+
+        await connectMcpServer(undefined);
+
+        assert.strictEqual(configUpdateStub.callCount, 1);
+        const written = configUpdateStub.firstCall.args[1] as Record<
+          string,
+          { type?: string; command?: string; url?: string }
+        >;
+        assert.strictEqual(written.operator?.type, "sse");
+        assert.strictEqual(written.operator?.command, undefined);
+        assert.strictEqual(
+          written.operator?.url,
+          "https://operator.kube.untra.casa/api/v1/mcp/sse",
+        );
+        await assert.rejects(() => fs.access(portablePath));
+        assert.ok(info.calledOnce);
+        assert.strictEqual(info.firstCall.args.length, 1);
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("a remote descriptor that advertises loopback MCP is not registered", async () => {
+      detectHostStub.returns("Visual Studio Code");
+      (apiClient.discoverApiUrl as sinon.SinonStub).resolves("https://operator.kube.untra.casa");
+      const error = vscode.window.showErrorMessage as sinon.SinonStub;
+      const descriptor = await loadFixture("mcp-descriptor-response-stdio.json");
+      fetchStub.resolves(new Response(JSON.stringify(descriptor), { status: 200 }));
+
+      await connectMcpServer(undefined);
+
+      assert.ok(configUpdateStub.notCalled);
+      assert.ok(error.calledOnce);
+      assert.match(String(error.firstCall.args[0]), /public_url/);
     });
   });
 

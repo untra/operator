@@ -2,7 +2,22 @@
 import type { DockerConfig } from "./DockerConfig";
 import type { YoloConfig } from "./YoloConfig";
 
-export type LaunchConfig = { confirm_autonomous: boolean, confirm_paired: boolean, launch_delay_ms: bigint, 
+/**
+ * Agent launch behavior and confirmations.
+ */
+export type LaunchConfig = { 
+/**
+ * Ask before launching an autonomous ticket (default: true).
+ */
+confirm_autonomous: boolean, 
+/**
+ * Ask before launching a paired ticket (default: true).
+ */
+confirm_paired: boolean, 
+/**
+ * Milliseconds to wait after confirmation before the agent starts (default: 2000).
+ */
+launch_delay_ms: bigint, 
 /**
  * Default named execution target. Per-launch and per-delegator choices take precedence.
  */

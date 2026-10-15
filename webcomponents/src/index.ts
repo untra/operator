@@ -96,3 +96,4 @@ export {
   type SessionAgent,
   type SessionTarget,
 } from "./shared/ticket-links";
+export { PermissionSelector, type PermissionSelectorProps } from "./components/PermissionSelector";

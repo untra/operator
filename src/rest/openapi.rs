@@ -28,28 +28,29 @@ use crate::rest::dto::{
     CreateTicketResponse, CsrfTokenResponse, CurrentSessionResponse, DefaultLlmResponse,
     DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, DeviceApprovalRequest,
     DeviceApprovalResponse, DeviceAuthorizationRequest, DeviceAuthorizationResponse, DeviceSummary,
-    ExternalIssueTypeSummary, FieldResponse, ForgotPasswordRequest, ForgotPasswordResponse,
-    GitOnboardingState, GitProviderOnboardingResponse, HealthResponse, HostedCollectionSelection,
-    IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary, KanbanBoardResponse,
-    KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse, KanbanTicketCard,
-    LaunchTicketRequest, LaunchTicketResponse, ListKanbanProjectsRequest,
-    ListKanbanProjectsResponse, ListKanbanStatusesRequest, ListKanbanStatusesResponse,
-    LoginRequest, LoginResponse, LogoutResponse, ModelEntry, ModelServerKindEntry,
-    ModelServerModelsResponse, ModelServerResponse, ModelServersResponse, NextStepInfo,
-    OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind, ProjectSummary, QueueByType,
-    QueueControlResponse, QueueStatusResponse, RejectReviewRequest, ResetPasswordRequest,
-    ResetPasswordResponse, ReviewResponse, RevokeAccessKeyResponse, Scope, SectionDto,
-    SectionRowDto, SessionListResponse, SessionSummary, SetDefaultLlmRequest,
+    ExternalIssueTypeSummary, FieldError, FieldResponse, ForgotPasswordRequest,
+    ForgotPasswordResponse, GitOnboardingState, GitProviderOnboardingResponse, HealthResponse,
+    HostedCollectionSelection, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
+    KanbanBoardResponse, KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanPushOutcome,
+    KanbanSyncResponse, KanbanTarget, KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse,
+    ListKanbanProjectsRequest, ListKanbanProjectsResponse, ListKanbanStatusesRequest,
+    ListKanbanStatusesResponse, LoginRequest, LoginResponse, LogoutResponse, ModelEntry,
+    ModelServerKindEntry, ModelServerModelsResponse, ModelServerResponse, ModelServersResponse,
+    NextStepInfo, OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind,
+    ProjectSummary, QueueByType, QueueControlResponse, QueueStatusResponse, RejectReviewRequest,
+    ResetPasswordRequest, ResetPasswordResponse, ReviewResponse, RevokeAccessKeyResponse, Scope,
+    SectionDto, SectionRowDto, SessionListResponse, SessionSummary, SetDefaultLlmRequest,
     SetGitSessionEnvRequest, SetGitSessionEnvResponse, SetKanbanSessionEnvRequest,
     SetKanbanSessionEnvResponse, SetupCollectionResponse, SetupExecutionTarget,
     SetupInitializeRequest, SetupInitializeResponse, SetupStatusResponse, SetupStepResponse,
     SkillEntry, SkillsResponse, StatusResponse, StepCompleteRequest, StepCompleteResponse,
-    StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse, TokenRequest, TokenResponse,
-    UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
-    UpdateTicketStatusResponse, ValidateGitTokenRequest, ValidateGitTokenResponse,
-    ValidateKanbanCredentialsRequest, ValidateKanbanCredentialsResponse, WorkflowExportResponse,
-    WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse, WriteGitConfigRequest,
-    WriteGitConfigResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
+    StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse, TicketPreviewResponse,
+    TokenRequest, TokenResponse, UpdateIssueTypeRequest, UpdateModelServerRequest,
+    UpdateStepRequest, UpdateTicketStatusRequest, UpdateTicketStatusResponse,
+    ValidateGitTokenRequest, ValidateGitTokenResponse, ValidateKanbanCredentialsRequest,
+    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto,
+    WorkflowPreviewResponse, WriteGitConfigRequest, WriteGitConfigResponse,
+    WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 // AgentProfile interchange types live in `crate::config`, not `rest::dto`.
 use crate::config::{AgentProfile, DelegatorLaunchConfig, RemoteAgentRef, XOperator};
@@ -130,6 +131,10 @@ use crate::rest::error::ErrorResponse;
             UpdateTicketStatusResponse,
             CreateTicketRequest,
             CreateTicketResponse,
+            TicketPreviewResponse,
+            KanbanPushOutcome,
+            KanbanTarget,
+            FieldError,
             CreateAlertRequest,
             CreateAlertResponse,
             // Workflow export types
@@ -258,6 +263,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Auth", description = "Bootstrap, sessions, OAuth device flow, and access keys"),
         (name = "Setup", description = "First-run workspace initialization"),
         (name = "Git", description = "Git provider onboarding"),
+        (name = "Telemetry", description = "OTLP ingest from agent sessions and the per-session telemetry window"),
     )
 )]
 pub struct ApiDoc;
@@ -463,6 +469,29 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
 
     match access {
         Access::Public => operation.security = Some(Vec::new()),
+        Access::TelemetryIngest => {
+            operation.security = Some(vec![SecurityRequirement::new(
+                "bearerAuth",
+                Vec::<String>::new(),
+            )]);
+            operation
+                .extensions
+                .get_or_insert_with(Extensions::default)
+                .insert(
+                    "x-operator-scope".to_string(),
+                    serde_json::json!(crate::auth::tokens::AUDIENCE_TELEMETRY),
+                );
+            operation
+                .responses
+                .responses
+                .entry("401".to_string())
+                .or_insert_with(|| Ref::from_response_name(UNAUTHORIZED_RESPONSE_NAME).into());
+            operation
+                .responses
+                .responses
+                .entry("403".to_string())
+                .or_insert_with(|| Ref::from_response_name(FORBIDDEN_RESPONSE_NAME).into());
+        }
         Access::Scoped(scope) => {
             operation.security = Some(vec![
                 SecurityRequirement::new("bearerAuth", Vec::<String>::new()),
@@ -493,6 +522,25 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
                     .push(csrf_parameter());
             }
         }
+    }
+
+    if crate::auth::policy::browser_identity_route(path) {
+        operation.security = Some(vec![SecurityRequirement::new(
+            "sessionCookie",
+            Vec::<String>::new(),
+        )]);
+    }
+    if let Some(policy) = crate::auth::policy::OPERATIONS
+        .iter()
+        .find(|policy| policy.method == method && policy.path == path)
+    {
+        operation
+            .extensions
+            .get_or_insert_with(Extensions::default)
+            .insert(
+                "x-operator-capability".to_string(),
+                serde_json::json!(policy.capability),
+            );
     }
 
     document_error_responses(operation);
@@ -541,8 +589,8 @@ impl ApiDoc {
     ///
     /// The version is stamped from `CARGO_PKG_VERSION` by [`crate::rest::openapi_spec`].
     #[allow(dead_code)]
-    pub fn yaml() -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(&crate::rest::openapi_spec())
+    pub fn yaml() -> Result<String, serde_saphyr::ser::Error> {
+        serde_saphyr::to_string(&crate::rest::openapi_spec())
     }
 }
 
@@ -606,13 +654,24 @@ mod tests {
             );
             match rule.access {
                 Access::Public => assert_eq!(operation["security"], serde_json::json!([])),
+                Access::TelemetryIngest => {
+                    assert_eq!(
+                        operation["security"],
+                        serde_json::json!([{ "bearerAuth": [] }])
+                    );
+                    assert_eq!(
+                        operation["x-operator-scope"],
+                        crate::auth::tokens::AUDIENCE_TELEMETRY
+                    );
+                }
                 Access::Scoped(scope) => {
                     assert_eq!(
                         operation["security"],
-                        serde_json::json!([
-                            { "bearerAuth": [] },
-                            { "sessionCookie": [] }
-                        ])
+                        if crate::auth::policy::browser_identity_route(rule.path) {
+                            serde_json::json!([{ "sessionCookie": [] }])
+                        } else {
+                            serde_json::json!([{ "bearerAuth": [] }, { "sessionCookie": [] }])
+                        }
                     );
                     assert_eq!(operation["x-operator-scope"], scope.as_str());
                 }
@@ -624,7 +683,7 @@ mod tests {
     fn test_protected_mutations_document_csrf_header() {
         let spec = parsed_spec();
         for rule in crate::auth::scope::ROUTE_RULES {
-            if matches!(rule.access, Access::Public)
+            if matches!(rule.access, Access::Public | Access::TelemetryIngest)
                 || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
             {
                 continue;

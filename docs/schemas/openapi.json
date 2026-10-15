@@ -47,6 +47,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:read",
         "x-operator-scope": "read"
       }
     },
@@ -105,7 +106,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}/approve": {
@@ -172,7 +174,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:approve"
       }
     },
     "/api/v1/agents/{agent_id}/connect/terminal": {
@@ -230,6 +233,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:read",
         "x-operator-scope": "read"
       }
     },
@@ -310,6 +314,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:focus",
         "x-operator-scope": "execute"
       }
     },
@@ -387,7 +392,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:reject"
       }
     },
     "/api/v1/alerts": {
@@ -396,7 +402,7 @@
           "Tickets"
         ],
         "summary": "Raise an external alert as an investigation (INV) ticket.",
-        "description": "Creates an investigation through the same embedded-template path as\n[`create`], folding the alert's `source`/`severity` into the ticket values.\nPowers the AGNT `operator-alert` node.",
+        "description": "The alert's free-form `source`/`severity` are recorded in the body; the\nfrontmatter gets the schema's `alert` source and the severity option whose\n`S0`/`S1`/`S2` prefix matches, if any.",
         "operationId": "alerts_create",
         "parameters": [
           {
@@ -455,7 +461,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "alerts:create"
       }
     },
     "/api/v1/auth/bootstrap": {
@@ -536,6 +543,41 @@
           }
         },
         "security": []
+      }
+    },
+    "/api/v1/auth/capabilities": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "capabilities",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/auth/csrf": {
@@ -728,15 +770,14 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List access keys",
-        "operationId": "auth_list_access_keys",
+        "operationId": "keys",
         "responses": {
           "200": {
-            "description": "Access keys",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccessKeyListResponse"
+                  "$ref": "#/components/schemas/UserKeyList"
                 }
               }
             }
@@ -750,9 +791,6 @@
         },
         "security": [
           {
-            "bearerAuth": []
-          },
-          {
             "sessionCookie": []
           }
         ],
@@ -762,8 +800,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create an access key",
-        "operationId": "auth_create_access_key",
+        "operationId": "create_key",
         "parameters": [
           {
             "name": "x-operator-csrf",
@@ -779,7 +816,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateAccessKeyRequest"
+                "$ref": "#/components/schemas/CreateUserKey"
               }
             }
           },
@@ -787,11 +824,11 @@
         },
         "responses": {
           "200": {
-            "description": "Key created; secret returned once",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateAccessKeyResponse"
+                  "$ref": "#/components/schemas/IssuedUserKey"
                 }
               }
             }
@@ -805,9 +842,6 @@
         },
         "security": [
           {
-            "bearerAuth": []
-          },
-          {
             "sessionCookie": []
           }
         ],
@@ -819,13 +853,11 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Revoke an access key",
-        "operationId": "auth_revoke_access_key",
+        "operationId": "revoke_key",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "Access key id",
             "required": true,
             "schema": {
               "type": "string"
@@ -843,11 +875,65 @@
         ],
         "responses": {
           "200": {
-            "description": "Revoked",
+            "description": ""
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/keys/{id}/rotate": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "rotate_key",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserKey"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RevokeAccessKeyResponse"
+                  "$ref": "#/components/schemas/IssuedUserKey"
                 }
               }
             }
@@ -857,22 +943,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "description": "Unknown or already revoked",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         },
         "security": [
-          {
-            "bearerAuth": []
-          },
           {
             "sessionCookie": []
           }
@@ -1009,6 +1082,198 @@
           }
         ],
         "x-operator-scope": "write"
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "callback",
+        "responses": {
+          "303": {
+            "description": ""
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/auth/oidc/connections": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "connections",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcConnection"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      },
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "create_connection",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOidcConnection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/oidc/connections/{id}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "disable_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/oidc/login/{id}": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "login",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": ""
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/auth/oidc/providers": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "providers",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcLoginProvider"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
       }
     },
     "/api/v1/auth/reset-password": {
@@ -1267,6 +1532,95 @@
         "security": []
       }
     },
+    "/api/v1/auth/users": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "users",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperatorUser"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/users/{id}": {
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "update_user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOperatorUser"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
     "/api/v1/campaigns": {
       "get": {
         "tags": [
@@ -1309,7 +1663,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       },
       "post": {
         "tags": [
@@ -1373,6 +1728,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:create",
         "x-operator-scope": "write"
       }
     },
@@ -1428,7 +1784,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       }
     },
     "/api/v1/campaigns/{id}/launch": {
@@ -1513,6 +1870,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:launch",
         "x-operator-scope": "execute"
       }
     },
@@ -1578,6 +1936,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:pause",
         "x-operator-scope": "execute"
       }
     },
@@ -1633,7 +1992,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       }
     },
     "/api/v1/collections": {
@@ -1672,7 +2032,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/active": {
@@ -1718,7 +2079,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/{name}": {
@@ -1775,7 +2137,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/{name}/activate": {
@@ -1841,7 +2204,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "collections:update"
       }
     },
     "/api/v1/configuration": {
@@ -1876,7 +2240,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "configuration:read"
       },
       "patch": {
         "tags": [
@@ -1940,7 +2305,83 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "configuration:update"
+      }
+    },
+    "/api/v1/connections": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "connections_get",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "connections:read"
+      }
+    },
+    "/api/v1/connections/mcp/clients": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "connections_mcp_clients",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/McpClientStatus"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin",
+        "x-operator-capability": "connections:read"
       }
     },
     "/api/v1/delegators": {
@@ -1976,6 +2417,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -2041,7 +2483,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/from-tool": {
@@ -2119,7 +2562,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/import-profile": {
@@ -2187,6 +2631,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:create",
         "x-operator-scope": "admin"
       }
     },
@@ -2244,6 +2689,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -2318,7 +2764,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:update"
       },
       "delete": {
         "tags": [
@@ -2382,6 +2829,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:delete",
         "x-operator-scope": "admin"
       }
     },
@@ -2440,7 +2888,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       }
     },
     "/api/v1/execution-targets": {
@@ -2475,6 +2924,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "execution-targets:read",
         "x-operator-scope": "read"
       }
     },
@@ -2531,7 +2981,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:update"
       }
     },
     "/api/v1/git/providers": {
@@ -2569,7 +3020,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "git:read"
       }
     },
     "/api/v1/git/session-env": {
@@ -2625,7 +3077,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:create"
       }
     },
     "/api/v1/git/validate": {
@@ -2681,7 +3134,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "git:execute"
       }
     },
     "/api/v1/health": {
@@ -2717,6 +3171,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "health:read",
         "x-operator-scope": "read"
       }
     },
@@ -2757,7 +3212,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "integrations:read"
       }
     },
     "/api/v1/issuetypes": {
@@ -2820,6 +3276,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -2895,6 +3352,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:create",
         "x-operator-scope": "write"
       }
     },
@@ -2964,6 +3422,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -3055,6 +3514,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:update",
         "x-operator-scope": "write"
       },
       "delete": {
@@ -3119,6 +3579,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:delete",
         "x-operator-scope": "write"
       }
     },
@@ -3187,6 +3648,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       }
     },
@@ -3247,7 +3709,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/issuetypes/{key}/steps/{step_name}": {
@@ -3313,7 +3776,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "put": {
         "tags": [
@@ -3413,6 +3877,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:update",
         "x-operator-scope": "write"
       }
     },
@@ -3480,7 +3945,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/kanban/config": {
@@ -3538,6 +4004,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:update",
         "x-operator-scope": "admin"
       }
     },
@@ -3596,6 +4063,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:execute",
         "x-operator-scope": "execute"
       }
     },
@@ -3636,7 +4104,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/kanban/session-env": {
@@ -3694,6 +4163,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:create",
         "x-operator-scope": "admin"
       }
     },
@@ -3752,7 +4222,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "kanban:execute"
       }
     },
     "/api/v1/kanban/validate": {
@@ -3810,6 +4281,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:execute",
         "x-operator-scope": "execute"
       }
     },
@@ -3890,7 +4362,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes/sync": {
@@ -3976,7 +4449,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "kanban:create"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/statuses": {
@@ -4053,7 +4527,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/license": {
@@ -4088,6 +4563,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "license:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -4152,7 +4628,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "license:update"
       },
       "delete": {
         "tags": [
@@ -4196,7 +4673,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "license:delete"
       }
     },
     "/api/v1/llm-tools": {
@@ -4232,6 +4710,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "llm-tools:read",
         "x-operator-scope": "read"
       }
     },
@@ -4268,7 +4747,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "llm-tools:read"
       },
       "put": {
         "tags": [
@@ -4333,7 +4813,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "llm-tools:update"
       }
     },
     "/api/v1/mcp/descriptor": {
@@ -4342,7 +4823,7 @@
           "MCP"
         ],
         "summary": "MCP descriptor endpoint",
-        "description": "Returns metadata for registering operator with an MCP-capable client.\nThe transport URL is derived from the request Host header so it reflects\nthe actual running port; the stdio entrypoint reflects this binary's path.",
+        "description": "Returns metadata for registering operator with an MCP-capable client.\nTransport URLs use the configured public base or relative API paths.",
         "operationId": "mcp_descriptor",
         "responses": {
           "200": {
@@ -4370,6 +4851,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "mcp:read",
         "x-operator-scope": "read"
       }
     },
@@ -4444,7 +4926,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/mcp/sse": {
@@ -4481,7 +4964,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/model-servers": {
@@ -4517,7 +5001,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       },
       "post": {
         "tags": [
@@ -4582,7 +5067,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "model-servers:create"
       }
     },
     "/api/v1/model-servers/kinds": {
@@ -4621,6 +5107,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:read",
         "x-operator-scope": "read"
       }
     },
@@ -4679,7 +5166,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       }
     },
     "/api/v1/model-servers/{name}": {
@@ -4736,6 +5224,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -4820,7 +5309,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "model-servers:update"
       },
       "delete": {
         "tags": [
@@ -4895,6 +5385,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:delete",
         "x-operator-scope": "admin"
       }
     },
@@ -4953,7 +5444,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "model-servers:execute"
       }
     },
     "/api/v1/profiles": {
@@ -4991,6 +5483,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "profiles:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -5055,7 +5548,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:create"
       }
     },
     "/api/v1/profiles/{profile_id}": {
@@ -5102,7 +5596,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "profiles:read"
       },
       "patch": {
         "tags": [
@@ -5166,7 +5661,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:update"
       }
     },
     "/api/v1/projects": {
@@ -5205,6 +5701,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "projects:read",
         "x-operator-scope": "read"
       }
     },
@@ -5271,6 +5768,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "projects:create",
         "x-operator-scope": "write"
       }
     },
@@ -5308,7 +5806,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/pause": {
@@ -5356,6 +5855,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "queue:create",
         "x-operator-scope": "write"
       }
     },
@@ -5404,6 +5904,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "queue:create",
         "x-operator-scope": "write"
       }
     },
@@ -5441,7 +5942,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/sync": {
@@ -5489,7 +5991,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "queue:sync"
       }
     },
     "/api/v1/queue/sync/{provider}/{project_key}": {
@@ -5555,7 +6058,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "queue:execute"
       }
     },
     "/api/v1/sections": {
@@ -5595,6 +6099,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "sections:read",
         "x-operator-scope": "read"
       }
     },
@@ -5633,6 +6138,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "setup:read",
         "x-operator-scope": "read"
       }
     },
@@ -5709,7 +6215,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "setup:create"
       }
     },
     "/api/v1/setup/status": {
@@ -5744,6 +6251,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "setup:read",
         "x-operator-scope": "read"
       }
     },
@@ -5782,7 +6290,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "setup:read"
       }
     },
     "/api/v1/skills": {
@@ -5818,7 +6327,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "skills:read"
       }
     },
     "/api/v1/status": {
@@ -5854,6 +6364,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "status:read",
         "x-operator-scope": "read"
       }
     },
@@ -5889,6 +6400,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "targets:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -5951,7 +6463,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:create"
       }
     },
     "/api/v1/targets/{name}": {
@@ -6023,6 +6536,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "targets:update",
         "x-operator-scope": "admin"
       },
       "delete": {
@@ -6085,7 +6599,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:delete"
       }
     },
     "/api/v1/targets/{name}/probe": {
@@ -6149,7 +6664,66 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:create"
+      }
+    },
+    "/api/v1/telemetry/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Read an agent session's telemetry window",
+        "operationId": "telemetry_get_session",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "description": "Agent session id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session's retained records, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetrySessionWindow"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled, or the session has no retained records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin",
+        "x-operator-capability": "telemetry:read"
       }
     },
     "/api/v1/tickets": {
@@ -6157,8 +6731,8 @@
         "tags": [
           "Tickets"
         ],
-        "summary": "Create a new ticket from a template and write it to the queue.",
-        "description": "Reuses the same [`TicketCreator`] the CLI (`operator create`) and MCP\n(`operator_create_ticket`) use, so a ticket created over HTTP is identical to\none created on any other surface. Powers the AGNT `operator-create-ticket`\nnode.",
+        "summary": "Create a new ticket and write it to the queue.",
+        "description": "Validates against the issue type's field schema, numbers and renders the\nticket through [`ticket_creation`] - the same path MCP and the CLI use - and\npushes it to the project's bidirectional kanban board unless\n`sync_to_kanban` is `false`.",
         "operationId": "tickets_create",
         "parameters": [
           {
@@ -6193,7 +6767,7 @@
             }
           },
           "400": {
-            "description": "Unknown template type",
+            "description": "Unknown issue type or invalid field values",
             "content": {
               "application/json": {
                 "schema": {
@@ -6217,6 +6791,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:create",
         "x-operator-scope": "write"
       }
     },
@@ -6284,7 +6859,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:create"
       }
     },
     "/api/v1/tickets/batch/preview": {
@@ -6341,7 +6917,76 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/tickets/preview": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Dry-run a create: field errors, rendered markdown and kanban target.",
+        "operationId": "tickets_preview",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Preview of the ticket that would be created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown issue type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
       }
     },
     "/api/v1/tickets/{id}": {
@@ -6399,6 +7044,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
       }
     },
@@ -6473,7 +7119,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:update"
       }
     },
     "/api/v1/tickets/{id}/launch": {
@@ -6590,6 +7237,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:launch",
         "x-operator-scope": "execute"
       }
     },
@@ -6677,7 +7325,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:update"
       }
     },
     "/api/v1/tickets/{id}/steps/{step}/complete": {
@@ -6783,6 +7432,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:complete",
         "x-operator-scope": "execute"
       }
     },
@@ -6859,6 +7509,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
       }
     },
@@ -6899,7 +7550,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "workflow-formats:read"
       }
     },
     "/livez": {
@@ -6916,6 +7568,282 @@
           }
         },
         "security": []
+      }
+    },
+    "/otlp/v1/logs": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP logs",
+        "operationId": "telemetry_ingest_logs",
+        "requestBody": {
+          "description": "ExportLogsServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportLogsServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
+      }
+    },
+    "/otlp/v1/metrics": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP metrics",
+        "operationId": "telemetry_ingest_metrics",
+        "requestBody": {
+          "description": "ExportMetricsServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportMetricsServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
+      }
+    },
+    "/otlp/v1/traces": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP traces",
+        "operationId": "telemetry_ingest_traces",
+        "requestBody": {
+          "description": "ExportTraceServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportTraceServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
       }
     },
     "/readyz": {
@@ -6947,22 +7875,6 @@
   },
   "components": {
     "schemas": {
-      "AccessKeyListResponse": {
-        "type": "object",
-        "description": "All access keys, active and revoked.",
-        "required": [
-          "keys"
-        ],
-        "properties": {
-          "keys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AccessKeySummary"
-            },
-            "description": "The keys."
-          }
-        }
-      },
       "AccessKeySummary": {
         "type": "object",
         "description": "Access key metadata. Carries no secret and no hash.",
@@ -8337,6 +9249,45 @@
         ],
         "description": "One execution environment shared by every ticket in a campaign."
       },
+      "CapabilityResponse": {
+        "type": "object",
+        "required": [
+          "grants",
+          "oidc_user",
+          "administrator",
+          "can_issue"
+        ],
+        "properties": {
+          "administration_grants": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PermissionGrant"
+              }
+            ]
+          },
+          "administrator": {
+            "type": "boolean"
+          },
+          "can_issue": {
+            "type": "boolean"
+          },
+          "connection_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          },
+          "oidc_user": {
+            "type": "boolean"
+          }
+        }
+      },
       "CollectionPreset": {
         "type": "string",
         "description": "Predefined issue type collections",
@@ -8613,58 +9564,56 @@
           }
         }
       },
-      "CreateAccessKeyRequest": {
+      "ConnectionsResponse": {
         "type": "object",
-        "description": "Create a service access key for an integration.",
         "required": [
-          "name",
-          "scopes",
-          "expires_in_days"
+          "version",
+          "profile_name",
+          "observed_at",
+          "api_path",
+          "mcp_path",
+          "mcp_http_mounted",
+          "mcp_stdio_advertised",
+          "acp_stdio_advertised",
+          "mcp_connected_clients"
         ],
         "properties": {
-          "expires_in_days": {
+          "acp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "api_path": {
+            "type": "string"
+          },
+          "mcp_connected_clients": {
             "type": "integer",
-            "format": "int64",
-            "description": "Days until the key expires. Expiry is mandatory - there is no\nnon-expiring key.",
-            "maximum": 365,
-            "minimum": 1
+            "minimum": 0
           },
-          "name": {
+          "mcp_http_mounted": {
+            "type": "boolean",
+            "description": "Whether this running router mounted the SSE transport."
+          },
+          "mcp_path": {
+            "type": "string"
+          },
+          "mcp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "observed_at": {
             "type": "string",
-            "description": "Human-readable label identifying what holds this key.",
-            "maxLength": 128,
-            "minLength": 1
+            "format": "date-time"
           },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Scope"
-            },
-            "description": "Scopes to grant. Only what the integration needs.",
-            "maxItems": 4,
-            "minItems": 1
-          }
-        }
-      },
-      "CreateAccessKeyResponse": {
-        "type": "object",
-        "description": "A newly created access key. **The secret appears here and nowhere else,\never** - only its hash is stored, so it cannot be shown again.",
-        "required": [
-          "key",
-          "secret"
-        ],
-        "properties": {
-          "key": {
-            "$ref": "#/components/schemas/AccessKeySummary",
-            "description": "Metadata for the created key."
+          "profile_name": {
+            "type": "string"
           },
-          "secret": {
-            "type": "string",
-            "format": "password",
-            "description": "The key secret, returned exactly once. Store it now; it is unrecoverable.",
-            "readOnly": true,
-            "maxLength": 47,
-            "minLength": 47
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Externally configured base URL, if present."
+          },
+          "version": {
+            "type": "string"
           }
         }
       },
@@ -9021,6 +9970,35 @@
           }
         }
       },
+      "CreateOidcConnection": {
+        "type": "object",
+        "required": [
+          "provider",
+          "issuer",
+          "client_id",
+          "redirect_uri"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret_file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          },
+          "redirect_uri": {
+            "type": "string"
+          }
+        }
+      },
       "CreateStepRequest": {
         "type": "object",
         "description": "Request to create a step",
@@ -9070,32 +10048,39 @@
       },
       "CreateTicketRequest": {
         "type": "object",
-        "description": "Request to create a new ticket from a template.",
+        "description": "Request to create a new ticket. Every surface (web, TUI, VS Code, CLI,\nMCP) sends this same shape to `POST /api/v1/tickets`.",
         "required": [
-          "template"
+          "issue_type"
         ],
         "properties": {
+          "issue_type": {
+            "type": "string",
+            "description": "Issue type key from the registry (e.g. `FEAT`, `FIX`, or a custom\ncollection type). `template` is accepted as a legacy alias."
+          },
           "project": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Project the ticket targets (filled into the template's `project` value)."
+            "description": "Project the ticket targets. Required when the issue type sets\n`project_required`."
           },
           "summary": {
             "type": [
               "string",
               "null"
             ],
-            "description": "One-line summary (filled into the template's `summary` value)."
+            "description": "One-line summary."
           },
-          "template": {
-            "type": "string",
-            "description": "Template type key (feature, fix, spike, investigation, task)."
+          "sync_to_kanban": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Push the new ticket to the mapped kanban board. `None` pushes whenever\nthe project maps to a bidirectional kanban project."
           },
           "values": {
             "type": "object",
-            "description": "Additional Handlebars values for the template. Explicit `project`/\n`summary` fields take precedence over the same keys here.",
+            "description": "Values for the issue type's user-editable fields, keyed by field name.\nExplicit `project`/`summary` take precedence over the same keys here.",
             "additionalProperties": {
               "type": "string"
             },
@@ -9111,7 +10096,8 @@
         "required": [
           "id",
           "filename",
-          "path"
+          "path",
+          "kanban"
         ],
         "properties": {
           "filename": {
@@ -9122,9 +10108,34 @@
             "type": "string",
             "description": "The created ticket's id (e.g. `FEAT-1234`)."
           },
+          "kanban": {
+            "$ref": "#/components/schemas/KanbanPushOutcome",
+            "description": "What happened when mirroring the ticket to its kanban board. A failed\npush never fails the create: the ticket exists locally regardless."
+          },
           "path": {
             "type": "string",
             "description": "The absolute path the ticket was written to."
+          }
+        }
+      },
+      "CreateUserKey": {
+        "type": "object",
+        "required": [
+          "name",
+          "expires_in_days",
+          "grants"
+        ],
+        "properties": {
+          "expires_in_days": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -9814,6 +10825,24 @@
           }
         }
       },
+      "FieldError": {
+        "type": "object",
+        "description": "A value that failed issue type field validation.",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Field name (`project`, `summary`, or an issue type field)."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable reason."
+          }
+        }
+      },
       "FieldResponse": {
         "type": "object",
         "description": "Response for a field",
@@ -9833,6 +10862,14 @@
           },
           "description": {
             "type": "string"
+          },
+          "display_order": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Form position (lower first); unordered fields sort last."
           },
           "field_type": {
             "type": "string"
@@ -10037,6 +11074,89 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "GiteaCredentials": {
+        "type": "object",
+        "description": "Ephemeral Gitea credentials for repository board discovery.",
+        "required": [
+          "base_url",
+          "repositories",
+          "token"
+        ],
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "GiteaSessionEnv": {
+        "type": "object",
+        "required": [
+          "base_url",
+          "api_key_env",
+          "token"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "GiteaUserDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "GiteaValidationDetailsDto": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "user_name",
+          "users"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GiteaUserDto"
+            }
           }
         }
       },
@@ -10469,6 +11589,21 @@
           }
         }
       },
+      "IssuedUserKey": {
+        "type": "object",
+        "required": [
+          "key",
+          "secret"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/UserKey"
+          },
+          "secret": {
+            "type": "string"
+          }
+        }
+      },
       "JiraCredentials": {
         "type": "object",
         "description": "Ephemeral Jira credentials supplied by a client during onboarding.\n\nThese are never persisted to disk by the onboarding endpoints that take\nthis struct - the actual secret stays in the env var named in\n`api_key_env` once set via `/api/v1/kanban/session-env`.",
@@ -10701,13 +11836,109 @@
       },
       "KanbanProviderKind": {
         "type": "string",
-        "description": "Which external kanban provider an onboarding request targets.\nDeliberately one variant smaller than [`KanbanProviderType`]\n\n[`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType",
+        "description": "Which external kanban provider an onboarding request targets.\nExcludes the built-in board and providers without an operational adapter.\n\n[`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType",
         "enum": [
           "jira",
           "linear",
           "github",
-          "openspec"
+          "openspec",
+          "gitea"
         ]
+      },
+      "KanbanPushOutcome": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The ticket's project maps to no bidirectional kanban project.",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_configured"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A target exists but the push was not attempted.",
+            "required": [
+              "reason",
+              "status"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "skipped"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Pushed; the external ids were written back into the ticket.",
+            "required": [
+              "provider",
+              "project_key",
+              "external_id",
+              "status"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "string"
+              },
+              "external_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "project_key": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pushed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The provider rejected or could not be reached.",
+            "required": [
+              "provider",
+              "message",
+              "status"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Result of pushing a newly created ticket to its kanban board."
       },
       "KanbanStatusMapping": {
         "type": "object",
@@ -10785,6 +12016,24 @@
               "type": "string"
             },
             "description": "Existing tickets whose synced relationships were refreshed"
+          }
+        }
+      },
+      "KanbanTarget": {
+        "type": "object",
+        "description": "The kanban project a new ticket would be pushed to.",
+        "required": [
+          "provider",
+          "project_key"
+        ],
+        "properties": {
+          "project_key": {
+            "type": "string",
+            "description": "Provider project / team key."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider name (`jira`, `linear`, `github`, `gitea`)."
           }
         }
       },
@@ -11313,6 +12562,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -11381,6 +12640,16 @@
           "project_key"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -11560,6 +12829,44 @@
           }
         }
       },
+      "McpClientStatus": {
+        "type": "object",
+        "required": [
+          "id",
+          "initialized",
+          "connected_at",
+          "last_activity_at"
+        ],
+        "properties": {
+          "client_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "description": "Display identifier, unrelated to the transport session credential."
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "last_activity_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "McpDescriptorResponse": {
         "type": "object",
         "description": "MCP server descriptor for client discovery",
@@ -11568,9 +12875,14 @@
           "server_id",
           "version",
           "transport_url",
+          "http_available",
           "label"
         ],
         "properties": {
+          "http_available": {
+            "type": "boolean",
+            "description": "Whether the running API has mounted the SSE transport."
+          },
           "label": {
             "type": "string",
             "description": "Human-readable label for the server"
@@ -11603,7 +12915,7 @@
           },
           "transport_url": {
             "type": "string",
-            "description": "Full URL of the MCP SSE transport endpoint"
+            "description": "SSE endpoint, relative unless a public URL is configured."
           },
           "version": {
             "type": "string",
@@ -11934,6 +13246,59 @@
           }
         }
       },
+      "OidcConnection": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "issuer",
+          "client_id",
+          "redirect_uri",
+          "disabled"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          },
+          "redirect_uri": {
+            "type": "string"
+          }
+        }
+      },
+      "OidcLoginProvider": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          }
+        }
+      },
+      "OidcProvider": {
+        "type": "string",
+        "enum": [
+          "keycloak",
+          "authentik"
+        ]
+      },
       "OpenspecSourceDto": {
         "type": "object",
         "description": "`OpenSpec` source location supplied during onboarding. Not a credential -\n`OpenSpec` reads local markdown; there is no secret to validate or store.",
@@ -12041,6 +13406,44 @@
           }
         }
       },
+      "OperatorUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "connection_id",
+          "issuer",
+          "subject",
+          "enabled",
+          "administrator",
+          "grants"
+        ],
+        "properties": {
+          "administrator": {
+            "type": "boolean"
+          },
+          "connection_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PermissionGrant"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
       "PanelNamesConfiguration": {
         "type": "object",
         "required": [
@@ -12099,6 +13502,35 @@
         },
         "additionalProperties": false
       },
+      "PermissionGrant": {
+        "type": "object",
+        "required": [
+          "profile_id",
+          "capabilities",
+          "projects"
+        ],
+        "properties": {
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "instance_wide": {
+            "type": "boolean"
+          },
+          "profile_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "PlannedTicket": {
         "type": "object",
         "description": "One item as it would be written.",
@@ -12144,7 +13576,9 @@
         "type": "string",
         "enum": [
           "remote_targets",
-          "campaigns"
+          "campaigns",
+          "oidc_connections",
+          "api_keys"
         ]
       },
       "PrincipalKind": {
@@ -12153,8 +13587,10 @@
         "enum": [
           "session",
           "access_token",
+          "api_key",
           "local_process",
-          "agent_callback"
+          "agent_callback",
+          "telemetry_ingest"
         ]
       },
       "ProfileNameRequest": {
@@ -12534,26 +13970,6 @@
           }
         }
       },
-      "RevokeAccessKeyResponse": {
-        "type": "object",
-        "description": "Result of revoking an access key.",
-        "required": [
-          "id",
-          "revoked_at"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The revoked key's identifier."
-          },
-          "revoked_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When revocation took effect."
-          }
-        }
-      },
       "RowActionDto": {
         "type": "object",
         "description": "A browser-openable action on a status section row (e.g. \"Open Web UI\",\n\"Swagger\"). Only URL-style actions surface to the web UI; TUI-only actions\n(toggles, env edits) are omitted.",
@@ -12833,6 +14249,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaSessionEnv"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -13303,6 +14729,10 @@
             "format": "int32",
             "description": "Exit code from the LLM command"
           },
+          "no_auto_proceed": {
+            "type": "boolean",
+            "description": "Finish this session without executing another step."
+          },
           "output": {
             "oneOf": [
               {
@@ -13341,6 +14771,13 @@
               "null"
             ],
             "description": "Session ID from the LLM session"
+          },
+          "traceparent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "W3C context of the completed opr8r step."
           }
         }
       },
@@ -13384,6 +14821,19 @@
               "null"
             ],
             "description": "Command to execute for the next step (opr8r wrapped)"
+          },
+          "next_env": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Per-step telemetry credentials and context for the next command.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "next_step": {
             "oneOf": [
@@ -13600,6 +15050,97 @@
             "minimum": 0
           }
         }
+      },
+      "TelemetryRecord": {
+        "type": "object",
+        "description": "One span, log record or metric from an agent session, after the shared ingest policy.",
+        "required": [
+          "signal",
+          "name",
+          "time_unix_nano",
+          "attributes"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "description": "Record attributes merged over resource attributes"
+          },
+          "body": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Log body retained with secret scrubbing only when optional redaction is disabled"
+          },
+          "name": {
+            "type": "string",
+            "description": "Span name, log event name, or metric name"
+          },
+          "signal": {
+            "$ref": "#/components/schemas/TelemetrySignal",
+            "description": "Identifies the OTLP signal that supplied this record."
+          },
+          "span_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Lowercase hex span id, when the record is trace-correlated"
+          },
+          "time_unix_nano": {
+            "type": "string",
+            "description": "Nanoseconds since the Unix epoch, as a decimal string (OTLP JSON convention)"
+          },
+          "trace_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Lowercase hex trace id, when the record is trace-correlated"
+          }
+        }
+      },
+      "TelemetrySessionWindow": {
+        "type": "object",
+        "description": "The bounded in-memory telemetry window for one agent session.",
+        "required": [
+          "session_id",
+          "ended",
+          "evicted_records",
+          "records"
+        ],
+        "properties": {
+          "ended": {
+            "type": "boolean",
+            "description": "Whether the session has ended and is within its grace period"
+          },
+          "evicted_records": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Records evicted from this session because the ring was full",
+            "minimum": 0
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TelemetryRecord"
+            },
+            "description": "Oldest first"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Identifies the agent session whose sanitized records are retained."
+          }
+        }
+      },
+      "TelemetrySignal": {
+        "type": "string",
+        "description": "OTLP signal a record arrived on.",
+        "enum": [
+          "traces",
+          "metrics",
+          "logs"
+        ]
       },
       "TickReport": {
         "type": "object",
@@ -14044,6 +15585,38 @@
           }
         }
       },
+      "TicketPreviewResponse": {
+        "type": "object",
+        "description": "Dry run of `POST /api/v1/tickets`: what would be written, and where it\nwould sync, without allocating an id or touching the queue.",
+        "required": [
+          "markdown",
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "description": "Validation errors; the create would be rejected while non-empty."
+          },
+          "kanban_target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KanbanTarget",
+                "description": "The kanban project the ticket would be pushed to, if any."
+              }
+            ]
+          },
+          "markdown": {
+            "type": "string",
+            "description": "Rendered markdown, with a placeholder id. Empty when `errors` is not."
+          }
+        }
+      },
       "TicketPriority": {
         "type": "string",
         "description": "Ticket urgency, as constrained by `src/schemas/ticket_metadata.schema.json`.\n\nVariants are declared most-urgent first, so the derived `Ord` is the sort order.",
@@ -14438,6 +16011,25 @@
           }
         }
       },
+      "UpdateOperatorUser": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "administrator",
+          "grants"
+        ],
+        "properties": {
+          "administrator": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          }
+        }
+      },
       "UpdateStepRequest": {
         "type": "object",
         "description": "Request to update a step",
@@ -14534,6 +16126,57 @@
           }
         }
       },
+      "UserKey": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AccessKeySummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "owner_id",
+              "profile_id",
+              "display_prefix",
+              "grants"
+            ],
+            "properties": {
+              "display_prefix": {
+                "type": "string"
+              },
+              "grants": {
+                "$ref": "#/components/schemas/PermissionGrant"
+              },
+              "owner_id": {
+                "type": "string"
+              },
+              "profile_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "replaces_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "UserKeyList": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserKey"
+            }
+          }
+        }
+      },
       "ValidateGitTokenRequest": {
         "type": "object",
         "required": [
@@ -14581,6 +16224,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -14637,6 +16290,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GiteaValidationDetailsDto"
+              }
             ]
           },
           "github": {
@@ -14850,6 +16513,50 @@
           }
         }
       },
+      "WriteGiteaConfigBody": {
+        "type": "object",
+        "required": [
+          "instance",
+          "base_url",
+          "repositories",
+          "api_key_env",
+          "project_key",
+          "sync_user_id"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "project_key": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status_mapping": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KanbanStatusMapping"
+              }
+            ]
+          },
+          "sync_user_id": {
+            "type": "string"
+          }
+        }
+      },
       "WriteGithubConfigBody": {
         "type": "object",
         "description": "Body for writing a GitHub Projects v2 config section.",
@@ -14935,6 +16642,16 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WriteGiteaConfigBody"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
@@ -15247,6 +16964,10 @@
     {
       "name": "Git",
       "description": "Git provider onboarding"
+    },
+    {
+      "name": "Telemetry",
+      "description": "OTLP ingest from agent sessions and the per-session telemetry window"
     }
   ]
 }

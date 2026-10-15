@@ -90,6 +90,12 @@ impl From<crate::output_parser::ParsedOutput> for OperatorOutput {
 /// Request body for step completion
 #[derive(Debug, Serialize)]
 pub struct StepCompleteRequest {
+    /// Finish this session without executing another step.
+    #[serde(default)]
+    pub no_auto_proceed: bool,
+    /// W3C context of the completed opr8r step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traceparent: Option<String>,
     pub exit_code: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
@@ -103,6 +109,9 @@ pub struct StepCompleteRequest {
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)] // Fields used for future loop/circuit breaker features
 pub struct StepCompleteResponse {
+    /// Per-step telemetry credentials and context for the next command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_env: Option<std::collections::BTreeMap<String, String>>,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_step: Option<NextStepInfo>,
@@ -362,6 +371,8 @@ mod tests {
     #[test]
     fn test_step_complete_request_serialization() {
         let request = StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 0,
             session_id: Some("abc-123".to_string()),
             duration_secs: 342,
@@ -387,6 +398,8 @@ mod tests {
         };
 
         let request = StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 0,
             session_id: Some("abc-123".to_string()),
             duration_secs: 342,
@@ -447,6 +460,8 @@ mod tests {
     #[test]
     fn test_step_complete_request_no_session() {
         let request = StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 1,
             session_id: None,
             duration_secs: 60,

@@ -252,11 +252,48 @@ pub fn build_docker_command(
         config.rest_api.port
     ));
 
+    docker_args.extend(["-e".into(), "OPERATOR_API_TOKEN".into()]);
+
     // Add operator environment variables (if provided)
     if let Some(env) = operator_env {
         for (key, value) in env {
             docker_args.push("-e".to_string());
             docker_args.push(shell_escape_if_needed(&format!("{key}={value}")));
+        }
+    }
+
+    if config.telemetry.enabled && config.telemetry.ingest.inject_agent_env {
+        for name in [
+            "OTEL_EXPORTER_OTLP_HEADERS",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "TRACEPARENT",
+            "OPERATOR_OTLP_TOKEN",
+            "CLAUDE_CODE_ENABLE_TELEMETRY",
+            "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA",
+            "CLAUDE_CODE_PROPAGATE_TRACEPARENT",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_METRICS_EXPORTER",
+            "OTEL_LOGS_EXPORTER",
+            "GEMINI_TELEMETRY_ENABLED",
+            "GEMINI_TELEMETRY_TARGET",
+            "GEMINI_TELEMETRY_OTLP_PROTOCOL",
+            "GEMINI_TELEMETRY_LOG_PROMPTS",
+        ] {
+            docker_args.extend(["-e".into(), name.into()]);
+        }
+        let api_url = operator_env
+            .and_then(|env| env.get("OPERATOR_API_URL"))
+            .cloned()
+            .unwrap_or_else(|| format!("http://host.docker.internal:{}", config.rest_api.port));
+        for name in [
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "GEMINI_TELEMETRY_OTLP_ENDPOINT",
+        ] {
+            docker_args.extend([
+                "-e".into(),
+                shell_escape_if_needed(&format!("{name}={}/otlp", api_url.trim_end_matches('/'))),
+            ]);
         }
     }
 
@@ -1006,6 +1043,31 @@ mod tests {
         assert!(
             caller > injected,
             "caller-supplied OPERATOR_API_URL must come later (docker: last -e wins): {cmd}"
+        );
+    }
+
+    #[test]
+    fn test_docker_telemetry_uses_callback_url_and_forwards_credentials() {
+        let mut config = Config::default();
+        config.launch.docker.image = "agent:latest".into();
+        config.telemetry.enabled = true;
+        let env = std::collections::HashMap::from([(
+            "OPERATOR_API_URL".into(),
+            "https://callback.example/operator/".into(),
+        )]);
+        let cmd = build_docker_command(
+            &config,
+            &config.launch.docker,
+            "opr8r",
+            "/project",
+            Some(&env),
+        )
+        .unwrap();
+        assert!(cmd.contains("-e OPERATOR_API_TOKEN"));
+        assert!(cmd.contains("-e OPERATOR_OTLP_TOKEN"));
+        assert!(cmd.contains("OTEL_EXPORTER_OTLP_ENDPOINT=https://callback.example/operator/otlp"));
+        assert!(
+            cmd.contains("GEMINI_TELEMETRY_OTLP_ENDPOINT=https://callback.example/operator/otlp")
         );
     }
 

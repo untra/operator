@@ -35,6 +35,12 @@ impl KanbanIssueTypeService {
 
     /// Get the catalog file path for a provider/project.
     fn catalog_path(&self, provider: &str, project: &str) -> PathBuf {
+        use sha2::{Digest, Sha256};
+        let project = if provider == "gitea" && url::Url::parse(project).is_ok() {
+            hex::encode(Sha256::digest(project.as_bytes()))
+        } else {
+            project.to_string()
+        };
         self.catalog_root
             .join(provider)
             .join(project)
@@ -62,7 +68,7 @@ impl KanbanIssueTypeService {
             .context("Failed to fetch issue types from provider")?;
 
         let source_kind = match provider_name {
-            "linear" => "label",
+            "linear" | "gitea" => "label",
             _ => "issuetype",
         };
 
@@ -338,6 +344,47 @@ mod tests {
         assert_eq!(types.len(), read_types.len());
         assert_eq!(types[0].id, read_types[0].id);
         assert_eq!(types[1].name, read_types[1].name);
+    }
+
+    #[test]
+    fn test_gitea_url_catalog_is_flat_and_preserves_instance_identity() {
+        let tmp = TempDir::new().unwrap();
+        let service = KanbanIssueTypeService::new(tmp.path().to_path_buf());
+        for project in [
+            "https://first.example/team/repo/projects/1",
+            "https://second.example/team/repo/projects/1",
+        ] {
+            let types: Vec<_> = sample_external_types()
+                .iter()
+                .map(|ty| {
+                    KanbanIssueType::from_external(
+                        ty,
+                        "gitea",
+                        project,
+                        "label",
+                        "2026-10-14T00:00:00Z",
+                    )
+                })
+                .collect();
+            service.write_catalog("gitea", project, &types).unwrap();
+            assert_eq!(
+                service.read_catalog("gitea", project).unwrap()[0].project,
+                project
+            );
+            assert_eq!(
+                service
+                    .catalog_path("gitea", project)
+                    .strip_prefix(tmp.path())
+                    .unwrap()
+                    .components()
+                    .count(),
+                3
+            );
+        }
+        assert_eq!(
+            service.list_all_kanban_types().unwrap().len(),
+            sample_external_types().len() * 2
+        );
     }
 
     #[test]

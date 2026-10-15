@@ -4,14 +4,22 @@
 
 import { useState, useCallback } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useHost } from "../host";
 import { ApiError } from "../api-client";
 import { useApiMutation, useApiQuery, useResetSession } from "../api";
-import { bootstrapStatusQuery, loginMutation, setupStatusQuery } from "../api/definitions";
+import {
+  bootstrapStatusQuery,
+  loginMutation,
+  setupStatusQuery,
+  oidcProvidersQuery,
+} from "../api/definitions";
 import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH } from "../auth-constraints";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const host = useHost();
+  const providers = useApiQuery(oidcProvidersQuery());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +82,14 @@ export function LoginPage() {
       }
       links={
         <>
+          {providers.data?.map((provider) => (
+            <a
+              key={provider.id}
+              href={`${host.baseUrl()}/api/v1/auth/oidc/login/${encodeURIComponent(provider.id)}`}
+            >
+              Sign in with {provider.provider}
+            </a>
+          ))}
           <Link to="/forgot-password">Forgot password?</Link>
           <Link to="/reset-password">Change password</Link>
         </>

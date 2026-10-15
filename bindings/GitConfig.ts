@@ -13,7 +13,15 @@ export type GitConfig = {
 /**
  * Default commit identity for delegated work.
  */
-identity?: GitIdentityConfig | null, gitea: GiteaConfig, forgejo: ForgejoConfig, 
+identity?: GitIdentityConfig | null, 
+/**
+ * Gitea forge settings for pull requests.
+ */
+gitea: GiteaConfig, 
+/**
+ * Forgejo forge settings for pull requests.
+ */
+forgejo: ForgejoConfig, 
 /**
  * Active provider (auto-detected from remote URL if not specified)
  */

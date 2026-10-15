@@ -40,15 +40,37 @@ Or install directly: [VS Code Marketplace](https://marketplace.visualstudio.com/
 3. Click the "..." menu
 4. Select "Install from VSIX..."
 
+## Choose a connection
+
+Run **Operator: Choose Connection**. This editor is free. The choice is saved in VS Code user settings and kept across restarts.
+
+- **Running on this machine** attaches to an Operator that is already listening for this folder. The extension reads `.tickets/operator/api-session.json`, then `http://localhost:7008`. Nothing is downloaded.
+- **Run for this folder** is the free local install. It uses the `.tickets` directory in the parent of the project and can download the Operator binary.
+- **Connect to a server** saves an `https` origin, for example `https://operator.kube.untra.casa`. The sidebar, queue, and status views use that API. The extension does not download, update, or start a binary, and it does not compare the server version to a binary on the laptop.
+
+SSH, Coder, and other remote targets are entitled by the server's license, not by the extension.
+
+A remote server must advertise its public origin:
+
+```toml
+[rest_api]
+public_url = "https://operator.kube.untra.casa"
+```
+
+Sign in with **Operator: Sign In**. The device-flow refresh token is stored in the editor secret store, keyed by that origin, and is not written to `settings.json`. The server keeps the session for 30 idle days and 90 days at most. The saved URL stays after that; sign in again when the session ends. TLS verification stays on.
+
+**Operator: Download Operator** is the local-install command. It is not offered while the window is connected to a remote server.
+
 ## Configuration
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `operator.webhookPort` | `7009` | Port for webhook server |
-| `operator.autoStart` | `true` | Start server on VS Code launch |
+| `operator.connectionMode` | `local` | `local` uses Operator on this machine. `remote` uses the saved `operator.apiUrl` and does not download or start a binary. |
+| `operator.webhookPort` | `7009` | Port for the local webhook server. A remote Operator cannot call it. |
+| `operator.autoStart` | `true` | In local mode, start the Operator API when none is reachable. Remote mode never starts a local server. |
 | `operator.terminalPrefix` | `op-` | Prefix for managed terminal names |
 | `operator.ticketsDir` | `.tickets` | Path to tickets directory |
-| `operator.apiUrl` | `http://localhost:7008` | Operator REST API URL |
+| `operator.apiUrl` | `http://localhost:7008` | REST API origin. In remote mode, set this in User settings to an `https` origin. In local mode, leave it unset so the extension follows `api-session.json`. |
 
 ## Commands
 
@@ -61,8 +83,9 @@ Access via Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 | `Operator: Show Server Status` | Display server status |
 | `Operator: Launch Ticket` | Launch a ticket in a new terminal |
 | `Operator: Launch Ticket (with options)` | Launch with agent/mode selection |
-| `Operator: Download Operator` | Download the Operator CLI |
-| `Operator: Connect MCP Server` | Register Operator as an MCP server for this editor, workspace `.mcp.json`, and optionally Copilot Global |
+| `Operator: Choose Connection` | Attach to a local Operator, run one for this folder, or save a remote server |
+| `Operator: Download Operator` | Download the Operator CLI for a local install |
+| `Operator: Connect MCP Server` | Register Operator as an MCP server. Loopback may use stdio. A remote server is SSE only |
 
 ## MCP Integration
 
@@ -70,7 +93,7 @@ The sidebar launches and watches tickets. MCP is the other direction: an agent i
 
 `Operator: Connect MCP Server` writes:
 
-1. Workspace `mcp.servers` (`.vscode/mcp.json`) so the editor's own MCP list still sees Operator. Stdio when the daemon advertises it, otherwise SSE.
+1. Workspace `mcp.servers` (`.vscode/mcp.json`) so the editor's own MCP list still sees Operator. Stdio when a loopback daemon advertises it, otherwise SSE. A remote origin always registers SSE at the server's `transport_url` and does not write `.mcp.json`, Cursor's `mcp.json`, or Copilot Global, because those files spawn a binary on this machine.
 2. Workspace-root `.mcp.json` with `mcpServers.operator` (`command`, `args`, `cwd`) when the descriptor includes stdio. VS Code 1.140 Agent Host and Copilot CLI read this file directly.
 3. An optional **Also write Copilot Global** action that merges the same `mcpServers.operator` block into `$COPILOT_HOME/mcp-config.json`, or `~/.copilot/mcp-config.json` when `COPILOT_HOME` is unset. That file is machine-wide, so the next Copilot session in any folder can see the queue.
 
@@ -110,7 +133,7 @@ The extension exposes a local HTTP API for Operator communication:
 ## Requirements
 
 - VS Code 1.140.0 or later
-- Operator CLI (for full functionality)
+- A local Operator CLI when this window runs Operator on this machine. A remote connection needs the server's `https` address instead.
 
 ## Troubleshooting
 

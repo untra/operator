@@ -352,6 +352,15 @@ pub static ENV_VARS: &[EnvVar] = &[
         default: Some("true"),
         example: Some("false"),
     },
+    EnvVar {
+        name: "OPERATOR_LOGGING__FORMAT",
+        description:
+            "Console and file log format (text or json). JSON lines include trace_id and span_id",
+        category: EnvVarCategory::Logging,
+        required: false,
+        default: Some("text"),
+        example: Some("json"),
+    },
     // Note: RELAY_HUB_SOCKET and RELAY_AGENT_NAME are intentionally excluded from this
     // registry because they follow the cross-project claude-relay naming convention
     // (no OPERATOR_ prefix) for wire compatibility with existing TS relay channels.

@@ -27,22 +27,23 @@ JSON Schema for the Operator configuration file (`config.toml`).
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `profile` | → `ProfileIdentity` | No |  |
+| `profile` | → `ProfileIdentity` | No | Active configuration profile (id and name). |
 | `projects` | `array` | No | List of projects operator can assign work to |
-| `agents` | → `AgentsConfig` | Yes |  |
-| `notifications` | → `NotificationsConfig` | Yes |  |
-| `queue` | → `QueueConfig` | Yes |  |
-| `paths` | → `PathsConfig` | Yes |  |
-| `ui` | → `UiConfig` | Yes |  |
-| `launch` | → `LaunchConfig` | Yes |  |
-| `templates` | → `TemplatesConfig` | Yes |  |
-| `api` | → `ApiConfig` | No |  |
-| `logging` | → `LoggingConfig` | No |  |
-| `tmux` | → `TmuxConfig` | No |  |
+| `agents` | → `AgentsConfig` | Yes | Agent lifecycle, parallelism, and health monitoring. |
+| `notifications` | → `NotificationsConfig` | Yes | Notification integrations. |
+| `queue` | → `QueueConfig` | Yes | Queue ordering and assignment. |
+| `paths` | → `PathsConfig` | Yes | Ticket, project, state, and worktree directories. |
+| `ui` | → `UiConfig` | Yes | Terminal UI appearance and behavior. |
+| `launch` | → `LaunchConfig` | Yes | Launch confirmations and execution defaults. |
+| `templates` | → `TemplatesConfig` | Yes | Issue type collections and presets. |
+| `api` | → `ApiConfig` | No | Pull-request and rate-limit polling. |
+| `logging` | → `LoggingConfig` | No | Log level and output. |
+| `telemetry` | → `TelemetryConfig` | No | OTLP ingest, session window, and export. |
+| `tmux` | → `TmuxConfig` | No | Tmux integration configuration. |
 | `sessions` | → `SessionsConfig` | No | Session wrapper configuration (tmux, vscode, or cmux) |
-| `llm_tools` | → `LlmToolsConfig` | No |  |
-| `rest_api` | → `RestApiConfig` | No |  |
-| `git` | → `GitConfig` | No |  |
+| `llm_tools` | → `LlmToolsConfig` | No | Detected LLM CLIs and provider preferences. |
+| `rest_api` | → `RestApiConfig` | No | Embedded REST API server. |
+| `git` | → `GitConfig` | No | Git provider, identity, and worktree settings. |
 | `kanban` | → `KanbanConfig` | No | Kanban provider configuration for syncing issues from Jira, Linear, etc. |
 | `version_check` | → `VersionCheckConfig` | No | Version check configuration for automatic update notifications |
 | `delegators` | `array` | No | Agent delegator configurations for autonomous ticket launching |
@@ -61,17 +62,19 @@ JSON Schema for the Operator configuration file (`config.toml`).
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `string` | Yes |  |
-| `name` | `string` | Yes |  |
+| `id` | `string` | Yes | Stable profile id. Nil until the profile is registered. |
+| `name` | `string` | Yes | Profile name. The default primary profile is `legacy`. |
 
 ### AgentsConfig
 
+Agent lifecycle, parallelism, and health monitoring.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `max_parallel` | `integer` | Yes |  |
-| `cores_reserved` | `integer` | Yes |  |
+| `max_parallel` | `integer` | Yes | Upper bound on concurrent agents (default: 5). The effective cap is also limited by CPU cores minus `cores_reserved`. |
+| `cores_reserved` | `integer` | Yes | CPU cores kept free when computing the effective agent cap (default: 1). |
 | `max_agents_per_repo` | `integer` | No | Maximum concurrent agents per project/repo (default: 1). Requires `git.use_worktrees` = true when > 1 to avoid conflicts. |
-| `health_check_interval` | `integer` | Yes |  |
+| `health_check_interval` | `integer` | Yes | Seconds between agent health checks (default: 30). |
 | `generation_timeout_secs` | `integer` | No | Timeout in seconds for each agent generation (default: 300 = 5 min) |
 | `sync_interval` | `integer` | No | Interval in seconds between ticket-session syncs (default: 60) |
 | `step_timeout` | `integer` | No | Maximum seconds a step can run before timing out (default: 1800 = 30 min) |
@@ -115,46 +118,56 @@ Webhook notification configuration.
 
 ### QueueConfig
 
+Queue ordering and assignment.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `auto_assign` | `boolean` | Yes |  |
-| `priority_order` | `array` | Yes |  |
-| `poll_interval_ms` | `integer` | Yes |  |
+| `auto_assign` | `boolean` | Yes | Assign the next ticket when an agent slot frees (default: true). |
+| `priority_order` | `array` | Yes | Issue-type keys, highest priority first (default: INV, FIX, TASK, FEAT, SPIKE). |
+| `poll_interval_ms` | `integer` | Yes | How often the queue is polled, in milliseconds (default: 1000). |
 
 ### PathsConfig
 
+Directories for tickets, projects, state, and worktrees.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `tickets` | `string` | Yes |  |
-| `projects` | `string` | Yes |  |
-| `state` | `string` | Yes |  |
+| `tickets` | `string` | Yes | Ticket root, relative to the working directory or absolute (default: `.tickets`). |
+| `projects` | `string` | Yes | Projects root scanned for agent marker files (default: `.`). |
+| `state` | `string` | Yes | Operator state directory (default: `.tickets/operator`). |
 | `worktrees` | `string` | No | Base directory for per-ticket worktrees (default: ~/.operator/worktrees) |
 
 ### UiConfig
 
+Terminal UI appearance and behavior.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `refresh_rate_ms` | `integer` | Yes |  |
-| `completed_history_hours` | `integer` | Yes |  |
-| `summary_max_length` | `integer` | Yes |  |
-| `panel_names` | → `PanelNamesConfig` | No |  |
+| `refresh_rate_ms` | `integer` | Yes | TUI redraw interval in milliseconds (default: 250). |
+| `completed_history_hours` | `integer` | Yes | Hours of completed tickets shown on the dashboard (default: 24). |
+| `summary_max_length` | `integer` | Yes | Maximum characters shown for a ticket summary (default: 40). |
+| `panel_names` | → `PanelNamesConfig` | No | Custom titles for the dashboard panels. |
 
 ### PanelNamesConfig
 
+Custom titles for the dashboard panels.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `status` | `string` | No |  |
-| `queue` | `string` | No |  |
-| `in_progress` | `string` | No |  |
-| `completed` | `string` | No |  |
+| `status` | `string` | No | Status panel title (default: `STATUS`). |
+| `queue` | `string` | No | Queue panel title (default: `TODO QUEUE`). |
+| `in_progress` | `string` | No | In-progress panel title (default: `IN PROGRESS`). The key `agents` is accepted as an alias. |
+| `completed` | `string` | No | Completed panel title (default: `DONE`). |
 
 ### LaunchConfig
 
+Agent launch behavior and confirmations.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `confirm_autonomous` | `boolean` | Yes |  |
-| `confirm_paired` | `boolean` | Yes |  |
-| `launch_delay_ms` | `integer` | Yes |  |
+| `confirm_autonomous` | `boolean` | Yes | Ask before launching an autonomous ticket (default: true). |
+| `confirm_paired` | `boolean` | Yes | Ask before launching a paired ticket (default: true). |
+| `launch_delay_ms` | `integer` | Yes | Milliseconds to wait after confirmation before the agent starts (default: 2000). |
 | `target` | `string` \| `null` | No | Default named execution target. Per-launch and per-delegator choices take precedence. |
 | `docker` | → `DockerConfig` | No | Docker execution configuration |
 | `yolo` | → `YoloConfig` | No | YOLO (auto-accept) mode configuration |
@@ -180,6 +193,8 @@ YOLO (auto-accept) mode configuration for fully autonomous execution
 | `enabled` | `boolean` | No | Whether YOLO mode option is available in launch dialog |
 
 ### TemplatesConfig
+
+Issue type collections and presets.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -220,7 +235,74 @@ Logging configuration
 | `level` | `string` | No | Log level filter (trace, debug, info, warn, error) |
 | `to_file` | `boolean` | No | Whether to log to file in TUI mode (false = stderr for debugging) |
 
+### TelemetryConfig
+
+OTLP telemetry: ingest from agents, a bounded per-session window, and export upstream.
+
+Off by default. Operator never configures a destination of its own.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Accept OTLP from agent sessions on `/otlp/v1/*` and inject agent OTLP env |
+| `enable_redaction` | `boolean` | No | Hash personal data and drop content and unapproved signal names, while secrets are protected in both modes. |
+| `ingest` | → `TelemetryIngestConfig` | No | Inbound OTLP limits and agent environment injection. |
+| `export` | → `TelemetryExportConfig` | No | Upstream OTLP export. |
+| `window` | → `TelemetryWindowConfig` | No | Bounded in-memory session window. |
+
+### TelemetryIngestConfig
+
+Limits incoming OTLP requests and controls agent environment injection.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `max_body_bytes` | `integer` | No | Maximum request body size, enforced both compressed and decompressed |
+| `queue_capacity` | `integer` | No | Bounded ingest queue; a full queue answers 503 with Retry-After |
+| `inject_agent_env` | `boolean` | No | Export OTLP endpoint, token and trace context into launched agent sessions |
+
+### TelemetryExportConfig
+
+Describes the user-configured upstream OTLP destination.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `endpoint` | `string` \| `null` | No | Upstream OTLP base URL; falls back to the standard `OTEL_EXPORTER_OTLP_*` variables |
+| `protocol` | → `OtlpProtocol` | No | OTLP encoding. Default is `http/protobuf`. |
+| `headers_env` | `string` \| `null` | No | Name of an environment variable holding OTLP headers (`key=value,...`) |
+| `compression` | → `OtlpCompression` | No | Request compression. Default is `gzip`. |
+| `timeout_secs` | `integer` | No | Upstream export timeout in seconds (default: 10). |
+| `self_telemetry` | `boolean` | No | Export Operator's own traces, logs and metrics alongside forwarded agent telemetry |
+
+### OtlpProtocol
+
+Selects the OTLP HTTP payload encoding.
+
+**Allowed Values:**
+
+- `http/protobuf` - OTLP/HTTP protobuf (`http/protobuf`).
+- `http/json` - OTLP/HTTP JSON (`http/json`).
+
+### OtlpCompression
+
+Selects compression for outgoing OTLP requests.
+
+**Allowed Values:**
+
+- `gzip` - gzip request compression.
+- `none` - Send the OTLP body uncompressed.
+
+### TelemetryWindowConfig
+
+Bounds session retention in the in-memory telemetry window.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `max_sessions` | `integer` | No | Sessions retained; the least recently updated is evicted first |
+| `records_per_session` | `integer` | No | Records retained per session; the oldest are evicted first |
+| `grace_secs` | `integer` | No | Seconds an ended session stays readable before eviction |
+
 ### TmuxConfig
+
+Tmux integration configuration.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -414,8 +496,8 @@ Git provider configuration for PR/MR operations
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `identity` | object | No | Default commit identity for delegated work. |
-| `gitea` | → `GiteaConfig` | No |  |
-| `forgejo` | → `ForgejoConfig` | No |  |
+| `gitea` | → `GiteaConfig` | No | Gitea forge settings for pull requests. |
+| `forgejo` | → `ForgejoConfig` | No | Forgejo forge settings for pull requests. |
 | `provider` | object | No | Active provider (auto-detected from remote URL if not specified) |
 | `github` | → `GitHubConfig` | No | GitHub-specific configuration |
 | `gitlab` | → `GitLabConfig` | No | GitLab-specific configuration |
@@ -428,26 +510,30 @@ Commit identity template for delegated work.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | `string` | Yes |  |
-| `email` | `string` | Yes |  |
+| `name` | `string` | Yes | Git author name applied to delegated commits. |
+| `email` | `string` | Yes | Git author email applied to delegated commits. |
 
 ### GiteaConfig
 
+Gitea forge settings for pull requests.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | No |  |
-| `token_env` | `string` | No |  |
+| `enabled` | `boolean` | No | Whether Gitea integration is enabled (default: false). |
+| `token_env` | `string` | No | Environment variable containing the Gitea token (default: `GITEA_TOKEN`). |
 | `host` | `string` \| `null` | No | HTTPS host or base URL; defaults to gitea.com. |
-| `wip_prefix` | `string` | No |  |
+| `wip_prefix` | `string` | No | Prefix applied to draft pull request titles (default: `WIP: `). |
 
 ### ForgejoConfig
 
+Forgejo forge settings for pull requests.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | No |  |
-| `token_env` | `string` | No |  |
+| `enabled` | `boolean` | No | Whether Forgejo integration is enabled (default: false). |
+| `token_env` | `string` | No | Environment variable containing the Forgejo token (default: `FORGEJO_TOKEN`). |
 | `host` | `string` \| `null` | No | HTTPS host or base URL; defaults to codeberg.org. |
-| `wip_prefix` | `string` | No |  |
+| `wip_prefix` | `string` | No | Prefix applied to draft pull request titles (default: `WIP: `). |
 
 ### GitProviderConfig
 
@@ -632,9 +718,9 @@ Git settings owned by a named delegator.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `identity` | object | No |  |
-| `credentials` | object | No |  |
-| `settings` | `array` | No |  |
+| `identity` | object | No | Commit identity override for this delegator. |
+| `credentials` | object | No | HTTPS credential bound to one repository. |
+| `settings` | `array` | No | Extra `git config` entries applied for this delegator. |
 
 ### GitCredentialConfig
 
@@ -642,16 +728,18 @@ Supplied HTTPS credential, bound to a repository; contains no secret value.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `repository_url` | `string` | Yes |  |
-| `username` | `string` | Yes |  |
-| `token_env` | `string` | Yes |  |
+| `repository_url` | `string` | Yes | HTTPS repository URL this credential is bound to. |
+| `username` | `string` | Yes | HTTPS username. The token is read from `token_env`. |
+| `token_env` | `string` | Yes | Environment variable holding the HTTPS token. The secret is not stored here. |
 
 ### GitConfigEntry
 
+One `git config` key and value.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `key` | `string` | Yes |  |
-| `value` | `string` | Yes |  |
+| `key` | `string` | Yes | `git config` key (for example `user.name`). |
+| `value` | `string` | Yes | `git config` value. |
 
 ### DelegatorLaunchConfig
 

@@ -20,7 +20,9 @@ pub const REGISTRY_ENV: &str = "OPERATOR_PROFILE_REGISTRY";
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, ToSchema)]
 #[ts(export)]
 pub struct ProfileIdentity {
+    /// Stable profile id. Nil until the profile is registered.
     pub id: Uuid,
+    /// Profile name. The default primary profile is `legacy`.
     pub name: String,
 }
 

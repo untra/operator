@@ -157,6 +157,8 @@ impl SetupScreen {
                     KanbanProviderType::Linear => "Linear",
                     KanbanProviderType::Github => "GitHub",
                     KanbanProviderType::Openspec => "OpenSpec",
+                    KanbanProviderType::Gitea => "Gitea",
+                    KanbanProviderType::Forgejo => "Forgejo",
                 };
 
                 let status_text = match &provider.status {

@@ -8,27 +8,17 @@ Operator's HTTP surface is authenticated **always**.
 
 For trust boundaries and residual risks, see [Security](/security/).
 
-## One human account
+## Operator identities
 
-Operator has exactly one human account: **`admin`**. This is a deliberate constraint, not a limitation waiting to be lifted.
-Operator orchestrates one operator's attention across their projects, and multi-user access control would imply an ownership model the ticket queue does not have.
+The local `admin` account provides bootstrap, configuration, and recovery. Keycloak and Authentik provide additional operator identities through Premium OIDC connections. Users are identified by the immutable `(issuer, subject)` pair. The first sign-in creates a pending account with no permissions; an administrator must approve it and assign profile capabilities and projects.
 
-Everything else that authenticates is a delegated, scoped credential:
+API keys belong to an approved OIDC user and exactly one profile. Only a browser session authenticated with OIDC within five minutes may create or rotate them. Local passwords, device tokens, callback tokens, and API keys cannot issue API keys. Identity management also requires a browser session. Cookie mutations require an allowed origin and the session CSRF header.
 
-| Identity | Kind | How it authenticates |
-|----------|------|----------------------|
-| `admin` | Human | Password, then a browser session or a device-flow token |
-| IDE clients | Delegated | Local token when on the daemon's host; otherwise OAuth device authorization, all four scopes |
-| Integrations | Delegated | Service access key exchanged for a short-lived token, only the scopes selected |
-| Agent callbacks | Delegated | Single-purpose token minted at launch, pinned to one ticket and step |
-
-Delegated credentials are not additional users. They act on the admin's authority, they carry only the scopes granted, and they can all be revoked individually.
-
-These are distinct from the operating-system and Kubernetes identities, which are separate boundaries: the container runs as Unix user `operator` (UID/GID 10001) and the Kubernetes ServiceAccount is `operator` with no token and no RBAC. Neither has anything to do with logging in.
+OIDC uses authorization code, S256 PKCE, state, nonce, issuer/audience/signature checks, and recent `auth_time`. The public provider listing, login redirect, and callback are intentionally unauthenticated. Pending login state is bounded, expires after five minutes, and is process-local: use session affinity when routing to multiple processes. Metadata and token HTTP requests require HTTPS, pin resolved addresses, refuse redirects, cap response size and time, and reject loopback and metadata destinations. IdP-side disablement alone does not revoke an existing Operator session; disable the user or connection in Operator.
 
 ## Scopes
 
-Four typed scopes, checked per route:
+Legacy local and device credentials retain four typed scopes, checked per route:
 
 | Scope | Grants |
 |-------|--------|
@@ -40,7 +30,7 @@ Four typed scopes, checked per route:
 Scopes are not hierarchical. A credential holding `write` does not implicitly hold `read`; it is granted both, or neither.
 This makes an integration's grant legible in one glance rather than requiring you to reason about implication.
 
-IDE clients receive all four, because an IDE client *is* the human admin working through a different surface. Integrations receive only what you select.
+IDE clients receive all four, because an IDE client *is* the human admin working through a different surface. User-owned API keys use the fine-grained capabilities described below.
 
 ## Bootstrap
 
@@ -90,7 +80,7 @@ Non-browser clients use bearer tokens.
 
 **Access tokens** are signed bearer tokens with a **15-minute** lifetime. Clients must use the returned expiry and scopes rather than depending on token internals.
 
-Access tokens are not revocable individually, so their blast radius is bounded by expiry rather than by revocation.
+Device-flow access tokens are not revocable individually, so their blast radius is bounded by expiry. Key-derived access tokens additionally require an active key and owner on every request.
 
 **Refresh tokens** are opaque, rotating, and stored only as hashes. Each has a **30-day idle** lifetime and a **90-day absolute** lifetime. Using it resets the idle clock, but the absolute deadline is fixed at issuance, so a continuously refreshed session still requires re-authentication quarterly.
 
@@ -112,20 +102,29 @@ where the human can see what is being authorized.
 
 **VS Code stores refresh credentials in `SecretStorage` only** - never in settings, workspace files, logs, or webview state. Settings sync to other machines and workspace files land in Git; neither is an acceptable home for a credential.
 
-## Service access keys
+## Operator API keys
 
-Integrations authenticate with access keys, which are exchanged at the token endpoint for a short-lived access token. The key itself is never a bearer credential for the API - it buys a token, and the token does the work.
+Create and manage your keys in **Connections → Operator API keys**, also available in **Security**. The key secret is shown once and remains only in the current component's memory. Copy it to your client's secret store. It is not recoverable from Operator.
 
-Access keys have:
+Keys contain 32 OS-random bytes plus a version and public UUID prefix. The database stores SHA-256 of the complete key; list responses contain only metadata and the public prefix. Fast hashing is appropriate for uniformly random 256-bit secrets and avoids password-KDF overhead on exchange. Protect the database, backups, signing key, and OIDC client secret file with host-level controls.
 
-- **selected scopes**, only what you grant,
-- **mandatory expiry** - there is no non-expiring key,
-- **hash-only storage** - the secret is displayed exactly once, at creation, and
-  cannot be retrieved afterward,
-- **revocation** and **last-use tracking**, so a key that stopped being used is
-  visible and can be retired.
+Each key has explicit capabilities, selected projects, an immutable profile ID, and a separate flag permitting selected instance operations. No projects means no project access. Capabilities are stored as normalized rows, not wildcard strings. REST authorization uses an explicit method/path registry; MCP authorization checks the individual tool. Missing rules deny access. Object reads, counts, mutation targets, and batch items also require project access. The effective grant is always the intersection of the key's grant and its owner's current grant. An administrator's key has no administrator bypass. Keys cannot manage credentials, approve devices, or ingest OTLP. Agent telemetry tokens retain their separate ingest audience.
 
-If a key is lost, create a new one and revoke the old. There is no recovery path, by design.
+Exchange the key at `/api/v1/auth/token` with `grant_type: "operator:access-key"`. The returned JWT carries owner, key, and profile provenance; it has no refresh token and expires within 15 minutes or at key expiry, whichever comes first. Every key-derived request checks authoritative database state. This costs a database read per request but eliminates stale authorization caches and propagates revocation across processes on the next authorization check. Already executing operations may finish. MCP sessions bind the originating credential, check before delivery, and close revoked idle streams within the 15-second keepalive interval.
+
+Expiry is required: the UI defaults to 90 days and the maximum is 365 days. Rotation atomically inserts a replacement, revokes the old key, and records an audit event; only one concurrent rotation succeeds, and permissions cannot expand. For overlap, create a separate replacement, switch clients, then revoke the original. Expired Premium leaves existing keys working and permits revocation, but blocks new keys, rotation, new connections, and permission expansion.
+
+Last-used timestamps record successful credential authentication, including requests later denied authorization. Internal MCP validity checks do not count as use. Timestamps are approximate. Observations coalesce by credential with a maximum timestamp, flush every 60 seconds, and never move the stored value backwards. The buffer is bounded at 10,000 credentials; failed flushes merge observations back subject to that bound. Shutdown makes a best-effort flush. This avoids a write per request; crashes and capacity pressure can lose usage observations, which are never used for authorization.
+
+Token exchange is limited to 60 requests per minute per connection IP. Other bearer-authenticated API requests are limited to 1,200 per peer before credential validation; key requests to 600 per minute per key and 1,200 per owner. Forwarded headers are not trusted. Runtime buckets are bounded and shared across profiles in one process; separate processes have separate budgets. Key issuance additionally has a database-persisted limit of 20 per owner per hour. Rate limits trade burst capacity for resistance to guessing and resource exhaustion; configure an edge limit for deployments requiring a global quota across replicas.
+
+Lifecycle audit records commit with credential mutations and identify the actor, owner, key, and profile. Creation and rotation also record the granted permissions. Exchange records identify the key and its owner. Telemetry export follows commit and may lose an export on process failure; the database is authoritative. Raw `opk_` secrets are scrubbed even when optional content redaction is disabled. HTTP spans omit query strings so OIDC callback codes do not enter request traces. Secret-bearing responses use `Cache-Control: no-store`.
+
+If a creation or rotation response is lost, refresh the key list and revoke the new credential before trying again. Operator never retrieves or replays a secret. Rotation requires confirmation and can only retain or reduce permissions. Restoring an owner's permissions may restore an unexpired key's original authority; revoke the key for permanent withdrawal.
+
+Credential rejection counts are aggregated without user or key labels. With metrics export enabled, `operator.auth.authentication.denied`, `operator.auth.authorization.denied`, and `operator.auth.rate_limited` count rejected attempts; `operator.auth.usage.dropped` counts usage-buffer losses and `operator.auth.usage.flush_failed` counts failed database batches. These process-lifetime counters add atomic increments without database writes. Telemetry export failures remain separate from authoritative audit records: `operator.telemetry.dropped` reports forwarding drops, and the SDK's `otel.sdk.processor.log.processed` metric reports batch-processor losses, including `queue_full`. Export outages can delay or lose the metrics themselves.
+
+The identity migration preserves the telemetry installation key, revokes legacy ownerless API keys, and refuses incompatible draft schemas. Legacy API JWTs without credential version/provenance must be replaced; back up the authentication database before upgrading. Scope checks do not sandbox launched code: grant execution and configuration capabilities only to trusted operators.
 
 ## Agent callback credentials
 

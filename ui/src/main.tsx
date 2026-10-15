@@ -11,6 +11,7 @@ import { ConfigPage } from "./routes/ConfigPage";
 import { IssueTypesPage } from "./routes/IssueTypesPage";
 import { QueuePage } from "./routes/QueuePage";
 import { StatusPage } from "./routes/StatusPage";
+import { ConnectionsPage } from "./routes/ConnectionsPage";
 import { SectionPage } from "./routes/SectionPage";
 import { AgentDetailPage } from "./routes/AgentDetailPage";
 import { ModelProvidersPage } from "./routes/ModelProvidersPage";
@@ -55,7 +56,7 @@ createRoot(document.getElementById("root")!).render(
                   <Route path="campaigns/:id" element={<CampaignDetailPage />} />
                   <Route index element={<DashboardPage />} />
                   <Route path="config" element={<ConfigPage />} />
-                  <Route path="connections" element={<SectionPage conceptKey="connections" />} />
+                  <Route path="connections" element={<ConnectionsPage />} />
                   <Route path="kanban" element={<SectionPage conceptKey="kanban" />} />
                   <Route path="llm" element={<SectionPage conceptKey="llm" />} />
                   <Route path="model-providers" element={<ModelProvidersPage />} />

@@ -205,15 +205,10 @@ impl App {
 
         // Initialize issue type registry via the canonical loader shared with
         // the REST API and CLI (collection-scoped .tickets/templates/ store).
-        let mut issue_type_registry =
-            crate::startup::templates::load_registry(&config.tickets_path());
-
-        // Activate configured collection if specified
-        if let Some(ref active) = config.templates.active_collection {
-            if let Err(e) = issue_type_registry.activate_collection(active) {
-                tracing::warn!("Failed to activate collection '{}': {}", active, e);
-            }
-        }
+        let issue_type_registry = crate::startup::templates::load_active_registry(
+            &config.tickets_path(),
+            config.templates.active_collection.as_deref(),
+        );
 
         // Initialize notification service
         let notification_service = NotificationService::from_config(&config)?;

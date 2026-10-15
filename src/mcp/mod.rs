@@ -44,7 +44,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Host {
     }
 }
 
-/// Base URL to advertise in descriptors and transport endpoints.
+/// Public base URL for browser device authorization.
 ///
 /// Prefers the configured public URL over the request's `Host` header. The header is attacker-controlled and carries no scheme,
 /// so behind TLS termination it yields a `http://` URL a client cannot use. Falling back to it is still correct for a loopback bind.
@@ -56,8 +56,12 @@ pub fn public_base_url(state: &crate::rest::state::ApiState, host: &str) -> Stri
         .unwrap_or_else(|| format!("http://{host}"))
 }
 
-pub fn profile_api_base(state: &crate::rest::state::ApiState, host: &str) -> String {
-    let base = public_base_url(state, host);
+pub fn profile_api_base(state: &crate::rest::state::ApiState, _host: &str) -> String {
+    let base = state
+        .config()
+        .rest_api
+        .public_base_url()
+        .unwrap_or_default();
     let profile_id = state.config().profile.id;
     if profile_id.is_nil() {
         format!("{base}/api/v1")

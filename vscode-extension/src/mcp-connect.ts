@@ -22,6 +22,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { ApiError, discoverApiUrl, OperatorApiClient } from "./api-client";
+import { gateRemoteMcp } from "./connection";
+import { isLoopbackUrl } from "./auth/credentials";
 
 /**
  * Stdio entrypoint advertised by the Operator MCP descriptor when
@@ -232,7 +234,15 @@ export async function fetchMcpDescriptor(apiUrl: string): Promise<McpDescriptorR
   const client = new OperatorApiClient(apiUrl);
   try {
     const descriptor = await client.mcpDescriptor();
-    return { ...descriptor, stdio: descriptor.stdio ?? undefined };
+    const base = `${apiUrl.replace(/\/$/, "")}/`;
+    return {
+      ...descriptor,
+      transport_url: new URL(descriptor.transport_url.replace(/^\//, ""), base).href,
+      openapi_url: descriptor.openapi_url
+        ? new URL(descriptor.openapi_url.replace(/^\//, ""), base).href
+        : null,
+      stdio: descriptor.stdio ?? undefined,
+    };
   } catch (err) {
     if (err instanceof ApiError) {
       throw new Error(
@@ -482,6 +492,30 @@ export async function connectMcpServer(ticketsDir: string | undefined): Promise<
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch MCP descriptor";
       void vscode.window.showErrorMessage(message);
+      return;
+    }
+
+    if (!isLoopbackUrl(apiUrl)) {
+      const gated = gateRemoteMcp(apiUrl, descriptor.transport_url);
+      if (!gated.ok) {
+        void vscode.window.showErrorMessage(gated.message);
+        return;
+      }
+      if (detectHostApp() === "cursor") {
+        void vscode.window.showErrorMessage(
+          "Cursor MCP config is stdio-only. A remote Operator is reached over SSE, which VS Code workspace MCP settings can store.",
+        );
+        return;
+      }
+      const remoteDescriptor: McpDescriptorResponse = {
+        ...descriptor,
+        transport_url: gated.transportUrl,
+        stdio: undefined,
+      };
+      await registerInVscodeWorkspaceConfig(remoteDescriptor);
+      void vscode.window.showInformationMessage(
+        `Operator MCP registered over SSE at ${gated.transportUrl}. Portable stdio files were not written.`,
+      );
       return;
     }
 

@@ -21,8 +21,18 @@ name = "generate_types"
 path = "src/bin/generate_types.rs"
 
 [dependencies]
-# Shared relay crate (also used by opr8r)
+# Shared crates also used by opr8r
 operator-relay = { path = "crates/relay" }
+operator-telemetry = { path = "crates/telemetry", features = ["redact", "schema", "otlp-json"] }
+# OTLP wire types only: prost messages and serde JSON, no tonic server or client
+opentelemetry-proto = { version = "=0.33.0", default-features = false, features = ["gen-tonic-messages", "with-serde", "trace", "logs", "metrics"] }
+opentelemetry = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics"] }
+opentelemetry_sdk = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics", "experimental_metrics_bound_instruments"] }
+tracing-opentelemetry = { version = "=0.34.0", default-features = false }
+opentelemetry-appender-tracing = { version = "=0.33.0", default-features = false }
+percent-encoding = "2"
+prost = "0.14"
+flate2 = "1"
 
 # TUI
 ratatui = "0.30"
@@ -42,8 +52,9 @@ notify = "8"
 config = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.9"
+serde-saphyr = "2"
 toml = "1"
+indexmap = { version = "2", features = ["serde"] }
 
 # Schema and TypeScript generation
 schemars = { version = "1.0", features = ["chrono04", "uuid1", "preserve_order"] }
@@ -58,7 +69,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 anyhow = "1"
 thiserror = "2"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
 dirs = "6"
 glob = "0.3"
@@ -117,6 +128,7 @@ url = "2"
 rust-embed = { version = "8", optional = true }
 mime_guess = { version = "2", optional = true }
 utoipa-axum = "0.2"
+openidconnect = { version = "4", default-features = false, features = ["reqwest", "rustls-tls"] }
 
 [features]
 default = ["embed-ui"]
@@ -127,7 +139,6 @@ embed-ui = ["dep:rust-embed", "dep:mime_guess"]
 operator-relay = { path = "crates/relay" }
 tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
-flate2 = "1"
 
 [lints.rust]
 unsafe_code = "deny"

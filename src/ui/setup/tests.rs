@@ -1074,14 +1074,14 @@ fn test_git_provider_offers_the_catalog_onboardable_set() {
         .iter()
         .map(|e| e.slug)
         .collect();
-    assert_eq!(slugs, vec!["github", "gitlab", "gitea"]);
+    assert_eq!(slugs, vec!["github", "gitlab", "forgejo", "gitea"]);
 }
 
 /// Proto entries are unadvertised and undocumented, so onboarding must not
 /// surface them - in either provider vertical.
 #[test]
 fn test_wizard_offers_no_proto_providers() {
-    for slug in ["bitbucket", "azure", "forgejo"] {
+    for slug in ["bitbucket", "azure"] {
         assert!(
             !SetupScreen::git_providers().iter().any(|e| e.slug == slug),
             "{slug} is Proto and must not be offered"

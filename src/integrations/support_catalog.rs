@@ -303,7 +303,7 @@ pub fn support_for(vertical: Vertical, slug: &str) -> VerticalSupport {
                 write_back: true,
             })
         }
-        (Vertical::Kanban, "openspec") => VerticalSupport::Kanban(KanbanSupport {
+        (Vertical::Kanban, "openspec" | "gitea") => VerticalSupport::Kanban(KanbanSupport {
             sync_in: true,
             write_back: false,
         }),

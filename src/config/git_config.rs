@@ -13,8 +13,10 @@ pub struct GitConfig {
     /// Default commit identity for delegated work.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<GitIdentityConfig>,
+    /// Gitea forge settings for pull requests.
     #[serde(default)]
     pub gitea: GiteaConfig,
+    /// Forgejo forge settings for pull requests.
     #[serde(default)]
     pub forgejo: ForgejoConfig,
     /// Active provider (auto-detected from remote URL if not specified)
@@ -176,16 +178,20 @@ pub struct GitExecutionConfig {
     pub settings: Vec<GitConfigEntry>,
 }
 
+/// Gitea forge settings for pull requests.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct GiteaConfig {
+    /// Whether Gitea integration is enabled (default: false).
     #[serde(default)]
     pub enabled: bool,
+    /// Environment variable containing the Gitea token (default: `GITEA_TOKEN`).
     #[serde(default = "default_gitea_token_env")]
     pub token_env: String,
     /// HTTPS host or base URL; defaults to gitea.com.
     #[serde(default)]
     pub host: Option<String>,
+    /// Prefix applied to draft pull request titles (default: `WIP: `).
     #[serde(default = "default_wip_prefix")]
     pub wip_prefix: String,
 }
@@ -205,16 +211,20 @@ impl Default for GiteaConfig {
     }
 }
 
+/// Forgejo forge settings for pull requests.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct ForgejoConfig {
+    /// Whether Forgejo integration is enabled (default: false).
     #[serde(default)]
     pub enabled: bool,
+    /// Environment variable containing the Forgejo token (default: `FORGEJO_TOKEN`).
     #[serde(default = "default_forgejo_token_env")]
     pub token_env: String,
     /// HTTPS host or base URL; defaults to codeberg.org.
     #[serde(default)]
     pub host: Option<String>,
+    /// Prefix applied to draft pull request titles (default: `WIP: `).
     #[serde(default = "default_wip_prefix")]
     pub wip_prefix: String,
 }

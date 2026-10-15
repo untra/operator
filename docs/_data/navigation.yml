@@ -82,6 +82,9 @@ docs:
           - title: GitHub Projects
             url: /getting-started/kanban/github/
             icon: github
+          - title: Gitea Projects
+            url: /getting-started/kanban/gitea/
+            icon: gitea
           - title: OpenSpec
             url: /getting-started/kanban/openspec/
             icon: openspec
@@ -130,6 +133,9 @@ docs:
           - title: GitLab
             url: /getting-started/git/gitlab/
             icon: gitlab
+          - title: Forgejo
+            url: /getting-started/git/forgejo/
+            icon: forgejo
           - title: Gitea
             url: /getting-started/git/gitea/
             icon: gitea
@@ -194,6 +200,12 @@ docs:
       - title: Delegators
         url: /delegators/
         codicon: organization
+      - title: Telemetry
+        url: /telemetry/
+        codicon: pulse
+        children:
+          - title: OTLP Event Catalog
+            url: /telemetry/catalog/
       - title: Relay
         url: /relay/
         codicon: radio-tower

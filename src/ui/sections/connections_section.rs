@@ -6,17 +6,6 @@ use crate::ui::status_panel::{
 
 pub struct ConnectionsSection;
 
-impl ConnectionsSection {
-    /// Whether the operator advertises at least one agent protocol - MCP (HTTP mounted or stdio) or ACP (stdio).
-    /// Drives the section header health so it reflects the connectivity rows the section actually shows, rather than a
-    /// session-wrapper check that isn't attached in the web context.
-    fn any_protocol_exposed(&self, snapshot: &StatusSnapshot) -> bool {
-        let mcp = matches!(snapshot.mcp_http_status, McpHttpStatus::Mounted { .. })
-            || snapshot.mcp_stdio_advertised;
-        mcp || snapshot.acp_stdio_advertised
-    }
-}
-
 impl StatusSection for ConnectionsSection {
     fn section_id(&self) -> SectionId {
         SectionId::Connections
@@ -37,13 +26,7 @@ impl StatusSection for ConnectionsSection {
         if !snapshot.api_status.is_running() {
             return SectionHealth::Red;
         }
-        // API is up: Green when at least one protocol (MCP or ACP) is exposed,
-        // Yellow when the API serves but advertises no agent protocol.
-        if self.any_protocol_exposed(snapshot) {
-            SectionHealth::Green
-        } else {
-            SectionHealth::Yellow
-        }
+        SectionHealth::Green
     }
 
     fn description(&self, snapshot: &StatusSnapshot) -> String {
@@ -53,11 +36,7 @@ impl StatusSection for ConnectionsSection {
         if !snapshot.api_status.is_running() {
             return "Disconnected".into();
         }
-        if self.any_protocol_exposed(snapshot) {
-            "Connected".into()
-        } else {
-            "Partial".into()
-        }
+        "Connected".into()
     }
 
     fn children(&self, snapshot: &StatusSnapshot) -> Vec<TreeRow> {
@@ -360,14 +339,14 @@ mod tests {
     }
 
     #[test]
-    fn test_connections_health_partial_when_api_up_but_no_protocol() {
+    fn test_connections_health_green_when_optional_protocols_disabled() {
         let section = ConnectionsSection;
         let mut snap = base_snapshot();
         snap.mcp_http_status = McpHttpStatus::NotMounted;
         snap.mcp_stdio_advertised = false;
         snap.acp_stdio_advertised = false;
-        assert_eq!(section.health(&snap), SectionHealth::Yellow);
-        assert_eq!(section.description(&snap), "Partial");
+        assert_eq!(section.health(&snap), SectionHealth::Green);
+        assert_eq!(section.description(&snap), "Connected");
     }
 
     #[test]

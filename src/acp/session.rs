@@ -151,11 +151,11 @@ fn ticket_cwd_matches(path: &Path, target: &Path) -> bool {
         return false;
     };
     let yaml_str = after_open[..end_idx].trim();
-    let Ok(fm) = serde_yaml::from_str::<HashMap<String, serde_yaml::Value>>(yaml_str) else {
+    let Ok(fm) = serde_saphyr::from_str::<HashMap<String, serde_json::Value>>(yaml_str) else {
         return false;
     };
     fm.get("cwd")
-        .and_then(serde_yaml::Value::as_str)
+        .and_then(serde_json::Value::as_str)
         .is_some_and(|s| Path::new(s) == target)
 }
 

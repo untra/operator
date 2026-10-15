@@ -131,6 +131,8 @@ describe("SecurityPage", () => {
     const revokeButtons = screen.getAllByRole("button", { name: "Revoke" });
     fireEvent.click(revokeButtons[0]);
     fireEvent.click(revokeButtons[1]);
+    expect(requests).not.toContain("DELETE /api/v1/auth/keys/key-1");
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm revoke" }));
     await waitFor(() => {
       expect(requests).toContain("DELETE /api/v1/auth/sessions/session-1");
       expect(requests).toContain("DELETE /api/v1/auth/keys/key-1");

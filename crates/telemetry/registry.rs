@@ -85,7 +85,7 @@ pub struct Attribute {
     /// Declares development stability for an attribute definition.
     pub stability: Option<String>,
     /// Provides illustrative values for an attribute definition in Weaver's YAML format.
-    pub examples: Option<serde_yaml::Value>,
+    pub examples: Option<serde_json::Value>,
     /// Supplies the required Operator redaction classification for an attribute definition.
     pub annotations: Option<Annotations>,
 }
@@ -159,7 +159,7 @@ pub struct Registry {
 
 fn read_yaml<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    serde_yaml::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
+    serde_saphyr::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 pub fn model_files(dir: &Path) -> Result<Vec<PathBuf>> {

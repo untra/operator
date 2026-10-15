@@ -2,14 +2,18 @@
 
 use anyhow::{Context, Result};
 use chrono::Local;
+use indexmap::IndexMap;
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use ts_rs::TS;
 use utoipa::ToSchema;
+
+type YamlMap = IndexMap<String, Value>;
 
 use crate::templates::{schema::TemplateSchema, TemplateType};
 
@@ -393,7 +397,7 @@ impl Ticket {
 
     /// Update a frontmatter field in the ticket file and save
     pub fn update_field(&mut self, field: &str, value: &str) -> Result<()> {
-        self.set_frontmatter_value(field, serde_yaml::Value::String(value.to_string()))?;
+        self.set_frontmatter_value(field, Value::String(value.to_string()))?;
         match field {
             "step" => self.step = value.to_string(),
             "status" => self.status = value.to_string(),
@@ -413,13 +417,9 @@ impl Ticket {
     /// Replace `depends_on`; an empty list removes the key.
     pub fn set_depends_on(&mut self, refs: &[String]) -> Result<()> {
         let value = if refs.is_empty() {
-            serde_yaml::Value::Null
+            Value::Null
         } else {
-            serde_yaml::Value::Sequence(
-                refs.iter()
-                    .map(|r| serde_yaml::Value::String(r.clone()))
-                    .collect(),
-            )
+            Value::Array(refs.iter().map(|r| Value::String(r.clone())).collect())
         };
         self.set_frontmatter_value("depends_on", value)?;
         self.depends_on = refs.to_vec();
@@ -428,26 +428,23 @@ impl Ticket {
 
     /// Assign this ticket to a campaign, or remove it with `None`.
     pub fn set_campaign(&mut self, campaign: Option<&str>) -> Result<()> {
-        let value = campaign.map_or(serde_yaml::Value::Null, |c| {
-            serde_yaml::Value::String(c.to_string())
-        });
+        let value = campaign.map_or(Value::Null, |c| Value::String(c.to_string()));
         self.set_frontmatter_value("campaign", value)?;
         self.campaign = campaign.map(String::from);
         Ok(())
     }
 
     /// Set one frontmatter key in place, preserving every other key; `Null` removes it.
-    fn set_frontmatter_value(&mut self, key: &str, value: serde_yaml::Value) -> Result<()> {
+    fn set_frontmatter_value(&mut self, key: &str, value: Value) -> Result<()> {
         let Some((mut map, body)) = parse_frontmatter_mapping(&self.content) else {
             return Ok(());
         };
-        let key = serde_yaml::Value::String(key.to_string());
         if value.is_null() {
-            map.remove(&key);
+            map.shift_remove(key);
         } else {
-            map.insert(key, value);
+            map.insert(key.to_string(), value);
         }
-        let yaml = serde_yaml::to_string(&map).context("Failed to serialize frontmatter")?;
+        let yaml = serde_saphyr::to_string(&map).context("Failed to serialize frontmatter")?;
         let new_content = format!("---\n{yaml}---{body}");
         fs::write(&self.filepath, &new_content).context("Failed to write ticket file")?;
         self.content = new_content;
@@ -634,50 +631,31 @@ impl Ticket {
             let rest = &after_open[end_idx + 4..]; // Content after closing ---
 
             // Parse existing YAML
-            let mut frontmatter: serde_yaml::Value = serde_yaml::from_str(yaml_str)
-                .unwrap_or(serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+            let mut frontmatter: YamlMap = serde_saphyr::from_str(yaml_str).unwrap_or_default();
 
-            // Update llm_task in the YAML
-            if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
-                // Build llm_task mapping
-                let mut llm_task_map = serde_yaml::Mapping::new();
-                if let Some(ref id) = self.llm_task.id {
-                    llm_task_map.insert(
-                        serde_yaml::Value::String("id".to_string()),
-                        serde_yaml::Value::String(id.clone()),
-                    );
-                }
-                if let Some(ref status) = self.llm_task.status {
-                    llm_task_map.insert(
-                        serde_yaml::Value::String("status".to_string()),
-                        serde_yaml::Value::String(status.clone()),
-                    );
-                }
-                if !self.llm_task.blocked_by.is_empty() {
-                    let blocked_by_seq: Vec<serde_yaml::Value> = self
-                        .llm_task
-                        .blocked_by
-                        .iter()
-                        .map(|s| serde_yaml::Value::String(s.clone()))
-                        .collect();
-                    llm_task_map.insert(
-                        serde_yaml::Value::String("blocked_by".to_string()),
-                        serde_yaml::Value::Sequence(blocked_by_seq),
-                    );
-                }
-
-                // Only add llm_task if it has any data
-                if !llm_task_map.is_empty() {
-                    map.insert(
-                        serde_yaml::Value::String("llm_task".to_string()),
-                        serde_yaml::Value::Mapping(llm_task_map),
-                    );
-                }
+            let mut llm_task_map = Map::new();
+            if let Some(ref id) = self.llm_task.id {
+                llm_task_map.insert("id".to_string(), Value::String(id.clone()));
+            }
+            if let Some(ref status) = self.llm_task.status {
+                llm_task_map.insert("status".to_string(), Value::String(status.clone()));
+            }
+            if !self.llm_task.blocked_by.is_empty() {
+                let blocked_by_seq: Vec<Value> = self
+                    .llm_task
+                    .blocked_by
+                    .iter()
+                    .map(|s| Value::String(s.clone()))
+                    .collect();
+                llm_task_map.insert("blocked_by".to_string(), Value::Array(blocked_by_seq));
             }
 
-            // Serialize back to YAML
+            if !llm_task_map.is_empty() {
+                frontmatter.insert("llm_task".to_string(), Value::Object(llm_task_map));
+            }
+
             let new_yaml =
-                serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
+                serde_saphyr::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
 
             let new_content = format!("---\n{new_yaml}---{rest}");
             self.content = new_content.clone();
@@ -735,28 +713,16 @@ impl Ticket {
             let rest = &after_open[end_idx + 4..]; // Content after closing ---
 
             // Parse existing YAML
-            let mut frontmatter: serde_yaml::Value = serde_yaml::from_str(yaml_str)
-                .unwrap_or(serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+            let mut frontmatter: YamlMap = serde_saphyr::from_str(yaml_str).unwrap_or_default();
 
-            // Update sessions in the YAML
-            if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
-                // Build sessions mapping
-                let mut sessions_map = serde_yaml::Mapping::new();
-                for (step, session_id) in &self.sessions {
-                    sessions_map.insert(
-                        serde_yaml::Value::String(step.clone()),
-                        serde_yaml::Value::String(session_id.clone()),
-                    );
-                }
-                map.insert(
-                    serde_yaml::Value::String("sessions".to_string()),
-                    serde_yaml::Value::Mapping(sessions_map),
-                );
+            let mut sessions_map = Map::new();
+            for (step, session_id) in &self.sessions {
+                sessions_map.insert(step.clone(), Value::String(session_id.clone()));
             }
+            frontmatter.insert("sessions".to_string(), Value::Object(sessions_map));
 
-            // Serialize back to YAML
             let new_yaml =
-                serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
+                serde_saphyr::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
 
             let new_content = format!("---\n{new_yaml}---{rest}");
             self.content = new_content.clone();
@@ -799,25 +765,16 @@ impl Ticket {
             let yaml_str = &after_open[..end_idx];
             let rest = &after_open[end_idx + 4..];
 
-            let mut frontmatter: serde_yaml::Value = serde_yaml::from_str(yaml_str)
-                .unwrap_or(serde_yaml::Value::Mapping(serde_yaml::Mapping::new()));
+            let mut frontmatter: YamlMap = serde_saphyr::from_str(yaml_str).unwrap_or_default();
 
-            if let serde_yaml::Value::Mapping(ref mut map) = frontmatter {
-                let mut delegators_map = serde_yaml::Mapping::new();
-                for (step_name, delegator_name) in &self.step_delegators {
-                    delegators_map.insert(
-                        serde_yaml::Value::String(step_name.clone()),
-                        serde_yaml::Value::String(delegator_name.clone()),
-                    );
-                }
-                map.insert(
-                    serde_yaml::Value::String("step_delegators".to_string()),
-                    serde_yaml::Value::Mapping(delegators_map),
-                );
+            let mut delegators_map = Map::new();
+            for (step_name, delegator_name) in &self.step_delegators {
+                delegators_map.insert(step_name.clone(), Value::String(delegator_name.clone()));
             }
+            frontmatter.insert("step_delegators".to_string(), Value::Object(delegators_map));
 
             let new_yaml =
-                serde_yaml::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
+                serde_saphyr::to_string(&frontmatter).context("Failed to serialize frontmatter")?;
 
             let new_content = format!("---\n{new_yaml}---{rest}");
             self.content = new_content.clone();
@@ -842,15 +799,12 @@ impl Ticket {
 }
 
 /// Extract sessions mapping from YAML frontmatter value
-fn extract_sessions_from_yaml(
-    frontmatter: &HashMap<String, serde_yaml::Value>,
-) -> HashMap<String, String> {
-    if let Some(serde_yaml::Value::Mapping(map)) = frontmatter.get("sessions") {
+fn extract_sessions_from_yaml(frontmatter: &HashMap<String, Value>) -> HashMap<String, String> {
+    if let Some(Value::Object(map)) = frontmatter.get("sessions") {
         map.iter()
             .filter_map(|(k, v)| {
-                let key = k.as_str()?.to_string();
                 let value = v.as_str()?.to_string();
-                Some((key, value))
+                Some((k.clone(), value))
             })
             .collect()
     } else {
@@ -860,14 +814,13 @@ fn extract_sessions_from_yaml(
 
 /// Extract `step_delegators` mapping from YAML frontmatter value
 fn extract_step_delegators_from_yaml(
-    frontmatter: &HashMap<String, serde_yaml::Value>,
+    frontmatter: &HashMap<String, Value>,
 ) -> HashMap<String, String> {
-    if let Some(serde_yaml::Value::Mapping(map)) = frontmatter.get("step_delegators") {
+    if let Some(Value::Object(map)) = frontmatter.get("step_delegators") {
         map.iter()
             .filter_map(|(k, v)| {
-                let key = k.as_str()?.to_string();
                 let value = v.as_str()?.to_string();
-                Some((key, value))
+                Some((k.clone(), value))
             })
             .collect()
     } else {
@@ -876,21 +829,15 @@ fn extract_step_delegators_from_yaml(
 }
 
 /// Extract LLM task metadata from YAML frontmatter value
-fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, serde_yaml::Value>) -> LlmTask {
-    if let Some(serde_yaml::Value::Mapping(map)) = frontmatter.get("llm_task") {
-        let id = map
-            .get(serde_yaml::Value::String("id".to_string()))
-            .and_then(|v| v.as_str())
-            .map(String::from);
+fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, Value>) -> LlmTask {
+    if let Some(Value::Object(map)) = frontmatter.get("llm_task") {
+        let id = map.get("id").and_then(|v| v.as_str()).map(String::from);
 
-        let status = map
-            .get(serde_yaml::Value::String("status".to_string()))
-            .and_then(|v| v.as_str())
-            .map(String::from);
+        let status = map.get("status").and_then(|v| v.as_str()).map(String::from);
 
         let blocked_by = map
-            .get(serde_yaml::Value::String("blocked_by".to_string()))
-            .and_then(|v| v.as_sequence())
+            .get("blocked_by")
+            .and_then(Value::as_array)
             .map(|seq| {
                 seq.iter()
                     .filter_map(|v| v.as_str().map(String::from))
@@ -909,20 +856,20 @@ fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, serde_yaml::Value>) 
 }
 
 /// Split content into its frontmatter mapping and the body after the closing `---`.
-fn parse_frontmatter_mapping(content: &str) -> Option<(serde_yaml::Mapping, &str)> {
+fn parse_frontmatter_mapping(content: &str) -> Option<(YamlMap, &str)> {
     let after_open = content.trim_start().strip_prefix("---")?;
     let end_idx = after_open.find("\n---")?;
-    let map = serde_yaml::from_str(after_open[..end_idx].trim()).ok()?;
+    let map = serde_saphyr::from_str(after_open[..end_idx].trim()).ok()?;
     Some((map, &after_open[end_idx + 4..]))
 }
 
-fn scalar(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
+fn scalar(map: &YamlMap, key: &str) -> Option<String> {
     map.get(key)?.as_str().map(String::from)
 }
 
-fn string_list(map: &serde_yaml::Mapping, key: &str) -> Vec<String> {
+fn string_list(map: &YamlMap, key: &str) -> Vec<String> {
     map.get(key)
-        .and_then(serde_yaml::Value::as_sequence)
+        .and_then(Value::as_array)
         .map(|seq| {
             seq.iter()
                 .filter_map(|v| v.as_str().map(String::from))
@@ -955,7 +902,7 @@ fn extract_frontmatter(
     let rest = &after_open[end_idx + 4..]; // Skip past the closing ---
 
     // Parse YAML into HashMap
-    let frontmatter: HashMap<String, serde_yaml::Value> = serde_yaml::from_str(yaml_str).ok()?;
+    let frontmatter: HashMap<String, Value> = serde_saphyr::from_str(yaml_str).ok()?;
 
     // Extract sessions before converting to strings
     let sessions = extract_sessions_from_yaml(&frontmatter);
@@ -971,13 +918,11 @@ fn extract_frontmatter(
         .iter()
         .filter_map(|(k, v)| {
             let s = match v {
-                serde_yaml::Value::String(s) => s.clone(),
-                serde_yaml::Value::Number(n) => n.to_string(),
-                serde_yaml::Value::Bool(b) => b.to_string(),
-                serde_yaml::Value::Null => String::new(),
-                // Skip mappings/sequences - they're handled separately
-                serde_yaml::Value::Mapping(_) | serde_yaml::Value::Sequence(_) => return None,
-                _ => v.as_str().unwrap_or("").to_string(),
+                Value::String(s) => s.clone(),
+                Value::Number(n) => n.to_string(),
+                Value::Bool(b) => b.to_string(),
+                Value::Null => String::new(),
+                Value::Object(_) | Value::Array(_) => return None,
             };
             Some((k.clone(), s))
         })

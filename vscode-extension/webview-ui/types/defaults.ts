@@ -150,6 +150,8 @@ const DEFAULT_CONFIG: Config = {
     use_worktrees: false,
   },
   kanban: {
+    gitea: {},
+    forgejo: {},
     jira: {},
     linear: {},
     github: {},

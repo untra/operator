@@ -681,6 +681,33 @@ pub fn capabilities() -> Vec<String> {
         .collect()
 }
 
+#[derive(serde::Serialize, utoipa::ToSchema, ts_rs::TS)]
+#[ts(export)]
+pub struct CapabilityDescription {
+    pub capability: String,
+    pub resource: String,
+    pub label: String,
+    pub description: String,
+}
+
+pub fn capability_descriptions() -> Vec<CapabilityDescription> {
+    let tools = crate::mcp::tools::all_tool_definitions();
+    capabilities().into_iter().map(|capability| {
+        let (resource, action) = capability.split_once(':').unwrap_or((&capability, ""));
+        let label = format!("{} {}", action.replace('_', " "), resource.replace('-', " "));
+        let description = tools.iter().find(|tool| capability == format!("mcp:{}", tool.name))
+            .map_or_else(|| {
+                let boundary = OPERATIONS.iter().find(|operation| operation.capability == capability).map(|operation| operation.boundary);
+                match boundary {
+                    Some(Boundary::Project) => "Applies only to selected projects.",
+                    Some(Boundary::Instance) => "Requires permission for selected instance operations.",
+                    _ => "Connects the MCP transport; tool permissions are granted separately.",
+                }.to_string()
+            }, |tool| tool.description.clone());
+        CapabilityDescription { resource: resource.to_string(), label, description, capability }
+    }).collect()
+}
+
 pub fn browser_identity_route(path: &str) -> bool {
     path.starts_with("/api/v1/auth/keys")
         || path.starts_with("/api/v1/auth/users")

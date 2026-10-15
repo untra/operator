@@ -30,6 +30,17 @@ const mutations = new Map<string, ApiStore>();
 const secrets = new Map<string, unknown>();
 const lastErrors = new Map<string, Error>();
 const pollRefs = new Map<string, { count: number; ms: number }>();
+let sessionVersion = 0;
+const sessionListeners = new Set<() => void>();
+
+export function getSessionVersion(): number {
+  return sessionVersion;
+}
+
+export function subscribeSession(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => { sessionListeners.delete(listener); };
+}
 
 export type QueryDefinition<Data, Params extends object = Record<string, never>> = {
   key: string;
@@ -154,6 +165,7 @@ export function invalidateQueries(scope: QueryScope, affected: readonly string[]
 }
 
 export function resetSessionState(): void {
+  sessionVersion += 1;
   for (const [id, entry] of queries) {
     const lifecycle = findLifecycleById(id);
     if (lifecycle) {
@@ -172,6 +184,9 @@ export function resetSessionState(): void {
   secrets.clear();
   lastErrors.clear();
   pollRefs.clear();
+  for (const listener of sessionListeners) {
+    listener();
+  }
 }
 
 export function snapshotSecrets(): unknown[] {

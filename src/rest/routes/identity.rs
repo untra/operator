@@ -292,6 +292,16 @@ pub async fn update_user(
 
 #[derive(Serialize, ToSchema, ts_rs::TS)]
 #[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyIssuanceBlockReason {
+    OidcRequired,
+    RecentLoginRequired,
+    PremiumRequired,
+    PermissionsRequired,
+}
+
+#[derive(Serialize, ToSchema, ts_rs::TS)]
+#[ts(export)]
 pub struct CapabilityResponse {
     pub grants: PermissionGrant,
     pub administration_grants: Option<PermissionGrant>,
@@ -299,6 +309,10 @@ pub struct CapabilityResponse {
     pub administrator: bool,
     pub can_issue: bool,
     pub connection_id: Option<String>,
+    pub owner_id: Option<String>,
+    pub capability_descriptions: Vec<crate::auth::policy::CapabilityDescription>,
+    pub issuance_block_reason: Option<KeyIssuanceBlockReason>,
+    pub issuance_expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[utoipa::path(get, path = "/api/v1/auth/capabilities", tag = "Auth", responses((status = 200, body = CapabilityResponse)))]
@@ -324,7 +338,23 @@ pub async fn capabilities(
         principal.authority = Some(authority);
     }
     let authority = principal.authority.as_ref();
+    let issuance_block_reason = if authority.is_none() || principal.kind != PrincipalKind::Session {
+        Some(KeyIssuanceBlockReason::OidcRequired)
+    } else if require_premium(&state.config(), PremiumFeature::ApiKeys).is_err() {
+        Some(KeyIssuanceBlockReason::PremiumRequired)
+    } else if authority.is_some_and(|a| a.grants.capabilities.is_empty()) {
+        Some(KeyIssuanceBlockReason::PermissionsRequired)
+    } else if owner(&principal, true).is_err() {
+        Some(KeyIssuanceBlockReason::RecentLoginRequired)
+    } else {
+        None
+    };
     Ok(no_store(CapabilityResponse {
+        owner_id: authority.map(|a| a.user.id.clone()),
+        capability_descriptions: crate::auth::policy::capability_descriptions(),
+        issuance_expires_at: authority.and_then(|a| a.authenticated_at).and_then(|at| chrono::DateTime::from_timestamp(at + identity::RECENT_LOGIN_SECONDS, 0)),
+        can_issue: issuance_block_reason.is_none(),
+        issuance_block_reason,
         grants: authority.map_or_else(
             || PermissionGrant {
                 profile_id: state.config().profile.id,
@@ -343,8 +373,6 @@ pub async fn capabilities(
         oidc_user: authority.is_some(),
         administrator: authority.is_none_or(|a| a.user.administrator)
             && principal.kind == PrincipalKind::Session,
-        can_issue: owner(&principal, true).is_ok()
-            && require_premium(&state.config(), PremiumFeature::ApiKeys).is_ok(),
         connection_id: authority.map(|a| a.user.connection_id.clone()),
     }))
 }

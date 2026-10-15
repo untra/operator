@@ -720,6 +720,37 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_authority_lookup_does_not_record_usage() {
+        let (store, owner, request) = fixture();
+        let issued = store.create_user_key(&owner, &request, None).unwrap();
+        assert!(store.key_authority(&issued.key.summary.id).unwrap().is_some());
+        store.flush_usage().unwrap();
+        assert!(store.user_keys(&owner.user.id, request.grants.profile_id, 0).unwrap()[0].summary.last_used_at.is_none());
+        assert!(store.exchange_user_key(&issued.secret).unwrap().is_some());
+        store.flush_usage().unwrap();
+        assert!(store.user_keys(&owner.user.id, request.grants.profile_id, 0).unwrap()[0].summary.last_used_at.is_some());
+        let audit = store.recent_audit(1).unwrap();
+        let detail: serde_json::Value = serde_json::from_str(audit[0].2.as_ref().unwrap()).unwrap();
+        assert_eq!(detail["key_id"], issued.key.summary.id);
+        assert_eq!(detail["owner_id"], owner.user.id);
+        assert!(!audit[0].2.as_ref().unwrap().contains(&issued.secret));
+    }
+
+    #[test]
+    fn test_profile_reads_require_explicit_capability() {
+        let (store, owner, request) = fixture();
+        let issued = store.create_user_key(&owner, &request, None).unwrap();
+        let (mut authority, _) = store.key_authority(&issued.key.summary.id).unwrap().unwrap();
+        for path in ["/api/v1/profiles", "/api/v1/profiles/{profile_id}"] {
+            assert!(super::super::policy::authorize(&authority, "GET", path).is_err());
+        }
+        authority.grants.capabilities.push("profiles:read".into());
+        authority.grants.instance_wide = true;
+        assert!(super::super::policy::authorize(&authority, "GET", "/api/v1/profiles").is_ok());
+        assert!(super::super::policy::authorize(&authority, "POST", "/api/v1/profiles").is_err());
+    }
+
+    #[test]
     fn test_concurrent_rotation_commits_one_replacement() {
         let (store, owner, request) = fixture();
         let original = store.create_user_key(&owner, &request, None).unwrap();

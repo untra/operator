@@ -141,6 +141,43 @@ mod tests {
     }
 
     #[test]
+    fn test_usage_capacity_is_bounded_and_existing_observations_advance() {
+        let usage = Usage::default();
+        let now = Utc::now();
+        for index in 0..MAX_PENDING {
+            usage.record(CredentialTable::Key, &index.to_string(), now);
+        }
+        usage.record(CredentialTable::Key, "overflow", now);
+        usage.record(CredentialTable::Key, "0", now + chrono::Duration::seconds(1));
+        let pending = usage.pending.lock().unwrap();
+        assert_eq!(pending.len(), MAX_PENDING);
+        assert_eq!(pending[&(CredentialTable::Key, "0".into())], now + chrono::Duration::seconds(1));
+        assert_eq!(usage.dropped.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn test_usage_failed_batch_merges_with_concurrent_observation() {
+        let conn = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
+        let usage = Arc::new(Usage::default());
+        let now = Utc::now();
+        usage.record(CredentialTable::Key, "k", now);
+        let locked = conn.lock().unwrap();
+        let worker = {
+            let conn = Arc::clone(&conn);
+            let usage = Arc::clone(&usage);
+            std::thread::spawn(move || usage.flush(&conn))
+        };
+        while usage.inflight.load(Ordering::Acquire) == 0 {
+            std::thread::yield_now();
+        }
+        let newer = now + chrono::Duration::seconds(1);
+        usage.record(CredentialTable::Key, "k", newer);
+        drop(locked);
+        assert!(worker.join().unwrap().is_err());
+        assert_eq!(usage.pending.lock().unwrap()[&(CredentialTable::Key, "k".into())], newer);
+    }
+
+    #[test]
     fn test_usage_failed_flush_retains_observations() {
         let conn = Mutex::new(Connection::open_in_memory().unwrap());
         let usage = Usage::default();

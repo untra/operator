@@ -104,7 +104,7 @@ fn repo_path(rel: &str) -> PathBuf {
 fn load_nav() -> Nav {
     let raw = std::fs::read_to_string(repo_path("docs/_data/navigation.yml"))
         .expect("docs/_data/navigation.yml should be readable");
-    serde_yaml::from_str(&raw).expect("navigation.yml should match the sidebar's 3-level schema")
+    serde_saphyr::from_str(&raw).expect("navigation.yml should match the sidebar's 3-level schema")
 }
 
 /// A docs URL resolves if it's `docs/<path>.md` or `docs/<path>/index.md`.

@@ -1,7 +1,9 @@
+import type { CapabilityDescription } from "../generated/CapabilityDescription";
 import type { PermissionGrant } from "../generated/PermissionGrant";
 
 export interface PermissionSelectorProps {
   available: PermissionGrant;
+  descriptions?: CapabilityDescription[];
   value: PermissionGrant;
   disabled?: boolean;
   onChange: (value: PermissionGrant) => void;
@@ -9,6 +11,7 @@ export interface PermissionSelectorProps {
 
 export function PermissionSelector({
   available,
+  descriptions = [],
   value,
   disabled,
   onChange,
@@ -22,20 +25,24 @@ export function PermissionSelector({
         : [...selected, item],
     });
   }
+  const resources = [...new Set(available.capabilities.map((capability) => capability.split(":")[0]))];
   return (
     <fieldset disabled={disabled}>
       <legend>Key permissions</legend>
       <fieldset>
         <legend>Capabilities</legend>
-        {available.capabilities.map((capability) => (
-          <label key={capability}>
-            <input
-              type="checkbox"
-              checked={value.capabilities.includes(capability)}
-              onChange={() => toggle("capabilities", capability)}
-            />
-            {capability}
-          </label>
+        {resources.map((resource) => (
+          <fieldset key={resource}>
+            <legend>{resource}</legend>
+            {available.capabilities.filter((capability) => capability.startsWith(`${resource}:`)).map((capability) => {
+              const metadata = descriptions.find((entry) => entry.capability === capability);
+              return <label key={capability}>
+                <input type="checkbox" checked={value.capabilities.includes(capability)} onChange={() => toggle("capabilities", capability)} />
+                {capability}
+                {metadata && <span> — {metadata.label}. {metadata.description}</span>}
+              </label>;
+            })}
+          </fieldset>
         ))}
       </fieldset>
       <fieldset>

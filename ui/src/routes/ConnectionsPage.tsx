@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { getSessionVersion, subscribeSession } from "../api/adapter";
 import { useHost } from "../host";
 import { useApiMutation, useApiQuery, STATUS_POLL_MS } from "../api";
 import {
@@ -34,7 +35,8 @@ const ACP_EXTENSIONS: Record<string, string> = {
 
 export function ConnectionsPage() {
   const host = useHost();
-  return <Connections key={`${host.baseUrl()}:${host.profileId ?? "default"}`} />;
+  const sessionVersion = useSyncExternalStore(subscribeSession, getSessionVersion);
+  return <Connections key={`${host.baseUrl()}:${host.profileId ?? "default"}:${sessionVersion}`} />;
 }
 
 function Connections() {
@@ -266,6 +268,7 @@ function Connections() {
               </button>
             </div>
           </details>
+          <a href="#/connections#operator-api-keys" onClick={(event) => { event.preventDefault(); document.getElementById("operator-api-keys")?.scrollIntoView(); }}>Manage API keys</a>
           <label>
             Access key for test (optional)
             <input
@@ -276,7 +279,7 @@ function Connections() {
             />
           </label>
           <p className={styles.hint}>
-            Leave blank to test this browser session. Access keys require read and execute scopes.
+            Leave blank to test this browser session. Keys need mcp:connect; select individual MCP tool capabilities and their projects to permit tool calls.
             The test uses this browser's Operator address, initializes MCP, and lists tools without
             calling them. A separately configured public address must be verified from your client.
           </p>

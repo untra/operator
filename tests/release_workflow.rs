@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use serde_yaml::Value;
+use serde_json::Value;
 
 const MAIN_PUSH: &str = "github.event_name == 'push' && github.ref == 'refs/heads/main'";
 
@@ -9,13 +9,13 @@ fn workflow() -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".github/workflows/build.yaml");
     let content = fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
-    serde_yaml::from_str(&content)
+    serde_saphyr::from_str(&content)
         .unwrap_or_else(|error| panic!("failed to parse {}: {error}", path.display()))
 }
 
 fn needs(job: &Value, dependency: &str) -> bool {
     job["needs"]
-        .as_sequence()
+        .as_array()
         .is_some_and(|needs| needs.iter().any(|need| need.as_str() == Some(dependency)))
 }
 
@@ -38,7 +38,7 @@ fn test_release_matrix_preserves_both_binary_artifacts() {
     let workflow = workflow();
     let jobs = &workflow["jobs"];
     let matrix = jobs["build"]["strategy"]["matrix"]["include"]
-        .as_sequence()
+        .as_array()
         .unwrap();
     let platforms = [
         ("x86_64-unknown-linux-gnu", "linux-x86_64"),
@@ -58,7 +58,7 @@ fn test_release_matrix_preserves_both_binary_artifacts() {
         let opr8r = row["opr8r_artifact"].as_str().unwrap();
         assert_eq!(opr8r, operator.replacen("operator-", "opr8r-", 1));
     }
-    let steps = jobs["build"]["steps"].as_sequence().unwrap();
+    let steps = jobs["build"]["steps"].as_array().unwrap();
     for field in ["artifact_name", "opr8r_artifact"] {
         assert!(steps.iter().any(|step| {
             step["with"]["name"].as_str() == Some(&format!("${{{{ matrix.{field} }}}}"))
@@ -77,7 +77,7 @@ fn test_release_matrix_preserves_both_binary_artifacts() {
 #[test]
 fn test_checksums_are_committed_before_tagging() {
     let workflow = workflow();
-    let steps = workflow["jobs"]["release"]["steps"].as_sequence().unwrap();
+    let steps = workflow["jobs"]["release"]["steps"].as_array().unwrap();
     let position = |name| {
         steps
             .iter()
@@ -101,7 +101,7 @@ fn test_integration_suites_share_setup_without_losing_execution() {
     let workflow = workflow();
     let jobs = &workflow["jobs"];
     assert!(jobs.get("relay-integration").is_none());
-    let steps = jobs["launch-integration"]["steps"].as_sequence().unwrap();
+    let steps = jobs["launch-integration"]["steps"].as_array().unwrap();
     for suite in [
         "launch_integration",
         "campaign_launch_integration",
@@ -124,11 +124,11 @@ fn test_integration_suites_share_setup_without_losing_execution() {
 fn test_recomposition_preserves_validation_and_publication_gates() {
     let workflow = workflow();
     let jobs = &workflow["jobs"];
-    let storybook = jobs["storybook"]["steps"].as_sequence().unwrap();
+    let storybook = jobs["storybook"]["steps"].as_array().unwrap();
     assert!(!storybook.iter().any(|step| step["run"]
         .as_str()
         .is_some_and(|run| run.contains("cargo "))));
-    let lint = jobs["lint-test"]["steps"].as_sequence().unwrap();
+    let lint = jobs["lint-test"]["steps"].as_array().unwrap();
     assert!(lint.iter().any(|step| step["run"]
         .as_str()
         .is_some_and(|run| run.contains("scripts/check-bindings-fresh.sh"))));
@@ -137,7 +137,7 @@ fn test_recomposition_preserves_validation_and_publication_gates() {
         assert!(!needs(&jobs["release"], check));
         assert!(!needs(&jobs["version"], check));
     }
-    let opr8r: Value = serde_yaml::from_str(
+    let opr8r: Value = serde_saphyr::from_str(
         &fs::read_to_string(
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".github/workflows/opr8r.yaml"),
         )

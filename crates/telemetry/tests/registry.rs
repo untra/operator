@@ -89,9 +89,9 @@ fn test_registry_rejects_invalid_patterns_and_class_actions() {
 
 #[test]
 fn test_registry_rejects_malformed_and_unsupported_yaml() {
-    assert!(serde_yaml::from_str::<Model>("groups: [").is_err());
+    assert!(serde_saphyr::from_str::<Model>("groups: [").is_err());
     let model = "groups:\n  - id: example\n    type: attribute_group\n    brief: Example\n    attributes: []\n    extends: unreviewed\n";
-    assert!(serde_yaml::from_str::<Model>(model).is_err());
+    assert!(serde_saphyr::from_str::<Model>(model).is_err());
     let mut r = catalog();
     r.groups[0].1.kind = "unsupported".into();
     assert!(r.validate().is_err());

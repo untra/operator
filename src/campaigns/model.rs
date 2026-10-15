@@ -80,14 +80,14 @@ mod tests {
     #[test]
     fn test_workspace_is_tagged_by_kind() {
         let ws: CampaignWorkspace =
-            serde_yaml::from_str("kind: coder\ntemplate: operator-agent").unwrap();
+            serde_saphyr::from_str("kind: coder\ntemplate: operator-agent").unwrap();
         assert_eq!(
             ws,
             CampaignWorkspace::Coder {
                 template: "operator-agent".into()
             }
         );
-        let ws: CampaignWorkspace = serde_yaml::from_str("kind: docker\nimage: img:1").unwrap();
+        let ws: CampaignWorkspace = serde_saphyr::from_str("kind: docker\nimage: img:1").unwrap();
         assert_eq!(
             ws,
             CampaignWorkspace::Docker {
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_campaign_minimal_frontmatter_defaults_to_draft() {
-        let c: Campaign = serde_yaml::from_str("id: CAMP-0001\ntitle: T").unwrap();
+        let c: Campaign = serde_saphyr::from_str("id: CAMP-0001\ntitle: T").unwrap();
         assert_eq!(c.status, CampaignStatus::Draft);
         assert!(c.workspace.is_none() && c.governance.is_none());
     }

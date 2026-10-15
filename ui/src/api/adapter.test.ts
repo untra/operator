@@ -567,6 +567,15 @@ test("issued API key secrets never enter Redux lifecycle state", async () => {
     expect(onIssued).toHaveBeenCalledWith(TOKEN);
     expect(JSON.stringify(store.getState())).not.toContain(TOKEN);
     expect(snapshotSecrets()).toEqual([]);
+    const lateIssued = jest.fn();
+    api.mockImplementation(async () => {
+      resetSessionState();
+      return { key, secret: TOKEN };
+    });
+    await createAccessKeyMutation.run(new OperatorApi(host()), {
+      request: { name: "CI", expires_in_days: 90, grants }, onIssued: lateIssued,
+    });
+    expect(lateIssued).not.toHaveBeenCalled();
   } finally {
     api.mockRestore();
   }

@@ -21,7 +21,7 @@ import type { WriteGitConfigRequest } from "@operator/bindings/WriteGitConfigReq
 import type { WriteKanbanConfigRequest } from "@operator/bindings/WriteKanbanConfigRequest";
 import type { BootstrapSubmitRequest } from "@operator/bindings/BootstrapSubmitRequest";
 import type { OperatorApi } from "../api-client";
-import type { MutationDefinition, QueryDefinition } from "./adapter";
+import { getSessionVersion, type MutationDefinition, type QueryDefinition } from "./adapter";
 import {
   CAMPAIGN_QUERY_KEYS,
   ISSUE_TYPE_QUERY_KEYS,
@@ -240,10 +240,13 @@ export const createAccessKeyMutation: MutationDefinition<
   sensitive: true,
   affected: [QUERY_KEYS.accessKeys],
   run: async (api, variables) => {
+    const sessionVersion = getSessionVersion();
     const result = variables.id
       ? await api.rotateAccessKey(variables.id, variables.request)
       : await api.createAccessKey(variables.request);
-    variables.onIssued(result.secret);
+    if (getSessionVersion() === sessionVersion) {
+      variables.onIssued(result.secret);
+    }
     return result.key;
   },
 };

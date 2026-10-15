@@ -589,8 +589,8 @@ impl ApiDoc {
     ///
     /// The version is stamped from `CARGO_PKG_VERSION` by [`crate::rest::openapi_spec`].
     #[allow(dead_code)]
-    pub fn yaml() -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(&crate::rest::openapi_spec())
+    pub fn yaml() -> Result<String, serde_saphyr::ser::Error> {
+        serde_saphyr::to_string(&crate::rest::openapi_spec())
     }
 }
 

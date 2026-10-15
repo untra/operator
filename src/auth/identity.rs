@@ -497,6 +497,12 @@ impl AuthStore {
         } else {
             AuditAction::AccessKeyCreated
         };
+        let audit_detail = serde_json::json!({
+            "actor_id": user.user.id, "owner_id": user.user.id, "key_id": id,
+            "profile_id": request.grants.profile_id, "grants": request.grants,
+            "replaces_id": replaces,
+        })
+        .to_string();
         self.with_conn(|conn| {
             let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let owner = authority(&tx, &user.user.id, request.grants.profile_id)?.context("account or connection disabled")?;
@@ -510,11 +516,11 @@ impl AuthStore {
             }
             tx.execute("INSERT INTO access_key (id, name, key_hash, scopes, created_at, expires_at, user_id, profile_id, instance_operations, replaces_id) VALUES (?1, ?2, ?3, '', ?4, ?5, ?6, ?7, ?8, ?9)", params![id, request.name.trim(), hash_secret(&secret), now.to_rfc3339(), expires.to_rfc3339(), owner.user.id, request.grants.profile_id.to_string(), request.grants.instance_wide, replaces])?;
             write_grants(&tx, &id, &request.grants, true)?;
-            record_audit(&tx, &owner.user.id, action, &id)?;
+            record_audit(&tx, &owner.user.id, action, &audit_detail)?;
             tx.commit()?;
             Ok(())
         })?;
-        export_audit(&user.user.id, action, &id);
+        crate::telemetry::events::audit_event(action, true, Some(&audit_detail));
         Ok(IssuedUserKey {
             key: UserKey {
                 summary: AccessKeySummary {
@@ -551,11 +557,12 @@ impl AuthStore {
             auth.key_id = Some(id.to_string());
             Ok(Some((auth, expires)))
         })?;
-        if result.is_some() {
-            self.usage
-                .record(super::usage::CredentialTable::Key, id, Utc::now());
-        }
         Ok(result)
+    }
+
+    pub fn record_key_use(&self, id: &str) {
+        self.usage
+            .record(super::usage::CredentialTable::Key, id, Utc::now());
     }
 
     pub fn exchange_user_key(
@@ -579,40 +586,66 @@ impl AuthStore {
             .transpose()
             .map(Option::flatten)?;
         if let Some((authority, _)) = result.as_ref() {
-            self.audit(
+            let detail = serde_json::json!({
+                "actor_id": authority.user.id,
+                "owner_id": authority.user.id,
+                "key_id": authority.key_id,
+                "profile_id": authority.grants.profile_id,
+                "reason": "credential_authenticated",
+            })
+            .to_string();
+            self.with_conn(|conn| {
+                record_audit(
+                    conn,
+                    &authority.user.id,
+                    AuditAction::AccessKeyExchange,
+                    &detail,
+                )
+            })?;
+            crate::telemetry::events::audit_event(
                 AuditAction::AccessKeyExchange,
-                Some(&authority.user.id),
                 true,
-            )?;
+                Some(&detail),
+            );
+            if let Some(id) = &authority.key_id {
+                self.record_key_use(id);
+            }
         }
         Ok(result)
     }
 
     pub fn revoke_user_key(&self, actor: &str, id: &str, administrator: bool) -> Result<bool> {
-        let changed = self.with_conn(|conn| {
+        let result = self.with_conn(|conn| {
             let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-            let exists: bool = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM access_key WHERE id = ?1 AND (user_id = ?2 OR ?3))",
-                params![id, actor, administrator],
-                |r| r.get(0),
-            )?;
-            if !exists {
+            let owner: Option<(Option<String>, Option<String>)> = tx.query_row(
+                "SELECT user_id, profile_id FROM access_key WHERE id = ?1 AND (user_id = ?2 OR ?3)",
+                params![id, actor, administrator], |row| Ok((row.get(0)?, row.get(1)?)),
+            ).optional()?;
+            let Some((owner, profile)) = owner else {
                 return Ok(None);
-            }
+            };
             let changed = tx.execute(
                 "UPDATE access_key SET revoked_at = ?1 WHERE id = ?2 AND revoked_at IS NULL",
                 params![Utc::now().to_rfc3339(), id],
             )? > 0;
+            let detail = serde_json::json!({
+                "actor_id": actor, "owner_id": owner, "key_id": id, "profile_id": profile,
+            })
+            .to_string();
             if changed {
-                record_audit(&tx, actor, AuditAction::AccessKeyRevoked, id)?;
+                record_audit(&tx, actor, AuditAction::AccessKeyRevoked, &detail)?;
             }
             tx.commit()?;
-            Ok(Some(changed))
+            Ok(Some((changed, detail)))
         })?;
-        if changed == Some(true) {
-            export_audit(actor, AuditAction::AccessKeyRevoked, id);
+        if let Some((true, detail)) = result.as_ref() {
+            crate::telemetry::events::audit_event(
+                AuditAction::AccessKeyRevoked,
+                true,
+                Some(detail),
+            );
         }
-        Ok(changed.is_some())
+        Ok(result.is_some())
     }
 
     pub fn user_keys(&self, owner: &str, profile: Uuid, offset: u32) -> Result<Vec<UserKey>> {
@@ -723,12 +756,25 @@ pub(crate) mod tests {
     fn test_authority_lookup_does_not_record_usage() {
         let (store, owner, request) = fixture();
         let issued = store.create_user_key(&owner, &request, None).unwrap();
-        assert!(store.key_authority(&issued.key.summary.id).unwrap().is_some());
+        assert!(store
+            .key_authority(&issued.key.summary.id)
+            .unwrap()
+            .is_some());
         store.flush_usage().unwrap();
-        assert!(store.user_keys(&owner.user.id, request.grants.profile_id, 0).unwrap()[0].summary.last_used_at.is_none());
+        assert!(store
+            .user_keys(&owner.user.id, request.grants.profile_id, 0)
+            .unwrap()[0]
+            .summary
+            .last_used_at
+            .is_none());
         assert!(store.exchange_user_key(&issued.secret).unwrap().is_some());
         store.flush_usage().unwrap();
-        assert!(store.user_keys(&owner.user.id, request.grants.profile_id, 0).unwrap()[0].summary.last_used_at.is_some());
+        assert!(store
+            .user_keys(&owner.user.id, request.grants.profile_id, 0)
+            .unwrap()[0]
+            .summary
+            .last_used_at
+            .is_some());
         let audit = store.recent_audit(1).unwrap();
         let detail: serde_json::Value = serde_json::from_str(audit[0].2.as_ref().unwrap()).unwrap();
         assert_eq!(detail["key_id"], issued.key.summary.id);
@@ -762,7 +808,10 @@ pub(crate) mod tests {
     fn test_profile_reads_require_explicit_capability() {
         let (store, owner, request) = fixture();
         let issued = store.create_user_key(&owner, &request, None).unwrap();
-        let (mut authority, _) = store.key_authority(&issued.key.summary.id).unwrap().unwrap();
+        let (mut authority, _) = store
+            .key_authority(&issued.key.summary.id)
+            .unwrap()
+            .unwrap();
         for path in ["/api/v1/profiles", "/api/v1/profiles/{profile_id}"] {
             assert!(super::super::policy::authorize(&authority, "GET", path).is_err());
         }
@@ -770,6 +819,33 @@ pub(crate) mod tests {
         authority.grants.instance_wide = true;
         assert!(super::super::policy::authorize(&authority, "GET", "/api/v1/profiles").is_ok());
         assert!(super::super::policy::authorize(&authority, "POST", "/api/v1/profiles").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_exchange_storage_failure_returns_unavailable_without_secret() {
+        use axum::{
+            body::Body,
+            http::{Request, StatusCode},
+        };
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+        let state = crate::rest::state::ApiState::in_memory(Default::default());
+        let (store, owner, request) = fixture_in(state.auth.store.clone());
+        let issued = store.create_user_key(&owner, &request, None).unwrap();
+        store
+            .with_conn(|conn| {
+                conn.execute_batch("ALTER TABLE access_key RENAME TO unavailable_key")?;
+                Ok(())
+            })
+            .unwrap();
+        let response = crate::rest::build_profile_router(state).oneshot(Request::builder()
+            .method("POST").uri("/api/v1/auth/token")
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::json!({"grant_type": "operator:access-key", "access_key": issued.secret}).to_string())).unwrap()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(!String::from_utf8_lossy(&body).contains(&issued.secret));
     }
 
     #[test]

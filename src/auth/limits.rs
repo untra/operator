@@ -15,11 +15,32 @@ pub struct Limits(Mutex<LimitState>);
 struct LimitState {
     entries: HashMap<String, (Instant, u32)>,
     last_cleanup: Option<Instant>,
+    authentication_denied: u64,
+    authorization_denied: u64,
+    rate_limited: u64,
+}
+
+pub enum Denial {
+    Authentication,
+    Authorization,
+    RateLimit,
 }
 
 impl Limits {
     pub fn check(&self, buckets: &[(String, u32)]) -> Result<(), u64> {
         self.check_at(buckets, Instant::now())
+            .inspect_err(|_| self.record_denial(Denial::RateLimit))
+    }
+
+    pub fn record_denial(&self, reason: Denial) {
+        if let Ok(mut state) = self.0.lock() {
+            let counter = match reason {
+                Denial::Authentication => &mut state.authentication_denied,
+                Denial::Authorization => &mut state.authorization_denied,
+                Denial::RateLimit => &mut state.rate_limited,
+            };
+            *counter = counter.saturating_add(1);
+        }
     }
 
     fn check_at(&self, buckets: &[(String, u32)], now: Instant) -> Result<(), u64> {
@@ -28,6 +49,20 @@ impl Limits {
             .last_cleanup
             .is_none_or(|last| now.duration_since(last) >= WINDOW)
         {
+            if state.authentication_denied > 0
+                || state.authorization_denied > 0
+                || state.rate_limited > 0
+            {
+                tracing::warn!(
+                    authentication_denied = state.authentication_denied,
+                    authorization_denied = state.authorization_denied,
+                    rate_limited = state.rate_limited,
+                    "credential rejection counts in previous interval"
+                );
+                state.authentication_denied = 0;
+                state.authorization_denied = 0;
+                state.rate_limited = 0;
+            }
             state
                 .entries
                 .retain(|_, (start, _)| now.duration_since(*start) < WINDOW);

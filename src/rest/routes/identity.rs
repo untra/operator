@@ -352,7 +352,9 @@ pub async fn capabilities(
     Ok(no_store(CapabilityResponse {
         owner_id: authority.map(|a| a.user.id.clone()),
         capability_descriptions: crate::auth::policy::capability_descriptions(),
-        issuance_expires_at: authority.and_then(|a| a.authenticated_at).and_then(|at| chrono::DateTime::from_timestamp(at + identity::RECENT_LOGIN_SECONDS, 0)),
+        issuance_expires_at: authority.and_then(|a| a.authenticated_at).and_then(|at| {
+            chrono::DateTime::from_timestamp(at + identity::RECENT_LOGIN_SECONDS, 0)
+        }),
         can_issue: issuance_block_reason.is_none(),
         issuance_block_reason,
         grants: authority.map_or_else(
@@ -460,9 +462,12 @@ pub async fn exchange_key(
     secret: String,
 ) -> Result<Json<crate::rest::dto::auth::TokenResponse>, ApiError> {
     let store = state.auth.store.clone();
-    let (authority, expires) = blocking(move || store.exchange_user_key(&secret))
-        .await?
-        .ok_or_else(|| ApiError::Unauthorized("Invalid, expired, or revoked key".into()))?;
+    let (authority, expires) =
+        tokio::task::spawn_blocking(move || store.exchange_user_key(&secret))
+            .await
+            .map_err(|_| ApiError::Unavailable("Credential validation unavailable".into()))?
+            .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()))?
+            .ok_or_else(|| ApiError::Unauthorized("Invalid, expired, or revoked key".into()))?;
     let now = chrono::Utc::now();
     let mut claims = crate::auth::tokens::api_claims(
         &authority.user.id,
@@ -473,7 +478,11 @@ pub async fn exchange_key(
     claims.key_id = authority.key_id;
     claims.profile_id = Some(authority.grants.profile_id);
     claims.exp = claims.exp.min(expires.timestamp());
-    let access_token = state.auth.signing_key.sign(&claims).map_err(failure)?;
+    let access_token = state
+        .auth
+        .signing_key
+        .sign(&claims)
+        .map_err(|_| ApiError::Unavailable("Token signing unavailable".into()))?;
     Ok(Json(crate::rest::dto::auth::TokenResponse {
         access_token,
         token_type: "Bearer".into(),
@@ -490,6 +499,37 @@ mod tests {
     use axum::http::{Request, StatusCode};
     use http_body_util::BodyExt;
     use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_bearer_validation_is_limited_before_authentication() {
+        let state = ApiState::in_memory(Default::default());
+        let app = crate::rest::build_profile_router(state);
+        for attempt in 0..=crate::auth::limits::REQUESTS_PER_OWNER {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/v1/projects")
+                        .header(header::AUTHORIZATION, "Bearer invalid")
+                        .header("x-forwarded-for", format!("192.0.2.{attempt}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                if attempt == crate::auth::limits::REQUESTS_PER_OWNER {
+                    StatusCode::TOO_MANY_REQUESTS
+                } else {
+                    StatusCode::UNAUTHORIZED
+                }
+            );
+            if attempt == crate::auth::limits::REQUESTS_PER_OWNER {
+                assert!(response.headers().contains_key(header::RETRY_AFTER));
+            }
+        }
+    }
 
     #[tokio::test]
     async fn test_key_http_scopes_profile_projects_and_revocation() {

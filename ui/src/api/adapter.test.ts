@@ -573,7 +573,8 @@ test("issued API key secrets never enter Redux lifecycle state", async () => {
       return Promise.resolve({ key, secret: TOKEN });
     });
     await createAccessKeyMutation.run(new OperatorApi(host()), {
-      request: { name: "CI", expires_in_days: 90, grants }, onIssued: lateIssued,
+      request: { name: "CI", expires_in_days: 90, grants },
+      onIssued: lateIssued,
     });
     expect(lateIssued).not.toHaveBeenCalled();
   } finally {

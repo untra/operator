@@ -1,6 +1,8 @@
 import type { CapabilityDescription } from "../generated/CapabilityDescription";
 import type { PermissionGrant } from "../generated/PermissionGrant";
 
+const NO_DESCRIPTIONS: CapabilityDescription[] = [];
+
 export interface PermissionSelectorProps {
   available: PermissionGrant;
   descriptions?: CapabilityDescription[];
@@ -11,7 +13,7 @@ export interface PermissionSelectorProps {
 
 export function PermissionSelector({
   available,
-  descriptions = [],
+  descriptions = NO_DESCRIPTIONS,
   value,
   disabled,
   onChange,
@@ -25,7 +27,9 @@ export function PermissionSelector({
         : [...selected, item],
     });
   }
-  const resources = [...new Set(available.capabilities.map((capability) => capability.split(":")[0]))];
+  const resources = [
+    ...new Set(available.capabilities.map((capability) => capability.split(":")[0])),
+  ];
   return (
     <fieldset disabled={disabled}>
       <legend>Key permissions</legend>
@@ -34,14 +38,27 @@ export function PermissionSelector({
         {resources.map((resource) => (
           <fieldset key={resource}>
             <legend>{resource}</legend>
-            {available.capabilities.filter((capability) => capability.startsWith(`${resource}:`)).map((capability) => {
-              const metadata = descriptions.find((entry) => entry.capability === capability);
-              return <label key={capability}>
-                <input type="checkbox" checked={value.capabilities.includes(capability)} onChange={() => toggle("capabilities", capability)} />
-                {capability}
-                {metadata && <span> — {metadata.label}. {metadata.description}</span>}
-              </label>;
-            })}
+            {available.capabilities
+              .filter((capability) => capability.startsWith(`${resource}:`))
+              .map((capability) => {
+                const metadata = descriptions.find((entry) => entry.capability === capability);
+                return (
+                  <label key={capability}>
+                    <input
+                      type="checkbox"
+                      checked={value.capabilities.includes(capability)}
+                      onChange={() => toggle("capabilities", capability)}
+                    />
+                    {capability}
+                    {metadata && (
+                      <span>
+                        {" "}
+                        — {metadata.label}. {metadata.description}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
           </fieldset>
         ))}
       </fieldset>

@@ -268,7 +268,15 @@ function Connections() {
               </button>
             </div>
           </details>
-          <a href="#/connections#operator-api-keys" onClick={(event) => { event.preventDefault(); document.getElementById("operator-api-keys")?.scrollIntoView(); }}>Manage API keys</a>
+          <a
+            href="#/connections#operator-api-keys"
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById("operator-api-keys")?.scrollIntoView();
+            }}
+          >
+            Manage API keys
+          </a>
           <label>
             Access key for test (optional)
             <input
@@ -279,9 +287,10 @@ function Connections() {
             />
           </label>
           <p className={styles.hint}>
-            Leave blank to test this browser session. Keys need mcp:connect; select individual MCP tool capabilities and their projects to permit tool calls.
-            The test uses this browser's Operator address, initializes MCP, and lists tools without
-            calling them. A separately configured public address must be verified from your client.
+            Leave blank to test this browser session. Keys need mcp:connect; select individual MCP
+            tool capabilities and their projects to permit tool calls. The test uses this browser's
+            Operator address, initializes MCP, and lists tools without calling them. A separately
+            configured public address must be verified from your client.
           </p>
           <button
             onClick={checkMcp}

@@ -1,8 +1,6 @@
 # Forgejo Actions runbook
 
-`workflows/deploy-casa.yaml` builds `Dockerfile.local` with the dev license keyring and swaps the image on the
-`operator` release at `operator.<devhost>`. `workflows/pr.yaml` is the required check on `main`: it builds the
-same arm64 image without pushing it, then runs the `e2e/` Playwright suites against it (`scripts/ci/e2e.sh`).
+`workflows/deploy-casa.yaml` builds `Dockerfile.local` with the dev license keyring and upgrades the `operator` release at `operator.<devhost>` to that ref's `charts/operator` and image, keeping the release's helmfile values. `workflows/pr.yaml` is the required check on `main`: it builds the same arm64 image without pushing it, then runs the `e2e/` Playwright suites against it (`scripts/ci/e2e.sh`).
 Runner egress isn't restricted (jobs reach the internet through OrbStack's NAT), but everything they pull comes
 from Forgejo mirrors anyway, for pinning and speed. These commands refresh the mirrors from a workstation.
 
@@ -18,7 +16,6 @@ Common shell setup:
 FORGEJO=https://forgejo.<devhost>
 REPO=untra-operator/operator
 MIRROR=forgejo.<devhost>/untra-operator/mirror
-CHARTS=forgejo.<devhost>/untra-operator/charts
 FORGEJO_TOKEN=...   # scopes: write:package, write:repository, write:organization
 api() { curl -fsS -H "Authorization: token $FORGEJO_TOKEN" -H 'Content-Type: application/json' "$@"; }
 ```
@@ -50,19 +47,6 @@ sed -n 's/^FROM \${BASE_REGISTRY}\([^ ]*\).*/\1/p' Dockerfile.local e2e/Dockerfi
   esac
 done
 crane digest "$MIRROR/debian:trixie-slim"   # must equal the sha256 pinned in Dockerfile.local
-```
-
-## Chart mirror
-
-Mirror every chart version that helmfile deploys; `deploy` upgrades at the release's current chart version.
-
-```sh
-: "${CHARTS:?run the common shell setup first}"
-v=$(helm get metadata operator -n operator | awk '/^VERSION:/ {print $2}')
-helm pull oci://ghcr.io/untra/charts/operator --version "$v" -d /tmp
-helm registry login forgejo.<devhost> -u <registry-user> --password-stdin <<<"$FORGEJO_TOKEN"
-helm push "/tmp/operator-$v.tgz" "oci://$CHARTS"
-helm show chart "oci://$CHARTS/operator" --version "$v"
 ```
 
 ## Checkout action mirror
@@ -117,6 +101,8 @@ helm rollback operator <revision> -n operator
 ```
 
 Job logs are not readable through the API; open the run in the web UI.
+
+Roll images through this workflow or `helm rollback`, not `kubectl set image`: `deploy` runs with `--force-conflicts`, so the next run overwrites out-of-band edits.
 
 ## Housekeeping
 

@@ -26,6 +26,8 @@ A cluster Operator exposes the same tools over HTTP MCP. `GET /api/v1/mcp/descri
 
 Write and launch MCP tools stay disabled until `[mcp].expose_ticket_write_tools = true`. Read tools work without that flag. HTTP MCP is additionally limited to the scopes on the bearer. See [Authentication](/security/authentication/).
 
+**Remote MCP over OAuth.** When `[rest_api].public_url` is set and an OIDC connection is enabled, Operator is an OAuth protected resource. An unauthenticated request returns 401 with `WWW-Authenticate: Bearer resource_metadata="<public_url>/.well-known/oauth-protected-resource"`. That document lists the OIDC issuer. Register `transport_url` in AGNT as an SSE MCP server with no headers. AGNT discovers the issuer, registers a client, and signs the user in there. Operator accepts the resulting access token only for a user who has already signed in to Operator and been approved. The token's `aud` must contain the public URL. Provider setup is in [Keycloak](/getting-started/integrations/keycloak/#mcp-clients). Access keys cannot be used as an MCP header. They are exchanged by the plugin nodes below.
+
 If AGNT can only register a stdio MCP server, an agent on a laptop cannot reach a cluster Operator through MCP. The authenticated plugin nodes are the cluster path. Do not point the stdio command at an `https://` URL.
 
 ## Operator → AGNT: export a workflow

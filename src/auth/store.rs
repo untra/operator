@@ -112,6 +112,7 @@ pub struct AuthStore {
     pub limits: Arc<super::limits::Limits>,
     pub(super) usage: Arc<super::usage::Usage>,
     pub(super) logins: Arc<super::oidc::LoginAttempts>,
+    pub(super) jwks: Arc<super::oidc_bearer::JwksCache>,
 }
 
 impl std::fmt::Debug for AuthStore {
@@ -173,6 +174,7 @@ impl AuthStore {
             usage: Arc::default(),
             limits: Arc::default(),
             logins: Arc::default(),
+            jwks: Arc::default(),
             path,
         })
     }
@@ -188,6 +190,7 @@ impl AuthStore {
             usage: Arc::default(),
             limits: Arc::default(),
             logins: Arc::default(),
+            jwks: Arc::default(),
             path: PathBuf::from(":memory:"),
         })
     }

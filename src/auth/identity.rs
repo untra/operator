@@ -425,6 +425,19 @@ impl AuthStore {
         Ok(())
     }
 
+    /// Authority of an already provisioned user, never provisioning one.
+    pub fn subject_authority(
+        &self,
+        connection: &OidcConnection,
+        subject: &str,
+        profile: Uuid,
+    ) -> Result<Option<UserAuthority>> {
+        self.with_conn(|conn| {
+            let id: Option<String> = conn.query_row("SELECT id FROM operator_user WHERE issuer = ?1 AND subject = ?2 AND connection_id = ?3", params![connection.issuer, subject, connection.id], |r| r.get(0)).optional()?;
+            id.map_or(Ok(None), |id| authority(conn, &id, profile))
+        })
+    }
+
     pub fn user_authority(&self, id: &str, profile: Uuid) -> Result<Option<UserAuthority>> {
         self.with_conn(|conn| authority(conn, id, profile))
     }
@@ -751,6 +764,29 @@ pub(crate) mod tests {
                 grants,
             },
         )
+    }
+
+    #[test]
+    fn test_subject_authority_resolves_only_provisioned_enabled_users() {
+        let (store, owner, request) = fixture();
+        let profile = request.grants.profile_id;
+        let connection = store.oidc_connections().unwrap().remove(0);
+        let found = store
+            .subject_authority(&connection, "subject", profile)
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.user.id, owner.user.id);
+        assert!(store
+            .subject_authority(&connection, "stranger", profile)
+            .unwrap()
+            .is_none());
+        store
+            .disable_oidc_connection("admin", &connection.id)
+            .unwrap();
+        assert!(store
+            .subject_authority(&connection, "subject", profile)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

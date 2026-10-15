@@ -45,6 +45,8 @@ const EXPECTED_PUBLIC: &[(&str, &str)] = &[
     ("POST", "/api/v1/auth/reset-password"),
     ("POST", "/api/v1/auth/device/code"),
     ("POST", "/api/v1/auth/token"),
+    // OAuth discovery: issuer URLs only.
+    ("GET", "/.well-known/oauth-protected-resource"),
 ];
 
 /// Every `(METHOD, path)` the generated OpenAPI spec documents.

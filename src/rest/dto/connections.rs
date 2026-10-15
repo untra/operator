@@ -19,6 +19,8 @@ pub struct ConnectionsResponse {
     pub mcp_stdio_advertised: bool,
     pub acp_stdio_advertised: bool,
     pub mcp_connected_clients: usize,
+    /// Protected-resource metadata URL when OIDC clients can discover the provider.
+    pub oauth_resource_metadata: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, TS, ToSchema)]

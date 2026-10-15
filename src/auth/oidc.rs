@@ -72,7 +72,7 @@ pub fn validate_url(raw: &str) -> Result<Url> {
     Ok(url)
 }
 
-async fn request(
+pub(super) async fn request(
     issuer: &Url,
     request: openidconnect::HttpRequest,
 ) -> Result<openidconnect::HttpResponse> {

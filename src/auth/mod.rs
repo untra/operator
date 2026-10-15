@@ -22,6 +22,7 @@ pub mod audit;
 
 pub mod identity;
 pub mod oidc;
+pub mod oidc_bearer;
 pub mod policy;
 pub mod usage;
 

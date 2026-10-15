@@ -95,4 +95,4 @@ curl -X POST http://localhost:3333/api/plugins/reload
 { "name": "operator", "command": "operator", "args": ["mcp"] }
 ```
 
-A cluster Operator serves the same tools at the descriptor's `transport_url` (`GET /api/v1/mcp/sse`), and that stream requires the same bearer as the REST API. Write and launch tools stay off until `[mcp].expose_ticket_write_tools = true`. If AGNT can only register stdio, use these plugin nodes against the cluster. The comparison is in `docs/getting-started/integrations/agnt.md`.
+A cluster Operator serves the same tools at the descriptor's `transport_url` (`GET /api/v1/mcp/sse`), and that stream requires the same bearer as the REST API. Write and launch tools stay off until `[mcp].expose_ticket_write_tools = true`. With `[rest_api].public_url` set and an OIDC connection enabled, register that URL in AGNT as an SSE server with no headers; AGNT discovers the identity provider and signs in there. If AGNT can only register stdio, use these plugin nodes against the cluster. The comparison is in `docs/getting-started/integrations/agnt.md`.

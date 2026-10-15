@@ -791,7 +791,7 @@ pub(crate) mod tests {
         };
         use http_body_util::BodyExt;
         use tower::ServiceExt;
-        let state = crate::rest::state::ApiState::in_memory(Default::default());
+        let state = crate::rest::state::ApiState::in_memory(crate::config::Config::default());
         let (store, owner, request) = fixture_in(state.auth.store.clone());
         let issued = store.create_user_key(&owner, &request, None).unwrap();
         store

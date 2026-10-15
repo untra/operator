@@ -294,10 +294,14 @@ pub async fn update_user(
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyIssuanceBlockReason {
-    OidcRequired,
-    RecentLoginRequired,
-    PremiumRequired,
-    PermissionsRequired,
+    #[serde(rename = "oidc_required")]
+    Oidc,
+    #[serde(rename = "recent_login_required")]
+    RecentLogin,
+    #[serde(rename = "premium_required")]
+    Premium,
+    #[serde(rename = "permissions_required")]
+    Permissions,
 }
 
 #[derive(Serialize, ToSchema, ts_rs::TS)]
@@ -339,13 +343,13 @@ pub async fn capabilities(
     }
     let authority = principal.authority.as_ref();
     let issuance_block_reason = if authority.is_none() || principal.kind != PrincipalKind::Session {
-        Some(KeyIssuanceBlockReason::OidcRequired)
+        Some(KeyIssuanceBlockReason::Oidc)
     } else if require_premium(&state.config(), PremiumFeature::ApiKeys).is_err() {
-        Some(KeyIssuanceBlockReason::PremiumRequired)
+        Some(KeyIssuanceBlockReason::Premium)
     } else if authority.is_some_and(|a| a.grants.capabilities.is_empty()) {
-        Some(KeyIssuanceBlockReason::PermissionsRequired)
+        Some(KeyIssuanceBlockReason::Permissions)
     } else if owner(&principal, true).is_err() {
-        Some(KeyIssuanceBlockReason::RecentLoginRequired)
+        Some(KeyIssuanceBlockReason::RecentLogin)
     } else {
         None
     };
@@ -501,6 +505,18 @@ mod tests {
     use tower::ServiceExt;
 
     #[test]
+    fn test_key_issuance_block_reason_wire_values() {
+        for (reason, wire) in [
+            (KeyIssuanceBlockReason::Oidc, "oidc_required"),
+            (KeyIssuanceBlockReason::RecentLogin, "recent_login_required"),
+            (KeyIssuanceBlockReason::Premium, "premium_required"),
+            (KeyIssuanceBlockReason::Permissions, "permissions_required"),
+        ] {
+            assert_eq!(serde_json::to_value(reason).unwrap(), wire);
+        }
+    }
+
+    #[test]
     fn test_issuance_owner_requires_recent_oidc_browser_session() {
         let store = crate::auth::store::AuthStore::in_memory().unwrap();
         let (_, mut authority, _) = crate::auth::identity::tests::fixture_in(store);
@@ -530,7 +546,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_keys_reject_raw_keys_and_non_browser_admin_tokens() {
-        let state = ApiState::in_memory(Default::default());
+        let state = ApiState::in_memory(crate::config::Config::default());
         let (_, authority, request) =
             crate::auth::identity::tests::fixture_in(state.auth.store.clone());
         let key = state
@@ -575,7 +591,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_key_mutations_require_csrf_and_allowed_origin() {
-        let state = ApiState::in_memory(Default::default());
+        let state = ApiState::in_memory(crate::config::Config::default());
         let (_, authority, _) = crate::auth::identity::tests::fixture_in(state.auth.store.clone());
         let (session, csrf, _) = state
             .auth
@@ -610,7 +626,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bearer_validation_is_limited_before_authentication() {
-        let state = ApiState::in_memory(Default::default());
+        let state = ApiState::in_memory(crate::config::Config::default());
         let app = crate::rest::build_profile_router(state);
         for attempt in 0..=crate::auth::limits::REQUESTS_PER_OWNER {
             let response = app

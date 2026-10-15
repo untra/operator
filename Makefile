@@ -8,7 +8,7 @@
 .PHONY: check fmt fmt-check lint test clippy build run install-hooks bindings \
 	webcomponents storybook ui docs vscode-extension relay telemetry telemetry-registry opr8r e2e \
 	fmt-rust fmt-ts fmt-tf fmt-check-rust fmt-check-ts fmt-check-tf \
-	lint-rust lint-ts lint-shell lint-helm lint-tf test-rust test-ts
+	lint-rust lint-ts lint-shell lint-helm lint-tf test-rust test-ts test-shell
 
 # CI installs terraform; local dev machines may only have OpenTofu.
 TF := $(shell command -v terraform >/dev/null 2>&1 && echo terraform || echo tofu)
@@ -91,7 +91,10 @@ lint-tf:
 	cd coder-module && $(TF) init -input=false && $(TF) validate
 	scripts/ci/check-coder-module.sh
 
-test: test-rust test-ts
+test: test-rust test-ts test-shell
+
+test-shell:
+	bash scripts/ci/test-signing.sh
 
 test-rust:
 	cargo test --locked --all-features

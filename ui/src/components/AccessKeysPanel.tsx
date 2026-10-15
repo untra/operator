@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
 import type { UserKey } from "@operator/bindings/UserKey";
 import { PermissionSelector } from "@operator/webcomponents";
@@ -36,11 +36,14 @@ function ProfileKeys() {
   const available = capabilities.data;
   const keyQuery = useApiQuery(accessKeysQuery(offset), { enabled: available?.oidc_user ?? false });
   const keys = keyQuery.data?.keys ?? [];
-  const selected =
-    grants ??
-    (available
-      ? { ...available.grants, capabilities: [], projects: [], instance_wide: false }
-      : null);
+  const selected = useMemo(
+    () =>
+      grants ??
+      (available
+        ? { ...available.grants, capabilities: [], projects: [], instance_wide: false }
+        : null),
+    [grants, available],
+  );
 
   useEffect(() => {
     generation.current += 1;

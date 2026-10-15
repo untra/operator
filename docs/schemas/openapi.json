@@ -47,6 +47,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:read",
         "x-operator-scope": "read"
       }
     },
@@ -105,7 +106,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}/approve": {
@@ -172,7 +174,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:approve"
       }
     },
     "/api/v1/agents/{agent_id}/connect/terminal": {
@@ -230,6 +233,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:read",
         "x-operator-scope": "read"
       }
     },
@@ -310,6 +314,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:focus",
         "x-operator-scope": "execute"
       }
     },
@@ -387,7 +392,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:reject"
       }
     },
     "/api/v1/alerts": {
@@ -455,7 +461,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "alerts:create"
       }
     },
     "/api/v1/auth/bootstrap": {
@@ -536,6 +543,41 @@
           }
         },
         "security": []
+      }
+    },
+    "/api/v1/auth/capabilities": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "capabilities",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/auth/csrf": {
@@ -728,15 +770,14 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List access keys",
-        "operationId": "auth_list_access_keys",
+        "operationId": "keys",
         "responses": {
           "200": {
-            "description": "Access keys",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccessKeyListResponse"
+                  "$ref": "#/components/schemas/UserKeyList"
                 }
               }
             }
@@ -750,9 +791,6 @@
         },
         "security": [
           {
-            "bearerAuth": []
-          },
-          {
             "sessionCookie": []
           }
         ],
@@ -762,8 +800,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create an access key",
-        "operationId": "auth_create_access_key",
+        "operationId": "create_key",
         "parameters": [
           {
             "name": "x-operator-csrf",
@@ -779,7 +816,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateAccessKeyRequest"
+                "$ref": "#/components/schemas/CreateUserKey"
               }
             }
           },
@@ -787,11 +824,11 @@
         },
         "responses": {
           "200": {
-            "description": "Key created; secret returned once",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateAccessKeyResponse"
+                  "$ref": "#/components/schemas/IssuedUserKey"
                 }
               }
             }
@@ -805,9 +842,6 @@
         },
         "security": [
           {
-            "bearerAuth": []
-          },
-          {
             "sessionCookie": []
           }
         ],
@@ -819,13 +853,11 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Revoke an access key",
-        "operationId": "auth_revoke_access_key",
+        "operationId": "revoke_key",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "Access key id",
             "required": true,
             "schema": {
               "type": "string"
@@ -843,11 +875,65 @@
         ],
         "responses": {
           "200": {
-            "description": "Revoked",
+            "description": ""
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/keys/{id}/rotate": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "rotate_key",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserKey"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RevokeAccessKeyResponse"
+                  "$ref": "#/components/schemas/IssuedUserKey"
                 }
               }
             }
@@ -857,22 +943,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "description": "Unknown or already revoked",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         },
         "security": [
-          {
-            "bearerAuth": []
-          },
           {
             "sessionCookie": []
           }
@@ -1009,6 +1082,198 @@
           }
         ],
         "x-operator-scope": "write"
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "callback",
+        "responses": {
+          "303": {
+            "description": ""
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/auth/oidc/connections": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "connections",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcConnection"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      },
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "create_connection",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOidcConnection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/oidc/connections/{id}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "disable_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/oidc/login/{id}": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "login",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": ""
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/auth/oidc/providers": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "providers",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcLoginProvider"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
       }
     },
     "/api/v1/auth/reset-password": {
@@ -1267,6 +1532,95 @@
         "security": []
       }
     },
+    "/api/v1/auth/users": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "users",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperatorUser"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/users/{id}": {
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "update_user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOperatorUser"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
     "/api/v1/campaigns": {
       "get": {
         "tags": [
@@ -1309,7 +1663,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       },
       "post": {
         "tags": [
@@ -1373,6 +1728,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:create",
         "x-operator-scope": "write"
       }
     },
@@ -1428,7 +1784,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       }
     },
     "/api/v1/campaigns/{id}/launch": {
@@ -1513,6 +1870,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:launch",
         "x-operator-scope": "execute"
       }
     },
@@ -1578,6 +1936,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:pause",
         "x-operator-scope": "execute"
       }
     },
@@ -1633,7 +1992,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       }
     },
     "/api/v1/collections": {
@@ -1672,7 +2032,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/active": {
@@ -1718,7 +2079,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/{name}": {
@@ -1775,7 +2137,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/{name}/activate": {
@@ -1841,7 +2204,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "collections:update"
       }
     },
     "/api/v1/configuration": {
@@ -1876,7 +2240,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "configuration:read"
       },
       "patch": {
         "tags": [
@@ -1940,7 +2305,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "configuration:update"
       }
     },
     "/api/v1/connections": {
@@ -1975,7 +2341,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "connections:read"
       }
     },
     "/api/v1/connections/mcp/clients": {
@@ -2013,7 +2380,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "connections:read"
       }
     },
     "/api/v1/delegators": {
@@ -2049,6 +2417,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -2114,7 +2483,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/from-tool": {
@@ -2192,7 +2562,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/import-profile": {
@@ -2260,6 +2631,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:create",
         "x-operator-scope": "admin"
       }
     },
@@ -2317,6 +2689,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -2391,7 +2764,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:update"
       },
       "delete": {
         "tags": [
@@ -2455,6 +2829,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:delete",
         "x-operator-scope": "admin"
       }
     },
@@ -2513,7 +2888,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       }
     },
     "/api/v1/execution-targets": {
@@ -2548,6 +2924,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "execution-targets:read",
         "x-operator-scope": "read"
       }
     },
@@ -2604,7 +2981,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:update"
       }
     },
     "/api/v1/git/providers": {
@@ -2642,7 +3020,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "git:read"
       }
     },
     "/api/v1/git/session-env": {
@@ -2698,7 +3077,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:create"
       }
     },
     "/api/v1/git/validate": {
@@ -2754,7 +3134,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "git:execute"
       }
     },
     "/api/v1/health": {
@@ -2790,6 +3171,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "health:read",
         "x-operator-scope": "read"
       }
     },
@@ -2830,7 +3212,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "integrations:read"
       }
     },
     "/api/v1/issuetypes": {
@@ -2893,6 +3276,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -2968,6 +3352,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:create",
         "x-operator-scope": "write"
       }
     },
@@ -3037,6 +3422,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -3128,6 +3514,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:update",
         "x-operator-scope": "write"
       },
       "delete": {
@@ -3192,6 +3579,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:delete",
         "x-operator-scope": "write"
       }
     },
@@ -3260,6 +3648,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       }
     },
@@ -3320,7 +3709,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/issuetypes/{key}/steps/{step_name}": {
@@ -3386,7 +3776,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "put": {
         "tags": [
@@ -3486,6 +3877,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:update",
         "x-operator-scope": "write"
       }
     },
@@ -3553,7 +3945,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/kanban/config": {
@@ -3611,6 +4004,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:update",
         "x-operator-scope": "admin"
       }
     },
@@ -3669,6 +4063,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:execute",
         "x-operator-scope": "execute"
       }
     },
@@ -3709,7 +4104,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/kanban/session-env": {
@@ -3767,6 +4163,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:create",
         "x-operator-scope": "admin"
       }
     },
@@ -3825,7 +4222,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "kanban:execute"
       }
     },
     "/api/v1/kanban/validate": {
@@ -3883,6 +4281,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:execute",
         "x-operator-scope": "execute"
       }
     },
@@ -3963,7 +4362,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes/sync": {
@@ -4049,7 +4449,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "kanban:create"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/statuses": {
@@ -4126,7 +4527,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/license": {
@@ -4161,6 +4563,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "license:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -4225,7 +4628,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "license:update"
       },
       "delete": {
         "tags": [
@@ -4269,7 +4673,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "license:delete"
       }
     },
     "/api/v1/llm-tools": {
@@ -4305,6 +4710,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "llm-tools:read",
         "x-operator-scope": "read"
       }
     },
@@ -4341,7 +4747,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "llm-tools:read"
       },
       "put": {
         "tags": [
@@ -4406,7 +4813,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "llm-tools:update"
       }
     },
     "/api/v1/mcp/descriptor": {
@@ -4443,6 +4851,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "mcp:read",
         "x-operator-scope": "read"
       }
     },
@@ -4517,7 +4926,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/mcp/sse": {
@@ -4554,7 +4964,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/model-servers": {
@@ -4590,7 +5001,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       },
       "post": {
         "tags": [
@@ -4655,7 +5067,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "model-servers:create"
       }
     },
     "/api/v1/model-servers/kinds": {
@@ -4694,6 +5107,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:read",
         "x-operator-scope": "read"
       }
     },
@@ -4752,7 +5166,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       }
     },
     "/api/v1/model-servers/{name}": {
@@ -4809,6 +5224,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -4893,7 +5309,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "model-servers:update"
       },
       "delete": {
         "tags": [
@@ -4968,6 +5385,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:delete",
         "x-operator-scope": "admin"
       }
     },
@@ -5026,7 +5444,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "model-servers:execute"
       }
     },
     "/api/v1/profiles": {
@@ -5064,6 +5483,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "profiles:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -5128,7 +5548,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:create"
       }
     },
     "/api/v1/profiles/{profile_id}": {
@@ -5175,7 +5596,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "profiles:read"
       },
       "patch": {
         "tags": [
@@ -5239,7 +5661,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:update"
       }
     },
     "/api/v1/projects": {
@@ -5278,6 +5701,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "projects:read",
         "x-operator-scope": "read"
       }
     },
@@ -5344,6 +5768,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "projects:create",
         "x-operator-scope": "write"
       }
     },
@@ -5381,7 +5806,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/pause": {
@@ -5429,6 +5855,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "queue:create",
         "x-operator-scope": "write"
       }
     },
@@ -5477,6 +5904,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "queue:create",
         "x-operator-scope": "write"
       }
     },
@@ -5514,7 +5942,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/sync": {
@@ -5562,7 +5991,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "queue:sync"
       }
     },
     "/api/v1/queue/sync/{provider}/{project_key}": {
@@ -5628,7 +6058,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "queue:execute"
       }
     },
     "/api/v1/sections": {
@@ -5668,6 +6099,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "sections:read",
         "x-operator-scope": "read"
       }
     },
@@ -5706,6 +6138,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "setup:read",
         "x-operator-scope": "read"
       }
     },
@@ -5782,7 +6215,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "setup:create"
       }
     },
     "/api/v1/setup/status": {
@@ -5817,6 +6251,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "setup:read",
         "x-operator-scope": "read"
       }
     },
@@ -5855,7 +6290,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "setup:read"
       }
     },
     "/api/v1/skills": {
@@ -5891,7 +6327,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "skills:read"
       }
     },
     "/api/v1/status": {
@@ -5927,6 +6364,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "status:read",
         "x-operator-scope": "read"
       }
     },
@@ -5962,6 +6400,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "targets:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -6024,7 +6463,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:create"
       }
     },
     "/api/v1/targets/{name}": {
@@ -6096,6 +6536,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "targets:update",
         "x-operator-scope": "admin"
       },
       "delete": {
@@ -6158,7 +6599,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:delete"
       }
     },
     "/api/v1/targets/{name}/probe": {
@@ -6222,7 +6664,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:create"
       }
     },
     "/api/v1/telemetry/sessions/{session_id}": {
@@ -6279,7 +6722,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "telemetry:read"
       }
     },
     "/api/v1/tickets": {
@@ -6347,6 +6791,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:create",
         "x-operator-scope": "write"
       }
     },
@@ -6414,7 +6859,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:create"
       }
     },
     "/api/v1/tickets/batch/preview": {
@@ -6471,6 +6917,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
       }
     },
@@ -6538,7 +6985,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
       }
     },
     "/api/v1/tickets/{id}": {
@@ -6596,6 +7044,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
       }
     },
@@ -6670,7 +7119,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:update"
       }
     },
     "/api/v1/tickets/{id}/launch": {
@@ -6787,6 +7237,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:launch",
         "x-operator-scope": "execute"
       }
     },
@@ -6874,7 +7325,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:update"
       }
     },
     "/api/v1/tickets/{id}/steps/{step}/complete": {
@@ -6980,6 +7432,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:complete",
         "x-operator-scope": "execute"
       }
     },
@@ -7056,6 +7509,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
       }
     },
@@ -7096,7 +7550,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "workflow-formats:read"
       }
     },
     "/livez": {
@@ -7420,22 +7875,6 @@
   },
   "components": {
     "schemas": {
-      "AccessKeyListResponse": {
-        "type": "object",
-        "description": "All access keys, active and revoked.",
-        "required": [
-          "keys"
-        ],
-        "properties": {
-          "keys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AccessKeySummary"
-            },
-            "description": "The keys."
-          }
-        }
-      },
       "AccessKeySummary": {
         "type": "object",
         "description": "Access key metadata. Carries no secret and no hash.",
@@ -8810,6 +9249,45 @@
         ],
         "description": "One execution environment shared by every ticket in a campaign."
       },
+      "CapabilityResponse": {
+        "type": "object",
+        "required": [
+          "grants",
+          "oidc_user",
+          "administrator",
+          "can_issue"
+        ],
+        "properties": {
+          "administration_grants": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PermissionGrant"
+              }
+            ]
+          },
+          "administrator": {
+            "type": "boolean"
+          },
+          "can_issue": {
+            "type": "boolean"
+          },
+          "connection_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          },
+          "oidc_user": {
+            "type": "boolean"
+          }
+        }
+      },
       "CollectionPreset": {
         "type": "string",
         "description": "Predefined issue type collections",
@@ -9136,61 +9614,6 @@
           },
           "version": {
             "type": "string"
-          }
-        }
-      },
-      "CreateAccessKeyRequest": {
-        "type": "object",
-        "description": "Create a service access key for an integration.",
-        "required": [
-          "name",
-          "scopes",
-          "expires_in_days"
-        ],
-        "properties": {
-          "expires_in_days": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Days until the key expires. Expiry is mandatory - there is no\nnon-expiring key.",
-            "maximum": 365,
-            "minimum": 1
-          },
-          "name": {
-            "type": "string",
-            "description": "Human-readable label identifying what holds this key.",
-            "maxLength": 128,
-            "minLength": 1
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Scope"
-            },
-            "description": "Scopes to grant. Only what the integration needs.",
-            "maxItems": 4,
-            "minItems": 1
-          }
-        }
-      },
-      "CreateAccessKeyResponse": {
-        "type": "object",
-        "description": "A newly created access key. **The secret appears here and nowhere else,\never** - only its hash is stored, so it cannot be shown again.",
-        "required": [
-          "key",
-          "secret"
-        ],
-        "properties": {
-          "key": {
-            "$ref": "#/components/schemas/AccessKeySummary",
-            "description": "Metadata for the created key."
-          },
-          "secret": {
-            "type": "string",
-            "format": "password",
-            "description": "The key secret, returned exactly once. Store it now; it is unrecoverable.",
-            "readOnly": true,
-            "maxLength": 47,
-            "minLength": 47
           }
         }
       },
@@ -9547,6 +9970,35 @@
           }
         }
       },
+      "CreateOidcConnection": {
+        "type": "object",
+        "required": [
+          "provider",
+          "issuer",
+          "client_id",
+          "redirect_uri"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret_file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          },
+          "redirect_uri": {
+            "type": "string"
+          }
+        }
+      },
       "CreateStepRequest": {
         "type": "object",
         "description": "Request to create a step",
@@ -9663,6 +10115,27 @@
           "path": {
             "type": "string",
             "description": "The absolute path the ticket was written to."
+          }
+        }
+      },
+      "CreateUserKey": {
+        "type": "object",
+        "required": [
+          "name",
+          "expires_in_days",
+          "grants"
+        ],
+        "properties": {
+          "expires_in_days": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -11113,6 +11586,21 @@
           "stepCount": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "IssuedUserKey": {
+        "type": "object",
+        "required": [
+          "key",
+          "secret"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/UserKey"
+          },
+          "secret": {
+            "type": "string"
           }
         }
       },
@@ -12758,6 +13246,59 @@
           }
         }
       },
+      "OidcConnection": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "issuer",
+          "client_id",
+          "redirect_uri",
+          "disabled"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          },
+          "redirect_uri": {
+            "type": "string"
+          }
+        }
+      },
+      "OidcLoginProvider": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          }
+        }
+      },
+      "OidcProvider": {
+        "type": "string",
+        "enum": [
+          "keycloak",
+          "authentik"
+        ]
+      },
       "OpenspecSourceDto": {
         "type": "object",
         "description": "`OpenSpec` source location supplied during onboarding. Not a credential -\n`OpenSpec` reads local markdown; there is no secret to validate or store.",
@@ -12865,6 +13406,44 @@
           }
         }
       },
+      "OperatorUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "connection_id",
+          "issuer",
+          "subject",
+          "enabled",
+          "administrator",
+          "grants"
+        ],
+        "properties": {
+          "administrator": {
+            "type": "boolean"
+          },
+          "connection_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PermissionGrant"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
       "PanelNamesConfiguration": {
         "type": "object",
         "required": [
@@ -12923,6 +13502,35 @@
         },
         "additionalProperties": false
       },
+      "PermissionGrant": {
+        "type": "object",
+        "required": [
+          "profile_id",
+          "capabilities",
+          "projects"
+        ],
+        "properties": {
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "instance_wide": {
+            "type": "boolean"
+          },
+          "profile_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "PlannedTicket": {
         "type": "object",
         "description": "One item as it would be written.",
@@ -12968,7 +13576,9 @@
         "type": "string",
         "enum": [
           "remote_targets",
-          "campaigns"
+          "campaigns",
+          "oidc_connections",
+          "api_keys"
         ]
       },
       "PrincipalKind": {
@@ -12977,6 +13587,7 @@
         "enum": [
           "session",
           "access_token",
+          "api_key",
           "local_process",
           "agent_callback",
           "telemetry_ingest"
@@ -13356,26 +13967,6 @@
           "status": {
             "type": "string",
             "description": "Review status: \"approved\" or \"rejected\""
-          }
-        }
-      },
-      "RevokeAccessKeyResponse": {
-        "type": "object",
-        "description": "Result of revoking an access key.",
-        "required": [
-          "id",
-          "revoked_at"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The revoked key's identifier."
-          },
-          "revoked_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When revocation took effect."
           }
         }
       },
@@ -15420,6 +16011,25 @@
           }
         }
       },
+      "UpdateOperatorUser": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "administrator",
+          "grants"
+        ],
+        "properties": {
+          "administrator": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          }
+        }
+      },
       "UpdateStepRequest": {
         "type": "object",
         "description": "Request to update a step",
@@ -15513,6 +16123,57 @@
           "status": {
             "$ref": "#/components/schemas/TicketStatus",
             "description": "New status after the update"
+          }
+        }
+      },
+      "UserKey": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AccessKeySummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "owner_id",
+              "profile_id",
+              "display_prefix",
+              "grants"
+            ],
+            "properties": {
+              "display_prefix": {
+                "type": "string"
+              },
+              "grants": {
+                "$ref": "#/components/schemas/PermissionGrant"
+              },
+              "owner_id": {
+                "type": "string"
+              },
+              "profile_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "replaces_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "UserKeyList": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserKey"
+            }
           }
         }
       },

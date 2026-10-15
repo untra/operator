@@ -62,7 +62,8 @@ impl TicketCreator {
             .write(true)
             .open(tickets_root.join(CREATION_LOCK_FILENAME))
             .context("Failed to open ticket creation lock")?;
-        file.lock().context("Failed to acquire ticket creation lock")?;
+        file.lock()
+            .context("Failed to acquire ticket creation lock")?;
         Ok(CreationLock {
             _process: process,
             _file: file,
@@ -181,7 +182,11 @@ impl TicketCreator {
         template_type: TemplateType,
         project: &str,
     ) -> HashMap<String, String> {
-        self.generate_default_values_for(template_type.as_str(), template_type.first_step(), project)
+        self.generate_default_values_for(
+            template_type.as_str(),
+            template_type.first_step(),
+            project,
+        )
     }
 
     /// Generate auto-filled values (id, dates, status, branch, step) for any

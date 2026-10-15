@@ -81,7 +81,7 @@ async fn blocking<T: Send + 'static>(
         .map_err(|error| {
             if error.is::<identity::IssuanceLimited>() {
                 ApiError::RateLimited {
-                    retry_after_secs: 3600,
+                    retry_after_secs: u64::from(identity::ISSUANCE_WINDOW_SECONDS),
                 }
             } else {
                 failure(error)
@@ -143,7 +143,7 @@ pub async fn create_connection(
         .ok_or_else(|| {
             ApiError::ValidationError("Configure the public HTTPS URL before OIDC".into())
         })?
-        .to_string();
+        .clone();
     let expected = format!("{}/api/v1/auth/oidc/callback", base.trim_end_matches('/'));
     if redirect.as_str() != expected {
         return Err(ApiError::ValidationError(format!(
@@ -256,10 +256,13 @@ pub async fn callback(
 pub async fn users(
     State(state): State<ApiState>,
     Authenticated(principal): Authenticated,
+    Query(page): Query<KeyPage>,
 ) -> Result<Response, ApiError> {
     administrator(&principal)?;
     let store = state.auth.store.clone();
-    Ok(no_store(blocking(move || store.operator_users()).await?))
+    Ok(no_store(
+        blocking(move || store.operator_users(page.offset)).await?,
+    ))
 }
 
 #[utoipa::path(put, path = "/api/v1/auth/users/{id}", tag = "Auth", params(("id" = String, Path)), request_body = UpdateOperatorUser, responses((status = 200)))]
@@ -462,8 +465,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_key_http_scopes_profile_projects_and_revocation() {
-        let mut config = crate::config::Config::default();
-        config.projects = vec!["allowed".into(), "hidden".into()];
+        let config = crate::config::Config {
+            projects: vec!["allowed".into(), "hidden".into()],
+            ..Default::default()
+        };
         let state = ApiState::in_memory(config);
         let (_, mut owner, mut request) =
             crate::auth::identity::tests::fixture_in(state.auth.store.clone());
@@ -503,7 +508,7 @@ mod tests {
         let app = crate::rest::build_profile_router(state.clone());
         for (method, path, expected) in [
             ("GET", "/api/v1/projects", StatusCode::OK),
-            ("GET", "/api/v1/tickets", StatusCode::FORBIDDEN),
+            ("GET", "/api/v1/agents", StatusCode::FORBIDDEN),
             ("POST", "/api/v1/auth/keys", StatusCode::FORBIDDEN),
             ("POST", "/api/v1/auth/device/approve", StatusCode::FORBIDDEN),
             ("POST", "/otlp/v1/logs", StatusCode::FORBIDDEN),

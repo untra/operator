@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 pub const EXCHANGES_PER_MINUTE: u32 = 60;
 pub const REQUESTS_PER_KEY: u32 = 600;
 pub const REQUESTS_PER_OWNER: u32 = 1200;
-const WINDOW: Duration = Duration::from_secs(60);
+const WINDOW: Duration = Duration::from_mins(1);
 const MAX_BUCKETS: usize = 10_000;
 
 #[derive(Default)]
@@ -52,7 +52,10 @@ impl Limits {
         for (id, limit) in buckets {
             if let Some((start, used)) = entries.get(id) {
                 if used >= limit {
-                    return Err((WINDOW - now.duration_since(*start)).as_secs().max(1));
+                    return Err(WINDOW
+                        .saturating_sub(now.duration_since(*start))
+                        .as_secs()
+                        .max(1));
                 }
             }
         }

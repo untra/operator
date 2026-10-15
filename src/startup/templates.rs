@@ -31,6 +31,7 @@ const MIGRATION_MARKER: &str = "MIGRATED.md";
 /// 3. Load from `.tickets/templates/` (collection-scoped structure), falling
 ///    back to embedded builtins if that fails or yields nothing.
 /// 4. Load kanban-provider imports and honor a legacy `collections.toml`.
+///
 /// Load the registry from `tickets_path` and activate the configured
 /// collection - the registry every surface resolves issue types against.
 pub fn load_active_registry(

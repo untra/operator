@@ -80,7 +80,7 @@ Non-browser clients use bearer tokens.
 
 **Access tokens** are signed bearer tokens with a **15-minute** lifetime. Clients must use the returned expiry and scopes rather than depending on token internals.
 
-Access tokens are not revocable individually, so their blast radius is bounded by expiry rather than by revocation.
+Device-flow access tokens are not revocable individually, so their blast radius is bounded by expiry. Key-derived access tokens additionally require an active key and owner on every request.
 
 **Refresh tokens** are opaque, rotating, and stored only as hashes. Each has a **30-day idle** lifetime and a **90-day absolute** lifetime. Using it resets the idle clock, but the absolute deadline is fixed at issuance, so a continuously refreshed session still requires re-authentication quarterly.
 

@@ -11,10 +11,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::config::Config;
-use crate::rest::dto::{
-    CreateTicketRequest, CreateTicketResponse, IssueTypeResponse, IssueTypeSummary,
-    ProjectSummary, TicketPreviewResponse,
-};
+use crate::rest::dto::{CreateTicketRequest, CreateTicketResponse};
 use crate::rest::error::ErrorResponse;
 
 const LOOPBACK_HOST: &str = "127.0.0.1";
@@ -56,29 +53,6 @@ impl LocalApiClient {
         })
     }
 
-    pub async fn list_issue_types(&self) -> Result<Vec<IssueTypeSummary>, LocalApiError> {
-        self.send(Method::GET, "/api/v1/issuetypes", None::<&()>)
-            .await
-    }
-
-    pub async fn get_issue_type(&self, key: &str) -> Result<IssueTypeResponse, LocalApiError> {
-        let path = format!("/api/v1/issuetypes/{key}");
-        self.send(Method::GET, &path, None::<&()>).await
-    }
-
-    pub async fn list_projects(&self) -> Result<Vec<ProjectSummary>, LocalApiError> {
-        self.send(Method::GET, "/api/v1/projects", None::<&()>)
-            .await
-    }
-
-    pub async fn preview_ticket(
-        &self,
-        request: &CreateTicketRequest,
-    ) -> Result<TicketPreviewResponse, LocalApiError> {
-        self.send(Method::POST, "/api/v1/tickets/preview", Some(request))
-            .await
-    }
-
     pub async fn create_ticket(
         &self,
         request: &CreateTicketRequest,
@@ -88,7 +62,9 @@ impl LocalApiClient {
     }
 
     fn request(&self, method: Method, path: &str) -> RequestBuilder {
-        let builder = self.http.request(method, format!("{}{path}", self.base_url));
+        let builder = self
+            .http
+            .request(method, format!("{}{path}", self.base_url));
         match &self.token {
             Some(token) => builder.bearer_auth(token),
             None => builder,
@@ -115,8 +91,8 @@ impl LocalApiClient {
         let status = response.status();
         if !status.is_success() {
             let text = response.text().await.unwrap_or_default();
-            let message = serde_json::from_str::<ErrorResponse>(&text)
-                .map_or(text, |error| error.message);
+            let message =
+                serde_json::from_str::<ErrorResponse>(&text).map_or(text, |error| error.message);
             return Err(LocalApiError::Api { status, message });
         }
         response

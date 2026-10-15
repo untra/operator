@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { OidcProvider } from "@operator/bindings/OidcProvider";
 import type { OperatorUser } from "@operator/bindings/OperatorUser";
 import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
@@ -15,7 +15,7 @@ import {
 } from "../api/definitions";
 import { useHost } from "../host";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 export function IdentityPanel() {
   const host = useHost();
@@ -30,7 +30,7 @@ export function IdentityPanel() {
 
 function IdentityAdministration({ available }: { available: PermissionGrant }) {
   const connections = useApiQuery(oidcConnectionsQuery());
-  const users = useApiQuery(operatorUsersQuery());
+
   const create = useApiMutation(createOidcConnectionMutation);
   const disable = useApiMutation(disableOidcConnectionMutation);
   const [provider, setProvider] = useState<OidcProvider>("keycloak");
@@ -39,6 +39,7 @@ function IdentityAdministration({ available }: { available: PermissionGrant }) {
   const [redirect, setRedirect] = useState("");
   const [secretFile, setSecretFile] = useState("");
   const [page, setPage] = useState(0);
+  const users = useApiQuery(operatorUsersQuery(page * PAGE_SIZE));
   const [connectionPage, setConnectionPage] = useState(0);
   const rows = users.data ?? [];
   const providers = connections.data ?? [];
@@ -162,7 +163,7 @@ function IdentityAdministration({ available }: { available: PermissionGrant }) {
       {!users.isLoading && !users.error && rows.length === 0 && (
         <p>Users appear here after their first OIDC sign-in.</p>
       )}
-      {rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((user) => (
+      {rows.map((user) => (
         <UserPermissions key={user.id} user={user} available={available} />
       ))}
       <button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>
@@ -170,7 +171,7 @@ function IdentityAdministration({ available }: { available: PermissionGrant }) {
       </button>
       <button
         type="button"
-        disabled={(page + 1) * PAGE_SIZE >= rows.length}
+        disabled={rows.length < PAGE_SIZE}
         onClick={() => setPage((value) => value + 1)}
       >
         Next users
@@ -182,16 +183,20 @@ function IdentityAdministration({ available }: { available: PermissionGrant }) {
 function UserPermissions({ user, available }: { user: OperatorUser; available: PermissionGrant }) {
   const update = useApiMutation(updateOperatorUserMutation);
   const [draft, setDraft] = useState<UpdateOperatorUser | null>(null);
-  const value = draft ?? {
-    enabled: user.enabled,
-    administrator: user.administrator,
-    grants: user.grants.find((grant) => grant.profile_id === available.profile_id) ?? {
-      ...available,
-      instance_wide: false,
-      capabilities: [],
-      projects: [],
-    },
-  };
+  const value = useMemo(
+    () =>
+      draft ?? {
+        enabled: user.enabled,
+        administrator: user.administrator,
+        grants: user.grants.find((grant) => grant.profile_id === available.profile_id) ?? {
+          ...available,
+          instance_wide: false,
+          capabilities: [],
+          projects: [],
+        },
+      },
+    [draft, user, available],
+  );
   const changeGrants = useCallback(
     (grants: PermissionGrant) => setDraft({ ...value, grants }),
     [value],
@@ -212,6 +217,7 @@ function UserPermissions({ user, available }: { user: OperatorUser; available: P
           <input
             type="checkbox"
             checked={value.enabled}
+            disabled={update.isPending}
             onChange={(event) => setDraft({ ...value, enabled: event.target.checked })}
           />
           Enabled
@@ -220,6 +226,7 @@ function UserPermissions({ user, available }: { user: OperatorUser; available: P
           <input
             type="checkbox"
             checked={value.administrator}
+            disabled={update.isPending}
             onChange={(event) => setDraft({ ...value, administrator: event.target.checked })}
           />
           Operator administrator

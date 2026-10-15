@@ -45,12 +45,6 @@ import {
   type ConnectDeps,
 } from "./agent-connect";
 import {
-  handleConnect,
-  openAgentTerminal,
-  resumePendingConnect,
-  type ConnectDeps,
-} from "./agent-connect";
-import {
   OperatorCredentials,
   clearCredentialProvider,
   isLoopbackUrl,
@@ -1423,13 +1417,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }
         }
       }
-    } else {
-      queueProvider.setApiClient(client);
-      inProgressProvider.setApiClient(client);
-      completedProvider.setApiClient(client);
-      campaignProvider.setApiClient(client);
-      void campaignProvider.refresh();
-    } catch {
+    }
+    if (!authenticated) {
       ctx.attachedServer = undefined;
     }
 

@@ -499,9 +499,7 @@ export class OperatorApi {
           throw new Error("Authentication failed. Sign in again or exchange a valid access key.");
         }
         if (res.status === HTTP_FORBIDDEN) {
-          throw new Error(
-            "Permission denied. MCP requires execute scope and a valid browser CSRF token.",
-          );
+          throw new Error("Permission denied. Check the MCP permissions and browser session.");
         }
         if (!res.ok) {
           throw new Error(
@@ -661,8 +659,8 @@ export class OperatorApi {
       method: "DELETE",
     });
   }
-  operatorUsers(): Promise<OperatorUser[]> {
-    return request(this.base, "/api/v1/auth/users");
+  operatorUsers(offset: number): Promise<OperatorUser[]> {
+    return request(this.base, `/api/v1/auth/users?offset=${offset}`);
   }
   updateOperatorUser(id: string, body: UpdateOperatorUser): Promise<null> {
     return request(this.base, `/api/v1/auth/users/${encodeURIComponent(id)}`, {

@@ -152,12 +152,14 @@ impl KanbanBidirectionalSync {
             .jira
             .iter()
             .flat_map(|(instance, cfg)| tag(KanbanProviderType::Jira, instance, &cfg.projects));
-        let linear = kanban.linear.iter().flat_map(|(instance, cfg)| {
-            tag(KanbanProviderType::Linear, instance, &cfg.projects)
-        });
-        let github = kanban.github.iter().flat_map(|(instance, cfg)| {
-            tag(KanbanProviderType::Github, instance, &cfg.projects)
-        });
+        let linear = kanban
+            .linear
+            .iter()
+            .flat_map(|(instance, cfg)| tag(KanbanProviderType::Linear, instance, &cfg.projects));
+        let github = kanban
+            .github
+            .iter()
+            .flat_map(|(instance, cfg)| tag(KanbanProviderType::Github, instance, &cfg.projects));
         jira.chain(linear)
             .chain(github)
             .filter(|found| found.sync_cfg.bidirectional)
@@ -174,9 +176,8 @@ impl KanbanBidirectionalSync {
         found: &FoundTarget<'_>,
     ) -> Result<Box<dyn KanbanProvider>, crate::api::error::ApiError> {
         let kanban = &self.config.kanban;
-        let missing = || {
-            crate::api::error::ApiError::not_configured(found.target.provider.as_str())
-        };
+        let missing =
+            || crate::api::error::ApiError::not_configured(found.target.provider.as_str());
         match found.kind {
             KanbanProviderType::Jira => {
                 let cfg = kanban.jira.get(found.instance).ok_or_else(missing)?;
@@ -294,15 +295,17 @@ fn tag<'a>(
     instance: &'a str,
     projects: &'a std::collections::HashMap<String, ProjectSyncConfig>,
 ) -> impl Iterator<Item = FoundTarget<'a>> {
-    projects.iter().map(move |(project_key, sync_cfg)| FoundTarget {
-        target: KanbanTarget {
-            provider: kind.slug().to_string(),
-            project_key: project_key.clone(),
-        },
-        kind,
-        instance,
-        sync_cfg,
-    })
+    projects
+        .iter()
+        .map(move |(project_key, sync_cfg)| FoundTarget {
+            target: KanbanTarget {
+                provider: kind.slug().to_string(),
+                project_key: project_key.clone(),
+            },
+            kind,
+            instance,
+            sync_cfg,
+        })
 }
 
 /// Operator project names compare case-insensitively on alphanumerics,

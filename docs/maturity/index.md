@@ -83,6 +83,8 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Integration | Status | Availability | Docs |
 |---|---|---|---|
 | AGNT | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [AGNT](https://operator.untra.io/getting-started/integrations/agnt/) |
+| Keycloak | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Keycloak](https://operator.untra.io/getting-started/integrations/keycloak/) |
+| Authentik | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Authentik](https://operator.untra.io/getting-started/integrations/authentik/) |
 
 ## Workflow Export Format
 

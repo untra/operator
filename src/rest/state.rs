@@ -71,7 +71,7 @@ pub struct McpSession {
     /// Display identifier for observers, unrelated to the session credential.
     pub observation_id: String,
     /// Channel that relays JSON-RPC responses back over the SSE stream.
-    pub tx: tokio::sync::mpsc::UnboundedSender<String>,
+    pub tx: tokio::sync::mpsc::Sender<String>,
     /// Who opened the stream.
     pub subject: String,
     pub credential_id: Option<String>,
@@ -340,6 +340,48 @@ impl ApiState {
     }
 }
 
+pub struct RequestState<T>(pub T);
+
+impl axum::extract::FromRequestParts<ApiState> for RequestState<ApiState> {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &ApiState,
+    ) -> Result<Self, Self::Rejection> {
+        let mut state = state.clone();
+        if let Some(principal) = parts.extensions.get::<crate::auth::scope::Principal>() {
+            state.authorization = principal.authority.clone().map(Arc::new);
+        }
+        Ok(Self(state))
+    }
+}
+
+impl ApiState {
+    pub fn may_access_project(&self, project: &str) -> bool {
+        crate::auth::policy::project_allowed(self.authorization.as_deref(), project)
+    }
+
+    pub fn require_project(&self, project: &str) -> Result<(), ApiError> {
+        if self.may_access_project(project) {
+            Ok(())
+        } else {
+            Err(ApiError::NotFound("Resource not found".into()))
+        }
+    }
+
+    pub fn project_filter(&self) -> Option<Vec<String>> {
+        self.authorization
+            .as_ref()
+            .filter(|a| a.key_id.is_some() || !a.user.administrator)
+            .map(|a| a.grants.projects.clone())
+    }
+
+    pub fn queue(&self) -> anyhow::Result<crate::queue::Queue> {
+        Ok(crate::queue::Queue::new(&self.config())?.restrict_projects(self.project_filter()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -545,47 +587,5 @@ mod tests {
             state.begin_callback(),
             Err(ApiError::Unavailable(_))
         ));
-    }
-}
-
-pub struct RequestState<T>(pub T);
-
-impl axum::extract::FromRequestParts<ApiState> for RequestState<ApiState> {
-    type Rejection = std::convert::Infallible;
-
-    async fn from_request_parts(
-        parts: &mut axum::http::request::Parts,
-        state: &ApiState,
-    ) -> Result<Self, Self::Rejection> {
-        let mut state = state.clone();
-        if let Some(principal) = parts.extensions.get::<crate::auth::scope::Principal>() {
-            state.authorization = principal.authority.clone().map(Arc::new);
-        }
-        Ok(Self(state))
-    }
-}
-
-impl ApiState {
-    pub fn may_access_project(&self, project: &str) -> bool {
-        crate::auth::policy::project_allowed(self.authorization.as_deref(), project)
-    }
-
-    pub fn require_project(&self, project: &str) -> Result<(), ApiError> {
-        if self.may_access_project(project) {
-            Ok(())
-        } else {
-            Err(ApiError::NotFound("Resource not found".into()))
-        }
-    }
-
-    pub fn project_filter(&self) -> Option<Vec<String>> {
-        self.authorization
-            .as_ref()
-            .filter(|a| a.key_id.is_some() || !a.user.administrator)
-            .map(|a| a.grants.projects.clone())
-    }
-
-    pub fn queue(&self) -> anyhow::Result<crate::queue::Queue> {
-        Ok(crate::queue::Queue::new(&self.config())?.restrict_projects(self.project_filter()))
     }
 }

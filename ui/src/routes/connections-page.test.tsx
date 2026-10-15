@@ -15,6 +15,12 @@ const HOST: Host = {
   browseFolder: () => Promise.resolve(null),
   openFile: () => undefined,
 };
+const GRANTS = {
+  profile_id: "team",
+  capabilities: ["mcp:connect", "mcp:operator_list_tickets"],
+  projects: ["operator"],
+  instance_wide: false,
+};
 function json(body: unknown) {
   return new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
 }
@@ -26,12 +32,24 @@ afterEach(() => {
   restoreFetch();
 });
 
-test("creates an MCP key with read and execute scopes and profile-scopes connections", async () => {
+test("creates a profile-bound MCP key with explicitly selected capabilities", async () => {
   const paths: string[] = [];
   const creations: unknown[] = [];
   mockFetch((input, init) => {
     const path = requestPath(input);
     paths.push(path);
+    if (path.endsWith("/auth/capabilities")) {
+      return Promise.resolve(
+        json({
+          grants: GRANTS,
+          oidc_user: true,
+          administrator: false,
+          can_issue: true,
+          connection_id: null,
+          administration_grants: null,
+        }),
+      );
+    }
     if (path.endsWith("/auth/session")) {
       return Promise.resolve(json({ scopes: ["read", "admin", "execute"] }));
     }
@@ -69,11 +87,12 @@ test("creates an MCP key with read and execute scopes and profile-scopes connect
   fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
     target: { value: "claude" },
   });
+  fireEvent.click(screen.getByLabelText("mcp:connect"));
+  fireEvent.click(screen.getByLabelText("mcp:operator_list_tickets"));
+  fireEvent.click(screen.getByLabelText("operator"));
   fireEvent.click(screen.getByRole("button", { name: "Create key" }));
   await waitFor(() =>
-    expect(creations).toEqual([
-      { name: "claude", scopes: ["read", "execute"], expires_in_days: 90 },
-    ]),
+    expect(creations).toEqual([{ name: "claude", grants: GRANTS, expires_in_days: 90 }]),
   );
   expect(paths).toContain("/api/v1/profiles/team/connections");
   expect(paths).toContain("/api/v1/profiles/team/connections/mcp/clients");

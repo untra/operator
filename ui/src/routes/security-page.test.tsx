@@ -18,6 +18,13 @@ const TEST_HOST: Host = {
   openFile: () => undefined,
 };
 
+const GRANTS = {
+  profile_id: "00000000-0000-0000-0000-000000000001",
+  capabilities: ["tickets:read"],
+  projects: ["operator"],
+  instance_wide: false,
+};
+
 function json(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -40,6 +47,18 @@ describe("SecurityPage", () => {
       const path = requestPath(input);
       const method = init?.method ?? "GET";
       requests.push(`${method} ${path}`);
+      if (path.endsWith("/auth/capabilities")) {
+        return Promise.resolve(
+          json({
+            grants: GRANTS,
+            oidc_user: true,
+            administrator: false,
+            can_issue: true,
+            connection_id: null,
+            administration_grants: null,
+          }),
+        );
+      }
       if (path.endsWith("/auth/sessions") && method === "GET") {
         return Promise.resolve(
           json({
@@ -62,6 +81,8 @@ describe("SecurityPage", () => {
               {
                 id: "key-1",
                 name: "existing",
+                grants: GRANTS,
+                display_prefix: "opk_v1_key-1_",
                 scopes: ["read"],
                 created_at: "2026-09-30T00:00:00Z",
                 expires_at: "2026-10-01T00:00:00Z",
@@ -76,6 +97,8 @@ describe("SecurityPage", () => {
             key: {
               id: "key-2",
               name: "ci",
+              grants: GRANTS,
+              display_prefix: "opk_v1_key-2_",
               scopes: ["read"],
               created_at: "2026-09-30T00:00:00Z",
               expires_at: "2026-10-01T00:00:00Z",
@@ -102,6 +125,7 @@ describe("SecurityPage", () => {
     );
     await screen.findByText("existing");
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "ci" } });
+    fireEvent.click(screen.getByLabelText("tickets:read"));
     fireEvent.click(screen.getByRole("button", { name: "Create key" }));
     expect(await screen.findByText("operator-secret-once")).toBeTruthy();
     const revokeButtons = screen.getAllByRole("button", { name: "Revoke" });

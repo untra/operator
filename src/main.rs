@@ -1006,9 +1006,16 @@ async fn cmd_create(config: &Config, args: CreateArgs) -> Result<()> {
             &config.tickets_path(),
             config.templates.active_collection.as_deref(),
         );
-        let mut keys: Vec<_> = registry.active_types().iter().map(|t| t.key.clone()).collect();
+        let mut keys: Vec<_> = registry
+            .active_types()
+            .iter()
+            .map(|t| t.key.clone())
+            .collect();
         keys.sort();
-        anyhow::bail!("Specify an issue type with --issue-type. Available: {}", keys.join(", "));
+        anyhow::bail!(
+            "Specify an issue type with --issue-type. Available: {}",
+            keys.join(", ")
+        );
     };
     let values = args
         .values
@@ -1056,8 +1063,7 @@ async fn cmd_create(config: &Config, args: CreateArgs) -> Result<()> {
 
     if !args.no_edit {
         let editor_config = editors::EditorConfig::detect(config.sessions.wrapper);
-        let (prog, editor_args) =
-            editors::EditorConfig::split_command(editor_config.file_editor());
+        let (prog, editor_args) = editors::EditorConfig::split_command(editor_config.file_editor());
         std::process::Command::new(prog)
             .args(&editor_args)
             .arg(&created.path)
@@ -1081,9 +1087,8 @@ async fn create_in_process(
     );
     let draft = ticket_creation::prepare(config, &registry, request)
         .map_err(|e| anyhow::anyhow!(crate::rest::error::ApiError::from(e).parts().2))?;
-    let kanban = crate::api::kanban_sync::KanbanBidirectionalSync::new(std::sync::Arc::new(
-        config.clone(),
-    ));
+    let kanban =
+        crate::api::kanban_sync::KanbanBidirectionalSync::new(std::sync::Arc::new(config.clone()));
     let kanban = kanban.has_any_bidirectional().then_some(&kanban);
     ticket_creation::create_draft(config.clone(), draft, kanban)
         .await

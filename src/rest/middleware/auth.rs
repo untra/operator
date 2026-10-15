@@ -314,6 +314,12 @@ pub async fn authorize(
         return Err(ApiError::Unauthorized("no valid credential was presented".to_string()).into());
     };
 
+    if crate::auth::policy::browser_identity_route(&path)
+        && principal.kind != PrincipalKind::Session
+    {
+        return Err(ApiError::Forbidden("Use an authenticated browser session".into()).into());
+    }
+
     if let Some(authority) = principal.authority.as_ref() {
         if let Some(id) = authority.key_id.as_ref() {
             if let Err(retry) = state.auth.store.limits.check(&[
@@ -460,6 +466,15 @@ where
                 }),
         )))
     }
+}
+
+fn rate_limited(seconds: u64) -> Response {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(header::RETRY_AFTER, seconds.to_string())],
+        axum::Json(serde_json::json!({"error": "rate_limited"})),
+    )
+        .into_response()
 }
 
 #[cfg(test)]
@@ -642,13 +657,4 @@ mod tests {
         // authority and must not match anything.
         assert_eq!(origin_authority("null"), None);
     }
-}
-
-fn rate_limited(seconds: u64) -> Response {
-    (
-        StatusCode::TOO_MANY_REQUESTS,
-        [(header::RETRY_AFTER, seconds.to_string())],
-        axum::Json(serde_json::json!({"error": "rate_limited"})),
-    )
-        .into_response()
 }

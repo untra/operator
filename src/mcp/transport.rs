@@ -18,7 +18,7 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt as _;
 
 use crate::mcp::handler::{handle_jsonrpc, JsonRpcRequest};
@@ -30,6 +30,9 @@ const SESSION_TTL: Duration = Duration::from_hours(1);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
 const DIAGNOSTIC_CLIENT: &str = "operator-connections-check";
 const MAX_CLIENT_LABEL_CHARS: usize = 128;
+const MAX_QUEUED_MESSAGES: usize = 64;
+const MAX_SESSIONS: usize = 1024;
+const MAX_SESSIONS_PER_OWNER: usize = 8;
 
 /// Query parameters for the message endpoint
 #[derive(Debug, Deserialize)]
@@ -53,15 +56,30 @@ pub async fn sse_handler(
     Host(host): Host,
     State(state): State<ApiState>,
     Authenticated(principal): Authenticated,
-) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
+) -> Result<
+    Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>>,
+    crate::rest::error::ApiError,
+> {
     let session_id = uuid::Uuid::new_v4().to_string();
-    let (tx, rx) = mpsc::unbounded_channel::<String>();
+    let (tx, rx) = mpsc::channel::<String>(MAX_QUEUED_MESSAGES);
 
     // Bind the session to whoever opened it. The session id travels in a URL
     // and is therefore a bearer credential; recording the principal means a
     // leaked id is not enough on its own to drive the session.
     let (disconnect_tx, disconnect_rx) = tokio::sync::oneshot::channel::<()>();
-    state.mcp_sessions.lock().await.insert(
+    let mut sessions = state.mcp_sessions.lock().await;
+    if sessions.len() >= MAX_SESSIONS
+        || sessions
+            .values()
+            .filter(|session| session.subject == principal.subject)
+            .count()
+            >= MAX_SESSIONS_PER_OWNER
+    {
+        return Err(crate::rest::error::ApiError::RateLimited {
+            retry_after_secs: KEEPALIVE_INTERVAL.as_secs(),
+        });
+    }
+    sessions.insert(
         session_id.clone(),
         McpSession {
             observation_id: uuid::Uuid::new_v4().to_string(),
@@ -78,6 +96,8 @@ pub async fn sse_handler(
             last_activity_at: chrono::Utc::now(),
         },
     );
+
+    drop(sessions);
 
     // Generated from the configured public URL, not the request `Host` header,
     // which a caller controls and which is plain `http` behind TLS termination.
@@ -98,7 +118,7 @@ pub async fn sse_handler(
 
     let stream_principal = principal.clone();
     let stream_store = state.auth.store.clone();
-    let message_stream = UnboundedReceiverStream::new(rx)
+    let message_stream = ReceiverStream::new(rx)
         .then(move |msg| {
             let _disconnect = &disconnect_tx;
             let store = stream_store.clone();
@@ -109,7 +129,7 @@ pub async fn sse_handler(
                     .then(|| Ok::<_, Infallible>(Event::default().event("message").data(msg)))
             }
         })
-        .take_while(|event| event.is_some())
+        .take_while(Option::is_some)
         .map(|event| event.expect("active credential"));
 
     let combined = endpoint_event.chain(message_stream);
@@ -130,11 +150,11 @@ pub async fn sse_handler(
     });
 
     // Axum's KeepAlive handles keepalive pings automatically
-    Sse::new(combined).keep_alive(
+    Ok(Sse::new(combined).keep_alive(
         axum::response::sse::KeepAlive::new()
             .interval(KEEPALIVE_INTERVAL)
             .text("keepalive"),
-    )
+    ))
 }
 
 /// Message endpoint - receives JSON-RPC requests and sends responses via SSE
@@ -213,10 +233,79 @@ pub async fn message_handler(
 
     // Send response through SSE channel
     if let Ok(json_str) = serde_json::to_string(&response) {
-        let _ = tx.send(json_str);
+        if tx.try_send(json_str).is_err() {
+            state.mcp_sessions.lock().await.remove(&query.session_id);
+        }
     }
 
     axum::http::StatusCode::ACCEPTED.into_response()
+}
+
+fn credential_id(principal: &crate::auth::scope::Principal) -> Option<String> {
+    principal
+        .authority
+        .as_ref()
+        .and_then(|a| a.key_id.as_ref())
+        .map(|id| format!("key:{id}"))
+        .or_else(|| {
+            principal
+                .session_id
+                .as_ref()
+                .map(|id| format!("session:{id}"))
+        })
+}
+
+async fn credential_active(
+    store: crate::auth::store::AuthStore,
+    principal: crate::auth::scope::Principal,
+) -> bool {
+    if principal
+        .expires_at
+        .is_some_and(|expiry| expiry <= chrono::Utc::now())
+    {
+        return false;
+    }
+    if principal.session_id.is_some() {
+        return tokio::task::spawn_blocking(move || {
+            let profile = principal
+                .authority
+                .as_ref()
+                .map_or_else(uuid::Uuid::nil, |a| a.grants.profile_id);
+            store
+                .resolve_user_session(principal.clone(), profile)
+                .ok()
+                .flatten()
+                .is_some_and(|current| {
+                    current
+                        .authority
+                        .as_ref()
+                        .map(|a| (&a.grants, a.user.administrator))
+                        == principal
+                            .authority
+                            .as_ref()
+                            .map(|a| (&a.grants, a.user.administrator))
+                })
+        })
+        .await
+        .unwrap_or(false);
+    }
+    let Some(authority) = principal.authority else {
+        return true;
+    };
+    let Some(id) = authority.key_id.clone() else {
+        return true;
+    };
+    tokio::task::spawn_blocking(move || {
+        store
+            .key_authority(&id)
+            .ok()
+            .flatten()
+            .is_some_and(|(current, _)| {
+                current.user.id == authority.user.id && authority.grants == current.grants
+            })
+    })
+    .await
+    .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -238,6 +327,59 @@ mod tests {
             authority: None,
             scopes: vec![Scope::Read, Scope::Execute],
         }
+    }
+
+    #[tokio::test]
+    async fn test_stream_rechecks_key_grants_and_revocation() {
+        let (store, owner, request) = crate::auth::identity::tests::fixture_in(
+            crate::auth::store::AuthStore::in_memory().unwrap(),
+        );
+        let key = store.create_user_key(&owner, &request, None).unwrap();
+        let (authority, expiry) = store.exchange_user_key(&key.secret).unwrap().unwrap();
+        let principal = authority.principal(expiry, None);
+        assert!(credential_active(store.clone(), principal.clone()).await);
+        let mut grants = request.grants;
+        grants.projects.clear();
+        store
+            .update_operator_user(
+                "admin",
+                &owner.user.id,
+                &crate::auth::identity::UpdateOperatorUser {
+                    enabled: true,
+                    administrator: false,
+                    grants,
+                },
+                false,
+            )
+            .unwrap();
+        assert!(!credential_active(store.clone(), principal).await);
+        let (authority, expiry) = store.key_authority(&key.key.summary.id).unwrap().unwrap();
+        let principal = authority.principal(expiry, None);
+        assert!(credential_active(store.clone(), principal.clone()).await);
+        store
+            .revoke_user_key(&owner.user.id, &key.key.summary.id, false)
+            .unwrap();
+        assert!(!credential_active(store, principal).await);
+    }
+
+    #[tokio::test]
+    async fn test_stream_closes_after_browser_session_revocation() {
+        let (store, owner, _) = crate::auth::identity::tests::fixture_in(
+            crate::auth::store::AuthStore::in_memory().unwrap(),
+        );
+        let (token, _, _) = store
+            .oidc_session(&owner.user.id, chrono::Utc::now().timestamp())
+            .unwrap();
+        let principal = store.authenticate_session(&token).unwrap().unwrap();
+        let principal = store
+            .resolve_user_session(principal, owner.grants.profile_id)
+            .unwrap()
+            .unwrap();
+        assert!(credential_active(store.clone(), principal.clone()).await);
+        store
+            .revoke_session(principal.session_id.as_ref().unwrap())
+            .unwrap();
+        assert!(!credential_active(store, principal).await);
     }
 
     #[tokio::test]
@@ -416,48 +558,4 @@ mod lifecycle_tests {
         assert!(text.contains("data: message?sessionId="));
         assert!(!text.contains("internal"));
     }
-}
-
-fn credential_id(principal: &crate::auth::scope::Principal) -> Option<String> {
-    principal
-        .authority
-        .as_ref()
-        .and_then(|a| a.key_id.as_ref())
-        .map(|id| format!("key:{id}"))
-        .or_else(|| {
-            principal
-                .session_id
-                .as_ref()
-                .map(|id| format!("session:{id}"))
-        })
-}
-
-async fn credential_active(
-    store: crate::auth::store::AuthStore,
-    principal: crate::auth::scope::Principal,
-) -> bool {
-    if principal
-        .expires_at
-        .is_some_and(|expiry| expiry <= chrono::Utc::now())
-    {
-        return false;
-    }
-    let Some(authority) = principal.authority else {
-        return true;
-    };
-    let Some(id) = authority.key_id.clone() else {
-        return true;
-    };
-    tokio::task::spawn_blocking(move || {
-        store
-            .key_authority(&id)
-            .ok()
-            .flatten()
-            .is_some_and(|(current, _)| {
-                current.user.id == authority.user.id
-                    && authority.grants == current.grants
-            })
-    })
-    .await
-    .unwrap_or(false)
 }

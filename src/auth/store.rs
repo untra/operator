@@ -20,11 +20,11 @@ use crate::auth::scope::Principal;
 use crate::auth::secret::generate_prefixed_secret;
 use crate::auth::secret::{generate_secret, generate_user_code, hash_secret};
 use crate::auth::tokens::SigningKey;
-#[cfg(test)]
-use crate::rest::dto::auth::{MAX_ACCESS_KEY_EXPIRY_DAYS, MAX_IDENTIFIER_LENGTH};
 use crate::rest::dto::auth::{
     AccessKeySummary, BootstrapState, DeviceSummary, PrincipalKind, Scope, SessionSummary,
 };
+#[cfg(test)]
+use crate::rest::dto::auth::{MAX_ACCESS_KEY_EXPIRY_DAYS, MAX_IDENTIFIER_LENGTH};
 
 /// Filename of the auth database inside the state directory.
 pub const AUTH_DB_FILENAME: &str = "auth.sqlite3";
@@ -121,7 +121,7 @@ impl std::fmt::Debug for AuthStore {
         f.debug_struct("AuthStore")
             .field("path", &self.path)
             .field("conn", &"<sqlite connection>")
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -1223,6 +1223,14 @@ fn parse_opt_time(raw: Option<&str>) -> Result<Option<DateTime<Utc>>> {
     raw.map(parse_time).transpose()
 }
 
+impl Drop for AuthStore {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.logins) == 1 && self.flush_usage().is_err() {
+            tracing::warn!("final credential usage flush failed");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1903,15 +1911,5 @@ mod tests {
         assert_eq!(recent.len(), 2);
         assert!(recent[0].3, "newest record should be the successful login");
         assert_eq!(recent[1].2.as_deref(), Some("failure"));
-    }
-}
-
-impl Drop for AuthStore {
-    fn drop(&mut self) {
-        if Arc::strong_count(&self.logins) == 1 {
-            if self.flush_usage().is_err() {
-                tracing::warn!("final credential usage flush failed");
-            }
-        }
     }
 }

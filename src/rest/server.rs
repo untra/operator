@@ -305,7 +305,9 @@ impl RestApiServer {
                     .await;
 
                     if let Some(state) = api_state_handle.lock().unwrap().as_ref() {
-                        if state.auth.store.flush_usage().is_err() { tracing::warn!("Final credential usage flush failed"); }
+                        if state.auth.store.flush_usage().is_err() {
+                            tracing::warn!("Final credential usage flush failed");
+                        }
                     }
                     // Clean up session file on shutdown
                     remove_session_file(&tickets_path);

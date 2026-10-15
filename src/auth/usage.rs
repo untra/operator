@@ -1,12 +1,12 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 
-pub const FLUSH_INTERVAL: Duration = Duration::from_secs(60);
+pub const FLUSH_INTERVAL: Duration = Duration::from_mins(1);
 const MAX_PENDING: usize = 10_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -16,20 +16,24 @@ pub enum CredentialTable {
 }
 
 #[derive(Default)]
-pub struct Usage(
-    Mutex<HashMap<(CredentialTable, String), DateTime<Utc>>>,
-    AtomicBool,
-    AtomicU64,
-);
+pub struct Usage {
+    pending: Mutex<HashMap<(CredentialTable, String), DateTime<Utc>>>,
+    started: AtomicBool,
+    dropped: AtomicU64,
+    flush_lock: Mutex<()>,
+    inflight: AtomicUsize,
+}
 
 impl Usage {
     pub fn record(&self, table: CredentialTable, id: &str, observed: DateTime<Utc>) {
-        let Ok(mut pending) = self.0.lock() else {
+        let Ok(mut pending) = self.pending.lock() else {
             return;
         };
         let key = (table, id.to_string());
-        if pending.len() >= MAX_PENDING && !pending.contains_key(&key) {
-            self.2.fetch_add(1, Ordering::Relaxed);
+        if pending.len() + self.inflight.load(Ordering::Acquire) >= MAX_PENDING
+            && !pending.contains_key(&key)
+        {
+            self.dropped.fetch_add(1, Ordering::Relaxed);
             return;
         }
         pending
@@ -39,12 +43,23 @@ impl Usage {
     }
 
     pub fn flush(&self, conn: &Mutex<Connection>) -> anyhow::Result<()> {
-        let batch = std::mem::take(
-            &mut *self
-                .0
+        let _flushing = self
+            .flush_lock
+            .lock()
+            .map_err(|_| anyhow::anyhow!("usage flush lock poisoned"))?;
+        let batch = {
+            let mut pending = self
+                .pending
                 .lock()
-                .map_err(|_| anyhow::anyhow!("usage lock poisoned"))?,
-        );
+                .map_err(|_| anyhow::anyhow!("usage lock poisoned"))?;
+            let batch = std::mem::take(&mut *pending);
+            self.inflight.store(batch.len(), Ordering::Release);
+            batch
+        };
+        let dropped = self.dropped.swap(0, Ordering::Relaxed);
+        if dropped > 0 {
+            tracing::warn!(dropped, "credential usage observations dropped at capacity");
+        }
         if batch.is_empty() {
             return Ok(());
         }
@@ -63,6 +78,7 @@ impl Usage {
             tx.commit()?;
             Ok(())
         })();
+        self.inflight.store(0, Ordering::Release);
         if result.is_err() {
             for ((table, id), at) in batch {
                 self.record(table, &id, at);
@@ -75,7 +91,7 @@ impl Usage {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
-        if usage.1.swap(true, Ordering::AcqRel) {
+        if usage.started.swap(true, Ordering::AcqRel) {
             return;
         }
         let weak_usage = Arc::downgrade(usage);
@@ -108,7 +124,7 @@ mod tests {
         for _ in 0..1000 {
             usage.record(CredentialTable::Key, "k", now);
         }
-        assert_eq!(usage.0.lock().unwrap().len(), 1);
+        assert_eq!(usage.pending.lock().unwrap().len(), 1);
         usage.flush(&conn).unwrap();
         usage.record(
             CredentialTable::Key,
@@ -130,6 +146,6 @@ mod tests {
         let usage = Usage::default();
         usage.record(CredentialTable::Key, "k", Utc::now());
         assert!(usage.flush(&conn).is_err());
-        assert_eq!(usage.0.lock().unwrap().len(), 1);
+        assert_eq!(usage.pending.lock().unwrap().len(), 1);
     }
 }

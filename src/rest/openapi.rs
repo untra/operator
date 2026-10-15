@@ -19,7 +19,6 @@ use utoipa::{Modify, OpenApi};
 use crate::auth::scope::{required_access, Access};
 use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
-    FieldError, KanbanPushOutcome, KanbanTarget, TicketPreviewResponse,
     AccessKeyListResponse, AccessKeySummary, ActiveAgentResponse, ActiveAgentsResponse,
     AgentDetailResponse, AssessTicketResponse, BootstrapState, BootstrapStatusResponse,
     BootstrapSubmitRequest, BootstrapSubmitResponse, CollectionResponse, CreateAccessKeyRequest,
@@ -29,28 +28,29 @@ use crate::rest::dto::{
     CreateTicketResponse, CsrfTokenResponse, CurrentSessionResponse, DefaultLlmResponse,
     DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, DeviceApprovalRequest,
     DeviceApprovalResponse, DeviceAuthorizationRequest, DeviceAuthorizationResponse, DeviceSummary,
-    ExternalIssueTypeSummary, FieldResponse, ForgotPasswordRequest, ForgotPasswordResponse,
-    GitOnboardingState, GitProviderOnboardingResponse, HealthResponse, HostedCollectionSelection,
-    IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary, KanbanBoardResponse,
-    KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse, KanbanTicketCard,
-    LaunchTicketRequest, LaunchTicketResponse, ListKanbanProjectsRequest,
-    ListKanbanProjectsResponse, ListKanbanStatusesRequest, ListKanbanStatusesResponse,
-    LoginRequest, LoginResponse, LogoutResponse, ModelEntry, ModelServerKindEntry,
-    ModelServerModelsResponse, ModelServerResponse, ModelServersResponse, NextStepInfo,
-    OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind, ProjectSummary, QueueByType,
-    QueueControlResponse, QueueStatusResponse, RejectReviewRequest, ResetPasswordRequest,
-    ResetPasswordResponse, ReviewResponse, RevokeAccessKeyResponse, Scope, SectionDto,
-    SectionRowDto, SessionListResponse, SessionSummary, SetDefaultLlmRequest,
+    ExternalIssueTypeSummary, FieldError, FieldResponse, ForgotPasswordRequest,
+    ForgotPasswordResponse, GitOnboardingState, GitProviderOnboardingResponse, HealthResponse,
+    HostedCollectionSelection, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
+    KanbanBoardResponse, KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanPushOutcome,
+    KanbanSyncResponse, KanbanTarget, KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse,
+    ListKanbanProjectsRequest, ListKanbanProjectsResponse, ListKanbanStatusesRequest,
+    ListKanbanStatusesResponse, LoginRequest, LoginResponse, LogoutResponse, ModelEntry,
+    ModelServerKindEntry, ModelServerModelsResponse, ModelServerResponse, ModelServersResponse,
+    NextStepInfo, OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind,
+    ProjectSummary, QueueByType, QueueControlResponse, QueueStatusResponse, RejectReviewRequest,
+    ResetPasswordRequest, ResetPasswordResponse, ReviewResponse, RevokeAccessKeyResponse, Scope,
+    SectionDto, SectionRowDto, SessionListResponse, SessionSummary, SetDefaultLlmRequest,
     SetGitSessionEnvRequest, SetGitSessionEnvResponse, SetKanbanSessionEnvRequest,
     SetKanbanSessionEnvResponse, SetupCollectionResponse, SetupExecutionTarget,
     SetupInitializeRequest, SetupInitializeResponse, SetupStatusResponse, SetupStepResponse,
     SkillEntry, SkillsResponse, StatusResponse, StepCompleteRequest, StepCompleteResponse,
-    StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse, TokenRequest, TokenResponse,
-    UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
-    UpdateTicketStatusResponse, ValidateGitTokenRequest, ValidateGitTokenResponse,
-    ValidateKanbanCredentialsRequest, ValidateKanbanCredentialsResponse, WorkflowExportResponse,
-    WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse, WriteGitConfigRequest,
-    WriteGitConfigResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
+    StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse, TicketPreviewResponse,
+    TokenRequest, TokenResponse, UpdateIssueTypeRequest, UpdateModelServerRequest,
+    UpdateStepRequest, UpdateTicketStatusRequest, UpdateTicketStatusResponse,
+    ValidateGitTokenRequest, ValidateGitTokenResponse, ValidateKanbanCredentialsRequest,
+    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto,
+    WorkflowPreviewResponse, WriteGitConfigRequest, WriteGitConfigResponse,
+    WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 // AgentProfile interchange types live in `crate::config`, not `rest::dto`.
 use crate::config::{AgentProfile, DelegatorLaunchConfig, RemoteAgentRef, XOperator};
@@ -524,6 +524,25 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
         }
     }
 
+    if crate::auth::policy::browser_identity_route(path) {
+        operation.security = Some(vec![SecurityRequirement::new(
+            "sessionCookie",
+            Vec::<String>::new(),
+        )]);
+    }
+    if let Some(policy) = crate::auth::policy::OPERATIONS
+        .iter()
+        .find(|policy| policy.method == method && policy.path == path)
+    {
+        operation
+            .extensions
+            .get_or_insert_with(Extensions::default)
+            .insert(
+                "x-operator-capability".to_string(),
+                serde_json::json!(policy.capability),
+            );
+    }
+
     document_error_responses(operation);
 
     match (method, path) {
@@ -648,10 +667,11 @@ mod tests {
                 Access::Scoped(scope) => {
                     assert_eq!(
                         operation["security"],
-                        serde_json::json!([
-                            { "bearerAuth": [] },
-                            { "sessionCookie": [] }
-                        ])
+                        if crate::auth::policy::browser_identity_route(rule.path) {
+                            serde_json::json!([{ "sessionCookie": [] }])
+                        } else {
+                            serde_json::json!([{ "bearerAuth": [] }, { "sessionCookie": [] }])
+                        }
                     );
                     assert_eq!(operation["x-operator-scope"], scope.as_str());
                 }

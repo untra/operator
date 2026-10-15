@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{ensure, Context, Result};
 use openidconnect::core::{CoreClient, CoreProviderMetadata, CoreResponseType};
+use openidconnect::OAuth2TokenResponse as _;
 use openidconnect::{
     AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken, IssuerUrl, Nonce,
     PkceCodeChallenge, PkceCodeVerifier, RedirectUrl,
@@ -14,7 +15,7 @@ use super::identity::OidcConnection;
 use super::secret::hash_secret;
 use super::store::AuthStore;
 
-const LOGIN_TTL: Duration = Duration::from_secs(300);
+const LOGIN_TTL: Duration = Duration::from_mins(5);
 const MAX_PENDING_LOGINS: usize = 1000;
 const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -93,7 +94,7 @@ async fn request(
     for address in &addresses {
         super::egress::check_addr(address.ip(), &policy)?;
     }
-    let client = reqwest::Client::builder()
+    let client = crate::http_client::client_builder()
         .redirect(reqwest::redirect::Policy::none())
         .no_proxy()
         .timeout(REQUEST_TIMEOUT)
@@ -206,11 +207,20 @@ pub async fn complete(
         .set_pkce_verifier(login.verifier)
         .request_async(&http)
         .await?;
-    let claims = tokens
+    let id_token = tokens
         .extra_fields()
         .id_token()
-        .context("missing ID token")?
-        .claims(&client.id_token_verifier(), &login.nonce)?;
+        .context("missing ID token")?;
+    let verifier = client.id_token_verifier();
+    let claims = id_token.claims(&verifier, &login.nonce)?;
+    if let Some(expected) = claims.access_token_hash() {
+        let actual = openidconnect::AccessTokenHash::from_token(
+            tokens.access_token(),
+            id_token.signing_alg()?,
+            id_token.signing_key(&verifier)?,
+        )?;
+        ensure!(actual == *expected, "invalid access token hash");
+    }
     let authenticated = claims
         .auth_time()
         .context("provider did not return auth_time")?;

@@ -18,7 +18,7 @@ use crate::rest::dto::auth::{AccessKeySummary, PrincipalKind};
 pub const KEY_PREFIX: &str = "opk_v1";
 pub const KEY_PAGE_SIZE: usize = 50;
 pub const RECENT_LOGIN_SECONDS: i64 = 300;
-const ISSUANCE_WINDOW_SECONDS: i64 = 3600;
+pub const ISSUANCE_WINDOW_SECONDS: u32 = 3600;
 const MAX_ISSUED_PER_WINDOW: u32 = 20;
 
 #[derive(Debug, thiserror::Error)]
@@ -54,7 +54,9 @@ pub struct CreateOidcConnection {
     pub client_secret_file: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[derive(
+    Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS,
+)]
 #[ts(export)]
 pub struct PermissionGrant {
     pub profile_id: Uuid,
@@ -370,12 +372,16 @@ impl AuthStore {
         })
     }
 
-    pub fn operator_users(&self) -> Result<Vec<OperatorUser>> {
+    pub fn operator_users(&self, offset: u32) -> Result<Vec<OperatorUser>> {
         self.with_conn(|conn| {
-            strings(conn, "SELECT id FROM operator_user ORDER BY created_at", [])?
-                .iter()
-                .map(|id| read_user(conn, id)?.ok_or_else(|| anyhow::anyhow!("unknown user")))
-                .collect()
+            strings(
+                conn,
+                "SELECT id FROM operator_user ORDER BY created_at, id LIMIT ?1 OFFSET ?2",
+                params![KEY_PAGE_SIZE, offset],
+            )?
+            .iter()
+            .map(|id| read_user(conn, id)?.ok_or_else(|| anyhow::anyhow!("unknown user")))
+            .collect()
         })
     }
 
@@ -718,13 +724,33 @@ pub(crate) mod tests {
         let (store, owner, request) = fixture();
         let original = store.create_user_key(&owner, &request, None).unwrap();
         let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
-        let workers: Vec<_> = (0..2).map(|_| {
-            let store = store.clone(); let owner = owner.clone(); let request = request.clone();
-            let id = original.key.summary.id.clone(); let barrier = barrier.clone();
-            std::thread::spawn(move || { barrier.wait(); store.create_user_key(&owner, &request, Some(&id)).is_ok() })
-        }).collect();
-        assert_eq!(workers.into_iter().map(|worker| usize::from(worker.join().unwrap())).sum::<usize>(), 1);
-        assert_eq!(store.user_keys(&owner.user.id, request.grants.profile_id, 0).unwrap().len(), 2);
+        let workers: Vec<_> = (0..2)
+            .map(|_| {
+                let store = store.clone();
+                let owner = owner.clone();
+                let request = request.clone();
+                let id = original.key.summary.id.clone();
+                let barrier = std::sync::Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    store.create_user_key(&owner, &request, Some(&id)).is_ok()
+                })
+            })
+            .collect();
+        assert_eq!(
+            workers
+                .into_iter()
+                .map(|worker| usize::from(worker.join().unwrap()))
+                .sum::<usize>(),
+            1
+        );
+        assert_eq!(
+            store
+                .user_keys(&owner.user.id, request.grants.profile_id, 0)
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -735,10 +761,24 @@ pub(crate) mod tests {
         assert!(store.create_user_key(&owner, &request, None).is_err());
         request.grants.profile_id = profile;
         let key = store.create_user_key(&owner, &request, None).unwrap();
-        store.with_conn(|conn| { conn.execute("UPDATE access_key SET expires_at = '2000-01-01T00:00:00Z' WHERE id = ?1", [&key.key.summary.id])?; Ok(()) }).unwrap();
+        store
+            .with_conn(|conn| {
+                conn.execute(
+                    "UPDATE access_key SET expires_at = '2000-01-01T00:00:00Z' WHERE id = ?1",
+                    [&key.key.summary.id],
+                )?;
+                Ok(())
+            })
+            .unwrap();
         assert!(store.exchange_user_key(&key.secret).unwrap().is_none());
-        for _ in 1..MAX_ISSUED_PER_WINDOW { store.create_user_key(&owner, &request, None).unwrap(); }
-        assert!(store.create_user_key(&owner, &request, None).err().unwrap().is::<IssuanceLimited>());
+        for _ in 1..MAX_ISSUED_PER_WINDOW {
+            store.create_user_key(&owner, &request, None).unwrap();
+        }
+        assert!(store
+            .create_user_key(&owner, &request, None)
+            .err()
+            .unwrap()
+            .is::<IssuanceLimited>());
     }
 
     #[test]
@@ -761,7 +801,7 @@ pub(crate) mod tests {
             .user_keys(&owner.user.id, Uuid::new_v4(), 0)
             .unwrap()
             .is_empty());
-        let mut reduced = request.grants.clone();
+        let mut reduced = request.grants;
         reduced.projects.clear();
         store
             .update_operator_user(

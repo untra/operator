@@ -154,7 +154,7 @@ export const campaignStatusQuery = memoizeDefinition((id: string) =>
 
 export const sessionsQuery = staticRead(QUERY_KEYS.sessions, (api) => api.listSessions());
 
-export const accessKeysQuery = memoizeDefinition((offset = 0) =>
+export const accessKeysQuery = memoizeDefinition((offset: number) =>
   readWith(QUERY_KEYS.accessKeys, { offset }, (api, params) => api.listAccessKeys(params.offset)),
 );
 
@@ -616,8 +616,8 @@ export const oidcProvidersQuery = staticRead(QUERY_KEYS.oidcProviders, (api) =>
 export const oidcConnectionsQuery = staticRead(QUERY_KEYS.oidcConnections, (api) =>
   api.oidcConnections(),
 );
-export const operatorUsersQuery = staticRead(QUERY_KEYS.operatorUsers, (api) =>
-  api.operatorUsers(),
+export const operatorUsersQuery = memoizeDefinition((offset: number) =>
+  readWith(QUERY_KEYS.operatorUsers, { offset }, (api, params) => api.operatorUsers(params.offset)),
 );
 export const createOidcConnectionMutation: MutationDefinition<string, CreateOidcConnection> = {
   key: "create-oidc-connection",

@@ -681,6 +681,12 @@ pub fn capabilities() -> Vec<String> {
         .collect()
 }
 
+pub fn browser_identity_route(path: &str) -> bool {
+    path.starts_with("/api/v1/auth/keys")
+        || path.starts_with("/api/v1/auth/users")
+        || path.starts_with("/api/v1/auth/oidc/connections")
+}
+
 pub fn authorize(authority: &UserAuthority, method: &str, path: &str) -> Result<(), ApiError> {
     let denied = || ApiError::Forbidden("This credential does not permit the operation".into());
     if path.starts_with("/api/v1/auth/") {

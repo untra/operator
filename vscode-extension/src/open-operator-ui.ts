@@ -103,7 +103,6 @@ export async function openOperatorUi(
   // route is appended after mapping because asExternalUri can drop a fragment.
   const external = await vscode.env.asExternalUri(vscode.Uri.parse(apiUrl));
   const base = external.toString().replace(/\/+$/, "");
-  const detail = id ? `/${encodeURIComponent(id)}` : "";
   const url = `${base}/${ROUTE_HASH[route]}${detail}`;
 
   try {

@@ -24,9 +24,14 @@ const grants = {
   instance_wide: false,
 };
 const key = {
-  id: "key-1", name: "CI", grants, profile_id: grants.profile_id,
-  display_prefix: "opk_v1_key-1_…", created_at: "2026-10-01T00:00:00Z",
-  expires_at: "2026-11-01T00:00:00Z", revoked_at: null,
+  id: "key-1",
+  name: "CI",
+  grants,
+  profile_id: grants.profile_id,
+  display_prefix: "opk_v1_key-1_…",
+  created_at: "2026-10-01T00:00:00Z",
+  expires_at: "2026-11-01T00:00:00Z",
+  revoked_at: null,
 };
 
 function setup(expiresAt = key.expires_at, issuanceExpiresAt = "2026-10-14T12:05:00Z") {
@@ -35,17 +40,31 @@ function setup(expiresAt = key.expires_at, issuanceExpiresAt = "2026-10-14T12:05
     const path = requestPath(input);
     let body: unknown = {};
     if (path.endsWith("/capabilities")) {
-      body = { grants, oidc_user: true, owner_id: "owner", can_issue: true, issuance_expires_at: issuanceExpiresAt };
+      body = {
+        grants,
+        oidc_user: true,
+        owner_id: "owner",
+        can_issue: true,
+        issuance_expires_at: issuanceExpiresAt,
+      };
     } else if ((init?.method ?? "GET") === "GET") {
       body = { keys: [{ ...key, expires_at: expiresAt }] };
     } else {
       writes.push({ path, body: JSON.parse(typeof init?.body === "string" ? init.body : "null") });
       body = { key, secret: "one-time-secret" };
     }
-    return Promise.resolve(new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }));
+    return Promise.resolve(
+      new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }),
+    );
   });
   setCsrfToken("csrf");
-  render(<HostContext value={host}><ApiProvider><AccessKeysPanel clock={clock} /></ApiProvider></HostContext>);
+  render(
+    <HostContext value={host}>
+      <ApiProvider>
+        <AccessKeysPanel clock={clock} />
+      </ApiProvider>
+    </HostContext>,
+  );
   return writes;
 }
 
@@ -69,15 +88,25 @@ test("rotation requires confirmation and can narrow grants", async () => {
   const confirmation = within(screen.getByRole("group", { name: "Confirm key action" }));
   fireEvent.click(confirmation.getByLabelText("tickets:create"));
   fireEvent.click(confirmation.getByRole("button", { name: "Confirm rotate" }));
-  await waitFor(() => expect(writes).toEqual([{
-    path: "/api/v1/auth/keys/key-1/rotate",
-    body: { name: "CI", expires_in_days: 90, grants: { ...grants, capabilities: ["tickets:read"] } },
-  }]));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        path: "/api/v1/auth/keys/key-1/rotate",
+        body: {
+          name: "CI",
+          expires_in_days: 90,
+          grants: { ...grants, capabilities: ["tickets:read"] },
+        },
+      },
+    ]),
+  );
 });
 
 test("expired reauthentication blocks issuance despite cached eligibility", async () => {
   const writes = setup(key.expires_at, "2026-10-14T11:59:59Z");
-  fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), { target: { value: "new" } });
+  fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+    target: { value: "new" },
+  });
   fireEvent.click(screen.getByLabelText("tickets:read"));
   fireEvent.click(screen.getByRole("button", { name: "Create key" }));
   expect(writes).toEqual([]);

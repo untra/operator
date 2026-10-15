@@ -745,11 +745,12 @@ pub fn authorize(authority: &UserAuthority, method: &str, path: &str) -> Result<
         return Ok(());
     }
     if path == "/api/v1/profiles" || path.starts_with("/api/v1/profiles/") {
-        return if method == "GET" {
-            Ok(())
-        } else {
-            Err(denied())
-        };
+        if method != "GET" {
+            return Err(denied());
+        }
+        if authority.key_id.is_none() {
+            return Ok(());
+        }
     }
     let operation = OPERATIONS
         .iter()

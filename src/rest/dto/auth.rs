@@ -703,6 +703,18 @@ mod tests {
     }
 
     #[test]
+    fn test_token_debug_omits_credentials() {
+        let secret = "credential-that-must-not-appear";
+        let request = TokenRequest::AccessKey { access_key: secret.into() };
+        let response = TokenResponse {
+            access_token: secret.into(), token_type: "Bearer".into(), expires_in: 60,
+            refresh_token: Some(secret.into()), scopes: vec![],
+        };
+        assert!(!format!("{request:?}").contains(secret));
+        assert!(!format!("{response:?}").contains(secret));
+    }
+
+    #[test]
     fn test_token_request_is_discriminated_by_grant() {
         let req = TokenRequest::RefreshToken {
             refresh_token: "rt_abc".to_string(),

@@ -815,6 +815,7 @@ pub async fn token(
         TokenRequest::AccessKey { access_key: key } => {
             return match super::identity::exchange_key(&state, key).await {
                 Ok(response) => Ok(response),
+                Err(error @ ApiError::Unavailable(_)) => Err(error.into()),
                 Err(_) => Err(reject_token(
                     &state,
                     OAuthErrorCode::InvalidGrant,

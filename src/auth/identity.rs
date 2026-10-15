@@ -551,11 +551,11 @@ impl AuthStore {
             auth.key_id = Some(id.to_string());
             Ok(Some((auth, expires)))
         })?;
-        if result.is_some() {
-            self.usage
-                .record(super::usage::CredentialTable::Key, id, Utc::now());
-        }
         Ok(result)
+    }
+
+    pub fn record_key_use(&self, id: &str) {
+        self.usage.record(super::usage::CredentialTable::Key, id, Utc::now());
     }
 
     pub fn exchange_user_key(
@@ -579,11 +579,18 @@ impl AuthStore {
             .transpose()
             .map(Option::flatten)?;
         if let Some((authority, _)) = result.as_ref() {
-            self.audit(
-                AuditAction::AccessKeyExchange,
-                Some(&authority.user.id),
-                true,
-            )?;
+            let detail = serde_json::json!({
+                "actor_id": authority.user.id,
+                "owner_id": authority.user.id,
+                "key_id": authority.key_id,
+                "profile_id": authority.grants.profile_id,
+                "reason": "credential_authenticated",
+            }).to_string();
+            self.with_conn(|conn| record_audit(conn, &authority.user.id, AuditAction::AccessKeyExchange, &detail))?;
+            crate::telemetry::events::audit_event(AuditAction::AccessKeyExchange, true, Some(&detail));
+            if let Some(id) = &authority.key_id {
+                self.record_key_use(id);
+            }
         }
         Ok(result)
     }

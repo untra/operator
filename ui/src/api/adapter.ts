@@ -39,7 +39,9 @@ export function getSessionVersion(): number {
 
 export function subscribeSession(listener: () => void): () => void {
   sessionListeners.add(listener);
-  return () => { sessionListeners.delete(listener); };
+  return () => {
+    sessionListeners.delete(listener);
+  };
 }
 
 export type QueryDefinition<Data, Params extends object = Record<string, never>> = {

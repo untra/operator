@@ -460,8 +460,10 @@ pub async fn exchange_key(
     secret: String,
 ) -> Result<Json<crate::rest::dto::auth::TokenResponse>, ApiError> {
     let store = state.auth.store.clone();
-    let (authority, expires) = blocking(move || store.exchange_user_key(&secret))
-        .await?
+    let (authority, expires) = tokio::task::spawn_blocking(move || store.exchange_user_key(&secret))
+        .await
+        .map_err(|_| ApiError::Unavailable("Credential validation unavailable".into()))?
+        .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()))?
         .ok_or_else(|| ApiError::Unauthorized("Invalid, expired, or revoked key".into()))?;
     let now = chrono::Utc::now();
     let mut claims = crate::auth::tokens::api_claims(
@@ -473,7 +475,7 @@ pub async fn exchange_key(
     claims.key_id = authority.key_id;
     claims.profile_id = Some(authority.grants.profile_id);
     claims.exp = claims.exp.min(expires.timestamp());
-    let access_token = state.auth.signing_key.sign(&claims).map_err(failure)?;
+    let access_token = state.auth.signing_key.sign(&claims).map_err(|_| ApiError::Unavailable("Token signing unavailable".into()))?;
     Ok(Json(crate::rest::dto::auth::TokenResponse {
         access_token,
         token_type: "Bearer".into(),

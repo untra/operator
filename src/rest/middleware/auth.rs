@@ -130,6 +130,9 @@ pub async fn resolve_principal(
                 let Some(jwt_expiry) = chrono::DateTime::from_timestamp(claims.exp, 0) else {
                     return Ok(None);
                 };
+                if let Some(id) = &authority.key_id {
+                    state.auth.store.record_key_use(id);
+                }
                 return Ok(Some(authority.principal(expiry.min(jwt_expiry), None)));
             }
             return Ok(Some(Principal {
@@ -282,13 +285,13 @@ pub async fn authorize(
         );
     };
 
-    if path == "/api/v1/auth/token" {
+    if path == "/api/v1/auth/token" || headers.contains_key(header::AUTHORIZATION) {
         let peer = request
             .extensions()
             .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
             .map_or_else(|| "unknown".to_string(), |peer| peer.ip().to_string());
         if let Err(retry) = state.auth.store.limits.check(&[(
-            format!("exchange:{peer}"),
+            format!("authentication:{peer}"),
             crate::auth::limits::EXCHANGES_PER_MINUTE,
         )]) {
             return Err(rate_limited(retry).into());

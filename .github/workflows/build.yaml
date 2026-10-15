@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
         with:
           components: rustfmt, clippy
 
@@ -195,7 +195,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
 
       - name: Cache cargo
         uses: actions/cache@v6
@@ -277,7 +277,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
         with:
           components: llvm-tools-preview
 
@@ -295,7 +295,7 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-coverage-
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.87.26
         with:
           tool: cargo-llvm-cov
 
@@ -343,7 +343,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
 
       - name: Install tmux
         run: sudo apt-get update && sudo apt-get install -y tmux
@@ -384,7 +384,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
 
       - name: Cache cargo
         uses: actions/cache@v6
@@ -413,7 +413,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
 
       - name: Cache cargo
         uses: actions/cache@v6
@@ -503,7 +503,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
         with:
           targets: ${{ matrix.target }}
 
@@ -621,7 +621,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
+        uses: dtolnay/rust-toolchain@1.120
 
       - name: Cache cargo registry
         uses: actions/cache@v6

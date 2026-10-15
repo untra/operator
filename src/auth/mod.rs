@@ -17,3 +17,13 @@ pub mod scope;
 pub mod secret;
 pub mod store;
 pub mod tokens;
+
+pub mod audit;
+
+pub mod identity;
+pub mod oidc;
+pub mod policy;
+pub mod usage;
+
+pub mod limits;
+pub mod metrics;

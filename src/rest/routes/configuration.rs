@@ -1,6 +1,6 @@
 //! Deliberate public projection of operational configuration.
 
-use axum::extract::State;
+use crate::rest::state::RequestState as State;
 use axum::Json;
 
 use crate::config::{Config, TargetKind, TARGET_DOCKER, TARGET_LOCAL};

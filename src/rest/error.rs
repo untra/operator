@@ -27,6 +27,9 @@ pub enum ApiError {
     BadRequest(String),
     /// Server is unavailable for new work.
     Unavailable(String),
+    RateLimited {
+        retry_after_secs: u64,
+    },
     /// Cannot modify builtin resource
     BuiltinReadOnly(String),
     // The three auth variants below are constructed by the authorization
@@ -69,6 +72,11 @@ impl ApiError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg)
             }
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, "bad_request", msg),
+            ApiError::RateLimited { retry_after_secs } => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "rate_limited",
+                format!("Retry after {retry_after_secs} seconds"),
+            ),
             ApiError::Unavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, "unavailable", msg),
             ApiError::BuiltinReadOnly(msg) => (StatusCode::FORBIDDEN, "builtin_readonly", msg),
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, "unauthorized", msg),
@@ -90,6 +98,10 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        let retry = match &self {
+            Self::RateLimited { retry_after_secs } => Some(*retry_after_secs),
+            _ => None,
+        };
         let feature = match &self {
             Self::NotEntitled(error) => Some(error.feature),
             _ => None,
@@ -106,7 +118,9 @@ impl IntoResponse for ApiError {
         // Only a 401 carries a challenge. A 403 means the credential was
         // understood and refused, so advertising a scheme would invite a
         // pointless retry.
-        if status == StatusCode::UNAUTHORIZED {
+        if let Some(retry) = retry {
+            (status, [(header::RETRY_AFTER, retry.to_string())], body).into_response()
+        } else if status == StatusCode::UNAUTHORIZED {
             (
                 status,
                 [(header::WWW_AUTHENTICATE, WWW_AUTHENTICATE_CHALLENGE)],

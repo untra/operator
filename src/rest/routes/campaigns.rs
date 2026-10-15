@@ -1,9 +1,7 @@
 //! Ticket batches (free) and campaigns (Premium).
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 
 use crate::campaigns::batch::{self, BatchCreated, BatchError, BatchPreview, BatchRequest};
 use crate::campaigns::model::Campaign;
@@ -65,6 +63,54 @@ fn all_tickets(config: &Config) -> Result<Vec<crate::queue::Ticket>, ApiError> {
     Ok(all)
 }
 
+fn require_campaign(state: &ApiState, id: &str) -> Result<(), ApiError> {
+    let tickets = all_tickets(&state.config())?;
+    for ticket in members(id, &tickets) {
+        state.require_project(&ticket.project)?;
+        require_dependencies(state, &tickets, &ticket.depends_on, &[])?;
+    }
+    Ok(())
+}
+
+fn require_dependencies(
+    state: &ApiState,
+    tickets: &[crate::queue::Ticket],
+    dependencies: &[String],
+    local: &[String],
+) -> Result<(), ApiError> {
+    if state.project_filter().is_none() {
+        return Ok(());
+    }
+    for dependency in dependencies {
+        if local.contains(dependency) {
+            continue;
+        }
+        let ticket = tickets
+            .iter()
+            .find(|ticket| ticket.id == *dependency)
+            .ok_or_else(|| ApiError::NotFound("Dependency not found".into()))?;
+        state.require_project(&ticket.project)?;
+    }
+    Ok(())
+}
+
+fn require_batch(state: &ApiState, request: &BatchRequest) -> Result<(), ApiError> {
+    let tickets = all_tickets(&state.config())?;
+    let local: Vec<_> = request
+        .tickets
+        .iter()
+        .map(|item| item.reference.clone())
+        .collect();
+    if let Some(id) = request.campaign.as_deref() {
+        require_campaign(state, id)?;
+    }
+    for item in &request.tickets {
+        state.require_project(item.project.as_deref().unwrap_or_default())?;
+        require_dependencies(state, &tickets, &item.depends_on, &local)?;
+    }
+    Ok(())
+}
+
 /// Preview a batch: allocated ids, resolved dependencies, waves and errors. Writes nothing.
 #[utoipa::path(post, path = "/api/v1/tickets/batch/preview", operation_id = "tickets_batch_preview",
     tag = "Tickets", request_body = BatchRequest, responses((status = 200, body = BatchPreview)))]
@@ -72,6 +118,7 @@ pub async fn batch_preview(
     State(state): State<ApiState>,
     Json(request): Json<BatchRequest>,
 ) -> Result<Json<BatchPreview>, ApiError> {
+    require_batch(&state, &request)?;
     let config = (*state.config()).clone();
     blocking(move || {
         let existing = all_tickets(&config)?;
@@ -97,6 +144,7 @@ pub async fn batch_create(
     State(state): State<ApiState>,
     Json(request): Json<BatchRequest>,
 ) -> Result<Json<BatchCreated>, ApiError> {
+    require_batch(&state, &request)?;
     let config = (*state.config()).clone();
     blocking(move || match batch::create(&config, &request) {
         Ok(created) => Ok(Json(created)),
@@ -118,6 +166,7 @@ pub async fn list(State(state): State<ApiState>) -> Result<Json<CampaignListResp
         let campaigns: Vec<CampaignSummary> = CampaignStore::new(&config)
             .list()
             .into_iter()
+            .filter(|campaign| require_campaign(&state, &campaign.id).is_ok())
             .map(|campaign| CampaignSummary {
                 members: members(&campaign.id, &all).len(),
                 campaign,
@@ -155,6 +204,7 @@ pub async fn get_one(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<CampaignDetail>, ApiError> {
+    require_campaign(&state, &id)?;
     let config = (*state.config()).clone();
     entitled(&config)?;
     blocking(move || {
@@ -173,6 +223,18 @@ pub async fn assign(
     Path(id): Path<String>,
     Json(request): Json<AssignCampaignRequest>,
 ) -> Result<Json<AssignCampaignResponse>, ApiError> {
+    let tickets = all_tickets(&state.config())?;
+    let ticket = tickets
+        .iter()
+        .find(|ticket| ticket.id == id)
+        .ok_or_else(|| ApiError::NotFound("Ticket not found".into()))?;
+    state.require_project(&ticket.project)?;
+    if let Some(campaign) = request.campaign.as_deref() {
+        require_campaign(&state, campaign)?;
+    }
+    if let Some(dependencies) = request.depends_on.as_deref() {
+        require_dependencies(&state, &tickets, dependencies, &[])?;
+    }
     let config = (*state.config()).clone();
     entitled(&config)?;
     blocking(move || {
@@ -204,6 +266,7 @@ pub async fn launch(
     Path(id): Path<String>,
     Json(request): Json<LaunchCampaignRequest>,
 ) -> Result<Json<CampaignLaunchOutcome>, ApiError> {
+    require_campaign(&state, &id)?;
     let config = (*state.config()).clone();
     entitled(&config)?;
     let port = LauncherPort::new(config.clone());
@@ -221,6 +284,7 @@ pub async fn pause(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<TickReport>, ApiError> {
+    require_campaign(&state, &id)?;
     let config = (*state.config()).clone();
     entitled(&config)?;
     blocking(move || {
@@ -238,6 +302,7 @@ pub async fn status(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<CampaignStatusView>, ApiError> {
+    require_campaign(&state, &id)?;
     let config = (*state.config()).clone();
     entitled(&config)?;
     blocking(move || {

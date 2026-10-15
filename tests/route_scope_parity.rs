@@ -31,6 +31,9 @@ const UNDOCUMENTED_MOUNTED_ROUTES: &[(&str, &str)] =
 
 /// The complete set of routes reachable without a credential.
 const EXPECTED_PUBLIC: &[(&str, &str)] = &[
+    ("GET", "/api/v1/auth/oidc/providers"),
+    ("GET", "/api/v1/auth/oidc/login/{id}"),
+    ("GET", "/api/v1/auth/oidc/callback"),
     // Kubernetes probes - no workspace metadata.
     ("GET", "/livez"),
     ("GET", "/readyz"),

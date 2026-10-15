@@ -1,7 +1,8 @@
 //! Status sections endpoint - the canonical section tree shared with the TUI
 //! and VS Code extension, rendered for the web UI's Status page.
 
-use axum::{extract::State, Json};
+use crate::rest::state::RequestState as State;
+use axum::Json;
 
 use crate::rest::dto::{section_provider, LiveConnectionStatus, SectionDto};
 use crate::rest::state::ApiState;
@@ -29,8 +30,14 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<SectionDto>> {
             let live = LiveConnectionStatus {
                 api_running: true,
                 port: state.config().rest_api.port,
-                mcp_http_enabled: state.config().mcp.http_enabled,
-                mcp_active_sessions: state.mcp_sessions.lock().await.len(),
+                mcp_http_enabled: state.mcp_http_mounted,
+                mcp_active_sessions: state
+                    .mcp_sessions
+                    .lock()
+                    .await
+                    .values()
+                    .filter(|session| session.is_connected_client())
+                    .count(),
             };
             Json(provider(&state.config(), &registry, &live))
         }

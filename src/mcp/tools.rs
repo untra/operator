@@ -4,7 +4,8 @@
 //! Each tool calls the handler directly (no internal HTTP round-trip).
 //! Write tools are gated behind `[mcp].expose_ticket_write_tools`.
 
-use axum::extract::{Path, Query, State};
+use crate::rest::state::RequestState as State;
+use axum::extract::{Path, Query};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -150,21 +151,11 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
         },
         McpToolDefinition {
             name: "operator_create_ticket".to_string(),
-            description: "Create a new ticket from a template (feature, fix, spike, investigation, task) and write it to the queue. Returns the filename. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "template": {
-                        "type": "string",
-                        "description": "Template type key (feature, fix, spike, investigation, task)"
-                    },
-                    "values": {
-                        "type": "object",
-                        "description": "Handlebars values for the template (project, summary, id, etc.)"
-                    }
-                },
-                "required": ["template"]
-            }),
+            description: "Create a new ticket and write it to the queue - the same path as POST /api/v1/tickets. `issue_type` is a registry key (see operator_list_issue_types); `values` holds that issue type's user-editable fields. When the project maps to a bidirectional kanban project the ticket is also pushed there unless sync_to_kanban is false. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: serde_json::to_value(schemars::schema_for!(
+                crate::rest::dto::CreateTicketRequest
+            ))
+            .unwrap_or_else(|_| json!({ "type": "object" })),
         },
         McpToolDefinition {
             name: "operator_launch_ticket".to_string(),
@@ -256,7 +247,7 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
 
 /// Gate the ticket-mutating tools.
 fn require_write_tools(state: &ApiState, scopes: &[Scope]) -> Result<(), String> {
-    if !scopes.contains(&Scope::Write) {
+    if state.authorization.is_none() && !scopes.contains(&Scope::Write) {
         return Err("This tool requires the `write` scope".to_string());
     }
     if !state.config().mcp.expose_ticket_write_tools {
@@ -280,6 +271,9 @@ pub async fn execute_tool(
     state: &ApiState,
     scopes: &[Scope],
 ) -> Result<Value, String> {
+    if !crate::auth::policy::tool_allowed(state.authorization.as_deref(), name) {
+        return Err("Tool not authorized".into());
+    }
     match name {
         "operator_health" => {
             let resp = routes::health::health(State(state.clone())).await;

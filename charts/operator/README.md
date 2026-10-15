@@ -64,3 +64,45 @@ Verify `operator`, `curl`, and `git` independently because they may use differen
 For Git over SSH, mount a Secret containing a private key and pinned `known_hosts`, readable by UID/GID 10001, then set `GIT_SSH_COMMAND` to use both files with `StrictHostKeyChecking=yes`. Do not disable host-key verification.
 
 The chart deliberately does not create RBAC or mount a service-account token. See the Kubernetes guide at https://operator.untra.io/getting-started/platforms/kubernetes/ for ingress, NetworkPolicy, Coder integration, backup, and restore details.
+
+## Telemetry
+
+No collector is bundled and no destination is configured by default. To export
+Operator's own signals, configure `telemetry.export.endpoint`. To additionally
+accept agent telemetry, set `telemetry.enabled=true`. Enable
+`telemetry.enableRedaction=true` to pseudonymize personal attributes and remove
+content. Secrets are protected in both modes.
+
+```yaml
+telemetry:
+  enabled: true
+  enableRedaction: true
+  export:
+    endpoint: http://collector.observability.svc:4318
+    headers:
+      existingSecret: operator-otlp
+      key: headers
+  collectorEgress:
+    enabled: true
+    peers:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: observability
+        podSelector:
+          matchLabels:
+            app: collector
+    port: 4318
+networkPolicy:
+  enabled: true
+```
+
+The Secret value is an OTLP header list such as `Authorization=Bearer%20...`.
+The chart renders standard `OTEL_*` export variables, JSON logging, and Downward
+API resource attributes for the pod and namespace. It reuses the REST service
+port and ingress. Collector egress is effective only when NetworkPolicy is
+enabled; its peers must be explicit. Existing broad egress rules remain additive.
+
+Use `extraEnv` for per-signal endpoints or `OTEL_SDK_DISABLED=true`. Avoid duplicate
+names with chart-managed telemetry variables. `OTEL_SDK_DISABLED` disables
+Operator self-export; agent ingest remains controlled independently. The runtime
+export configuration is immutable until the process restarts.

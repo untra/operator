@@ -1140,8 +1140,8 @@ mod ticket_creation {
             "Filename should contain the ticket type: {filename}"
         );
         assert!(
-            filename.contains("test-project"),
-            "Filename should contain the project: {filename}"
+            filename.contains("-testproject-"),
+            "Filename should contain the hyphen-free project: {filename}"
         );
     }
 

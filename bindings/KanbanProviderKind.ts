@@ -2,8 +2,8 @@
 
 /**
  * Which external kanban provider an onboarding request targets.
- * Deliberately one variant smaller than [`KanbanProviderType`]
+ * Excludes the built-in board and providers without an operational adapter.
  *
  * [`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType
  */
-export type KanbanProviderKind = "jira" | "linear" | "github" | "openspec";
+export type KanbanProviderKind = "jira" | "linear" | "github" | "openspec" | "gitea";

@@ -318,7 +318,8 @@ fn test_concepts_docs_urls_resolve() {
         let Some(end) = rest.find('`') else {
             continue;
         };
-        let path = rest[..end].trim_matches('/');
+        let url = &rest[..end];
+        let path = url[..url.find('#').unwrap_or(url.len())].trim_matches('/');
         let resolves = if path.is_empty() {
             docs_dir.join("index.md").exists()
         } else {

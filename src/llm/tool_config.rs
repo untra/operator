@@ -92,6 +92,8 @@ pub struct DetectionConfig {
 /// Tool configuration loaded from JSON
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolConfig {
+    #[serde(default)]
+    pub telemetry_env: std::collections::BTreeMap<String, String>,
     /// Binary name (e.g., "claude", "gemini", "codex")
     pub tool_name: String,
     /// Human-readable display name (e.g., "Claude Code")

@@ -37,6 +37,7 @@ docs/assets/js/
 # Test coverage
 coverage/
 *.lcov
+codecov.json
 
 # Docs output
 docs/_site/

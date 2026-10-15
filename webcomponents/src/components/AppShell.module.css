@@ -190,12 +190,6 @@
 .active .navDot[data-health="green"] {
   background: var(--color-green-l1);
 }
-.navDot[data-health="yellow"] {
-  background: var(--warning);
-}
-.navDot[data-health="red"] {
-  background: var(--danger);
-}
 .navDot[data-health="gray"] {
   background: var(--text-muted);
 }
@@ -235,8 +229,37 @@
   box-shadow: 0 0 0 1px var(--surface-alt);
 }
 
+/* Pointed marks. The circle ring is cleared so the silhouette stays a triangle. */
+.navDot[data-health="yellow"],
+.navDot[data-health="red"] {
+  width: 13px;
+  height: 12px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.navDot[data-health="yellow"] {
+  background: var(--warning);
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
+
+.navDot[data-health="red"] {
+  background: var(--danger);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
 .main {
   flex: 1;
   padding: 48px;
   overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .layout { flex-direction: column; }
+  .nav { width: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .brandRow { margin-bottom: 16px; }
+  .group { margin-bottom: 12px; }
+  .navList { display: flex; flex-wrap: wrap; gap: 6px; }
+  .navList li { margin-bottom: 0; }
+  .main { padding: 16px; min-width: 0; }
 }

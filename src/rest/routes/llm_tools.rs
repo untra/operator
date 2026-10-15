@@ -3,7 +3,7 @@
 //! Returns detected CLI tools with their model aliases, capabilities,
 //! and version information from the operator configuration.
 
-use axum::extract::State;
+use crate::rest::state::RequestState as State;
 use axum::Json;
 
 use crate::rest::dto::{DefaultLlmResponse, LlmToolsResponse, SetDefaultLlmRequest};

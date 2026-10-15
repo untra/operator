@@ -251,7 +251,7 @@ status: queued
 }
 
 #[tokio::test]
-async fn test_cmux_mock_receives_send_text() {
+async fn test_cmux_launch_submits_generated_command_script() {
     skip_if_not_configured!();
 
     let (ctx, config) = setup_cmux_test("send_text");
@@ -262,7 +262,7 @@ priority: P2-medium
 status: queued
 ---
 
-# Task: Test cmux send_text via mock
+# Task: Test cmux generated launch command
 ";
     ctx.create_ticket("TASK", "TASK-C04", ticket_content);
 
@@ -284,17 +284,15 @@ status: queued
 
     assert!(result.is_ok(), "Launch should succeed");
 
-    // Verify the mock received send_text calls (the launch command)
+    let command_files = ctx.read_command_files();
+    assert_eq!(command_files.len(), 1);
+    let (path, script) = &command_files[0];
+    assert!(script.contains(ctx.projects_path.join("testproject").to_str().unwrap()));
+    assert!(script.contains(ctx.mock_llm_path.to_str().unwrap()));
     let sent = mock.sent_texts();
-    assert!(
-        !sent.is_empty(),
-        "MockCmuxClient should have received send_text calls"
-    );
-
-    // The sent text should contain the command script path
-    let has_command = sent.iter().any(|(_ws, text)| text.contains("bash "));
-    assert!(
-        has_command,
-        "Sent text should contain bash command. Got: {sent:?}"
-    );
+    let submission = sent
+        .iter()
+        .find(|(_, text)| text.trim() == format!("bash {}", path.display()))
+        .expect("launch should submit the generated command script");
+    assert!(!submission.0.is_empty());
 }

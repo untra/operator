@@ -1,14 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-# Signs a macOS binary with a Developer ID Application certificate.
-# Usage: codesign.sh <binary_path>
+# Signs macOS binaries with a Developer ID Application certificate.
+# Usage: codesign.sh <binary_path> [binary_path ...]
 #
 # Required environment variables:
 #   APPLE_CERTIFICATE_P12_BASE64  - base64-encoded .p12 certificate
 #   APPLE_CERTIFICATE_PASSWORD    - password for the .p12 file
 
-BINARY_PATH="${1:?Usage: codesign.sh <binary_path>}"
+: "${1:?Usage: codesign.sh <binary_path> [binary_path ...]}"
 
 # Unique keychain per invocation (PID avoids collisions)
 KEYCHAIN_NAME="signing-$$.keychain-db"
@@ -34,7 +34,7 @@ ORIGINAL_KEYCHAINS=$(security list-keychains -d user | tr -d '"' | tr '\n' ' ')
 security list-keychains -d user -s "$KEYCHAIN_NAME" $ORIGINAL_KEYCHAINS
 
 # Import certificate
-echo "Importing certificate ($(stat -f%z "$CERT_PATH") bytes)"
+echo "Importing certificate"
 security import "$CERT_PATH" \
   -P "$APPLE_CERTIFICATE_PASSWORD" \
   -A -t cert -f pkcs12 \
@@ -53,12 +53,14 @@ if [ -z "$IDENTITY" ]; then
   exit 1
 fi
 
-echo "Signing $BINARY_PATH with identity: $IDENTITY"
-codesign --force --options runtime --timestamp \
-  --sign "$IDENTITY" \
-  --keychain "$KEYCHAIN_NAME" \
-  "$BINARY_PATH"
+for BINARY_PATH in "$@"; do
+  echo "Signing $BINARY_PATH with identity: $IDENTITY"
+  codesign --force --options runtime --timestamp \
+    --sign "$IDENTITY" \
+    --keychain "$KEYCHAIN_NAME" \
+    "$BINARY_PATH"
 
-# Verify signature
-codesign --verify --verbose=2 "$BINARY_PATH"
-echo "Successfully signed: $BINARY_PATH"
+  # Verify signature
+  codesign --verify --verbose=2 "$BINARY_PATH"
+  echo "Successfully signed: $BINARY_PATH"
+done

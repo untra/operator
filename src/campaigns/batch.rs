@@ -263,7 +263,8 @@ fn all_tickets(config: &Config) -> anyhow::Result<Vec<Ticket>> {
 
 /// Write every planned ticket or none.
 pub fn create(config: &Config, request: &BatchRequest) -> Result<BatchCreated, BatchError> {
-    let _guard = TicketCreator::creation_lock();
+    let _guard = TicketCreator::creation_lock(&config.tickets_path())
+        .map_err(|e| BatchError::Write(e.to_string()))?;
     let existing = all_tickets(config).map_err(|e| BatchError::Write(e.to_string()))?;
     let campaign_exists = request
         .campaign

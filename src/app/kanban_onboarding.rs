@@ -80,6 +80,7 @@ impl App {
 
                 // Validate
                 let req = ValidateKanbanCredentialsRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(JiraCredentials {
                         domain: domain.clone(),
@@ -115,6 +116,7 @@ impl App {
 
                 // Now list projects
                 let list_req = ListKanbanProjectsRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(JiraCredentials {
                         domain,
@@ -155,6 +157,7 @@ impl App {
                 });
 
                 let req = ValidateKanbanCredentialsRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Linear,
                     jira: None,
                     linear: Some(LinearCredentials {
@@ -254,6 +257,7 @@ impl App {
 
                 // Write config
                 let write_req = WriteKanbanConfigRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(WriteJiraConfigBody {
                         domain: creds.domain.clone(),
@@ -274,6 +278,7 @@ impl App {
 
                 // Set session env
                 let env_req = SetKanbanSessionEnvRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(JiraSessionEnv {
                         domain: creds.domain,
@@ -284,7 +289,8 @@ impl App {
                     linear: None,
                     github: None,
                 };
-                let env_resp = kanban_onboarding::set_session_env(env_req);
+                let env_resp = kanban_onboarding::set_session_env(env_req)
+                    .map_err(|error| anyhow::anyhow!("{error:?}"))?;
 
                 // Sync issue types (best effort - non-fatal)
                 self.try_sync_kanban_issue_types("jira", &project_key).await;
@@ -307,6 +313,7 @@ impl App {
                 let workspace_key = project_key.clone();
 
                 let write_req = WriteKanbanConfigRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Linear,
                     jira: None,
                     linear: Some(WriteLinearConfigBody {
@@ -324,6 +331,7 @@ impl App {
                 self.reload_config_after_kanban_write();
 
                 let env_req = SetKanbanSessionEnvRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Linear,
                     jira: None,
                     linear: Some(LinearSessionEnv {
@@ -332,7 +340,8 @@ impl App {
                     }),
                     github: None,
                 };
-                let env_resp = kanban_onboarding::set_session_env(env_req);
+                let env_resp = kanban_onboarding::set_session_env(env_req)
+                    .map_err(|error| anyhow::anyhow!("{error:?}"))?;
 
                 self.try_sync_kanban_issue_types("linear", &project_key)
                     .await;

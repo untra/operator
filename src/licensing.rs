@@ -24,6 +24,8 @@ static LICENSE_UPDATE: Mutex<()> = Mutex::new(());
 pub enum PremiumFeature {
     RemoteTargets,
     Campaigns,
+    OidcConnections,
+    ApiKeys,
 }
 
 impl std::fmt::Display for PremiumFeature {
@@ -31,6 +33,8 @@ impl std::fmt::Display for PremiumFeature {
         match self {
             Self::RemoteTargets => f.write_str("remote_targets"),
             Self::Campaigns => f.write_str("campaigns"),
+            Self::OidcConnections => f.write_str("oidc_connections"),
+            Self::ApiKeys => f.write_str("api_keys"),
         }
     }
 }
@@ -230,7 +234,10 @@ pub struct Entitlements {
 impl Entitlements {
     pub fn allows(&self, feature: PremiumFeature) -> bool {
         match feature {
-            PremiumFeature::RemoteTargets | PremiumFeature::Campaigns => self.premium,
+            PremiumFeature::RemoteTargets
+            | PremiumFeature::Campaigns
+            | PremiumFeature::OidcConnections
+            | PremiumFeature::ApiKeys => self.premium,
         }
     }
 }

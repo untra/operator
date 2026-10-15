@@ -330,6 +330,7 @@ impl ConfigDocGenerator {
             "logging" => match field {
                 "level" => Some(config.logging.level),
                 "to_file" => Some(config.logging.to_file.to_string()),
+                "format" => Some(format!("{:?}", config.logging.format).to_lowercase()),
                 _ => None,
             },
             _ => None,
@@ -367,6 +368,7 @@ impl ConfigDocGenerator {
         output.push_str("**Examples**:\n");
         output.push_str("- `OPERATOR_AGENTS__MAX_PARALLEL=2`\n");
         output.push_str("- `OPERATOR_LOGGING__LEVEL=debug`\n");
+        output.push_str("- `OPERATOR_LOGGING__FORMAT=json`\n");
         output.push_str("- `OPERATOR_TMUX__ENABLED=true`\n\n");
 
         output

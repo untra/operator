@@ -81,7 +81,8 @@ describe("ticket panels", () => {
     const request = requests.find((item) => item.path.endsWith("/tickets"));
     expect(request?.method).toBe("POST");
     expect(JSON.parse(request?.body ?? "{}")).toEqual({
-      template: "TASK",
+      issue_type: "TASK",
+      sync_to_kanban: null,
       project: "operator",
       summary: "Test",
       values: {},

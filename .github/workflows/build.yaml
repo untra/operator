@@ -79,7 +79,6 @@ jobs:
       - name: Build shared web components
         run: |
           cd webcomponents
-          bun install --frozen-lockfile
           bun run typecheck
           bun test
           bun run build
@@ -100,10 +99,12 @@ jobs:
       - name: Lint shell scripts
         run: shellcheck -S warning scripts/*.sh scripts/ci/*.sh
 
+      - name: Test signing scripts
+        run: make test-shell
+
       - name: Build UI dist
         run: |
           cd ui
-          bun install --frozen-lockfile
           bun run typecheck
           bun test
           bun run build
@@ -149,6 +150,43 @@ jobs:
           arguments: --all-features
           command: check
 
+      - name: crates/telemetry
+        run: |
+          cd crates/telemetry
+          cargo fmt -- --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all-features
+          cargo test --locked --no-default-features
+          cargo check --locked --no-default-features --features redact
+          cargo check --locked --no-default-features --features schema
+
+      - name: cargo-deny (crates/telemetry)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: crates/telemetry/Cargo.toml
+          arguments: --all-features
+          command: check
+
+      - name: Validate telemetry registry with Weaver
+        env:
+          WEAVER_VERSION: "0.27.0"
+        run: |
+          archive="weaver-x86_64-unknown-linux-gnu.tar.xz"
+          download_dir="${RUNNER_TEMP}/operator-weaver"
+          mkdir -p "$download_dir"
+          curl --fail --silent --show-error --location \
+            "https://github.com/open-telemetry/weaver/releases/download/v${WEAVER_VERSION}/${archive}" \
+            --output "$download_dir/$archive"
+          curl --fail --silent --show-error --location \
+            "https://github.com/open-telemetry/weaver/releases/download/v${WEAVER_VERSION}/${archive}.sha256" \
+            --output "$download_dir/$archive.sha256"
+          (cd "$download_dir" && sha256sum --check "$archive.sha256")
+          tar -xf "$download_dir/$archive" -C "$download_dir"
+          OPERATOR_WEAVER="$download_dir/weaver-x86_64-unknown-linux-gnu/weaver" make telemetry-registry
+
+      - name: Check generated telemetry catalog and types
+        run: cargo run --locked --bin generate_types -- --check
+
       - name: Lint and render Helm chart
         run: |
           helm lint charts/operator
@@ -188,31 +226,11 @@ jobs:
           exit-code: '1'
 
   # Storybook renders every story in a real browser and runs axe over it.
-  # Deliberately a peer of lint-test with no `needs:`, so it stays a required PR check
+  # Runs independently of lint-test against committed bindings.
   storybook:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
-
-      - name: Cache cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-storybook-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-storybook-
-            ${{ runner.os }}-cargo-
-
-      # The stories are typed against these; generate before they compile.
-      # lint-test owns the "bindings are committed and fresh" gate.
-      - name: Generate TypeScript bindings
-        run: cargo test --locked export_bindings_
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -336,6 +354,118 @@ jobs:
           flags: rust
           fail_ci_if_error: true
 
+  coverage-relay:
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/relay
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.95
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            crates/relay/target
+          key: relay-${{ runner.os }}-cargo-coverage-${{ hashFiles('crates/relay/Cargo.lock') }}
+          restore-keys: relay-${{ runner.os }}-cargo-coverage-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-nextest
+
+      - name: Generate coverage
+        run: cargo llvm-cov nextest --locked --all-features --profile ci --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/relay/codecov.json
+          flags: relay
+          disable_search: true
+          fail_ci_if_error: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/relay/target/nextest/ci/junit.xml
+          flags: relay
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: true
+
+  coverage-telemetry:
+    needs: lint-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/telemetry
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.95
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            crates/telemetry/target
+          key: telemetry-${{ runner.os }}-cargo-coverage-${{ hashFiles('crates/telemetry/Cargo.lock') }}
+          restore-keys: telemetry-${{ runner.os }}-cargo-coverage-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: cargo-nextest
+
+      - name: Generate coverage
+        run: cargo llvm-cov nextest --locked --all-features --profile ci --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/telemetry/codecov.json
+          flags: telemetry
+          disable_search: true
+          fail_ci_if_error: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          files: crates/telemetry/target/nextest/ci/junit.xml
+          flags: telemetry
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: true
+
   launch-integration:
     needs: lint-test
     runs-on: ubuntu-latest
@@ -355,11 +485,20 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-launch-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-launch-
+            opr8r/target
+          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-integration-
 
       - name: Build operator
         run: cargo build --locked
+
+      - name: Build opr8r (provides relay subcommand)
+        run: cargo build --locked --manifest-path opr8r/Cargo.toml
+
+      - name: Verify integration binaries
+        run: |
+          test -x target/debug/operator
+          test -x opr8r/target/debug/opr8r
 
       - name: Run launch integration tests
         env:
@@ -371,38 +510,16 @@ jobs:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
         run: cargo test --locked --test campaign_launch_integration -- --test-threads=1 --nocapture
 
+      - name: Run relay integration tests
+        env:
+          OPERATOR_RELAY_INTEGRATION_TEST_ENABLED: 'true'
+        run: cargo test --locked --test relay_integration -- --nocapture --test-threads=1
+
       - name: Cleanup sessions
         if: always()
         run: |
           tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^op' | xargs -I {} tmux kill-session -t {} || true
           zellij delete-all-sessions --yes --force 2>/dev/null || true
-
-  relay-integration:
-    needs: lint-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@1.95
-
-      - name: Cache cargo
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-relay-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-relay-
-
-      - name: Build opr8r (provides relay subcommand)
-        run: cargo build --locked --manifest-path opr8r/Cargo.toml
-
-      - name: Run relay integration tests
-        env:
-          OPERATOR_RELAY_INTEGRATION_TEST_ENABLED: 'true'
-        run: cargo test --locked --test relay_integration -- --nocapture --test-threads=1
 
   # Playwright against a release binary on x64. The license suite asks the prod issuer for a
   # test-mode key, so it skips until OPERATOR_E2E_LICENSE_TOKEN is set; the arm64 twin is .forgejo/workflows/pr.yaml.
@@ -478,7 +595,6 @@ jobs:
 
   build:
     needs: [lint-test, version]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -486,18 +602,23 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: operator-linux-x86_64
+            opr8r_artifact: opr8r-linux-x86_64
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             artifact_name: operator-linux-arm64
+            opr8r_artifact: opr8r-linux-arm64
           - os: macos-14
             target: aarch64-apple-darwin
             artifact_name: operator-macos-arm64
+            opr8r_artifact: opr8r-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: operator-windows-x86_64.exe
+            opr8r_artifact: opr8r-windows-x86_64.exe
           - os: windows-11-arm
             target: aarch64-pc-windows-msvc
             artifact_name: operator-windows-arm64.exe
+            opr8r_artifact: opr8r-windows-arm64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -514,8 +635,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+            opr8r/target
+          key: ${{ runner.os }}-${{ matrix.target }}-release-binaries-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-release-binaries-cargo-
 
       # Install Bun (for embedded UI build)
       - name: Install Bun
@@ -546,44 +668,57 @@ jobs:
           V="${{ needs.version.outputs.version }}"
           echo "$V" > VERSION
           sed 's/^version = ".*"/version = "'"$V"'"/' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
+          sed 's/^version = ".*"/version = "'"$V"'"/' opr8r/Cargo.toml > opr8r/Cargo.toml.tmp && mv opr8r/Cargo.toml.tmp opr8r/Cargo.toml
           cargo update --workspace
+          cargo update --workspace --manifest-path opr8r/Cargo.toml
 
       # Compile license material into the release binary. These are not
       # runtime settings. build.rs refuses an empty root keyring or issuer when
       # OPERATOR_RELEASE=1, so a missing repository secret fails this job
       # instead of publishing a binary that rejects every license.
       - name: Build release
-        run: cargo build --locked --release --features embed-ui --target ${{ matrix.target }}
+        run: cargo build --locked --release --target ${{ matrix.target }}
         env:
           OPERATOR_RELEASE: "1"
           OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
           OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
           OPERATOR_PURCHASE_URL: ${{ secrets.OPERATOR_PURCHASE_URL }}
 
+      - name: Build opr8r release
+        run: cargo build --locked --release --manifest-path opr8r/Cargo.toml --target ${{ matrix.target }}
+
+      - name: Strip opr8r binary
+        if: runner.os != 'Windows'
+        run: strip opr8r/target/${{ matrix.target }}/release/opr8r || true
+
       - name: Rename binary
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          if [[ "$TARGET" == *"windows"* ]]; then
             cp target/${{ matrix.target }}/release/operator.exe ${{ matrix.artifact_name }}
+            cp opr8r/target/${{ matrix.target }}/release/opr8r.exe ${{ matrix.opr8r_artifact }}
           else
             cp target/${{ matrix.target }}/release/operator ${{ matrix.artifact_name }}
+            cp opr8r/target/${{ matrix.target }}/release/opr8r ${{ matrix.opr8r_artifact }}
           fi
 
       # Apple code signing + notarization (macOS only)
-      - name: Codesign operator binary
+      - name: Codesign release binaries
         if: matrix.os == 'macos-14'
         env:
           APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: scripts/codesign.sh "${{ matrix.artifact_name }}"
+        run: scripts/codesign.sh "${{ matrix.artifact_name }}" "${{ matrix.opr8r_artifact }}"
 
-      - name: Notarize operator binary
+      - name: Notarize release binaries
         if: matrix.os == 'macos-14'
         env:
           APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
           APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-        run: scripts/notarize.sh "${{ matrix.artifact_name }}"
+        run: scripts/notarize.sh "${{ matrix.artifact_name }}" "${{ matrix.opr8r_artifact }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -591,101 +726,14 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
 
-  build-opr8r:
-    needs: [lint-test, version]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: opr8r-linux-x86_64
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            artifact_name: opr8r-linux-arm64
-          - os: macos-14
-            target: aarch64-apple-darwin
-            artifact_name: opr8r-macos-arm64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: opr8r-windows-x86_64.exe
-          - os: windows-11-arm
-            target: aarch64-pc-windows-msvc
-            artifact_name: opr8r-windows-arm64.exe
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: opr8r
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.95
-
-      - name: Cache cargo registry
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            opr8r/target
-          key: opr8r-${{ matrix.artifact_name }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
-          restore-keys: |
-            opr8r-${{ matrix.artifact_name }}-cargo-
-
-      # Embed the release version (working-directory is opr8r/, so this edits
-      # opr8r/Cargo.toml). Portable across the build matrix.
-      - name: Set release version
-        shell: bash
-        run: |
-          V="${{ needs.version.outputs.version }}"
-          sed 's/^version = ".*"/version = "'"$V"'"/' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
-          cargo update --workspace
-
-      - name: Build release binary
-        run: cargo build --locked --release
-
-      - name: Strip binary (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: strip target/release/opr8r || true
-
-      # Apple code signing + notarization (macOS only)
-      - name: Codesign opr8r binary
-        if: matrix.os == 'macos-14'
-        working-directory: .
-        env:
-          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: scripts/codesign.sh opr8r/target/release/opr8r
-
-      - name: Notarize opr8r binary
-        if: matrix.os == 'macos-14'
-        working-directory: .
-        env:
-          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
-          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
-          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-        run: scripts/notarize.sh opr8r/target/release/opr8r
-
-      - name: Rename binary
-        shell: bash
-        run: |
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            cp target/release/opr8r.exe ../${{ matrix.artifact_name }}
-          else
-            cp target/release/opr8r ../${{ matrix.artifact_name }}
-          fi
-
-      - name: Upload artifact
+      - name: Upload opr8r artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_name }}
+          name: ${{ matrix.opr8r_artifact }}
+          path: ${{ matrix.opr8r_artifact }}
 
   sign-windows:
-    needs: [build, build-opr8r]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build]
     strategy:
       matrix:
         artifact:
@@ -704,7 +752,7 @@ jobs:
       AZ_PIPELINE_DEFINITION_ID: ${{ secrets.AZ_PIPELINE_DEFINITION_ID }}
 
   release:
-    needs: [version, build, build-opr8r, sign-windows]
+    needs: [version, build, sign-windows]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ needs.version.outputs.version }}
@@ -737,29 +785,6 @@ jobs:
           chmod +x "$BIN"
           "$BIN" docs --only openapi
 
-      - name: Commit version bump
-        id: version_commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION Cargo.toml Cargo.lock docs/_config.yml \
-            charts/operator/Chart.yaml \
-            vscode-extension/package.json \
-            vscode-extension/src/webhook-server.ts \
-            opr8r/Cargo.toml opr8r/Cargo.lock \
-            zed-extension/Cargo.toml zed-extension/extension.toml zed-extension/Cargo.lock \
-            agnt-plugin/package.json agnt-plugin/manifest.json \
-            coder-module/main.tf \
-            docs/schemas/openapi.json
-          git commit -m "chore: bump version to v${{ needs.version.outputs.version }} [skip ci]"
-          git push
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Create tag
-        run: |
-          git tag "v${{ needs.version.outputs.version }}"
-          git push origin "v${{ needs.version.outputs.version }}"
-
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
@@ -769,15 +794,6 @@ jobs:
           find artifacts -type f -name 'opr8r-*' -exec cp {} release-assets/ \;
           chmod +x release-assets/*
           ls -la release-assets/
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "v${{ needs.version.outputs.version }}" \
-            --title "v${{ needs.version.outputs.version }}" \
-            --generate-notes \
-            release-assets/*
 
       - name: Generate checksums.yml
         run: |
@@ -799,14 +815,40 @@ jobs:
             windows_arm64: "${OP_WIN_ARM}"
           EOF
 
-      - name: Commit checksums
+      - name: Commit version bump
+        id: version_commit
         run: |
-          git add docs/_data/checksums.yml
-          git commit -m "chore: update checksums for v${{ needs.version.outputs.version }} [skip ci]" || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION Cargo.toml Cargo.lock docs/_config.yml \
+            charts/operator/Chart.yaml \
+            vscode-extension/package.json \
+            vscode-extension/src/webhook-server.ts \
+            opr8r/Cargo.toml opr8r/Cargo.lock \
+            zed-extension/Cargo.toml zed-extension/extension.toml zed-extension/Cargo.lock \
+            agnt-plugin/package.json agnt-plugin/manifest.json \
+            coder-module/main.tf \
+            docs/schemas/openapi.json docs/_data/checksums.yml
+          git commit -m "chore: bump version to v${{ needs.version.outputs.version }} [skip ci]"
           git push
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag
+        run: |
+          git tag "v${{ needs.version.outputs.version }}"
+          git push origin "v${{ needs.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ needs.version.outputs.version }}" \
+            --title "v${{ needs.version.outputs.version }}" \
+            --generate-notes \
+            release-assets/*
 
   docker:
-    needs: [build, build-opr8r, release]
+    needs: [build, release]
     strategy:
       fail-fast: false
       matrix:

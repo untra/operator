@@ -194,7 +194,7 @@ export class TicketItem extends vscode.TreeItem {
       this.command = {
         command: "operator.openTicket",
         title: "Open Ticket",
-        arguments: [ticket.filePath],
+        arguments: [ticket.filePath, ticket.id],
       };
     }
   }

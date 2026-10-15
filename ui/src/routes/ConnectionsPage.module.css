@@ -1,0 +1,25 @@
+.page { padding: 1.5rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; align-items: start; }
+.card { padding: 1.25rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); min-width: 0; overflow-wrap: anywhere; }
+.card h2 { margin-top: 0; font-size: 1.1rem; }
+.card h3 { font-size: 1rem; }
+.hint { color: var(--text-muted); font-size: 0.85rem; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 1rem 0; }
+.card label { display: flex; flex-direction: column; gap: 0.4rem; margin: 1rem 0; }
+.card input, .card select, .card button { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 0.5rem; }
+.card button { cursor: pointer; }
+.card button:disabled { opacity: 0.5; cursor: default; }
+.card pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); padding: 0.75rem; font-size: 0.8rem; }
+.card code { overflow-wrap: anywhere; }
+.card [role="alert"] { color: var(--danger); }
+.card table { display: block; overflow-x: auto; }
+
+.card a { color: var(--text); text-decoration: underline; }
+.card summary { cursor: pointer; font-weight: 600; padding: 0.5rem 0; }
+.card output { display: block; margin-top: 0.75rem; }
+
+@media (max-width: 768px) {
+  .page { padding: 0; }
+  .card { padding: 1rem; }
+  .card input, .card select { min-width: 0; max-width: 100%; }
+}

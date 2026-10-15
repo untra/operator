@@ -1,0 +1,8 @@
+groups:
+  - id: event.operator.redacted.event
+    type: event
+    name: operator.redacted.event
+    brief: Event whose original name is not approved by the catalog.
+    stability: development
+    attributes:
+      - ref: operator.redacted.count

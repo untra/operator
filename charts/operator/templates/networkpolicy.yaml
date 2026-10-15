@@ -20,7 +20,7 @@ spec:
       from:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  {{- if or .Values.networkPolicy.egress.allowDNS .Values.networkPolicy.egress.to }}
+  {{- if or .Values.networkPolicy.egress.allowDNS .Values.networkPolicy.egress.to .Values.telemetry.collectorEgress.enabled }}
   egress:
     {{- if .Values.networkPolicy.egress.allowDNS }}
     - to:
@@ -36,6 +36,16 @@ spec:
     {{- with .Values.networkPolicy.egress.to }}
     - to:
         {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- if .Values.telemetry.collectorEgress.enabled }}
+    {{- if not .Values.telemetry.collectorEgress.peers }}
+    {{- fail "telemetry.collectorEgress.peers must identify the collector" }}
+    {{- end }}
+    - to:
+        {{- toYaml .Values.telemetry.collectorEgress.peers | nindent 8 }}
+      ports:
+        - port: {{ .Values.telemetry.collectorEgress.port }}
+          protocol: TCP
     {{- end }}
   {{- else }}
   egress: []

@@ -688,6 +688,8 @@ export const KANBAN_PROVIDERS: Record<string, KanbanProviderMeta> = {
   linear: { instanceKeyField: "team_id", defaultInstanceKey: "default-team" },
   github: { instanceKeyField: "owner", defaultInstanceKey: "your-org" },
   openspec: { instanceKeyField: "instance", defaultInstanceKey: "my-repo" },
+  gitea: { instanceKeyField: "instance", defaultInstanceKey: "work" },
+  forgejo: { instanceKeyField: "instance", defaultInstanceKey: "work" },
 };
 
 /** Slugs of every supported kanban provider, in catalog order. */

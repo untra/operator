@@ -70,7 +70,7 @@ impl StatusSection for KanbanSection {
         for provider in KanbanProviderType::ALL {
             // The built-in board is never offered for configuration: it has no
             // credentials and is always on. It appears above as a connected row.
-            if provider.is_builtin() {
+            if provider.is_builtin() || !provider.is_operational() {
                 continue;
             }
             let already_connected = snapshot
@@ -193,7 +193,7 @@ mod tests {
         let children = section.children(&snap);
 
         // Every supported provider is offered when none are connected.
-        assert_eq!(children.len(), 4);
+        assert_eq!(children.len(), 5);
         assert_eq!(children[0].label, "Configure Jira Cloud");
         assert_eq!(children[0].description, "Connect to Jira Cloud");
         assert_eq!(
@@ -270,7 +270,7 @@ mod tests {
         let children = section.children(&snap);
 
         // The connected provider row, plus "add" rows for those not yet connected.
-        assert_eq!(children.len(), 4);
+        assert_eq!(children.len(), 5);
         assert_eq!(children[0].label, "jira");
         assert_eq!(children[0].description, "myteam.atlassian.net");
         assert_eq!(children[0].actions.primary, StatusAction::None);
@@ -282,6 +282,6 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(configure, vec!["linear", "github", "openspec"]);
+        assert_eq!(configure, vec!["linear", "github", "openspec", "gitea"]);
     }
 }

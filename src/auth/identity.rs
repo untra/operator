@@ -736,6 +736,28 @@ pub(crate) mod tests {
         assert!(!audit[0].2.as_ref().unwrap().contains(&issued.secret));
     }
 
+    #[tokio::test]
+    async fn test_exchange_storage_failure_returns_unavailable_without_secret() {
+        use axum::{body::Body, http::{Request, StatusCode}};
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+        let state = crate::rest::state::ApiState::in_memory(Default::default());
+        let (store, owner, request) = fixture_in(state.auth.store.clone());
+        let issued = store.create_user_key(&owner, &request, None).unwrap();
+        store.with_conn(|conn| {
+            conn.execute_batch("ALTER TABLE access_key RENAME TO unavailable_key")?;
+            Ok(())
+        }).unwrap();
+        let response = crate::rest::build_profile_router(state).oneshot(Request::builder()
+            .method("POST").uri("/api/v1/auth/token")
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::json!({"grant_type": "operator:access-key", "access_key": issued.secret}).to_string())).unwrap()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(!String::from_utf8_lossy(&body).contains(&issued.secret));
+    }
+
     #[test]
     fn test_profile_reads_require_explicit_capability() {
         let (store, owner, request) = fixture();

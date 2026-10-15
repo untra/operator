@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
 import type { CapabilityResponse } from "@operator/bindings/CapabilityResponse";
 import { getSessionVersion, subscribeSession } from "../api/adapter";
@@ -53,6 +53,9 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
   }, [clock]);
   const canIssue = available.can_issue && (!available.issuance_expires_at || now < Date.parse(available.issuance_expires_at));
   const [confirmation, setConfirmation] = useState<{ action: "rotate" | "revoke"; key: UserKey } | null>(null);
+  const changeRotationGrants = useCallback((value: PermissionGrant) => {
+    setConfirmation((current) => current && ({ ...current, key: { ...current.key, grants: value } }));
+  }, []);
   const [grants, setGrants] = useState<PermissionGrant | null>(null);
   const [name, setName] = useState("");
   const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
@@ -205,17 +208,17 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
       )}
       {available?.oidc_user && (
         <>
-          {confirmation && <div role="group" aria-label="Confirm key action">
+          {confirmation && <fieldset><legend>Confirm key action</legend>
             <p>{confirmation.action === "rotate" ? "Rotate" : "Revoke"} {confirmation.key.name} ({confirmation.key.display_prefix})? The old key and its access tokens will stop working immediately. Already authorized operations may finish.</p>
             {confirmation.action === "rotate" && <>
               <p>Replacement expires in {days} days. You may remove permissions before rotating.</p>
-              <PermissionSelector available={keys.find((key) => key.id === confirmation.key.id)?.grants ?? confirmation.key.grants} descriptions={available.capability_descriptions} value={confirmation.key.grants} disabled={busy} onChange={(value) => setConfirmation({ ...confirmation, key: { ...confirmation.key, grants: value } })} />
+              <PermissionSelector available={keys.find((key) => key.id === confirmation.key.id)?.grants ?? confirmation.key.grants} descriptions={available.capability_descriptions} value={confirmation.key.grants} disabled={busy} onChange={changeRotationGrants} />
             </>}
             <button type="button" disabled={busy || (confirmation.action === "rotate" && (!canIssue || confirmation.key.grants.capabilities.length === 0))} onClick={() => {
               if (confirmation.action === "rotate") { issue(confirmation.key); } else { revoke(confirmation.key.id); }
             }}>Confirm {confirmation.action}</button>
             <button type="button" onClick={() => setConfirmation(null)}>Cancel</button>
-          </div>}
+          </fieldset>}
           <button
             type="button"
             onClick={() => {

@@ -538,6 +538,10 @@ mod tests {
             ("GET", "/api/v1/projects", StatusCode::OK),
             ("GET", "/api/v1/agents", StatusCode::FORBIDDEN),
             ("POST", "/api/v1/auth/keys", StatusCode::FORBIDDEN),
+            ("GET", "/api/v1/auth/keys", StatusCode::FORBIDDEN),
+            ("DELETE", "/api/v1/auth/keys/other", StatusCode::FORBIDDEN),
+            ("POST", "/api/v1/auth/keys/other/rotate", StatusCode::FORBIDDEN),
+            ("GET", "/api/v1/auth/users", StatusCode::FORBIDDEN),
             ("POST", "/api/v1/auth/device/approve", StatusCode::FORBIDDEN),
             ("POST", "/otlp/v1/logs", StatusCode::FORBIDDEN),
         ] {
@@ -577,5 +581,21 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+    #[tokio::test]
+    async fn test_bearer_validation_is_limited_before_authentication() {
+        let state = ApiState::in_memory(Default::default());
+        let app = crate::rest::build_profile_router(state);
+        for attempt in 0..=crate::auth::limits::EXCHANGES_PER_MINUTE {
+            let response = app.clone().oneshot(Request::builder()
+                .uri("/api/v1/projects")
+                .header(header::AUTHORIZATION, "Bearer invalid")
+                .header("x-forwarded-for", format!("192.0.2.{attempt}"))
+                .body(Body::empty()).unwrap()).await.unwrap();
+            assert_eq!(response.status(), if attempt == crate::auth::limits::EXCHANGES_PER_MINUTE { StatusCode::TOO_MANY_REQUESTS } else { StatusCode::UNAUTHORIZED });
+            if attempt == crate::auth::limits::EXCHANGES_PER_MINUTE {
+                assert!(response.headers().contains_key(header::RETRY_AFTER));
+            }
+        }
     }
 }

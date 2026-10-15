@@ -501,7 +501,8 @@ impl AuthStore {
             "actor_id": user.user.id, "owner_id": user.user.id, "key_id": id,
             "profile_id": request.grants.profile_id, "grants": request.grants,
             "replaces_id": replaces,
-        }).to_string();
+        })
+        .to_string();
         self.with_conn(|conn| {
             let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let owner = authority(&tx, &user.user.id, request.grants.profile_id)?.context("account or connection disabled")?;
@@ -560,7 +561,8 @@ impl AuthStore {
     }
 
     pub fn record_key_use(&self, id: &str) {
-        self.usage.record(super::usage::CredentialTable::Key, id, Utc::now());
+        self.usage
+            .record(super::usage::CredentialTable::Key, id, Utc::now());
     }
 
     pub fn exchange_user_key(
@@ -590,9 +592,21 @@ impl AuthStore {
                 "key_id": authority.key_id,
                 "profile_id": authority.grants.profile_id,
                 "reason": "credential_authenticated",
-            }).to_string();
-            self.with_conn(|conn| record_audit(conn, &authority.user.id, AuditAction::AccessKeyExchange, &detail))?;
-            crate::telemetry::events::audit_event(AuditAction::AccessKeyExchange, true, Some(&detail));
+            })
+            .to_string();
+            self.with_conn(|conn| {
+                record_audit(
+                    conn,
+                    &authority.user.id,
+                    AuditAction::AccessKeyExchange,
+                    &detail,
+                )
+            })?;
+            crate::telemetry::events::audit_event(
+                AuditAction::AccessKeyExchange,
+                true,
+                Some(&detail),
+            );
             if let Some(id) = &authority.key_id {
                 self.record_key_use(id);
             }
@@ -607,14 +621,17 @@ impl AuthStore {
                 "SELECT user_id, profile_id FROM access_key WHERE id = ?1 AND (user_id = ?2 OR ?3)",
                 params![id, actor, administrator], |row| Ok((row.get(0)?, row.get(1)?)),
             ).optional()?;
-            let Some((owner, profile)) = owner else { return Ok(None) };
+            let Some((owner, profile)) = owner else {
+                return Ok(None);
+            };
             let changed = tx.execute(
                 "UPDATE access_key SET revoked_at = ?1 WHERE id = ?2 AND revoked_at IS NULL",
                 params![Utc::now().to_rfc3339(), id],
             )? > 0;
             let detail = serde_json::json!({
                 "actor_id": actor, "owner_id": owner, "key_id": id, "profile_id": profile,
-            }).to_string();
+            })
+            .to_string();
             if changed {
                 record_audit(&tx, actor, AuditAction::AccessKeyRevoked, &detail)?;
             }
@@ -622,7 +639,11 @@ impl AuthStore {
             Ok(Some((changed, detail)))
         })?;
         if let Some((true, detail)) = result.as_ref() {
-            crate::telemetry::events::audit_event(AuditAction::AccessKeyRevoked, true, Some(detail));
+            crate::telemetry::events::audit_event(
+                AuditAction::AccessKeyRevoked,
+                true,
+                Some(detail),
+            );
         }
         Ok(result.is_some())
     }
@@ -735,12 +756,25 @@ pub(crate) mod tests {
     fn test_authority_lookup_does_not_record_usage() {
         let (store, owner, request) = fixture();
         let issued = store.create_user_key(&owner, &request, None).unwrap();
-        assert!(store.key_authority(&issued.key.summary.id).unwrap().is_some());
+        assert!(store
+            .key_authority(&issued.key.summary.id)
+            .unwrap()
+            .is_some());
         store.flush_usage().unwrap();
-        assert!(store.user_keys(&owner.user.id, request.grants.profile_id, 0).unwrap()[0].summary.last_used_at.is_none());
+        assert!(store
+            .user_keys(&owner.user.id, request.grants.profile_id, 0)
+            .unwrap()[0]
+            .summary
+            .last_used_at
+            .is_none());
         assert!(store.exchange_user_key(&issued.secret).unwrap().is_some());
         store.flush_usage().unwrap();
-        assert!(store.user_keys(&owner.user.id, request.grants.profile_id, 0).unwrap()[0].summary.last_used_at.is_some());
+        assert!(store
+            .user_keys(&owner.user.id, request.grants.profile_id, 0)
+            .unwrap()[0]
+            .summary
+            .last_used_at
+            .is_some());
         let audit = store.recent_audit(1).unwrap();
         let detail: serde_json::Value = serde_json::from_str(audit[0].2.as_ref().unwrap()).unwrap();
         assert_eq!(detail["key_id"], issued.key.summary.id);
@@ -752,7 +786,10 @@ pub(crate) mod tests {
     fn test_profile_reads_require_explicit_capability() {
         let (store, owner, request) = fixture();
         let issued = store.create_user_key(&owner, &request, None).unwrap();
-        let (mut authority, _) = store.key_authority(&issued.key.summary.id).unwrap().unwrap();
+        let (mut authority, _) = store
+            .key_authority(&issued.key.summary.id)
+            .unwrap()
+            .unwrap();
         for path in ["/api/v1/profiles", "/api/v1/profiles/{profile_id}"] {
             assert!(super::super::policy::authorize(&authority, "GET", path).is_err());
         }
@@ -764,16 +801,21 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn test_exchange_storage_failure_returns_unavailable_without_secret() {
-        use axum::{body::Body, http::{Request, StatusCode}};
+        use axum::{
+            body::Body,
+            http::{Request, StatusCode},
+        };
         use http_body_util::BodyExt;
         use tower::ServiceExt;
         let state = crate::rest::state::ApiState::in_memory(Default::default());
         let (store, owner, request) = fixture_in(state.auth.store.clone());
         let issued = store.create_user_key(&owner, &request, None).unwrap();
-        store.with_conn(|conn| {
-            conn.execute_batch("ALTER TABLE access_key RENAME TO unavailable_key")?;
-            Ok(())
-        }).unwrap();
+        store
+            .with_conn(|conn| {
+                conn.execute_batch("ALTER TABLE access_key RENAME TO unavailable_key")?;
+                Ok(())
+            })
+            .unwrap();
         let response = crate::rest::build_profile_router(state).oneshot(Request::builder()
             .method("POST").uri("/api/v1/auth/token")
             .header("content-type", "application/json")

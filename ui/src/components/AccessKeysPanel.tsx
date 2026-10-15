@@ -83,7 +83,7 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
     key: UserKey;
   } | null>(null);
   const changeRotationGrants = useCallback((value: PermissionGrant) => {
-    setConfirmation((current) => current && ({ ...current, key: { ...current.key, grants: value } }));
+    setConfirmation((current) => current && { ...current, key: { ...current.key, grants: value } });
   }, []);
   const [grants, setGrants] = useState<PermissionGrant | null>(null);
   const [name, setName] = useState("");
@@ -238,7 +238,8 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
       {available?.oidc_user && (
         <>
           {confirmation && (
-            <fieldset><legend>Confirm key action</legend>
+            <fieldset>
+              <legend>Confirm key action</legend>
               <p>
                 {confirmation.action === "rotate" ? "Rotate" : "Revoke"} {confirmation.key.name} (
                 {confirmation.key.display_prefix})? The old key and its access tokens will stop

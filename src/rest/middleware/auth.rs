@@ -15,6 +15,7 @@ use axum::http::{header, HeaderMap, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
+use crate::auth::limits::Denial;
 use crate::auth::scope::{required_access, Access, Principal};
 use crate::auth::store::RateLimitDecision;
 use crate::auth::tokens::{Claims, AUDIENCE_API, AUDIENCE_CALLBACK, AUDIENCE_TELEMETRY};
@@ -285,15 +286,24 @@ pub async fn authorize(
         );
     };
 
-    if path == "/api/v1/auth/token" || headers.contains_key(header::AUTHORIZATION) {
+    if path == "/api/v1/auth/token"
+        || (path.starts_with("/api/") && headers.contains_key(header::AUTHORIZATION))
+    {
         let peer = request
             .extensions()
             .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
             .map_or_else(|| "unknown".to_string(), |peer| peer.ip().to_string());
-        if let Err(retry) = state.auth.store.limits.check(&[(
-            format!("authentication:{peer}"),
-            crate::auth::limits::EXCHANGES_PER_MINUTE,
-        )]) {
+        let (bucket, limit) = if path == "/api/v1/auth/token" {
+            ("exchange", crate::auth::limits::EXCHANGES_PER_MINUTE)
+        } else {
+            ("authentication", crate::auth::limits::REQUESTS_PER_OWNER)
+        };
+        if let Err(retry) = state
+            .auth
+            .store
+            .limits
+            .check(&[(format!("{bucket}:{peer}"), limit)])
+        {
             return Err(rate_limited(retry).into());
         }
     }
@@ -314,12 +324,18 @@ pub async fn authorize(
     };
 
     let Some(principal) = resolve_principal(&state, &headers).await? else {
+        state
+            .auth
+            .store
+            .limits
+            .record_denial(Denial::Authentication);
         return Err(ApiError::Unauthorized("no valid credential was presented".to_string()).into());
     };
 
     if crate::auth::policy::browser_identity_route(&path)
         && principal.kind != PrincipalKind::Session
     {
+        state.auth.store.limits.record_denial(Denial::Authorization);
         return Err(ApiError::Forbidden("Use an authenticated browser session".into()).into());
     }
 
@@ -355,8 +371,10 @@ pub async fn authorize(
             authority,
             method.as_str(),
             matched.as_deref().unwrap_or(&path),
-        )?;
+        )
+        .inspect_err(|_| state.auth.store.limits.record_denial(Denial::Authorization))?;
     } else if !principal.has_scope(required) {
+        state.auth.store.limits.record_denial(Denial::Authorization);
         return Err(
             ApiError::Forbidden(format!("this endpoint requires the `{required}` scope")).into(),
         );

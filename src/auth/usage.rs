@@ -20,6 +20,7 @@ pub struct Usage {
     pending: Mutex<HashMap<(CredentialTable, String), DateTime<Utc>>>,
     started: AtomicBool,
     dropped: AtomicU64,
+    flush_failures: AtomicU64,
     flush_lock: Mutex<()>,
     inflight: AtomicUsize,
 }
@@ -27,6 +28,7 @@ pub struct Usage {
 impl Usage {
     pub fn record(&self, table: CredentialTable, id: &str, observed: DateTime<Utc>) {
         let Ok(mut pending) = self.pending.lock() else {
+            self.dropped.fetch_add(1, Ordering::Relaxed);
             return;
         };
         let key = (table, id.to_string());
@@ -80,10 +82,16 @@ impl Usage {
         })();
         self.inflight.store(0, Ordering::Release);
         if result.is_err() {
+            self.flush_failures.fetch_add(1, Ordering::Relaxed);
             for ((table, id), at) in batch {
                 self.record(table, &id, at);
             }
         }
+        tracing::info!(
+            pending = self.pending.lock().map_or(0, |pending| pending.len()),
+            flush_failures = self.flush_failures.load(Ordering::Relaxed),
+            "credential usage flush counters"
+        );
         result
     }
 
@@ -148,10 +156,17 @@ mod tests {
             usage.record(CredentialTable::Key, &index.to_string(), now);
         }
         usage.record(CredentialTable::Key, "overflow", now);
-        usage.record(CredentialTable::Key, "0", now + chrono::Duration::seconds(1));
+        usage.record(
+            CredentialTable::Key,
+            "0",
+            now + chrono::Duration::seconds(1),
+        );
         let pending = usage.pending.lock().unwrap();
         assert_eq!(pending.len(), MAX_PENDING);
-        assert_eq!(pending[&(CredentialTable::Key, "0".into())], now + chrono::Duration::seconds(1));
+        assert_eq!(
+            pending[&(CredentialTable::Key, "0".into())],
+            now + chrono::Duration::seconds(1)
+        );
         assert_eq!(usage.dropped.load(Ordering::Relaxed), 1);
     }
 
@@ -174,7 +189,10 @@ mod tests {
         usage.record(CredentialTable::Key, "k", newer);
         drop(locked);
         assert!(worker.join().unwrap().is_err());
-        assert_eq!(usage.pending.lock().unwrap()[&(CredentialTable::Key, "k".into())], newer);
+        assert_eq!(
+            usage.pending.lock().unwrap()[&(CredentialTable::Key, "k".into())],
+            newer
+        );
     }
 
     #[test]

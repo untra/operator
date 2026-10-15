@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { PermissionSelector } from "../../src/components/PermissionSelector";
 import type { PermissionGrant } from "../../src/generated/PermissionGrant";
+import type { CapabilityDescription } from "../../src/generated/CapabilityDescription";
 
 const available: PermissionGrant = {
   profile_id: "00000000-0000-0000-0000-000000000001",
   instance_wide: true,
-  capabilities: ["tickets:read", "tickets:create", "agents:execute", "mcp:connect"],
+  capabilities: ["tickets:read", "tickets:create", "agents:focus", "mcp:connect"],
   projects: ["operator", "website"],
 };
 const empty: PermissionGrant = {
@@ -15,11 +16,25 @@ const empty: PermissionGrant = {
   instance_wide: false,
 };
 function onChange() {}
+const descriptions: CapabilityDescription[] = [
+  {
+    capability: "tickets:read",
+    resource: "tickets",
+    label: "Read tickets",
+    description: "Applies only to selected projects.",
+  },
+  {
+    capability: "mcp:connect",
+    resource: "mcp",
+    label: "Connect MCP",
+    description: "Connects the MCP transport; tool permissions are granted separately.",
+  },
+];
 
 const meta = {
   title: "Components/PermissionSelector",
   component: PermissionSelector,
-  args: { available, value: empty, onChange },
+  args: { available, value: empty, descriptions, onChange },
 } satisfies Meta<typeof PermissionSelector>;
 export default meta;
 type Story = StoryObj<typeof meta>;

@@ -16,6 +16,7 @@ use super::store::AuthStore;
 use crate::rest::dto::auth::{AccessKeySummary, PrincipalKind};
 
 pub const KEY_PREFIX: &str = "opk_v1";
+pub const KEY_LENGTH: usize = 87;
 pub const KEY_PAGE_SIZE: usize = 50;
 pub const RECENT_LOGIN_SECONDS: i64 = 300;
 pub const ISSUANCE_WINDOW_SECONDS: u32 = 3600;
@@ -569,7 +570,7 @@ impl AuthStore {
         &self,
         secret: &str,
     ) -> Result<Option<(UserAuthority, DateTime<Utc>)>> {
-        if !secret.starts_with(&format!("{KEY_PREFIX}_")) || secret.len() > 128 {
+        if !secret.starts_with(&format!("{KEY_PREFIX}_")) || secret.len() != KEY_LENGTH {
             return Ok(None);
         }
         let id: Option<String> = self.with_conn(|conn| {
@@ -784,16 +785,21 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn test_exchange_storage_failure_returns_unavailable_without_secret() {
-        use axum::{body::Body, http::{Request, StatusCode}};
+        use axum::{
+            body::Body,
+            http::{Request, StatusCode},
+        };
         use http_body_util::BodyExt;
         use tower::ServiceExt;
         let state = crate::rest::state::ApiState::in_memory(Default::default());
         let (store, owner, request) = fixture_in(state.auth.store.clone());
         let issued = store.create_user_key(&owner, &request, None).unwrap();
-        store.with_conn(|conn| {
-            conn.execute_batch("ALTER TABLE access_key RENAME TO unavailable_key")?;
-            Ok(())
-        }).unwrap();
+        store
+            .with_conn(|conn| {
+                conn.execute_batch("ALTER TABLE access_key RENAME TO unavailable_key")?;
+                Ok(())
+            })
+            .unwrap();
         let response = crate::rest::build_profile_router(state).oneshot(Request::builder()
             .method("POST").uri("/api/v1/auth/token")
             .header("content-type", "application/json")
@@ -819,33 +825,6 @@ pub(crate) mod tests {
         authority.grants.instance_wide = true;
         assert!(super::super::policy::authorize(&authority, "GET", "/api/v1/profiles").is_ok());
         assert!(super::super::policy::authorize(&authority, "POST", "/api/v1/profiles").is_err());
-    }
-
-    #[tokio::test]
-    async fn test_exchange_storage_failure_returns_unavailable_without_secret() {
-        use axum::{
-            body::Body,
-            http::{Request, StatusCode},
-        };
-        use http_body_util::BodyExt;
-        use tower::ServiceExt;
-        let state = crate::rest::state::ApiState::in_memory(Default::default());
-        let (store, owner, request) = fixture_in(state.auth.store.clone());
-        let issued = store.create_user_key(&owner, &request, None).unwrap();
-        store
-            .with_conn(|conn| {
-                conn.execute_batch("ALTER TABLE access_key RENAME TO unavailable_key")?;
-                Ok(())
-            })
-            .unwrap();
-        let response = crate::rest::build_profile_router(state).oneshot(Request::builder()
-            .method("POST").uri("/api/v1/auth/token")
-            .header("content-type", "application/json")
-            .body(Body::from(serde_json::json!({"grant_type": "operator:access-key", "access_key": issued.secret}).to_string())).unwrap()).await.unwrap();
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(response.headers()["cache-control"], "no-store");
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        assert!(!String::from_utf8_lossy(&body).contains(&issued.secret));
     }
 
     #[test]
@@ -914,6 +893,7 @@ pub(crate) mod tests {
     fn test_key_lifecycle_hashes_and_revalidates_owner() {
         let (store, owner, request) = fixture();
         let issued = store.create_user_key(&owner, &request, None).unwrap();
+        assert_eq!(issued.secret.len(), KEY_LENGTH);
         let hash: String = store
             .with_conn(|conn| {
                 Ok(conn.query_row(

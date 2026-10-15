@@ -3,6 +3,24 @@ groups:
     type: "attribute_group"
     brief: "Reviewed telemetry attributes."
     attributes:
+      - id: error.type
+        type: "string"
+        brief: "Telemetry SDK failure category."
+        stability: "development"
+        examples: ["queue_full"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: otel.component.type
+        type: "string"
+        brief: "Telemetry SDK component type."
+        stability: "development"
+        examples: ["batching_log_processor"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: otel.component.name
+        type: "string"
+        brief: "Telemetry SDK component instance."
+        stability: "development"
+        examples: ["batching_log_processor/1"]
+        annotations: {"operator": {"redaction_class": "internal"}}
       - id: service.name
         type: "string"
         brief: "Service name."

@@ -335,7 +335,7 @@ pub struct DeviceApprovalResponse {
 
 /// Token endpoint request. The discriminator makes unrelated credential
 /// combinations unrepresentable.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[derive(Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 #[serde(tag = "grant_type")]
 pub enum TokenRequest {
@@ -358,13 +358,13 @@ pub enum TokenRequest {
     /// Exchange a service access key.
     #[serde(rename = "operator:access-key")]
     AccessKey {
-        #[schema(write_only, format = Password, min_length = 47, max_length = 47)]
+        #[schema(write_only, format = Password, min_length = 87, max_length = 87)]
         access_key: String,
     },
 }
 
 /// A newly issued access token, and a refresh token when the grant produces one.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[derive(Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct TokenResponse {
     /// Signed, short-lived bearer token.
@@ -381,6 +381,20 @@ pub struct TokenResponse {
     pub refresh_token: Option<String>,
     /// Scopes the access token carries.
     pub scopes: Vec<Scope>,
+}
+
+impl std::fmt::Debug for TokenRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenRequest").finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for TokenResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponse")
+            .field("expires_in", &self.expires_in)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can
@@ -717,6 +731,20 @@ mod tests {
         };
         assert!(!format!("{request:?}").contains(secret));
         assert!(!format!("{response:?}").contains(secret));
+    }
+
+    #[test]
+    fn test_access_key_schema_matches_issued_key_length() {
+        let schema =
+            serde_json::to_value(<TokenRequest as utoipa::PartialSchema>::schema()).unwrap();
+        let field = schema["oneOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find_map(|variant| variant["properties"].get("access_key"))
+            .unwrap();
+        assert_eq!(field["minLength"], crate::auth::identity::KEY_LENGTH);
+        assert_eq!(field["maxLength"], crate::auth::identity::KEY_LENGTH);
     }
 
     #[test]

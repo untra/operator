@@ -20,6 +20,18 @@ const DEFAULT_EXPIRY_DAYS = 90;
 const PERMISSIONS_POLL_MS = 30_000;
 const CLOCK_TICK_MS = 1000;
 const systemTime = () => Date.now();
+const NO_KEYS: UserKey[] = [];
+
+function intersectGrants(grant: PermissionGrant, owner: PermissionGrant): PermissionGrant {
+  return {
+    ...grant,
+    capabilities: grant.capabilities.filter((capability) =>
+      owner.capabilities.includes(capability),
+    ),
+    projects: grant.projects.filter((project) => owner.projects.includes(project)),
+    instance_wide: grant.instance_wide && owner.instance_wide,
+  };
+}
 
 interface AccessKeysPanelProps {
   clock?: () => number;
@@ -99,11 +111,23 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
     enabled: available.oidc_user ?? false,
     pollIntervalMs: PERMISSIONS_POLL_MS,
   });
-  const keys = keyQuery.data?.keys ?? [];
+  const keys = keyQuery.data?.keys ?? NO_KEYS;
   const selected = useMemo(
     () => grants ?? { ...available.grants, capabilities: [], projects: [], instance_wide: false },
     [grants, available],
   );
+
+  const rotation = useMemo(() => {
+    if (confirmation?.action !== "rotate") {
+      return null;
+    }
+    const original =
+      keys.find((key) => key.id === confirmation.key.id)?.grants ?? confirmation.key.grants;
+    return {
+      available: intersectGrants(original, available.grants),
+      value: intersectGrants(confirmation.key.grants, available.grants),
+    };
+  }, [confirmation, keys, available.grants]);
 
   useEffect(() => {
     generation.current += 1;
@@ -126,7 +150,11 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
     setSecret(null);
     setConfirmation(null);
     createKey.mutate({
-      request: { name: key?.name ?? name, expires_in_days: days, grants: key?.grants ?? selected },
+      request: {
+        name: key?.name ?? name,
+        expires_in_days: days,
+        grants: intersectGrants(key?.grants ?? selected, available.grants),
+      },
       id: key?.id,
       onIssued: (value) => {
         if (generation.current === current) {
@@ -245,18 +273,15 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
                 {confirmation.key.display_prefix})? The old key and its access tokens will stop
                 working immediately. Already authorized operations may finish.
               </p>
-              {confirmation.action === "rotate" && (
+              {rotation && (
                 <>
                   <p>
                     Replacement expires in {days} days. You may remove permissions before rotating.
                   </p>
                   <PermissionSelector
-                    available={
-                      keys.find((key) => key.id === confirmation.key.id)?.grants ??
-                      confirmation.key.grants
-                    }
+                    available={rotation.available}
                     descriptions={available.capability_descriptions}
-                    value={confirmation.key.grants}
+                    value={rotation.value}
                     disabled={busy}
                     onChange={changeRotationGrants}
                   />
@@ -267,7 +292,7 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
                 disabled={
                   busy ||
                   (confirmation.action === "rotate" &&
-                    (!canIssue || confirmation.key.grants.capabilities.length === 0))
+                    (!canIssue || !rotation?.value.capabilities.length))
                 }
                 onClick={() => {
                   if (confirmation.action === "rotate") {
@@ -362,17 +387,7 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
                           action: "rotate",
                           key: {
                             ...key,
-                            grants: {
-                              ...key.grants,
-                              capabilities: key.grants.capabilities.filter((capability) =>
-                                available.grants.capabilities.includes(capability),
-                              ),
-                              projects: key.grants.projects.filter((project) =>
-                                available.grants.projects.includes(project),
-                              ),
-                              instance_wide:
-                                key.grants.instance_wide && available.grants.instance_wide,
-                            },
+                            grants: intersectGrants(key.grants, available.grants),
                           },
                         });
                       }}

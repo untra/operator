@@ -1,5 +1,5 @@
-import { afterEach, expect, mock, test } from "bun:test";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, expect, jest, mock, test } from "bun:test";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ApiProvider, resetSessionState } from "../api";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
@@ -17,6 +17,7 @@ const host: Host = {
   browseFolder: () => Promise.resolve(null),
   openFile: () => undefined,
 };
+const nextHost: Host = { ...host, profileId: "next-profile" };
 const grants = {
   profile_id: "00000000-0000-0000-0000-000000000001",
   capabilities: ["tickets:read", "tickets:create"],
@@ -34,14 +35,18 @@ const key = {
   revoked_at: null,
 };
 
-function setup(expiresAt = key.expires_at, issuanceExpiresAt = "2026-10-14T12:05:00Z") {
+function setup(
+  expiresAt = key.expires_at,
+  issuanceExpiresAt = "2026-10-14T12:05:00Z",
+  ownerGrants = grants,
+) {
   const writes: { path: string; body: unknown }[] = [];
   mockFetch((input, init) => {
     const path = requestPath(input);
     let body: unknown = {};
     if (path.endsWith("/capabilities")) {
       body = {
-        grants,
+        grants: ownerGrants,
         oidc_user: true,
         owner_id: "owner",
         can_issue: true,
@@ -73,6 +78,7 @@ afterEach(() => {
   resetSessionState();
   setCsrfToken(null);
   restoreFetch();
+  jest.restoreAllMocks();
 });
 
 test("expired keys cannot rotate", async () => {
@@ -110,4 +116,74 @@ test("expired reauthentication blocks issuance despite cached eligibility", asyn
   fireEvent.click(screen.getByLabelText("tickets:read"));
   fireEvent.click(screen.getByRole("button", { name: "Create key" }));
   expect(writes).toEqual([]);
+});
+
+test("rotation cannot reselect a permission withdrawn from the owner", async () => {
+  const reduced = { ...grants, capabilities: ["tickets:read"] };
+  const writes = setup(key.expires_at, "2026-10-14T12:05:00Z", reduced);
+  fireEvent.click(await screen.findByRole("button", { name: "Rotate" }));
+  const confirmation = within(screen.getByRole("group", { name: "Confirm key action" }));
+  const withdrawn = confirmation.queryByLabelText("tickets:create");
+  if (withdrawn) {
+    fireEvent.click(withdrawn);
+  }
+  fireEvent.click(confirmation.getByRole("button", { name: "Confirm rotate" }));
+  await waitFor(() =>
+    expect(writes[0]?.body).toEqual({ name: "CI", expires_in_days: 90, grants: reduced }),
+  );
+});
+
+test("a late issuance response cannot expose its secret after a profile switch", async () => {
+  let finish: ((response: Response) => void) | undefined;
+  const writes: string[] = [];
+  const clipboard = jest.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+  mockFetch((input, init) => {
+    const path = requestPath(input);
+    if (init?.method === "POST") {
+      writes.push(path);
+      return new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    }
+    const body = path.endsWith("/capabilities")
+      ? { grants, oidc_user: true, owner_id: "owner", can_issue: true }
+      : { keys: [] };
+    return Promise.resolve(
+      new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }),
+    );
+  });
+  setCsrfToken("csrf");
+  const view = render(
+    <HostContext value={host}>
+      <ApiProvider>
+        <AccessKeysPanel clock={clock} />
+      </ApiProvider>
+    </HostContext>,
+  );
+  fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+    target: { value: "CI" },
+  });
+  fireEvent.click(screen.getByLabelText("tickets:read"));
+  fireEvent.click(screen.getByRole("button", { name: "Create key" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  view.rerender(
+    <HostContext value={nextHost}>
+      <ApiProvider>
+        <AccessKeysPanel clock={clock} />
+      </ApiProvider>
+    </HostContext>,
+  );
+  await act(async () => {
+    finish?.(
+      new Response(JSON.stringify({ key, secret: "previous-profile-secret" }), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    await Promise.resolve();
+  });
+  const copy = screen.queryByRole("button", { name: "Copy secret" });
+  if (copy) {
+    fireEvent.click(copy);
+  }
+  expect(clipboard).not.toHaveBeenCalled();
 });

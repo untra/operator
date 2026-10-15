@@ -33,6 +33,12 @@ impl Limits {
     }
 
     pub fn record_denial(&self, reason: Denial) {
+        match reason {
+            Denial::Authentication => super::metrics::Counter::AuthenticationDenied,
+            Denial::Authorization => super::metrics::Counter::AuthorizationDenied,
+            Denial::RateLimit => super::metrics::Counter::RateLimited,
+        }
+        .increment();
         if let Ok(mut state) = self.0.lock() {
             let counter = match reason {
                 Denial::Authentication => &mut state.authentication_denied,

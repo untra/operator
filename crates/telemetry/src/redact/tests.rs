@@ -2,6 +2,23 @@ use super::*;
 use serde_json::json;
 
 const KEY: [u8; 32] = [42; 32];
+
+#[test]
+fn test_sdk_drop_reason_survives_redaction() {
+    let redactor = Redactor::new(&KEY).unwrap();
+    for (key, value) in [
+        ("error.type", "queue_full"),
+        ("otel.component.type", "batching_log_processor"),
+        ("otel.component.name", "batching_log_processor/1"),
+    ] {
+        let value = json!(value);
+        assert_eq!(
+            redactor.redact_attribute(key, &value, policy(true)).value,
+            Some(value)
+        );
+    }
+}
+
 fn policy(enable_redaction: bool) -> RedactionPolicy {
     RedactionPolicy { enable_redaction }
 }

@@ -74,7 +74,7 @@ fn test_catalog_signal_coverage_and_attribute_references() {
         );
     }
     assert_eq!(SpanName::ALL.len(), 4);
-    assert_eq!(MetricName::ALL.len(), 7);
+    assert_eq!(MetricName::ALL.len(), 12);
     for signal in SIGNALS {
         for key in signal.attributes {
             assert!(ATTRIBUTES.iter().any(|a| a.name == *key), "{key}");

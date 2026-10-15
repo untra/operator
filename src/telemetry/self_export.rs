@@ -166,6 +166,15 @@ impl SelfExport {
             resource: (&resource).into(),
             stats: Arc::clone(&stats),
         };
+        let meter = metrics.then(|| {
+            SdkMeterProvider::builder()
+                .with_resource(resource.clone())
+                .with_reader(PeriodicReader::builder(exporter()).build())
+                .build()
+        });
+        if let Some(provider) = &meter {
+            opentelemetry::global::set_meter_provider(provider.clone());
+        }
         let tracer = traces.then(|| {
             SdkTracerProvider::builder()
                 .with_resource(resource.clone())
@@ -179,12 +188,6 @@ impl SelfExport {
                 .build()
         });
         let logger = logger_provider.as_ref().map(|p| p.logger("operator"));
-        let meter = metrics.then(|| {
-            SdkMeterProvider::builder()
-                .with_resource(resource.clone())
-                .with_reader(PeriodicReader::builder(exporter()).build())
-                .build()
-        });
         let instance = Self {
             tracer,
             logger_provider,

@@ -500,6 +500,114 @@ mod tests {
     use http_body_util::BodyExt;
     use tower::ServiceExt;
 
+    #[test]
+    fn test_issuance_owner_requires_recent_oidc_browser_session() {
+        let store = crate::auth::store::AuthStore::in_memory().unwrap();
+        let (_, mut authority, _) = crate::auth::identity::tests::fixture_in(store);
+        let now = chrono::Utc::now();
+        authority.authenticated_at = Some(now.timestamp());
+        let mut principal =
+            authority.principal(now + chrono::Duration::hours(1), Some("browser".into()));
+        assert!(owner(&principal, true).is_ok());
+        for kind in [
+            PrincipalKind::ApiKey,
+            PrincipalKind::AccessToken,
+            PrincipalKind::LocalProcess,
+            PrincipalKind::AgentCallback,
+            PrincipalKind::TelemetryIngest,
+        ] {
+            principal.kind = kind;
+            assert!(owner(&principal, true).is_err());
+        }
+        principal.kind = PrincipalKind::Session;
+        principal.authority.as_mut().unwrap().authenticated_at =
+            Some(now.timestamp() - identity::RECENT_LOGIN_SECONDS - 1);
+        assert!(owner(&principal, true).is_err());
+        assert!(owner(&principal, false).is_ok());
+        principal.authority = None;
+        assert!(owner(&principal, true).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_keys_reject_raw_keys_and_non_browser_admin_tokens() {
+        let state = ApiState::in_memory(Default::default());
+        let (_, authority, request) =
+            crate::auth::identity::tests::fixture_in(state.auth.store.clone());
+        let key = state
+            .auth
+            .store
+            .create_user_key(&authority, &request, None)
+            .unwrap();
+        let claims = crate::auth::tokens::api_claims(
+            "admin",
+            &crate::rest::dto::auth::Scope::ALL,
+            chrono::Utc::now(),
+            uuid::Uuid::new_v4().to_string(),
+        );
+        let token = state.auth.signing_key.sign(&claims).unwrap();
+        let app = crate::rest::build_profile_router(state);
+        for (credential, expected) in [
+            (key.secret, StatusCode::UNAUTHORIZED),
+            (token, StatusCode::FORBIDDEN),
+        ] {
+            for (method, path) in [
+                ("GET", "/api/v1/auth/keys"),
+                ("POST", "/api/v1/auth/keys"),
+                ("POST", "/api/v1/auth/keys/other/rotate"),
+                ("DELETE", "/api/v1/auth/keys/other"),
+            ] {
+                let response = app
+                    .clone()
+                    .oneshot(
+                        Request::builder()
+                            .method(method)
+                            .uri(path)
+                            .header(header::AUTHORIZATION, format!("Bearer {credential}"))
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), expected, "{method} {path}");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_mutations_require_csrf_and_allowed_origin() {
+        let state = ApiState::in_memory(Default::default());
+        let (_, authority, _) = crate::auth::identity::tests::fixture_in(state.auth.store.clone());
+        let (session, csrf, _) = state
+            .auth
+            .store
+            .oidc_session(&authority.user.id, chrono::Utc::now().timestamp())
+            .unwrap();
+        let app = crate::rest::build_profile_router(state);
+        for (origin, csrf_value) in [
+            ("https://evil.example", csrf.as_str()),
+            ("http://localhost", "invalid"),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("DELETE")
+                        .uri("/api/v1/auth/keys/other")
+                        .header(header::COOKIE, format!("{SESSION_COOKIE}={session}"))
+                        .header(header::HOST, "localhost")
+                        .header(header::ORIGIN, origin)
+                        .header(crate::rest::middleware::auth::CSRF_HEADER, csrf_value)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+            let body = response.into_body().collect().await.unwrap().to_bytes();
+            assert!(String::from_utf8_lossy(&body).contains("csrf"));
+        }
+    }
+
     #[tokio::test]
     async fn test_bearer_validation_is_limited_before_authentication() {
         let state = ApiState::in_memory(Default::default());
@@ -576,11 +684,15 @@ mod tests {
         let app = crate::rest::build_profile_router(state.clone());
         for (method, path, expected) in [
             ("GET", "/api/v1/projects", StatusCode::OK),
-            ("GET", "/api/v1/agents", StatusCode::FORBIDDEN),
+            ("GET", "/api/v1/agents/active", StatusCode::FORBIDDEN),
             ("POST", "/api/v1/auth/keys", StatusCode::FORBIDDEN),
             ("GET", "/api/v1/auth/keys", StatusCode::FORBIDDEN),
             ("DELETE", "/api/v1/auth/keys/other", StatusCode::FORBIDDEN),
-            ("POST", "/api/v1/auth/keys/other/rotate", StatusCode::FORBIDDEN),
+            (
+                "POST",
+                "/api/v1/auth/keys/other/rotate",
+                StatusCode::FORBIDDEN,
+            ),
             ("GET", "/api/v1/auth/users", StatusCode::FORBIDDEN),
             ("POST", "/api/v1/auth/device/approve", StatusCode::FORBIDDEN),
             ("POST", "/otlp/v1/logs", StatusCode::FORBIDDEN),
@@ -605,6 +717,60 @@ mod tests {
                 assert_eq!(value[0]["project_name"], "allowed");
             }
         }
+        let mut reduced = request.grants.clone();
+        reduced.capabilities.clear();
+        state
+            .auth
+            .store
+            .update_operator_user(
+                "admin",
+                &owner.user.id,
+                &UpdateOperatorUser {
+                    enabled: true,
+                    administrator: false,
+                    grants: reduced,
+                },
+                true,
+            )
+            .unwrap();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/projects")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        state
+            .auth
+            .store
+            .update_operator_user(
+                "admin",
+                &owner.user.id,
+                &UpdateOperatorUser {
+                    enabled: true,
+                    administrator: false,
+                    grants: request.grants,
+                },
+                true,
+            )
+            .unwrap();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/projects")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
         state
             .auth
             .store
@@ -621,21 +787,5 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    }
-    #[tokio::test]
-    async fn test_bearer_validation_is_limited_before_authentication() {
-        let state = ApiState::in_memory(Default::default());
-        let app = crate::rest::build_profile_router(state);
-        for attempt in 0..=crate::auth::limits::EXCHANGES_PER_MINUTE {
-            let response = app.clone().oneshot(Request::builder()
-                .uri("/api/v1/projects")
-                .header(header::AUTHORIZATION, "Bearer invalid")
-                .header("x-forwarded-for", format!("192.0.2.{attempt}"))
-                .body(Body::empty()).unwrap()).await.unwrap();
-            assert_eq!(response.status(), if attempt == crate::auth::limits::EXCHANGES_PER_MINUTE { StatusCode::TOO_MANY_REQUESTS } else { StatusCode::UNAUTHORIZED });
-            if attempt == crate::auth::limits::EXCHANGES_PER_MINUTE {
-                assert!(response.headers().contains_key(header::RETRY_AFTER));
-            }
-        }
     }
 }

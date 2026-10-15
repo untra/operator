@@ -45,6 +45,18 @@ pub fn register(
     forward: Arc<ForwardStats>,
     own: Arc<TelemetryStats>,
 ) {
+    for counter in crate::auth::metrics::Counter::ALL {
+        let spec = SIGNALS
+            .iter()
+            .find(|spec| spec.name == counter.name().as_str())
+            .expect("auth metric");
+        meter
+            .u64_observable_counter(counter.name().as_str())
+            .with_unit(spec.unit.unwrap_or_default())
+            .with_description(spec.description)
+            .with_callback(move |observer| observer.observe(counter.value(), &[]))
+            .build();
+    }
     let state_path = config.state_path().join("state.json");
     meter
         .u64_observable_gauge(MetricName::OperatorAgentsActive.as_str())
@@ -200,6 +212,9 @@ mod tests {
                 ..Default::default()
             },
         );
+        for counter in crate::auth::metrics::Counter::ALL {
+            counter.increment();
+        }
         register(&provider.meter("test"), config, forwarder.stats(), stats);
         provider.force_flush().unwrap();
         let batches = captured.lock().unwrap();
@@ -213,6 +228,18 @@ mod tests {
             assert!(SIGNALS
                 .iter()
                 .any(|spec| spec.kind == "metric" && spec.name == metric.name));
+        }
+        for counter in crate::auth::metrics::Counter::ALL {
+            let metric = metrics
+                .iter()
+                .find(|metric| metric.name == counter.name().as_str())
+                .unwrap();
+            let Some(Data::Sum(sum)) = &metric.data else {
+                panic!("auth counter")
+            };
+            assert_eq!(sum.data_points.len(), 1);
+            assert!(sum.data_points[0].attributes.is_empty());
+            assert!(matches!(sum.data_points[0].value, Some(Value::AsInt(value)) if value >= 1));
         }
         for name in [
             MetricName::OperatorQueueDepth,

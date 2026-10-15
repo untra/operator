@@ -27,7 +27,7 @@ operator-telemetry = { path = "crates/telemetry", features = ["redact", "schema"
 # OTLP wire types only: prost messages and serde JSON, no tonic server or client
 opentelemetry-proto = { version = "=0.33.0", default-features = false, features = ["gen-tonic-messages", "with-serde", "trace", "logs", "metrics"] }
 opentelemetry = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics"] }
-opentelemetry_sdk = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics"] }
+opentelemetry_sdk = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics", "experimental_metrics_bound_instruments"] }
 tracing-opentelemetry = { version = "=0.34.0", default-features = false }
 opentelemetry-appender-tracing = { version = "=0.33.0", default-features = false }
 percent-encoding = "2"

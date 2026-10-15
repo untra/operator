@@ -9,7 +9,7 @@
 //!   pre-image-resistant hash; Argon2 on a lookup path would add latency for
 //!   no security benefit, because there is nothing to brute-force.
 //!
-//! Both lookups compare in constant time.
+//! Indexed lookups use complete hashes; explicit comparisons use constant-time equality.
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;

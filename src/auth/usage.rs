@@ -29,6 +29,7 @@ impl Usage {
     pub fn record(&self, table: CredentialTable, id: &str, observed: DateTime<Utc>) {
         let Ok(mut pending) = self.pending.lock() else {
             self.dropped.fetch_add(1, Ordering::Relaxed);
+            super::metrics::Counter::UsageDropped.increment();
             return;
         };
         let key = (table, id.to_string());
@@ -36,6 +37,7 @@ impl Usage {
             && !pending.contains_key(&key)
         {
             self.dropped.fetch_add(1, Ordering::Relaxed);
+            super::metrics::Counter::UsageDropped.increment();
             return;
         }
         pending
@@ -83,6 +85,7 @@ impl Usage {
         self.inflight.store(0, Ordering::Release);
         if result.is_err() {
             self.flush_failures.fetch_add(1, Ordering::Relaxed);
+            super::metrics::Counter::UsageFlushFailed.increment();
             for ((table, id), at) in batch {
                 self.record(table, &id, at);
             }

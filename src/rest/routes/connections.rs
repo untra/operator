@@ -18,6 +18,7 @@ pub async fn get(State(state): State<ApiState>) -> Json<ConnectionsResponse> {
         .values()
         .filter(|session| session.is_connected_client())
         .count();
+    let oauth_resource_metadata = crate::rest::middleware::auth::discovery_url(&state).await;
     Json(ConnectionsResponse {
         version: env!("CARGO_PKG_VERSION").into(),
         profile_name: config.profile.name.clone(),
@@ -29,6 +30,7 @@ pub async fn get(State(state): State<ApiState>) -> Json<ConnectionsResponse> {
         mcp_stdio_advertised: config.mcp.stdio_advertised,
         acp_stdio_advertised: config.acp.stdio_advertised,
         mcp_connected_clients: clients,
+        oauth_resource_metadata,
     })
 }
 

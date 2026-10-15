@@ -16,6 +16,8 @@ API keys belong to an approved OIDC user and exactly one profile. Only a browser
 
 OIDC uses authorization code, S256 PKCE, state, nonce, issuer/audience/signature checks, and recent `auth_time`. The public provider listing, login redirect, and callback are intentionally unauthenticated. Pending login state is bounded, expires after five minutes, and is process-local: use session affinity when routing to multiple processes. Metadata and token HTTP requests require HTTPS, pin resolved addresses, refuse redirects, cap response size and time, and reject loopback and metadata destinations. IdP-side disablement alone does not revoke an existing Operator session; disable the user or connection in Operator.
 
+With `[rest_api].public_url` set and an enabled OIDC connection, Operator is an OAuth protected resource (RFC 9728). The public `GET /.well-known/oauth-protected-resource` returns the public URL and the enabled issuers. API 401 challenges name it in `resource_metadata`. A bearer that is not an Operator token is verified as a provider access token. The checks are: `iss` matches an enabled connection, the signature (RS256/ES256) matches that issuer's JWKS, `aud` contains the public URL, `exp` has not passed, and `(issuer, subject)` is an existing approved user. The token carries that user's profile grants. It never provisions a user. JWKS is fetched under the same egress rules as login metadata, and is refreshed at most once a minute on an unknown key. An MCP stream opened with such a token closes when the token expires, or when the user's grants change or the user is disabled.
+
 ## Scopes
 
 Legacy local and device credentials retain four typed scopes, checked per route:

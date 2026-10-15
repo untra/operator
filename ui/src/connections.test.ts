@@ -20,6 +20,14 @@ describe("connection setup", () => {
     expect(recipe.mcpServers.operator.headers).toBeUndefined();
   });
 
+  test("OAuth MCP config carries no credential so the client discovers the provider", () => {
+    const recipe = JSON.parse(mcpRecipe("oauth", "https://operator.test/api/v1/mcp/sse"));
+    expect(recipe.mcpServers.operator).toEqual({
+      type: "sse",
+      url: "https://operator.test/api/v1/mcp/sse",
+    });
+  });
+
   test("ACP uses the user's executable and local profile, including escaped arguments", () => {
     const recipe = JSON.parse(acpRecipe("zed", "/Applications/Operator CLI", "local team"));
     expect(recipe.agent_servers.operator.command).toBe("/Applications/Operator CLI");

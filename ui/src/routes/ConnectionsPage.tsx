@@ -206,17 +206,28 @@ function Connections() {
             <label>
               Client setup
               <select value={client} onChange={(event) => setClient(event.target.value)}>
-                {MCP_RECIPES.map((value) => (
+                {MCP_RECIPES.filter(
+                  (value) => value !== "oauth" || data?.oauth_resource_metadata,
+                ).map((value) => (
                   <option key={value} value={value}>
                     {value === "json"
                       ? "Claude Code JSON"
                       : value === "cli"
                         ? "Claude Code CLI"
-                        : "Generic SSE client"}
+                        : value === "oauth"
+                          ? "OAuth (OIDC) client"
+                          : "Generic SSE client"}
                   </option>
                 ))}
               </select>
             </label>
+            {client === "oauth" && data?.oauth_resource_metadata && (
+              <p className={styles.hint}>
+                The client discovers the identity provider from{" "}
+                <code>{data.oauth_resource_metadata}</code> and signs in there. Only approved users
+                are accepted.
+              </p>
+            )}
             <pre>{recipe}</pre>
             <div className={styles.actions}>
               <button
@@ -240,7 +251,7 @@ function Connections() {
                 onClick={() =>
                   downloadRecipe(
                     recipe,
-                    client === "json" ? "operator-mcp.json" : "operator-mcp.txt",
+                    client === "json" || client === "oauth" ? "operator-mcp.json" : "operator-mcp.txt",
                   )
                 }
               >

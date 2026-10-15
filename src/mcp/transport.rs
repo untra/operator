@@ -253,6 +253,10 @@ fn credential_id(principal: &crate::auth::scope::Principal) -> Option<String> {
                 .as_ref()
                 .map(|id| format!("session:{id}"))
         })
+        .or_else(|| {
+            (principal.kind == crate::rest::dto::auth::PrincipalKind::OidcToken)
+                .then(|| format!("oidc:{}", principal.subject))
+        })
 }
 
 async fn credential_active(
@@ -292,6 +296,20 @@ async fn credential_active(
     let Some(authority) = principal.authority else {
         return true;
     };
+    if principal.kind == crate::rest::dto::auth::PrincipalKind::OidcToken {
+        return tokio::task::spawn_blocking(move || {
+            store
+                .user_authority(&authority.user.id, authority.grants.profile_id)
+                .ok()
+                .flatten()
+                .is_some_and(|current| {
+                    current.grants == authority.grants
+                        && current.user.administrator == authority.user.administrator
+                })
+        })
+        .await
+        .unwrap_or(false);
+    }
     let Some(id) = authority.key_id.clone() else {
         return true;
     };

@@ -8,4 +8,8 @@ public_url: string | null, api_path: string, mcp_path: string,
 /**
  * Whether this running router mounted the SSE transport.
  */
-mcp_http_mounted: boolean, mcp_stdio_advertised: boolean, acp_stdio_advertised: boolean, mcp_connected_clients: number, };
+mcp_http_mounted: boolean, mcp_stdio_advertised: boolean, acp_stdio_advertised: boolean, mcp_connected_clients: number, 
+/**
+ * Protected-resource metadata URL when OIDC clients can discover the provider.
+ */
+oauth_resource_metadata: string | null, };

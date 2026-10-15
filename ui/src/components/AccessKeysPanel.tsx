@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
 import type { CapabilityResponse } from "@operator/bindings/CapabilityResponse";
 import { getSessionVersion, subscribeSession } from "../api/adapter";
@@ -82,6 +82,9 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
     action: "rotate" | "revoke";
     key: UserKey;
   } | null>(null);
+  const changeRotationGrants = useCallback((value: PermissionGrant) => {
+    setConfirmation((current) => current && ({ ...current, key: { ...current.key, grants: value } }));
+  }, []);
   const [grants, setGrants] = useState<PermissionGrant | null>(null);
   const [name, setName] = useState("");
   const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
@@ -235,7 +238,7 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
       {available?.oidc_user && (
         <>
           {confirmation && (
-            <div role="group" aria-label="Confirm key action">
+            <fieldset><legend>Confirm key action</legend>
               <p>
                 {confirmation.action === "rotate" ? "Rotate" : "Revoke"} {confirmation.key.name} (
                 {confirmation.key.display_prefix})? The old key and its access tokens will stop
@@ -254,12 +257,7 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
                     descriptions={available.capability_descriptions}
                     value={confirmation.key.grants}
                     disabled={busy}
-                    onChange={(value) =>
-                      setConfirmation({
-                        ...confirmation,
-                        key: { ...confirmation.key, grants: value },
-                      })
-                    }
+                    onChange={changeRotationGrants}
                   />
                 </>
               )}
@@ -283,7 +281,7 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
               <button type="button" onClick={() => setConfirmation(null)}>
                 Cancel
               </button>
-            </div>
+            </fieldset>
           )}
           <button
             type="button"

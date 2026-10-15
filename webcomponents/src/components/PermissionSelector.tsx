@@ -1,6 +1,8 @@
 import type { CapabilityDescription } from "../generated/CapabilityDescription";
 import type { PermissionGrant } from "../generated/PermissionGrant";
 
+const NO_DESCRIPTIONS: CapabilityDescription[] = [];
+
 export interface PermissionSelectorProps {
   available: PermissionGrant;
   descriptions?: CapabilityDescription[];
@@ -11,7 +13,7 @@ export interface PermissionSelectorProps {
 
 export function PermissionSelector({
   available,
-  descriptions = [],
+  descriptions = NO_DESCRIPTIONS,
   value,
   disabled,
   onChange,

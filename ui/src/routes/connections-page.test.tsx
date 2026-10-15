@@ -132,4 +132,18 @@ test("read-only users never request administrative client or key data", async ()
   );
   await waitFor(() => expect(paths).toContain("/api/v1/profiles/team/connections"));
   expect(paths.some((path) => path.endsWith("/clients") || path.endsWith("/keys"))).toBe(false);
+  const docs = screen
+    .getAllByRole("link", { name: "Docs" })
+    .map((link) => link.getAttribute("href"));
+  expect(docs.map((href) => href?.replace(/^.*\/connections\//, ""))).toEqual([
+    "api/",
+    "mcp/",
+    "acp/",
+    "access-keys/",
+  ]);
+  await waitFor(() =>
+    expect(document.querySelector("#operator-mcp [data-health]")?.getAttribute("data-health")).toBe(
+      "gray",
+    ),
+  );
 });

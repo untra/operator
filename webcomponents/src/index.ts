@@ -51,6 +51,8 @@ export { PageHeader } from "./components/PageHeader";
 export type { PageHeaderProps } from "./components/PageHeader";
 export { RightPanel } from "./components/RightPanel";
 export type { RightPanelProps } from "./components/RightPanel";
+export { HealthDot } from "./components/HealthDot";
+export type { HealthDotProps } from "./components/HealthDot";
 export { SectionCard } from "./components/SectionCard";
 export type { SectionCardProps } from "./components/SectionCard";
 export { TicketDetailView } from "./components/TicketDetailView";

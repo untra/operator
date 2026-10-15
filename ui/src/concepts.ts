@@ -59,7 +59,7 @@ export const CONCEPTS: Record<string, Concept> = {
     icon: "plug",
     label: "Connections",
     route: "/connections",
-    docsUrl: `${DOCS_BASE}/getting-started/integrations/#connect-from-the-web-interface`,
+    docsUrl: `${DOCS_BASE}/getting-started/connections/`,
     summary: "Connect clients to Operator, manage access keys, and verify connection health.",
   },
   kanban: {
@@ -152,6 +152,38 @@ export const CONCEPTS: Record<string, Concept> = {
     summary: "The Premium license for this configuration, and what it covers.",
   },
 };
+
+export interface ConnectionCard {
+  /** Stable card id; also the DOM anchor. */
+  id: string;
+  label: string;
+  /** Absolute docs URL; one per Connections child in docs/_data/navigation.yml. */
+  docsUrl: string;
+}
+
+/** Connections page cards, in docs-nav order. */
+export const CONNECTION_CARDS = {
+  operator: {
+    id: "operator-api",
+    label: "Operator API",
+    docsUrl: `${DOCS_BASE}/getting-started/connections/api/`,
+  },
+  mcp: {
+    id: "operator-mcp",
+    label: "MCP",
+    docsUrl: `${DOCS_BASE}/getting-started/connections/mcp/`,
+  },
+  acp: {
+    id: "operator-acp",
+    label: "ACP",
+    docsUrl: `${DOCS_BASE}/getting-started/connections/acp/`,
+  },
+  accessKeys: {
+    id: "operator-access",
+    label: "Access Keys & Identities",
+    docsUrl: `${DOCS_BASE}/getting-started/connections/access-keys/`,
+  },
+} satisfies Record<string, ConnectionCard>;
 
 /** Sidebar order for the status sections (matches the TUI / VS Code ordering). */
 export const STATUS_KEYS = [

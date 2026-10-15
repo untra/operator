@@ -7,6 +7,7 @@
 
 import { useId, type ReactNode } from "react";
 import { ConceptIcon } from "./ConceptIcon";
+import { HealthDot } from "./HealthDot";
 import styles from "./AppShell.module.css";
 
 export interface AppShellProps {
@@ -77,7 +78,7 @@ export function NavRow({ label, icon, health, disabledReason, renderLink }: NavR
     <>
       <ConceptIcon name={icon} className={styles.navIcon} />
       <span className={styles.navLabel}>{label}</span>
-      {health && <span className={styles.navDot} data-health={health} />}
+      {health && <HealthDot className={styles.navDot} health={health} />}
     </>
   );
 
@@ -96,7 +97,7 @@ export function NavRow({ label, icon, health, disabledReason, renderLink }: NavR
             {disabledReason}
           </span>
         </span>
-        {health && <span className={styles.navDot} data-health={health} />}
+        {health && <HealthDot className={styles.navDot} health={health} />}
       </button>
     );
   }

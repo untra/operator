@@ -10,15 +10,19 @@ import {
   mcpClientsQuery,
   sectionsQuery,
 } from "../api/definitions";
-import { CONCEPTS } from "../concepts";
+import { HealthDot } from "@operator/webcomponents";
+import { CONCEPTS, CONNECTION_CARDS, type ConnectionCard } from "../concepts";
 import {
   ACP_EDITORS,
   LOCAL_OPERATOR_COMMAND,
   MCP_RECIPES,
   acpRecipe,
+  apiHealth,
   connectionUrl,
   downloadRecipe,
+  mcpHealth,
   mcpRecipe,
+  type Health,
 } from "../connections";
 import { PageHeader } from "../components/PageHeader";
 import { IdentityPanel } from "../components/IdentityPanel";
@@ -109,6 +113,23 @@ function Connections() {
     setAccessKey("");
   }
 
+  const apiDot = apiHealth({ error: Boolean(connections.error), reachable: Boolean(data) });
+  const mcpDot = mcpHealth({
+    mounted: Boolean(data?.mcp_http_mounted),
+    checkError: Boolean(mcpCheck.error),
+    verified: Boolean(mcpCheck.data),
+  });
+  const meta = data
+    ? [
+        `Version ${data.version}`,
+        `Profile ${data.profile_name}`,
+        wrapper && `Wrapper ${wrapper.description}`,
+        `Observed ${new Date(data.observed_at).toLocaleString()}`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -120,30 +141,14 @@ function Connections() {
       <output>{feedback}</output>
       {connections.isLoading && <p>Loading Operator connections...</p>}
       {connections.error && (
-        <p role="alert">
-          Connection status is stale: {connections.error.message}. Check the network or sign in
-          again.
-        </p>
+        <p role="alert">Connection status is stale: {connections.error.message}</p>
       )}
       {session.error && <p role="alert">Unable to read permissions: {session.error.message}</p>}
       <div className={styles.grid}>
-        <section className={styles.card}>
-          <h2>Operator</h2>
-          <p>Version {data?.version ?? "unavailable"}</p>
-          <p>
-            {connections.error
-              ? "Unreachable or unauthorized"
-              : data
-                ? "API reachable"
-                : "Checking API"}
-          </p>
+        <section id={CONNECTION_CARDS.operator.id} className={styles.card}>
+          <CardHeader card={CONNECTION_CARDS.operator} health={apiDot} />
+          {meta && <p className={styles.hint}>{meta}</p>}
           <code>{data ? connectionUrl(base, data.api_path) : base}</code>
-          {data && (
-            <p className={styles.hint}>
-              Profile: {data.profile_name} · Observed {new Date(data.observed_at).toLocaleString()}
-            </p>
-          )}
-          {wrapper && <p className={styles.hint}>Control Wrapper: {wrapper.description}</p>}
           <div className={styles.actions}>
             <button
               onClick={() => {
@@ -180,41 +185,22 @@ function Connections() {
           {apiCheck.error && <p role="alert">{apiCheck.error.message}</p>}
           {apiCheck.data && (
             <output>
-              API verified in {apiCheck.data.latencyMs} ms at{" "}
+              Verified · {apiCheck.data.latencyMs} ms ·{" "}
               {new Date(apiCheck.data.checkedAt).toLocaleString()}
             </output>
           )}
-          <p className={styles.hint}>
-            Swagger and OpenAPI require a signed-in browser. If a route is blocked, check the
-            ingress configuration.
-          </p>
         </section>
 
-        <section className={styles.card}>
-          <h2>MCP</h2>
-          <p>
-            {data
-              ? data.mcp_http_mounted
-                ? "SSE endpoint available"
-                : "HTTP transport disabled"
-              : "Transport status unavailable"}
-          </p>
-          <code>{endpoint}</code>
+        <section id={CONNECTION_CARDS.mcp.id} className={styles.card}>
+          <CardHeader card={CONNECTION_CARDS.mcp} health={mcpDot} />
           {data && (
-            <p>
-              {data.mcp_connected_clients} connected clients · Profile: {data.profile_name}
+            <p className={styles.hint}>
+              {data.mcp_http_mounted
+                ? `SSE · ${data.mcp_connected_clients} connected clients`
+                : "HTTP transport off"}
             </p>
           )}
-          <p className={styles.hint}>
-            Local stdio: {data?.mcp_stdio_advertised ? "advertised" : "not advertised"}. Local
-            processes cannot be observed here.
-          </p>
-          {data && !data.mcp_http_mounted && (
-            <p>
-              Enable mcp.http_enabled in Operator configuration and restart the API to accept remote
-              clients.
-            </p>
-          )}
+          <code>{endpoint}</code>
           <details>
             <summary>Configure MCP client</summary>
             <label>
@@ -231,12 +217,6 @@ function Connections() {
                 ))}
               </select>
             </label>
-            <p className={styles.hint}>
-              Claude Code recipes require curl and jq. Set OPERATOR_ACCESS_KEY in your client
-              environment. Use user configuration (~/.claude.json), or the user-scope CLI recipe;
-              project helpers may filter credential variables. The helper exchanges your key for a
-              fresh bearer token on connection.
-            </p>
             <pre>{recipe}</pre>
             <div className={styles.actions}>
               <button
@@ -268,15 +248,6 @@ function Connections() {
               </button>
             </div>
           </details>
-          <a
-            href="#/connections#operator-api-keys"
-            onClick={(event) => {
-              event.preventDefault();
-              document.getElementById("operator-api-keys")?.scrollIntoView();
-            }}
-          >
-            Manage API keys
-          </a>
           <label>
             Access key for test (optional)
             <input
@@ -286,37 +257,41 @@ function Connections() {
               onChange={(event) => setAccessKey(event.target.value)}
             />
           </label>
-          <p className={styles.hint}>
-            Leave blank to test this browser session. Keys need mcp:connect; select individual MCP
-            tool capabilities and their projects to permit tool calls. The test uses this browser's
-            Operator address, initializes MCP, and lists tools without calling them. A separately
-            configured public address must be verified from your client.
-          </p>
-          <button
-            onClick={checkMcp}
-            disabled={!data?.mcp_http_mounted || mcpCheck.isPending || (!canExecute && !accessKey)}
-          >
-            {mcpCheck.isPending ? "Testing handshake..." : "Test MCP connection"}
-          </button>
+          <div className={styles.actions}>
+            <button
+              onClick={checkMcp}
+              disabled={
+                !data?.mcp_http_mounted || mcpCheck.isPending || (!canExecute && !accessKey)
+              }
+            >
+              {mcpCheck.isPending ? "Testing handshake..." : "Test MCP connection"}
+            </button>
+            <a
+              href={`#/connections#${CONNECTION_CARDS.accessKeys.id}`}
+              onClick={(event) => {
+                event.preventDefault();
+                document.getElementById(CONNECTION_CARDS.accessKeys.id)?.scrollIntoView();
+              }}
+            >
+              Manage API keys
+            </a>
+          </div>
           {mcpCheck.error && (
             <p role="alert">
               {mcpCheck.error.name === "TimeoutError"
-                ? "MCP handshake timed out after 10 seconds. Check proxy streaming and connectivity."
+                ? "MCP handshake timed out after 10 seconds."
                 : mcpCheck.error.message}
             </p>
           )}
-          {mcpCheck.data ? (
+          {mcpCheck.data && (
             <output>
-              Last handshake verified using {mcpCheck.data.authentication.toLowerCase()} in{" "}
-              {mcpCheck.data.latencyMs} ms at {new Date(mcpCheck.data.checkedAt).toLocaleString()}.
-              This is a past observation, not a continuous check.
+              Verified via {mcpCheck.data.authentication.toLowerCase()} · {mcpCheck.data.latencyMs}{" "}
+              ms · {new Date(mcpCheck.data.checkedAt).toLocaleString()}
             </output>
-          ) : (
-            <p className={styles.hint}>Handshake not verified.</p>
           )}
           {admin && (
-            <>
-              <h3>Observed clients</h3>
+            <details>
+              <summary>Observed clients</summary>
               {clients.isLoading && <p>Loading clients...</p>}
               {clients.error && (
                 <p role="alert">Client observations are stale: {clients.error.message}</p>
@@ -326,7 +301,7 @@ function Connections() {
                 {visibleClients.map((item) => (
                   <li key={item.id}>
                     {item.client_name ?? "Unnamed client"} {item.client_version} ·{" "}
-                    {item.initialized ? "Connected" : "Initializing"} · Last activity{" "}
+                    {item.initialized ? "Connected" : "Initializing"} ·{" "}
                     {new Date(item.last_activity_at).toLocaleString()}
                   </li>
                 ))}
@@ -347,18 +322,13 @@ function Connections() {
                   </button>
                 </div>
               )}
-            </>
+            </details>
           )}
         </section>
 
-        <section className={styles.card}>
-          <h2>ACP</h2>
-          <p>Local status unavailable</p>
-          <p className={styles.hint}>
-            Your editor launches a local Operator process over stdio. Install Operator locally and
-            configure a local workspace/profile first. This does not connect ACP to this hosted
-            Operator.
-          </p>
+        <section id={CONNECTION_CARDS.acp.id} className={styles.card}>
+          <CardHeader card={CONNECTION_CARDS.acp} health="gray" />
+          <p className={styles.hint}>Local editors only</p>
           <details>
             <summary>Configure local ACP editor</summary>
             <label>
@@ -403,11 +373,25 @@ function Connections() {
             </div>
           </details>
         </section>
-        <section className={styles.card}>
+
+        <section id={CONNECTION_CARDS.accessKeys.id} className={styles.card}>
+          <CardHeader card={CONNECTION_CARDS.accessKeys} health="gray" />
           <AccessKeysPanel />
           <IdentityPanel />
         </section>
       </div>
     </div>
+  );
+}
+
+function CardHeader({ card, health }: { card: ConnectionCard; health: Health }) {
+  return (
+    <header className={styles.cardHeader}>
+      <HealthDot health={health} />
+      <h2>{card.label}</h2>
+      <a className={styles.docs} href={card.docsUrl} target="_blank" rel="noreferrer">
+        Docs
+      </a>
+    </header>
   );
 }

@@ -4,6 +4,33 @@ export const LOCAL_OPERATOR_COMMAND = "operator";
 export const ACP_EDITORS = ["zed", "jetbrains", "emacs", "kiro"] as const;
 export const MCP_RECIPES = ["json", "cli", "generic"] as const;
 
+export type Health = "green" | "yellow" | "red" | "gray";
+
+export function apiHealth({ error, reachable }: { error: boolean; reachable: boolean }): Health {
+  if (error) {
+    return "red";
+  }
+  return reachable ? "green" : "gray";
+}
+
+export function mcpHealth({
+  mounted,
+  checkError,
+  verified,
+}: {
+  mounted: boolean;
+  checkError: boolean;
+  verified: boolean;
+}): Health {
+  if (!mounted) {
+    return "gray";
+  }
+  if (checkError) {
+    return "red";
+  }
+  return verified ? "green" : "yellow";
+}
+
 export function connectionUrl(base: string, path: string): string {
   return new URL(path.replace(/^\//, ""), `${base.replace(/\/$/, "")}/`).href;
 }

@@ -1,7 +1,9 @@
 .page { padding: 1.5rem; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; align-items: start; }
+.grid { display: flex; flex-direction: column; gap: 1rem; }
 .card { padding: 1.25rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); min-width: 0; overflow-wrap: anywhere; }
-.card h2 { margin-top: 0; font-size: 1.1rem; }
+.cardHeader { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
+.cardHeader h2 { margin: 0; font-size: 1.1rem; }
+.card .docs { margin-left: auto; color: var(--text-muted); font-size: 0.85rem; }
 .card h3 { font-size: 1rem; }
 .hint { color: var(--text-muted); font-size: 0.85rem; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 1rem 0; }

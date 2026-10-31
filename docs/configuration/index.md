@@ -12,6 +12,7 @@ Operator configuration is stored in `.tickets/operator/config.toml`.
 
 | Section | Description |
 | --- | --- |
+| `[egress]` | Private model endpoint allowlist |
 | `[agents]` | Agent lifecycle, parallelism, and health monitoring |
 | `[notifications]` | macOS notification preferences |
 | `[queue]` | Queue processing and ticket assignment |
@@ -23,6 +24,14 @@ Operator configuration is stored in `.tickets/operator/config.toml`.
 | `[logging]` | Log level and output configuration |
 | `[tmux]` | Tmux integration settings |
 | `[llm_tools]` | LLM CLI tool detection and providers |
+
+## `[egress]`
+
+Private model endpoint allowlist
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `allow_private_cidrs` | `array`[`string`] | - | Private IPv4/IPv6 CIDRs allowed in published deployments; reserved and loopback addresses remain blocked. |
 
 ## `[agents]`
 
@@ -304,6 +313,9 @@ cors_origins = []
 shutdown_drain_seconds = 60
 shutdown_cleanup_seconds = 15
 
+[egress]
+allow_private_cidrs = []
+
 [git]
 branch_format = "{type}/{ticket_id}"
 use_worktrees = false
@@ -325,6 +337,10 @@ token_env = ""
 [git.gitlab]
 enabled = false
 token_env = ""
+
+[kanban.gitea]
+
+[kanban.forgejo]
 
 [kanban.jira]
 

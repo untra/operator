@@ -32,15 +32,16 @@ use operator::api::providers::kanban::{
 use operator::config::{
     AcpConfig, AgentProfile, AgentsConfig, ApiConfig, CmuxPlacementPolicy, CoderConfig,
     CollectionPreset, Config, Delegator, DelegatorLaunchConfig, DetectedTool, DockerConfig,
-    ExternalMcpServer, ForgejoConfig, GitConfig, GitHubConfig, GitLabConfig, GiteaConfig,
-    JudgeConfig, KanbanConfig, LaunchConfig, LlmProvider, LlmToolsConfig, LoggingConfig, McpConfig,
-    ModelServer, NativeLlmConfig, NotificationsConfig, OsNotificationConfig, OtlpCompression,
-    OtlpProtocol, PanelNamesConfig, PathsConfig, QueueConfig, RelayConfig, RemoteAgentRef,
-    RemoteHost, RestApiConfig, SessionWrapperType, SessionsCmuxConfig, SessionsConfig,
-    SessionsTmuxConfig, SessionsVSCodeConfig, SessionsZellijConfig, SkillDirectoriesOverride,
-    SshTarget, TargetDef, TargetKind, TelemetryConfig, TelemetryExportConfig,
-    TelemetryIngestConfig, TelemetryWindowConfig, TemplatesConfig, TmuxConfig, ToolCapabilities,
-    UiConfig, VersionCheckConfig, WebhookConfig, XOperator, YoloConfig,
+    EgressConfig, ExternalMcpServer, ForgejoConfig, GitConfig, GitHubConfig, GitLabConfig,
+    GiteaConfig, JudgeConfig, KanbanConfig, LaunchConfig, LlmProvider, LlmToolsConfig,
+    LoggingConfig, McpConfig, ModelServer, NativeLlmConfig, NotificationsConfig,
+    OsNotificationConfig, OtlpCompression, OtlpProtocol, PanelNamesConfig, PathsConfig,
+    QueueConfig, RelayConfig, RemoteAgentRef, RemoteHost, RestApiConfig, SessionWrapperType,
+    SessionsCmuxConfig, SessionsConfig, SessionsTmuxConfig, SessionsVSCodeConfig,
+    SessionsZellijConfig, SkillDirectoriesOverride, SshTarget, TargetDef, TargetKind,
+    TelemetryConfig, TelemetryExportConfig, TelemetryIngestConfig, TelemetryWindowConfig,
+    TemplatesConfig, TmuxConfig, ToolCapabilities, UiConfig, VersionCheckConfig, WebhookConfig,
+    XOperator, YoloConfig,
 };
 use operator::profiles::ProfileIdentity;
 use operator::queue::LlmTask;
@@ -132,6 +133,7 @@ fn generate_typescript() -> String {
         YoloConfig::decl(&cfg),
         TmuxConfig::decl(&cfg),
         RestApiConfig::decl(&cfg),
+        EgressConfig::decl(&cfg),
         LlmToolsConfig::decl(&cfg),
         DetectedTool::decl(&cfg),
         ToolCapabilities::decl(&cfg),

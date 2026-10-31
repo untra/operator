@@ -273,8 +273,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_forbidden_does_not_invite_a_retry() {
-        // The credential was understood and refused; a challenge would suggest
-        // re-authenticating fixes it, which it does not.
+        // The credential was understood and refused
         let response =
             ApiError::Forbidden("requires the `admin` scope".to_string()).into_response();
 

@@ -78,23 +78,16 @@ pub fn build_step_command(
     previous_summary: Option<&str>,
     previous_recommendation: Option<&str>,
 ) -> Result<BuiltStepCommand> {
-    // Per-step agent override: a step naming a delegator switches tool/model
-    // for that step only; the persisted context stays the chain baseline.
-    let override_pair =
-        crate::templates::step_type::effective_agent(step).map(|agent_name| {
-            config.delegators.iter().find(|d| d.name == agent_name).map_or_else(
-            || {
-                tracing::warn!(
-                    step = %step.name,
-                    agent = %agent_name,
-                    "Step agent override names no configured delegator; using launch context"
-                );
-                (ctx.tool.clone(), ctx.model.clone())
-            },
-            |d| (d.llm_tool.clone(), d.model.clone()),
-        )
-        });
-    let (tool, model) = override_pair.unwrap_or_else(|| (ctx.tool.clone(), ctx.model.clone()));
+    let override_name = crate::templates::step_type::effective_agent(step);
+    let delegator =
+        override_name.and_then(|name| config.delegators.iter().find(|d| d.name == name));
+    let provider = delegator
+        .map(|d| crate::agents::delegator_resolution::delegator_to_provider(config, d))
+        .transpose()?;
+    let (tool, model) = provider.as_ref().map_or_else(
+        || (ctx.tool.clone(), ctx.model.clone()),
+        |provider| (provider.tool.clone(), provider.model.clone()),
+    );
 
     let session_id = generate_session_uuid();
 
@@ -126,8 +119,34 @@ pub fn build_step_command(
         llm_cmd = apply_yolo_flags(config, &llm_cmd, &tool);
     }
 
-    if !ctx.extra_flags.is_empty() {
-        llm_cmd = format!("{} {}", llm_cmd, ctx.extra_flags.join(" "));
+    let flags = if let (Some(_), Some(delegator), Some(provider)) =
+        (override_name, delegator, provider.as_ref())
+    {
+        let mut flags: Vec<_> = provider
+            .flags
+            .iter()
+            .map(|flag| super::prompt::shell_escape(flag))
+            .collect();
+        if let Some(launch) = &delegator.launch_config {
+            flags.extend(launch.flags.clone());
+        }
+        flags
+    } else {
+        ctx.extra_flags.clone()
+    };
+    if !flags.is_empty() {
+        llm_cmd = format!("{} {}", llm_cmd, flags.join(" "));
+    }
+    if let Some(provider) = &provider {
+        let stale = crate::api::providers::model_server::launch_env_vars()
+            .into_iter()
+            .filter(|var| !provider.env.contains_key(*var));
+        let unsets = super::prompt::render_env_unsets(stale);
+        let exports = super::prompt::render_env_exports(&provider.env);
+        llm_cmd = format!(
+            "bash -c {}",
+            super::prompt::shell_escape(&format!("{unsets}{exports}exec {llm_cmd}"))
+        );
     }
 
     let command = wrap_step(&ctx.opr8r, &ticket.id, &step.name, &session_id, &llm_cmd);
@@ -251,6 +270,107 @@ mod tests {
             .template_schema()
             .and_then(|t| t.get_step(step_name).cloned())
             .expect("embedded FEAT schema step")
+    }
+
+    #[test]
+    fn test_step_switch_to_cloud_delegator_unsets_baseline_server_env() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut config = make_config(temp.path());
+        let delegator: Delegator = serde_json::from_value(serde_json::json!({
+            "name": "claude-opus", "llm_tool": "claude", "model": "opus"
+        }))
+        .unwrap();
+        config.delegators.push(delegator);
+        let ticket = make_feat_ticket(temp.path(), "build");
+        let built = build_step_command(
+            &config,
+            &ticket,
+            &build_step("code"),
+            &make_ctx(),
+            temp.path().to_str().unwrap(),
+            None,
+            None,
+        )
+        .unwrap();
+        assert!(built.command.contains("unset "));
+        assert!(built.command.contains("ANTHROPIC_BASE_URL"));
+        assert!(built.command.contains("OPENAI_BASE_URL"));
+        assert!(built.command.contains("OPERATOR_LM_STUDIO_TOKEN"));
+    }
+
+    #[test]
+    fn test_step_switch_keeps_env_the_override_provider_sets() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut config = make_config(temp.path());
+        config.model_servers.push(crate::config::ModelServer {
+            name: "pc".into(),
+            kind: "lmstudio".into(),
+            base_url: Some("http://pc:1234".into()),
+            api_key_env: None,
+            extra_env: Default::default(),
+            display_name: None,
+        });
+        let delegator: Delegator = serde_json::from_value(serde_json::json!({
+            "name": "claude-opus", "llm_tool": "claude", "model": "local-model", "model_server": "pc"
+        }))
+        .unwrap();
+        config.delegators.push(delegator);
+        let ticket = make_feat_ticket(temp.path(), "build");
+        let built = build_step_command(
+            &config,
+            &ticket,
+            &build_step("code"),
+            &make_ctx(),
+            temp.path().to_str().unwrap(),
+            None,
+            None,
+        )
+        .unwrap();
+        let unset_line = built
+            .command
+            .split("\\n")
+            .flat_map(|chunk| chunk.lines())
+            .find(|line| line.contains("unset "))
+            .expect("unset line");
+        assert!(unset_line.contains("OPENAI_BASE_URL"));
+        assert!(!unset_line.contains("ANTHROPIC_BASE_URL"));
+        assert!(built.command.contains("export ANTHROPIC_BASE_URL="));
+    }
+
+    #[test]
+    fn test_step_switch_to_lmstudio_claude_drops_codex_flags() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut config = make_config(temp.path());
+        config.model_servers.push(crate::config::ModelServer {
+            name: "pc".into(),
+            kind: "lmstudio".into(),
+            base_url: Some("http://pc:1234".into()),
+            api_key_env: Some("LM_TOKEN".into()),
+            extra_env: Default::default(),
+            display_name: None,
+        });
+        let delegator: Delegator = serde_json::from_value(serde_json::json!({
+            "name": "claude-opus", "llm_tool": "claude", "model": "local-model", "model_server": "pc"
+        })).unwrap();
+        config.delegators.push(delegator);
+        let mut ctx = make_ctx();
+        ctx.extra_flags = vec!["-c".into(), "model_provider=operator_lmstudio".into()];
+        let ticket = make_feat_ticket(temp.path(), "build");
+        let built = build_step_command(
+            &config,
+            &ticket,
+            &build_step("code"),
+            &ctx,
+            temp.path().to_str().unwrap(),
+            None,
+            None,
+        )
+        .unwrap();
+        assert!(built.command.contains("ANTHROPIC_BASE_URL"));
+        assert!(built.command.contains("${LM_TOKEN}"));
+        assert!(!built.command.contains("model_provider="));
+        assert!(built.command.contains("--model local-model"));
+        assert_eq!(ctx.extra_flags.len(), 2);
     }
 
     #[test]

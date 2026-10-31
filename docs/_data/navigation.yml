@@ -124,6 +124,9 @@ docs:
           - title: Ollama
             url: /getting-started/model-servers/ollama/
             icon: ollama
+          - title: LM Studio
+            url: /getting-started/model-servers/lmstudio/
+            icon: lmstudio
       - title: Supported Git Repositories
         url: /getting-started/git/
         children:

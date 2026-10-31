@@ -325,8 +325,8 @@ const FORBIDDEN_RESPONSE_NAME: &str = "Forbidden";
 const JSON_MEDIA_TYPE: &str = "application/json";
 const UNAUTHORIZED_RESPONSE_NAME: &str = "Unauthorized";
 
-fn error_content() -> Content {
-    Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME)))
+fn error_content() -> RefOr<Content> {
+    RefOr::T(Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME))))
 }
 
 fn error_response(description: &str) -> Response {
@@ -337,10 +337,10 @@ fn error_response(description: &str) -> Response {
     response
 }
 
-fn response_header(description: &str, schema_type: Type) -> Header {
+fn response_header(description: &str, schema_type: Type) -> RefOr<Header> {
     let mut header = Header::new(Object::with_type(schema_type));
     header.description = Some(description.to_string());
-    header
+    RefOr::T(header)
 }
 
 fn document_error_responses(operation: &mut Operation) {
@@ -448,7 +448,7 @@ fn prune_unreachable_schemas(spec: &mut utoipa::openapi::OpenApi) {
         .retain(|name, _| reachable.contains(name));
 }
 
-fn csrf_parameter() -> Parameter {
+fn csrf_parameter() -> RefOr<Parameter> {
     let mut parameter = Parameter::new(crate::rest::middleware::auth::CSRF_HEADER);
     parameter.parameter_in = ParameterIn::Header;
     parameter.required = Required::False;
@@ -457,7 +457,7 @@ fn csrf_parameter() -> Parameter {
             .to_string(),
     );
     parameter.schema = Some(Object::with_type(Type::String).into());
-    parameter
+    RefOr::T(parameter)
 }
 
 fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>) {

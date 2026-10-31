@@ -92,12 +92,16 @@ Import tickets from configured kanban providers (jira, linear, github, openspec)
 
 ### `create`
 
-Create a new ticket from template
+Create a new ticket (through the local API when it is running)
 
 | Argument/Option | Description |
 | --- | --- |
-| `-t, --template` | Template type (feature, fix, spike, investigation) |
+| `-t, --issue-type` | Issue type key from the active collection (e.g. FEAT, FIX, TASK) |
 | `-p, --project` | Target project |
+| `-s, --summary` | One-line summary |
+| `--set` | Issue type field value, as `name=value` (repeatable) |
+| `--no-sync` | Do not push the ticket to the project's kanban board |
+| `--no-edit` | Do not open the created ticket in $EDITOR |
 
 ### `docs`
 
@@ -201,6 +205,7 @@ All configuration can be overridden via environment variables using the `OPERATO
 | `OPERATOR_LLM_TOOLS__DENIED` | Comma-separated list of denied LLM tools |  |
 | `OPERATOR_LOGGING__LEVEL` | Log level (trace, debug, info, warn, error) | info |
 | `OPERATOR_LOGGING__TO_FILE` | Write logs to file in addition to stderr | true |
+| `OPERATOR_LOGGING__FORMAT` | Console and file log format (text or json). JSON lines include trace_id and span_id | text |
 
 ### Authentication
 
@@ -283,4 +288,5 @@ All configuration can be overridden via environment variables using the `OPERATO
 | --- | --- | --- |
 | `OPERATOR_LOGGING__LEVEL` | Log level (trace, debug, info, warn, error) | info |
 | `OPERATOR_LOGGING__TO_FILE` | Write logs to file in addition to stderr | true |
+| `OPERATOR_LOGGING__FORMAT` | Console and file log format (text or json). JSON lines include trace_id and span_id | text |
 

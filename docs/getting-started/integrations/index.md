@@ -67,19 +67,8 @@ it cannot be retrieved later. To rotate it, create a replacement, update the
 client, verify the connection, and revoke the old key. Already issued bearer
 tokens remain valid until their expiry.
 
-**Test MCP connection** checks the active browser API route by opening SSE,
-initializing MCP, and listing tools. It does not call a tool. Leave the optional
-key field blank to use the browser session, or supply an access key to test its
-token exchange and permissions. Results show their timestamp and authentication
-method. Availability, a successful handshake, and an initialized client session
-are separate observations; creating a key does not establish a connection.
+**Test MCP connection** checks the active browser API route by opening SSE, initializing MCP, and listing tools. Leave the optional key field blank to use the browser session, or supply an access key to test its token exchange and permissions. Results show their timestamp and authentication method. Availability, a successful handshake, and an initialized client session are separate observations; creating a key does not establish a connection.
 
-For a reverse proxy, set `rest_api.public_url` to the externally reachable base
-URL when advertising an absolute endpoint. Otherwise MCP advertises relative
-paths. Preserve SSE streaming through the proxy. The page reports route,
-authentication, protocol, and timeout failures independently.
+For a reverse proxy, set `rest_api.public_url` to the externally reachable base URL when advertising an absolute endpoint. Otherwise MCP advertises relative paths. Preserve SSE streaming through the proxy. The page reports route, authentication, protocol, and timeout failures independently.
 
-The ACP card generates local editor configuration for Zed, JetBrains, Emacs, or
-Kiro. Install Operator on the editor's machine and choose its local executable
-and profile. These recipes launch `operator acp` locally; they do not connect
-ACP to the hosted Operator. The hosted page cannot observe local ACP sessions.
+The ACP card generates local editor configuration for Zed, JetBrains, Emacs, or Kiro. Install Operator on the editor's machine and choose its local executable and profile.

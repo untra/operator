@@ -297,3 +297,39 @@ fn test_telemetry_collector_egress_is_port_scoped() {
     assert!(rendered.contains("app: collector"));
     assert!(rendered.contains("port: 4318"));
 }
+
+#[test]
+fn test_private_model_egress_configuration() {
+    if !helm_available() {
+        return;
+    }
+    let values = tempfile::NamedTempFile::new().unwrap();
+    std::fs::write(
+        values.path(),
+        r#"
+egress:
+  allowPrivateCidrs: [192.168.1.50/32, fd12::50/128]
+networkPolicy:
+  enabled: true
+  egress:
+    additionalRules:
+      - to:
+          - ipBlock:
+              cidr: 192.168.1.50/32
+        ports:
+          - protocol: TCP
+            port: 1234
+"#,
+    )
+    .unwrap();
+    let rendered = helm(&[
+        "template",
+        "op",
+        chart_dir().to_str().unwrap(),
+        "-f",
+        values.path().to_str().unwrap(),
+    ]);
+    assert!(rendered.contains("OPERATOR_EGRESS__ALLOW_PRIVATE_CIDRS"));
+    assert!(rendered.contains("192.168.1.50/32,fd12::50/128"));
+    assert!(rendered.contains("port: 1234"));
+}

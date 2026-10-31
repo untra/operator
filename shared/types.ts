@@ -360,6 +360,10 @@ llm_tools: LlmToolsConfig,
  */
 rest_api: RestApiConfig, 
 /**
+ * Private destinations permitted for guarded outbound model requests.
+ */
+egress: EgressConfig, 
+/**
  * Git provider, identity, and worktree settings.
  */
 git: GitConfig, 
@@ -622,6 +626,12 @@ shutdown_drain_seconds: number,
  * Maximum time reserved for final callbacks and persistent cleanup.
  */
 shutdown_cleanup_seconds: number, };
+
+export type EgressConfig = { 
+/**
+ * Private IPv4/IPv6 CIDRs allowed in published deployments; reserved and loopback addresses remain blocked.
+ */
+allow_private_cidrs: Array<string>, };
 
 export type LlmToolsConfig = { 
 /**

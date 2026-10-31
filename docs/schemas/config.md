@@ -234,6 +234,16 @@ Logging configuration
 | --- | --- | --- | --- |
 | `level` | `string` | No | Log level filter (trace, debug, info, warn, error) |
 | `to_file` | `boolean` | No | Whether to log to file in TUI mode (false = stderr for debugging) |
+| `format` | → `LogFormat` | No | Line format for console and file logs (default: text).  `json` emits one JSON object per line with `trace_id` and `span_id`. Override with `OPERATOR_LOGGING__FORMAT=json`. |
+
+### LogFormat
+
+Console and file log line format.
+
+**Allowed Values:**
+
+- `text` - Human-readable lines.
+- `json` - One JSON object per line, with `trace_id`/`span_id` when a trace is active.
 
 ### TelemetryConfig
 
@@ -266,10 +276,10 @@ Describes the user-configured upstream OTLP destination.
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `endpoint` | `string` \| `null` | No | Upstream OTLP base URL; falls back to the standard `OTEL_EXPORTER_OTLP_*` variables |
-| `protocol` | → `OtlpProtocol` | No | OTLP encoding. Default is `http/protobuf`. |
+| `protocol` | object | No | OTLP encoding. Default is `http/protobuf`. |
 | `headers_env` | `string` \| `null` | No | Name of an environment variable holding OTLP headers (`key=value,...`) |
-| `compression` | → `OtlpCompression` | No | Request compression. Default is `gzip`. |
-| `timeout_secs` | `integer` | No | Upstream export timeout in seconds (default: 10). |
+| `compression` | object | No | Request compression. Default is `gzip`. |
+| `timeout_secs` | `integer` \| `null` | No | Upstream export timeout in seconds (default: 10). |
 | `self_telemetry` | `boolean` | No | Export Operator's own traces, logs and metrics alongside forwarded agent telemetry |
 
 ### OtlpProtocol
@@ -510,8 +520,8 @@ Commit identity template for delegated work.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | `string` | Yes | Git author name applied to delegated commits. |
-| `email` | `string` | Yes | Git author email applied to delegated commits. |
+| `name` | `string` | Yes | Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}` |
+| `email` | `string` | Yes | Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}` |
 
 ### GiteaConfig
 
@@ -570,31 +580,28 @@ GitLab-specific configuration
 ### KanbanConfig
 
 Kanban provider configuration for syncing issues from external systems
-
 Providers are keyed by domain/workspace:
-- Jira: keyed by domain (e.g., "foobar.atlassian.net")
-- Linear: keyed by workspace slug (e.g., "myworkspace")
-- GitHub Projects: keyed by owner login (e.g., "my-org")
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `gitea` | `object` | No | Gitea repository project boards, keyed by instance name. Import-only. |
+| `forgejo` | `object` | No | Reserved Forgejo project boards; enabling requires an upstream board API. |
 | `jira` | `object` | No | Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net") |
 | `linear` | `object` | No | Linear instances keyed by workspace slug |
 | `github` | `object` | No | GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the *kanban* GitHub integration (Projects v2), distinct from `GitHubConfig` which is the *git provider* used for PRs and branches. The two use different env vars and different scopes - see `docs/getting-started/kanban/github.md` for the full disambiguation. |
 | `openspec` | `object` | No | `OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias). Experimental, pull-only: each active change under `<root_path>/changes/` acts as a kanban "project" whose issues are the tasks.md task groups. |
 
-### JiraConfig
+### GiteaProjectsConfig
 
-Jira Cloud provider configuration
-
-The domain is specified as the `HashMap` key in KanbanConfig.jira
+Repository project board configuration; credentials are environment variable names.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | No | Whether this provider is enabled |
-| `api_key_env` | `string` | No | Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`) |
-| `email` | `string` | No | Atlassian account email for authentication |
-| `projects` | `object` | No | Per-project sync configuration |
+| `enabled` | `boolean` | No | Whether this instance is synced (default: false). |
+| `base_url` | `string` | Yes | Instance base URL, including any deployment path prefix. |
+| `api_key_env` | `string` | No | Environment variable containing the API token (default: `OPERATOR_GITEA_TOKEN`). |
+| `repositories` | `array` | No | Repositories to discover, in owner/name form. |
+| `projects` | `object` | No | Keys are absolute project URLs returned by discovery. |
 
 ### ProjectSyncConfig
 
@@ -633,6 +640,31 @@ An upstream container synced as one campaign.
 
 **Allowed Values:**
 
+
+### ForgejoProjectsConfig
+
+Repository project board configuration; credentials are environment variable names.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Whether this instance is synced (default: false). |
+| `base_url` | `string` | Yes | Instance base URL, including any deployment path prefix. |
+| `api_key_env` | `string` | No | Environment variable containing the API token (default: `OPERATOR_FORGEJO_TOKEN`). |
+| `repositories` | `array` | No | Repositories to discover, in owner/name form. |
+| `projects` | `object` | No | Keys are absolute project URLs returned by discovery. |
+
+### JiraConfig
+
+Jira Cloud provider configuration
+
+The domain is specified as the `HashMap` key in KanbanConfig.jira
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Whether this provider is enabled |
+| `api_key_env` | `string` | No | Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`) |
+| `email` | `string` | No | Atlassian account email for authentication |
+| `projects` | `object` | No | Per-project sync configuration |
 
 ### LinearConfig
 
@@ -718,9 +750,9 @@ Git settings owned by a named delegator.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `identity` | object | No | Commit identity override for this delegator. |
-| `credentials` | object | No | HTTPS credential bound to one repository. |
-| `settings` | `array` | No | Extra `git config` entries applied for this delegator. |
+| `identity` | object | No | Commit identity; falls back to the global `git.identity` |
+| `credentials` | object | No | HTTPS credential for the ticket's repository |
+| `settings` | `array` | No | Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`, `user.email`, `core.askpass` and `core.sshCommand` are rejected |
 
 ### GitCredentialConfig
 
@@ -728,18 +760,18 @@ Supplied HTTPS credential, bound to a repository; contains no secret value.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `repository_url` | `string` | Yes | HTTPS repository URL this credential is bound to. |
-| `username` | `string` | Yes | HTTPS username. The token is read from `token_env`. |
-| `token_env` | `string` | Yes | Environment variable holding the HTTPS token. The secret is not stored here. |
+| `repository_url` | `string` | Yes | HTTPS repository URL the credential is bound to, with no embedded credentials, query or fragment |
+| `username` | `string` | Yes | HTTPS username sent with the token |
+| `token_env` | `string` | Yes | Environment variable holding the token, read at launch |
 
 ### GitConfigEntry
 
-One `git config` key and value.
+One `git config` entry applied to delegated work.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `key` | `string` | Yes | `git config` key (for example `user.name`). |
-| `value` | `string` | Yes | `git config` value. |
+| `key` | `string` | Yes | Dotted config key (e.g. "commit.gpgsign"); identity and authentication keys are rejected |
+| `value` | `string` | Yes | Config value |
 
 ### DelegatorLaunchConfig
 
@@ -841,7 +873,12 @@ SSH remote-launch path. There is no `enabled` field - presence in
 | `stop_on_complete` | `boolean` | No | Stop the workspace when the ticket completes (never delete) |
 | `create_timeout_secs` | `integer` | No | Bound on workspace create + agent-ready wait |
 | `callback_url` | `string` \| `null` | No | Control-plane-reachable `OPERATOR_API_URL` override for detached multi-step (empty/None = reverse tunnel default) |
-| `parameters` | `object` | No | Passthrough `--parameter` template parameters for `coder create` |
+| `parameters` | `object` | No | Passthrough `--parameter` template parameters for `coder create`. Values may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}` |
+| `preset` | `string` \| `null` | No | Template preset passed to `coder create --preset` |
+| `remote_callback_port` | `integer` \| `null` | No | Workspace-side port the reverse tunnel binds (None = the local API port) |
+| `forward_env` | `array` | No | Env var NAMES resolved on the control plane and shipped to the agent (e.g. LLM provider credentials); a missing one fails the launch |
+| `delete_on_complete` | `boolean` | No | Delete the workspace when the ticket completes (wins over `stop_on_complete`) |
+| `delete_on_merge` | `boolean` | No | Delete the workspace when the ticket's PR merges |
 
 ### SshTarget
 
@@ -853,6 +890,7 @@ connection shape (`RemoteHost` minus identity).
 | `ssh_alias` | `string` | Yes | Host alias resolved via the user's `~/.ssh/config` (or `ssh_config_path`) |
 | `workdir` | `string` | Yes | Absolute project root on the remote machine |
 | `ssh_config_path` | `string` \| `null` | No | SSH config fragment passed with `-F` (used by provisioned coder aliases) |
+| `remote_callback_port` | `integer` \| `null` | No | Remote port the reverse tunnel binds for callbacks (None = the local API port) |
 
 ### GovernancePolicy
 

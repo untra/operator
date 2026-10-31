@@ -325,6 +325,15 @@ pub(super) fn render_env_exports(env: &std::collections::HashMap<String, String>
     out
 }
 
+pub(super) fn render_env_unsets<'a>(vars: impl IntoIterator<Item = &'a str>) -> String {
+    let vars: Vec<&str> = vars.into_iter().collect();
+    if vars.is_empty() {
+        String::new()
+    } else {
+        format!("unset {}\n", vars.join(" "))
+    }
+}
+
 /// Env-var names referenced as `${NAME}` in a provider env map that are unset
 /// in this process. Remote launches fail closed on a non-empty result.
 pub(crate) fn missing_env_refs(env: &std::collections::HashMap<String, String>) -> Vec<String> {

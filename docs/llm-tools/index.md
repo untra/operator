@@ -152,7 +152,7 @@ YOLO (auto-accept) mode enables fully autonomous execution by bypassing confirma
 |------|------------|--------|
 | Claude | `--dangerously-skip-permissions` | Skips all permission prompts |
 | Gemini | `--auto-approve`, `-y` | Auto-approves all actions |
-| Codex | `--full-auto` | Enables full automation |
+| Codex | `-c approval_policy="never" --sandbox workspace-write` | Runs without approval prompts in the workspace sandbox |
 
 ## Example: Full Configuration
 

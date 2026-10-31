@@ -44,7 +44,7 @@ A delegator bridges a tool (the binary) to a model server (the backend). If `mod
 | `display_name` | No | Human-readable label shown in the UI |
 | `model_server` | No | Name of a declared `[[model_servers]]` entry; omit to use the tool's vendor default |
 | `governance` | No | Name of a `[[governance]]` policy checked on every launch by this delegator |
-| `model_properties` | No | Arbitrary key-value pairs forwarded to the model (e.g. `reasoning_effort = "high"`) |
+| `model_properties` | No | Arbitrary key-value pairs stored with the delegator (e.g. `reasoning_effort = "high"`). Not yet passed to the agent CLI; use `launch_config.flags` for tool options |
 | `launch_config` | No | Per-delegator launch overrides (see below) |
 
 ## Launch configuration

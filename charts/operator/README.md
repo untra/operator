@@ -106,3 +106,11 @@ Use `extraEnv` for per-signal endpoints or `OTEL_SDK_DISABLED=true`. Avoid dupli
 names with chart-managed telemetry variables. `OTEL_SDK_DISABLED` disables
 Operator self-export; agent ingest remains controlled independently. The runtime
 export configuration is immutable until the process restarts.
+
+### Private model servers
+
+Keep `publicUrl` set. Opt a LAN model host into application egress with
+`egress.allowPrivateCidrs: ["192.168.1.50/32"]`. The chart exports a comma-separated `OPERATOR_EGRESS__ALLOW_PRIVATE_CIDRS`.
+When NetworkPolicy is enabled, add a rule under `networkPolicy.egress.additionalRules` with the same `ipBlock` and TCP port `1234`. Existing `egress.to` rules allow all ports to their destinations. Routing and the host firewall must permit traffic too.
+
+See the [LM Studio walkthrough](https://operator.untra.io/getting-started/model-servers/lmstudio/) for Windows setup, both CLI delegators, and acceptance checks.

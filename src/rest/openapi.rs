@@ -735,6 +735,31 @@ mod tests {
     }
 
     #[test]
+    fn test_every_response_has_a_description() {
+        let spec = parsed_spec();
+        for (path, item) in spec["paths"].as_object().expect("paths") {
+            for (method, operation) in item.as_object().expect("path item") {
+                let Some(responses) = operation
+                    .get("responses")
+                    .and_then(|value| value.as_object())
+                else {
+                    continue;
+                };
+                for (status, response) in responses {
+                    if response.get("$ref").is_some() {
+                        continue;
+                    }
+                    let description = response["description"].as_str().unwrap_or_default();
+                    assert!(
+                        !description.is_empty(),
+                        "{method} {path} {status} must have a description (required by OpenAPI)"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_only_operation_reachable_schemas_are_published() {
         let spec = parsed_spec();
         let schemas = spec["components"]["schemas"]

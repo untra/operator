@@ -256,7 +256,7 @@ jobs:
   # Probes Apple notary + signing credentials without notarizing.
   preflight-apple:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
 
@@ -594,6 +594,8 @@ jobs:
             e2e/test-results
 
   build:
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
     needs: [lint-test, version]
     strategy:
       fail-fast: false
@@ -607,7 +609,7 @@ jobs:
             target: aarch64-unknown-linux-gnu
             artifact_name: operator-linux-arm64
             opr8r_artifact: opr8r-linux-arm64
-          - os: macos-14
+          - os: macos-15
             target: aarch64-apple-darwin
             artifact_name: operator-macos-arm64
             opr8r_artifact: opr8r-macos-arm64
@@ -706,14 +708,14 @@ jobs:
 
       # Apple code signing + notarization (macOS only)
       - name: Codesign release binaries
-        if: matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: scripts/codesign.sh "${{ matrix.artifact_name }}" "${{ matrix.opr8r_artifact }}"
 
       - name: Notarize release binaries
-        if: matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
         env:
           APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
           APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}

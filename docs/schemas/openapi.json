@@ -174,8 +174,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "agents:approve"
+        "x-operator-capability": "agents:approve",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/agents/{agent_id}/connect/terminal": {
@@ -233,8 +233,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}/focus": {
@@ -392,8 +392,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "agents:reject"
+        "x-operator-capability": "agents:reject",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/alerts": {
@@ -553,7 +553,6 @@
         "operationId": "capabilities",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -773,7 +772,6 @@
         "operationId": "keys",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -824,7 +822,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -874,9 +871,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": ""
-          },
+          "200": {},
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
@@ -929,7 +924,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1091,9 +1085,7 @@
         ],
         "operationId": "callback",
         "responses": {
-          "303": {
-            "description": ""
-          }
+          "303": {}
         },
         "security": []
       }
@@ -1106,7 +1098,6 @@
         "operationId": "connections",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1160,7 +1151,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1210,9 +1200,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": ""
-          },
+          "200": {},
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
@@ -1245,9 +1233,7 @@
           }
         ],
         "responses": {
-          "303": {
-            "description": ""
-          }
+          "303": {}
         },
         "security": []
       }
@@ -1260,7 +1246,6 @@
         "operationId": "providers",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1540,7 +1525,6 @@
         "operationId": "users",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1603,9 +1587,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": ""
-          },
+          "200": {},
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
@@ -1629,7 +1611,6 @@
         "operationId": "campaigns_list",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1663,8 +1644,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       },
       "post": {
         "tags": [
@@ -1694,7 +1675,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1750,7 +1730,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1784,8 +1763,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "campaigns:read"
+        "x-operator-capability": "campaigns:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/campaigns/{id}/launch": {
@@ -1826,7 +1805,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1870,8 +1848,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:launch",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "campaigns:launch"
       }
     },
     "/api/v1/campaigns/{id}/pause": {
@@ -1902,7 +1880,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1936,8 +1913,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:pause",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "campaigns:pause"
       }
     },
     "/api/v1/campaigns/{id}/status": {
@@ -1958,7 +1935,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1992,8 +1968,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       }
     },
     "/api/v1/collections": {
@@ -2204,8 +2180,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "collections:update"
+        "x-operator-capability": "collections:update",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/configuration": {
@@ -2240,8 +2216,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "configuration:read"
+        "x-operator-capability": "configuration:read",
+        "x-operator-scope": "admin"
       },
       "patch": {
         "tags": [
@@ -2317,7 +2293,6 @@
         "operationId": "connections_get",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -2353,7 +2328,6 @@
         "operationId": "connections_mcp_clients",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -2380,8 +2354,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "connections:read",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "connections:read"
       }
     },
     "/api/v1/delegators": {
@@ -2417,8 +2391,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "delegators:read"
+        "x-operator-capability": "delegators:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -2483,8 +2457,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/from-tool": {
@@ -2631,8 +2605,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "delegators:create"
+        "x-operator-capability": "delegators:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators/{name}": {
@@ -2689,8 +2663,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       },
       "put": {
         "tags": [
@@ -2829,8 +2803,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:delete",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:delete"
       }
     },
     "/api/v1/delegators/{name}/profile": {
@@ -2888,8 +2862,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "delegators:read"
+        "x-operator-capability": "delegators:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/execution-targets": {
@@ -2957,7 +2931,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -2993,7 +2966,6 @@
         "operationId": "git_providers",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -3020,8 +2992,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "git:read"
+        "x-operator-capability": "git:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/git/session-env": {
@@ -3053,7 +3025,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -3077,8 +3048,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "git:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:create"
       }
     },
     "/api/v1/git/validate": {
@@ -3110,7 +3081,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -3212,8 +3182,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "integrations:read"
+        "x-operator-capability": "integrations:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/issuetypes": {
@@ -3648,8 +3618,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/issuetypes/{key}/steps": {
@@ -3709,8 +3679,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "issuetypes:read"
+        "x-operator-capability": "issuetypes:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/issuetypes/{key}/steps/{step_name}": {
@@ -3776,8 +3746,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "issuetypes:read"
+        "x-operator-capability": "issuetypes:read",
+        "x-operator-scope": "read"
       },
       "put": {
         "tags": [
@@ -3877,8 +3847,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:update",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:update"
       }
     },
     "/api/v1/issuetypes/{key}/workflow-preview": {
@@ -4004,8 +3974,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "kanban:update"
       }
     },
     "/api/v1/kanban/projects": {
@@ -4104,8 +4074,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/kanban/session-env": {
@@ -4222,8 +4192,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "kanban:execute"
+        "x-operator-capability": "kanban:execute",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/kanban/validate": {
@@ -4281,8 +4251,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "kanban:execute"
+        "x-operator-capability": "kanban:execute",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes": {
@@ -4449,8 +4419,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "kanban:create"
+        "x-operator-capability": "kanban:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/statuses": {
@@ -4539,7 +4509,6 @@
         "operationId": "license_get",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -4563,8 +4532,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "license:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "license:read"
       },
       "put": {
         "tags": [
@@ -4594,7 +4563,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -4649,7 +4617,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -4747,8 +4714,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "llm-tools:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "llm-tools:read"
       },
       "put": {
         "tags": [
@@ -4964,8 +4931,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "mcp:connect",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/model-servers": {
@@ -5001,8 +4968,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -5224,8 +5191,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       },
       "put": {
         "tags": [
@@ -5444,8 +5411,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:execute",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "model-servers:execute"
       }
     },
     "/api/v1/profiles": {
@@ -5661,8 +5628,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "profiles:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:update"
       }
     },
     "/api/v1/projects": {
@@ -5701,8 +5668,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "projects:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "projects:read"
       }
     },
     "/api/v1/projects/{name}/assess": {
@@ -5768,8 +5735,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "projects:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "projects:create"
       }
     },
     "/api/v1/queue/kanban": {
@@ -5855,8 +5822,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "queue:create"
+        "x-operator-capability": "queue:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/queue/resume": {
@@ -6099,8 +6066,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "sections:read"
+        "x-operator-capability": "sections:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/setup/collections": {
@@ -6111,7 +6078,6 @@
         "operationId": "setup_collections",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6138,8 +6104,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "setup:read"
+        "x-operator-capability": "setup:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/setup/initialize": {
@@ -6171,7 +6137,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6227,7 +6192,6 @@
         "operationId": "setup_status",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6263,7 +6227,6 @@
         "operationId": "setup_steps",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6327,8 +6290,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "skills:read"
+        "x-operator-capability": "skills:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/status": {
@@ -6364,8 +6327,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "status:read"
+        "x-operator-capability": "status:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/targets": {
@@ -6376,7 +6339,6 @@
         "operationId": "targets_list",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6400,8 +6362,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "targets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "targets:read"
       },
       "post": {
         "tags": [
@@ -6429,7 +6391,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6463,8 +6424,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "targets:create"
+        "x-operator-capability": "targets:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/targets/{name}": {
@@ -6502,7 +6463,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6565,7 +6525,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6599,8 +6558,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "targets:delete"
+        "x-operator-capability": "targets:delete",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/targets/{name}/probe": {
@@ -6630,7 +6589,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6664,8 +6622,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "targets:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:create"
       }
     },
     "/api/v1/telemetry/sessions/{session_id}": {
@@ -6825,7 +6783,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -6893,7 +6850,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -7085,7 +7041,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -7432,8 +7387,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:complete",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "tickets:complete"
       }
     },
     "/api/v1/tickets/{id}/workflow-export": {
@@ -7509,8 +7464,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "tickets:read"
+        "x-operator-capability": "tickets:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/workflow-formats": {
@@ -7550,8 +7505,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "workflow-formats:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "workflow-formats:read"
       }
     },
     "/livez": {
@@ -7947,11 +7902,11 @@
           "attention": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/Attention",
                 "description": "Set when the agent needs the operator"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -8072,11 +8027,11 @@
           "attention": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/Attention",
                 "description": "Set when the agent needs the operator"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -8261,11 +8216,11 @@
           "remote_agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/RemoteAgentRef",
                 "description": "Declarative reference to a remote, named agent. `None` = a locally launchable agent, not bound to a remote target."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -8299,11 +8254,11 @@
           "x_operator": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/XOperator",
                 "description": "Operator-owned extension fields (typed). `None` when the agent carries no Operator-specific configuration."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -8872,11 +8827,11 @@
           "governance_overrides": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GovernancePolicy",
                 "description": "Inline policy layered over `governance`."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -8894,11 +8849,11 @@
           "workspace": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/CampaignWorkspace",
                 "description": "Shared execution environment; absent runs each ticket in its own workspace."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -9285,10 +9240,10 @@
           "administration_grants": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PermissionGrant"
               },
               {
-                "$ref": "#/components/schemas/PermissionGrant"
+                "type": "null"
               }
             ]
           },
@@ -9316,10 +9271,10 @@
           "issuance_block_reason": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/KeyIssuanceBlockReason"
               },
               {
-                "$ref": "#/components/schemas/KeyIssuanceBlockReason"
+                "type": "null"
               }
             ]
           },
@@ -9440,11 +9395,11 @@
           "workflow_hints": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/WorkflowHintsDto",
                 "description": "Descriptive workflow hints (present for hosted collections)."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -9570,11 +9525,11 @@
           "preferred": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ConnectOption",
                 "description": "Primary option (configured preference, else the session wrapper's)"
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -9735,22 +9690,22 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
                 "description": "Optional launch configuration"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -9800,11 +9755,11 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -9818,11 +9773,11 @@
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
                 "description": "Optional launch configuration"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -9858,11 +9813,11 @@
           "remote_agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/RemoteAgentRef",
                 "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When\nset, the delegator is export-only and cannot be launched locally."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -10459,11 +10414,11 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -10477,11 +10432,11 @@
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
                 "description": "Optional launch configuration"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -10517,11 +10472,11 @@
           "remote_agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/RemoteAgentRef",
                 "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When\nset, the delegator is export-only and cannot be launched locally."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -10773,10 +10728,10 @@
           "feature": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PremiumFeature"
               },
               {
-                "$ref": "#/components/schemas/PremiumFeature"
+                "type": "null"
               }
             ]
           },
@@ -11031,22 +10986,22 @@
           "credentials": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitCredentialConfig",
                 "description": "HTTPS credential for the ticket's repository"
+              },
+              {
+                "type": "null"
               }
             ]
           },
           "identity": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitIdentityConfig",
                 "description": "Commit identity; falls back to the global `git.identity`"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -12107,11 +12062,11 @@
           "attention": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/AttentionReason",
                 "description": "Set when the ticket's agent needs the operator"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -12266,10 +12221,10 @@
           "session_wrapper": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/SessionWrapper"
               },
               {
-                "$ref": "#/components/schemas/SessionWrapper"
+                "type": "null"
               }
             ],
             "default": null
@@ -12464,10 +12419,10 @@
           "terms": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LicenseTerms"
               },
               {
-                "$ref": "#/components/schemas/LicenseTerms"
+                "type": "null"
               }
             ]
           }
@@ -12627,50 +12582,50 @@
           "gitea": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GiteaCredentials"
               },
               {
-                "$ref": "#/components/schemas/GiteaCredentials"
+                "type": "null"
               }
             ]
           },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubCredentials"
               },
               {
-                "$ref": "#/components/schemas/GithubCredentials"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraCredentials"
               },
               {
-                "$ref": "#/components/schemas/JiraCredentials"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearCredentials"
               },
               {
-                "$ref": "#/components/schemas/LinearCredentials"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/OpenspecSourceDto"
               },
               {
-                "$ref": "#/components/schemas/OpenspecSourceDto"
+                "type": "null"
               }
             ]
           },
@@ -12705,50 +12660,50 @@
           "gitea": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GiteaCredentials"
               },
               {
-                "$ref": "#/components/schemas/GiteaCredentials"
+                "type": "null"
               }
             ]
           },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubCredentials"
               },
               {
-                "$ref": "#/components/schemas/GithubCredentials"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraCredentials"
               },
               {
-                "$ref": "#/components/schemas/JiraCredentials"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearCredentials"
               },
               {
-                "$ref": "#/components/schemas/LinearCredentials"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/OpenspecSourceDto"
               },
               {
-                "$ref": "#/components/schemas/OpenspecSourceDto"
+                "type": "null"
               }
             ]
           },
@@ -12967,11 +12922,11 @@
           "stdio": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/StdioCommand",
                 "description": "Stdio transport entrypoint. Present when `[mcp].stdio_advertised = true`.\nClients may spawn this as a subprocess instead of using `transport_url`."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -13213,11 +13168,11 @@
           "governance_overrides": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GovernancePolicy",
                 "description": "Inline policy layered over `governance`."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -13227,10 +13182,10 @@
           "workspace": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/CampaignWorkspace"
               },
               {
-                "$ref": "#/components/schemas/CampaignWorkspace"
+                "type": "null"
               }
             ]
           }
@@ -14314,40 +14269,40 @@
           "gitea": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GiteaSessionEnv"
               },
               {
-                "$ref": "#/components/schemas/GiteaSessionEnv"
+                "type": "null"
               }
             ]
           },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubSessionEnv"
               },
               {
-                "$ref": "#/components/schemas/GithubSessionEnv"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraSessionEnv"
               },
               {
-                "$ref": "#/components/schemas/JiraSessionEnv"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearSessionEnv"
               },
               {
-                "$ref": "#/components/schemas/LinearSessionEnv"
+                "type": "null"
               }
             ]
           },
@@ -14798,11 +14753,11 @@
           "output": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/OperatorOutput",
                 "description": "Structured output from agent (parsed `OPERATOR_STATUS` block)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -14900,11 +14855,11 @@
           "next_step": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/NextStepInfo",
                 "description": "Information about the next step (if any)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -15477,11 +15432,11 @@
           "agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/TicketAgent",
                 "description": "The agent working this ticket, if any"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -15665,11 +15620,11 @@
           "kanban_target": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/KanbanTarget",
                 "description": "The kanban project the ticket would be pushed to, if any."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -15890,10 +15845,10 @@
           "panel_names": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PanelNamesConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/PanelNamesConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -15925,10 +15880,10 @@
           "agents": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/AgentsConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/AgentsConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -15936,10 +15891,10 @@
           "launch": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LaunchConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/LaunchConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -15947,10 +15902,10 @@
           "queue": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/QueueConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/QueueConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -15958,10 +15913,10 @@
           "ui": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/UiConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/UiConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -16289,50 +16244,50 @@
           "gitea": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GiteaCredentials"
               },
               {
-                "$ref": "#/components/schemas/GiteaCredentials"
+                "type": "null"
               }
             ]
           },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubCredentials"
               },
               {
-                "$ref": "#/components/schemas/GithubCredentials"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraCredentials"
               },
               {
-                "$ref": "#/components/schemas/JiraCredentials"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearCredentials"
               },
               {
-                "$ref": "#/components/schemas/LinearCredentials"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/OpenspecSourceDto"
               },
               {
-                "$ref": "#/components/schemas/OpenspecSourceDto"
+                "type": "null"
               }
             ]
           },
@@ -16357,40 +16312,40 @@
           "gitea": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GiteaValidationDetailsDto"
               },
               {
-                "$ref": "#/components/schemas/GiteaValidationDetailsDto"
+                "type": "null"
               }
             ]
           },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubValidationDetailsDto"
               },
               {
-                "$ref": "#/components/schemas/GithubValidationDetailsDto"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraValidationDetailsDto"
               },
               {
-                "$ref": "#/components/schemas/JiraValidationDetailsDto"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearValidationDetailsDto"
               },
               {
-                "$ref": "#/components/schemas/LinearValidationDetailsDto"
+                "type": "null"
               }
             ]
           },
@@ -16607,10 +16562,10 @@
           "status_mapping": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/KanbanStatusMapping"
               },
               {
-                "$ref": "#/components/schemas/KanbanStatusMapping"
+                "type": "null"
               }
             ]
           },
@@ -16644,11 +16599,11 @@
           "status_mapping": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/KanbanStatusMapping",
                 "description": "Mapping of operator todo/doing/done to external board columns"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -16684,11 +16639,11 @@
           "status_mapping": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/KanbanStatusMapping",
                 "description": "Mapping of operator todo/doing/done to external board columns"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -16707,50 +16662,50 @@
           "gitea": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteGiteaConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteGiteaConfigBody"
+                "type": "null"
               }
             ]
           },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteGithubConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteGithubConfigBody"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteJiraConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteJiraConfigBody"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteLinearConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteLinearConfigBody"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteOpenspecConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteOpenspecConfigBody"
+                "type": "null"
               }
             ]
           },
@@ -16796,11 +16751,11 @@
           "status_mapping": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/KanbanStatusMapping",
                 "description": "Mapping of operator todo/doing/done to external board columns"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -16851,11 +16806,11 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -16869,11 +16824,11 @@
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfig",
                 "description": "Launch configuration (permission mode, flags, worktree/docker, prompt\nwrapping, ...)."
+              },
+              {
+                "type": "null"
               }
             ]
           },

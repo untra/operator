@@ -78,6 +78,8 @@ jobs:
   opr8r-build:
     name: Build opr8r (${{ matrix.artifact }})
     needs: lint-test
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
     if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
@@ -90,7 +92,7 @@ jobs:
             os: ubuntu-24.04-arm
             artifact: opr8r-linux-arm64
           - target: aarch64-apple-darwin
-            os: macos-14
+            os: macos-15
             artifact: opr8r-macos-arm64
           - target: x86_64-pc-windows-msvc
             os: windows-latest
@@ -130,7 +132,7 @@ jobs:
 
       # Apple code signing + notarization (macOS only)
       - name: Codesign opr8r binary
-        if: matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
         working-directory: .
         env:
           APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
@@ -138,7 +140,7 @@ jobs:
         run: scripts/codesign.sh opr8r/target/release/opr8r
 
       - name: Notarize opr8r binary
-        if: matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
         working-directory: .
         env:
           APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}

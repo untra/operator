@@ -28,28 +28,29 @@ use crate::rest::dto::{
     CreateTicketResponse, CsrfTokenResponse, CurrentSessionResponse, DefaultLlmResponse,
     DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, DeviceApprovalRequest,
     DeviceApprovalResponse, DeviceAuthorizationRequest, DeviceAuthorizationResponse, DeviceSummary,
-    ExternalIssueTypeSummary, FieldResponse, ForgotPasswordRequest, ForgotPasswordResponse,
-    GitOnboardingState, GitProviderOnboardingResponse, HealthResponse, HostedCollectionSelection,
-    IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary, KanbanBoardResponse,
-    KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse, KanbanTicketCard,
-    LaunchTicketRequest, LaunchTicketResponse, ListKanbanProjectsRequest,
-    ListKanbanProjectsResponse, ListKanbanStatusesRequest, ListKanbanStatusesResponse,
-    LoginRequest, LoginResponse, LogoutResponse, ModelEntry, ModelServerKindEntry,
-    ModelServerModelsResponse, ModelServerResponse, ModelServersResponse, NextStepInfo,
-    OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind, ProjectSummary, QueueByType,
-    QueueControlResponse, QueueStatusResponse, RejectReviewRequest, ResetPasswordRequest,
-    ResetPasswordResponse, ReviewResponse, RevokeAccessKeyResponse, Scope, SectionDto,
-    SectionRowDto, SessionListResponse, SessionSummary, SetDefaultLlmRequest,
+    ExternalIssueTypeSummary, FieldError, FieldResponse, ForgotPasswordRequest,
+    ForgotPasswordResponse, GitOnboardingState, GitProviderOnboardingResponse, HealthResponse,
+    HostedCollectionSelection, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
+    KanbanBoardResponse, KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanPushOutcome,
+    KanbanSyncResponse, KanbanTarget, KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse,
+    ListKanbanProjectsRequest, ListKanbanProjectsResponse, ListKanbanStatusesRequest,
+    ListKanbanStatusesResponse, LoginRequest, LoginResponse, LogoutResponse, ModelEntry,
+    ModelServerKindEntry, ModelServerModelsResponse, ModelServerResponse, ModelServersResponse,
+    NextStepInfo, OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind,
+    ProjectSummary, QueueByType, QueueControlResponse, QueueStatusResponse, RejectReviewRequest,
+    ResetPasswordRequest, ResetPasswordResponse, ReviewResponse, RevokeAccessKeyResponse, Scope,
+    SectionDto, SectionRowDto, SessionListResponse, SessionSummary, SetDefaultLlmRequest,
     SetGitSessionEnvRequest, SetGitSessionEnvResponse, SetKanbanSessionEnvRequest,
     SetKanbanSessionEnvResponse, SetupCollectionResponse, SetupExecutionTarget,
     SetupInitializeRequest, SetupInitializeResponse, SetupStatusResponse, SetupStepResponse,
     SkillEntry, SkillsResponse, StatusResponse, StepCompleteRequest, StepCompleteResponse,
-    StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse, TokenRequest, TokenResponse,
-    UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
-    UpdateTicketStatusResponse, ValidateGitTokenRequest, ValidateGitTokenResponse,
-    ValidateKanbanCredentialsRequest, ValidateKanbanCredentialsResponse, WorkflowExportResponse,
-    WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse, WriteGitConfigRequest,
-    WriteGitConfigResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
+    StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse, TicketPreviewResponse,
+    TokenRequest, TokenResponse, UpdateIssueTypeRequest, UpdateModelServerRequest,
+    UpdateStepRequest, UpdateTicketStatusRequest, UpdateTicketStatusResponse,
+    ValidateGitTokenRequest, ValidateGitTokenResponse, ValidateKanbanCredentialsRequest,
+    ValidateKanbanCredentialsResponse, WorkflowExportResponse, WorkflowFormatDto, WorkflowHintsDto,
+    WorkflowPreviewResponse, WriteGitConfigRequest, WriteGitConfigResponse,
+    WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 // AgentProfile interchange types live in `crate::config`, not `rest::dto`.
 use crate::config::{AgentProfile, DelegatorLaunchConfig, RemoteAgentRef, XOperator};
@@ -130,6 +131,10 @@ use crate::rest::error::ErrorResponse;
             UpdateTicketStatusResponse,
             CreateTicketRequest,
             CreateTicketResponse,
+            TicketPreviewResponse,
+            KanbanPushOutcome,
+            KanbanTarget,
+            FieldError,
             CreateAlertRequest,
             CreateAlertResponse,
             // Workflow export types
@@ -258,6 +263,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Auth", description = "Bootstrap, sessions, OAuth device flow, and access keys"),
         (name = "Setup", description = "First-run workspace initialization"),
         (name = "Git", description = "Git provider onboarding"),
+        (name = "Telemetry", description = "OTLP ingest from agent sessions and the per-session telemetry window"),
     )
 )]
 pub struct ApiDoc;
@@ -319,8 +325,8 @@ const FORBIDDEN_RESPONSE_NAME: &str = "Forbidden";
 const JSON_MEDIA_TYPE: &str = "application/json";
 const UNAUTHORIZED_RESPONSE_NAME: &str = "Unauthorized";
 
-fn error_content() -> Content {
-    Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME)))
+fn error_content() -> RefOr<Content> {
+    RefOr::T(Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME))))
 }
 
 fn error_response(description: &str) -> Response {
@@ -331,10 +337,10 @@ fn error_response(description: &str) -> Response {
     response
 }
 
-fn response_header(description: &str, schema_type: Type) -> Header {
+fn response_header(description: &str, schema_type: Type) -> RefOr<Header> {
     let mut header = Header::new(Object::with_type(schema_type));
     header.description = Some(description.to_string());
-    header
+    RefOr::T(header)
 }
 
 fn document_error_responses(operation: &mut Operation) {
@@ -368,6 +374,25 @@ fn document_error_responses(operation: &mut Operation) {
                     Type::Integer,
                 ),
             );
+        }
+    }
+}
+
+fn document_missing_descriptions(operation: &mut Operation) {
+    for (status, response) in &mut operation.responses.responses {
+        let RefOr::T(response) = response else {
+            continue;
+        };
+        if !response.description.is_empty() {
+            continue;
+        }
+        if let Some(reason) = status
+            .parse::<u16>()
+            .ok()
+            .and_then(|code| axum::http::StatusCode::from_u16(code).ok())
+            .and_then(|code| code.canonical_reason())
+        {
+            response.description = reason.to_string();
         }
     }
 }
@@ -442,7 +467,7 @@ fn prune_unreachable_schemas(spec: &mut utoipa::openapi::OpenApi) {
         .retain(|name, _| reachable.contains(name));
 }
 
-fn csrf_parameter() -> Parameter {
+fn csrf_parameter() -> RefOr<Parameter> {
     let mut parameter = Parameter::new(crate::rest::middleware::auth::CSRF_HEADER);
     parameter.parameter_in = ParameterIn::Header;
     parameter.required = Required::False;
@@ -451,7 +476,7 @@ fn csrf_parameter() -> Parameter {
             .to_string(),
     );
     parameter.schema = Some(Object::with_type(Type::String).into());
-    parameter
+    RefOr::T(parameter)
 }
 
 fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>) {
@@ -463,6 +488,29 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
 
     match access {
         Access::Public => operation.security = Some(Vec::new()),
+        Access::TelemetryIngest => {
+            operation.security = Some(vec![SecurityRequirement::new(
+                "bearerAuth",
+                Vec::<String>::new(),
+            )]);
+            operation
+                .extensions
+                .get_or_insert_with(Extensions::default)
+                .insert(
+                    "x-operator-scope".to_string(),
+                    serde_json::json!(crate::auth::tokens::AUDIENCE_TELEMETRY),
+                );
+            operation
+                .responses
+                .responses
+                .entry("401".to_string())
+                .or_insert_with(|| Ref::from_response_name(UNAUTHORIZED_RESPONSE_NAME).into());
+            operation
+                .responses
+                .responses
+                .entry("403".to_string())
+                .or_insert_with(|| Ref::from_response_name(FORBIDDEN_RESPONSE_NAME).into());
+        }
         Access::Scoped(scope) => {
             operation.security = Some(vec![
                 SecurityRequirement::new("bearerAuth", Vec::<String>::new()),
@@ -495,7 +543,27 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
         }
     }
 
+    if crate::auth::policy::browser_identity_route(path) {
+        operation.security = Some(vec![SecurityRequirement::new(
+            "sessionCookie",
+            Vec::<String>::new(),
+        )]);
+    }
+    if let Some(policy) = crate::auth::policy::OPERATIONS
+        .iter()
+        .find(|policy| policy.method == method && policy.path == path)
+    {
+        operation
+            .extensions
+            .get_or_insert_with(Extensions::default)
+            .insert(
+                "x-operator-capability".to_string(),
+                serde_json::json!(policy.capability),
+            );
+    }
+
     document_error_responses(operation);
+    document_missing_descriptions(operation);
 
     match (method, path) {
         ("POST", "/api/v1/auth/login") => {
@@ -541,8 +609,8 @@ impl ApiDoc {
     ///
     /// The version is stamped from `CARGO_PKG_VERSION` by [`crate::rest::openapi_spec`].
     #[allow(dead_code)]
-    pub fn yaml() -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(&crate::rest::openapi_spec())
+    pub fn yaml() -> Result<String, serde_saphyr::ser::Error> {
+        serde_saphyr::to_string(&crate::rest::openapi_spec())
     }
 }
 
@@ -606,13 +674,24 @@ mod tests {
             );
             match rule.access {
                 Access::Public => assert_eq!(operation["security"], serde_json::json!([])),
+                Access::TelemetryIngest => {
+                    assert_eq!(
+                        operation["security"],
+                        serde_json::json!([{ "bearerAuth": [] }])
+                    );
+                    assert_eq!(
+                        operation["x-operator-scope"],
+                        crate::auth::tokens::AUDIENCE_TELEMETRY
+                    );
+                }
                 Access::Scoped(scope) => {
                     assert_eq!(
                         operation["security"],
-                        serde_json::json!([
-                            { "bearerAuth": [] },
-                            { "sessionCookie": [] }
-                        ])
+                        if crate::auth::policy::browser_identity_route(rule.path) {
+                            serde_json::json!([{ "sessionCookie": [] }])
+                        } else {
+                            serde_json::json!([{ "bearerAuth": [] }, { "sessionCookie": [] }])
+                        }
                     );
                     assert_eq!(operation["x-operator-scope"], scope.as_str());
                 }
@@ -624,7 +703,7 @@ mod tests {
     fn test_protected_mutations_document_csrf_header() {
         let spec = parsed_spec();
         for rule in crate::auth::scope::ROUTE_RULES {
-            if matches!(rule.access, Access::Public)
+            if matches!(rule.access, Access::Public | Access::TelemetryIngest)
                 || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
             {
                 continue;
@@ -670,6 +749,31 @@ mod tests {
                     if status == "429" {
                         assert!(response["headers"]["Retry-After"].is_object());
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_every_response_has_a_description() {
+        let spec = parsed_spec();
+        for (path, item) in spec["paths"].as_object().expect("paths") {
+            for (method, operation) in item.as_object().expect("path item") {
+                let Some(responses) = operation
+                    .get("responses")
+                    .and_then(|value| value.as_object())
+                else {
+                    continue;
+                };
+                for (status, response) in responses {
+                    if response.get("$ref").is_some() {
+                        continue;
+                    }
+                    let description = response["description"].as_str().unwrap_or_default();
+                    assert!(
+                        !description.is_empty(),
+                        "{method} {path} {status} must have a description (required by OpenAPI)"
+                    );
                 }
             }
         }

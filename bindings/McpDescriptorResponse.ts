@@ -18,9 +18,13 @@ server_id: string,
  */
 version: string, 
 /**
- * Full URL of the MCP SSE transport endpoint
+ * SSE endpoint, relative unless a public URL is configured.
  */
 transport_url: string, 
+/**
+ * Whether the running API has mounted the SSE transport.
+ */
+http_available: boolean, 
 /**
  * Human-readable label for the server
  */

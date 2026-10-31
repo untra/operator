@@ -5,10 +5,8 @@
 //! servers (`anthropic-api`, `openai-api`, `google-api`) are returned on list
 //! but cannot be created, updated, or deleted.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 
 use crate::api::providers::model_server::{probe_models, ModelServerKind};
 use crate::config::{implicit_model_servers, is_implicit_model_server_name, Config, ModelServer};
@@ -268,7 +266,8 @@ pub async fn models(
 
     let outcome = probe_models(
         &server,
-        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+        &crate::auth::egress::EgressPolicy::from_config(&state.config())
+            .map_err(|e| ApiError::InternalError(e.to_string()))?,
     )
     .await;
     Ok(Json(ModelServerModelsResponse {
@@ -363,7 +362,8 @@ pub async fn kind_models(
 
     let outcome = probe_models(
         &server,
-        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+        &crate::auth::egress::EgressPolicy::from_config(&state.config())
+            .map_err(|e| ApiError::InternalError(e.to_string()))?,
     )
     .await;
     Ok(Json(ModelServerModelsResponse {

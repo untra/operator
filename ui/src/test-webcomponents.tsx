@@ -212,3 +212,5 @@ export function sessionTargets(agent: {
     ? [{ kind: "command", label: "Attach", command: agent.attach_command }]
     : [];
 }
+
+export { PermissionSelector } from "../../webcomponents/src/components/PermissionSelector";

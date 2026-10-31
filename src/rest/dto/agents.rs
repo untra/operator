@@ -394,6 +394,12 @@ pub struct OperatorOutput {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct StepCompleteRequest {
+    /// Finish this session without executing another step.
+    #[serde(default)]
+    pub no_auto_proceed: bool,
+    /// W3C context of the completed opr8r step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traceparent: Option<String>,
     /// Exit code from the LLM command
     pub exit_code: i32,
     /// Whether output validation passed (if schema was specified)
@@ -423,6 +429,9 @@ fn default_true() -> bool {
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct StepCompleteResponse {
+    /// Per-step telemetry credentials and context for the next command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_env: Option<std::collections::BTreeMap<String, String>>,
     /// Status of the step: "completed", "`awaiting_review`", "failed", "iterate"
     pub status: String,
     /// Information about the next step (if any)

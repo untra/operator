@@ -22,6 +22,16 @@ coverage:
         threshold: 2%
         flags:
           - opr8r
+      relay:
+        target: auto
+        threshold: 2%
+        flags:
+          - relay
+      telemetry:
+        target: auto
+        threshold: 2%
+        flags:
+          - telemetry
     patch:
       default:
         target: 80%
@@ -38,6 +48,14 @@ flags:
   opr8r:
     paths:
       - opr8r/src/
+    carryforward: true
+  relay:
+    paths:
+      - crates/relay/src/
+    carryforward: true
+  telemetry:
+    paths:
+      - crates/telemetry/src/
     carryforward: true
 
 comment:

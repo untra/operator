@@ -6,7 +6,7 @@ layout: doc
 
 Operator launches AI coding agents against your source code, holds credentials for kanban and model providers, and exposes a REST API, a web dashboard, and an MCP server.
 
-This page is the threat model for that surface: what Operator trusts, what it does not, and what remains your responsibility to control.
+This page is the threat model for that surface: what Operator trusts, what it distrusts, and what remains your responsibility to control.
 
 For the authentication mechanism itself - accounts, tokens, scopes, and recovery - see [Authentication](/security/authentication/).
 
@@ -23,8 +23,7 @@ Operator sits inside four nested boundaries. Each one is enforced by a different
 
 ### The agent process is inside the trust boundary
 
-Operator and the agent processes it spawns share **one Unix identity and one filesystem**. The non-root user protects the host and the cluster from a
-compromised agent. It does not protect *Operator's own state* from that agent.
+Operator and the agent processes it spawns share **one Unix identity and one filesystem**. The non-root user protects the host and the cluster from a compromised agent. *Operator's own state* may not be protected.
 
 An agent process can read and write:
 
@@ -38,7 +37,7 @@ Local execution shares the Operator OS user. SSH and Coder targets can isolate t
 
 The practical consequence: **treat the agent tool you configure, and the model provider behind it, as trusted components.**
 
-Operator's authentication protects the boundary between the network and Operator. It does not sandbox the agent.
+Operator's authentication protects the boundary between the network and Operator.
 
 ## Route classification
 
@@ -56,39 +55,25 @@ Every HTTP route falls into exactly one of five classes. The mapping is held in 
 Two deliberate choices in that table:
 
 **Configuration is `admin`, not `write`.** The REST API exposes a deliberately narrow operational projection rather than the full internal configuration but changing launch behavior and resource limits still requires administrative
-authority. 
-Model servers, delegators, and execution targets have focused endpoints with their own response types.
+authority. Model servers, delegators, and execution targets have focused endpoints with their own response types.
 
 **Health and status are not public.** They report the workspace directory name and a directory identifier. That is workspace identity, and it is exactly the sort of detail a public probe should not disclose - hence the separate, metadata-free `/livez` and `/readyz` endpoints for Kubernetes.
 
 ### The dashboard bundle is public
 
-Operator's web dashboard is a single-page application using fragment-based
-routing. Route names such as `#/config` live in the URL *fragment*, which
-browsers never transmit to the server. The server therefore cannot distinguish
-a request for the login screen from a request for any other screen: it serves
-one HTML document and one JavaScript bundle for all of them.
+Operator's web dashboard is a single-page application using fragment-based routing.
+Route names such as `#/config` live in the URL *fragment*, which browsers never transmit to the server.
+The server therefore cannot distinguish a request for the login screen from a request for any other screen: it serves one HTML document and one JavaScript bundle for all of them.
 
-Consequently the dashboard bundle is served publicly, and authorization is
-enforced entirely at the API layer. An unauthenticated visitor can load the
-shell; every data request returns `401`, and the client redirects to the login
-screen.
+Consequently the dashboard bundle is served publicly, and authorization is enforced entirely at the API layer. An unauthenticated visitor can load the shell; every data request returns `401`, and the client redirects to the login screen.
 
-**Residual risk:** the set of route names and the structure of the UI are
-public. No workspace data, configuration, or credentials are in the bundle -
-all of it arrives over authenticated API calls - but the shape of the
-application is discoverable. This is accepted deliberately; the alternative is
-a separately served login document, which is a larger change for a small
-reduction in disclosure.
+**Residual risk:** the set of route names and the structure of the UI are public. No workspace data, configuration, or credentials are in the bundle - all of it arrives over authenticated API calls - but the shape of the application is discoverable. This is accepted deliberately; the alternative is a separately served login document, which is a larger change for a small reduction in disclosure.
 
 ## Credential handling
 
 ### Credentials Operator holds
 
-Operator stores **no third-party secret values** in `config.toml`. Configuration
-holds the *name* of an environment variable, and the value is read from the
-process environment. A configuration export therefore contains integration
-topology, not credentials.
+Operator stores **no third-party secret values** in `config.toml`. Configuration holds the *name* of an environment variable, and the value is read from the process environment. A configuration export therefore contains integration topology, not credentials.
 
 ### Credentials Operator issues
 
@@ -98,13 +83,9 @@ Plaintext passwords, temporary bootstrap passwords, device codes, refresh tokens
 
 ### Credentials Operator uses itself
 
-Model-server probes are made by the Operator process with a provider API key
-attached. The key is read from Operator's own environment at request time (the
-server's `api_key_env`, else the provider default such as `ANTHROPIC_API_KEY`)
-and is never written to config, state, or logs. Planned native LLM calls, such
-as the multi-agent judge, will follow the same rules and the same egress
-validation, and will send candidate agent outputs to the configured model
-server.
+Model-server probes are made by the Operator process with a provider API key attached.
+The key is read from Operator's own environment at request time (the server's `api_key_env`, else the provider default such as `ANTHROPIC_API_KEY`) and is never written to config, state, or logs.
+Planned native LLM calls, such as the multi-agent judge, will follow the same rules and the same egress validation, and will send candidate agent outputs to the configured model server.
 
 ### Credentials Operator passes to agents
 
@@ -120,16 +101,13 @@ controls:
 - hosted-collection fetches, where the fetched manifest itself supplies subsequent relative URLs,
 - kanban provider hosts, where the host is a configuration key.
 
-Untreated, the model-server probe is the sharpest of these: an authenticated
-caller sets a base URL, triggers a probe, and Operator makes the request *with a
-provider API key attached*. Redirects compound it - a permitted host can
-redirect to a forbidden one.
+Untreated, the model-server probe is the sharpest of these: an authenticated caller sets a base URL, triggers a probe, and Operator makes the request *with a provider API key attached*. Redirects compound it - a permitted host can redirect to a forbidden one.
 
 Four controls apply together, and none is sufficient alone:
 
 1. **Authentication and scopes** - probing requires `execute`; changing a
    model-server URL requires `admin`. An anonymous caller cannot reach either.
-2. **Destination validation** - loopback, link-local, multicast, and cloud-metadata addresses are rejected unless explicitly allowed, and schemes and CIDR ranges are validated against configuration.
+2. **Destination validation** - published deployments reject loopback and private addresses. `[egress].allow_private_cidrs` permits explicit private destinations; reserved ranges such as link-local and cloud metadata remain forbidden. Guarded clients validate DNS answers and redirects and bypass system proxies.
 3. **Redirect re-validation** - every redirect hop is re-checked against the
    same policy, not just the initial URL.
 4. **NetworkPolicy** - in Kubernetes, egress is restricted at the network
@@ -173,13 +151,9 @@ See the [Kubernetes guide](/getting-started/platforms/kubernetes/) for the mecha
   session, refresh token, and access key. Integrations must be re-issued keys.
 - Restoring an *old* copy resurrects credentials that were revoked after the backup was taken. Prefer re-bootstrapping over restoring a stale database.
 
-The persistent volume also holds the workspace, the ticket queue, and
-`state.json`. A backup that captures the volume captures all of it, including
-the authentication database - so the volume snapshot inherits the same
-sensitivity.
+The persistent volume also holds the workspace, the ticket queue, and `state.json`. A backup that captures the volume captures all of it, including the authentication database - so the volume snapshot inherits the same sensitivity.
 
-Forgotten-password recovery is **local only**: `operator auth reset-admin-password` operates directly on the database.
-The HTTP reset route requires the current username and password; it cannot recover a forgotten credential.
+Forgotten-password recovery is **local only**: `operator auth reset-admin-password` operates directly on the database. The HTTP reset route requires the current username and password; it cannot recover a forgotten credential.
 
 ## Residual risks
 
@@ -187,11 +161,7 @@ Recorded deliberately, in rough order of significance.
 
 1. **Local agents share Operator filesystem access.** SSH and Coder targets can place agents on separate filesystems, provided the target does not mount Operator state. Same-user processes can still read private Git runtime files: per-launch credentials prevent accidental identity mixing, not hostile same-user access.
 2. **The dashboard bundle is public**, so UI structure and route names are discoverable. No data or credentials are exposed.
-3. **A compromised authentication database yields the signing key**, allowing
-   token forgery until the key is rotated by re-bootstrapping. File permissions and volume access control are the only barriers.
-4. **The admin account is a single point of authority.** There is one human
-   account by design; there is no separation of duties and no second approver.
-5. **Integration access keys are bearer credentials.** Anyone holding one has
-   its scopes until it expires or is revoked. Keys have mandatory expiry and last-use tracking so an unused key is visible, but there is no proof of possession.
-6. **Egress is unrestricted unless you restrict it.** The destination
-   validation above blocks the well-known dangerous targets, but Operator is designed to call third-party APIs; NetworkPolicy is what bounds that.
+3. **A compromised authentication database yields the signing key**, allowing token forgery until the key is rotated by re-bootstrapping. File permissions and volume access control are the only barriers.
+4. **The admin account is a single point of authority.** There is one human account by design; there is no separation of duties and no second approver.
+5. **Integration access keys are bearer credentials.** Anyone holding one has its scopes until it expires or is revoked. Keys have mandatory expiry and last-use tracking so an unused key is visible, but there is no proof of possession.
+6. **Egress is unrestricted unless you restrict it.** The destination validation above blocks the well-known dangerous targets, but Operator is designed to call third-party APIs; NetworkPolicy is what bounds that.

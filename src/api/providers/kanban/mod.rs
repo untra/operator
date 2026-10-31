@@ -4,7 +4,10 @@
 //!
 //! Supports importing issue types and syncing work items from Jira, Linear, and other kanban providers.
 
+mod gitea_projects;
 mod github_projects;
+pub use gitea_projects::GiteaProjectsProvider;
+pub const FORGEJO_BOARDS_UNSUPPORTED: &str = "Forgejo Projects is Proto: the upstream API does not expose project boards. Git support is separate.";
 mod jira;
 mod linear;
 pub mod onboarding;
@@ -337,6 +340,8 @@ pub enum KanbanProviderType {
     Linear,
     Github,
     Openspec,
+    Gitea,
+    Forgejo,
 }
 
 impl KanbanProviderType {
@@ -346,12 +351,14 @@ impl KanbanProviderType {
     /// surface (TUI status section, web `/#/kanban`, the REST provider catalog
     /// endpoint, and the VS Code onboarding picker) derives its list from here
     /// so the options can't drift apart.
-    pub const ALL: [KanbanProviderType; 5] = [
+    pub const ALL: [KanbanProviderType; 7] = [
         KanbanProviderType::Operator,
         KanbanProviderType::Jira,
         KanbanProviderType::Linear,
         KanbanProviderType::Github,
         KanbanProviderType::Openspec,
+        KanbanProviderType::Gitea,
+        KanbanProviderType::Forgejo,
     ];
 
     /// Get the display name
@@ -362,6 +369,8 @@ impl KanbanProviderType {
             KanbanProviderType::Linear => "Linear",
             KanbanProviderType::Github => "GitHub Projects",
             KanbanProviderType::Openspec => "OpenSpec",
+            KanbanProviderType::Gitea => "Gitea Projects",
+            KanbanProviderType::Forgejo => "Forgejo Projects",
         }
     }
 
@@ -374,6 +383,8 @@ impl KanbanProviderType {
             KanbanProviderType::Linear => "linear",
             KanbanProviderType::Github => "github",
             KanbanProviderType::Openspec => "openspec",
+            KanbanProviderType::Gitea => "gitea",
+            KanbanProviderType::Forgejo => "forgejo",
         }
     }
 
@@ -397,10 +408,16 @@ impl KanbanProviderType {
             KanbanProviderType::Linear => "Connect to Linear",
             KanbanProviderType::Github => "Connect to GitHub Projects",
             KanbanProviderType::Openspec => "Import OpenSpec changes (experimental)",
+            KanbanProviderType::Gitea => "Import Gitea repository boards (alpha)",
+            KanbanProviderType::Forgejo => "Forgejo boards await upstream API support",
         }
     }
 
     /// The provider's credential/token page. Opened by the TUI "Configure" action
+    pub fn is_operational(&self) -> bool {
+        !matches!(self, Self::Forgejo)
+    }
+
     pub fn setup_url(&self) -> &'static str {
         match self {
             // Nothing to connect - link the docs.
@@ -412,6 +429,10 @@ impl KanbanProviderType {
             }
             KanbanProviderType::Linear => "https://linear.app/settings/api",
             KanbanProviderType::Github => "https://github.com/settings/personal-access-tokens",
+            KanbanProviderType::Gitea => "https://operator.untra.io/getting-started/kanban/gitea/",
+            KanbanProviderType::Forgejo => {
+                "https://operator.untra.io/getting-started/kanban/forgejo/"
+            }
             // No token page exists - OpenSpec is local files; link the docs.
             KanbanProviderType::Openspec => {
                 "https://operator.untra.io/getting-started/kanban/openspec/"
@@ -428,6 +449,7 @@ impl KanbanProviderType {
             KanbanProviderType::Linear => "operator-linear",
             KanbanProviderType::Github => "github",
             KanbanProviderType::Openspec => "checklist",
+            KanbanProviderType::Gitea | KanbanProviderType::Forgejo => "project",
         }
     }
 
@@ -441,6 +463,8 @@ impl KanbanProviderType {
             KanbanProviderType::Github => "OPERATOR_GITHUB_TOKEN",
             // OpenSpec reads local files; there is no credential to name.
             KanbanProviderType::Openspec => "",
+            KanbanProviderType::Gitea => "OPERATOR_GITEA_TOKEN",
+            KanbanProviderType::Forgejo => "OPERATOR_FORGEJO_TOKEN",
         }
     }
 }
@@ -495,6 +519,7 @@ impl DetectedKanbanProvider {
                 // Linear just needs API key
                 self.env_vars_found.iter().any(|v| v.contains("API_KEY"))
             }
+            KanbanProviderType::Gitea | KanbanProviderType::Forgejo => false,
             KanbanProviderType::Github => {
                 // GitHub Projects just needs the token. Note: only
                 // OPERATOR_GITHUB_TOKEN counts here - see Token
@@ -760,6 +785,10 @@ pub async fn test_provider_credentials(provider: &DetectedKanbanProvider) -> Res
         }
         // The built-in board is always available; there is nothing to test.
         KanbanProviderType::Operator => Ok(()),
+        KanbanProviderType::Gitea => {
+            Err("Configure Gitea instance URL and repositories in kanban.gitea".into())
+        }
+        KanbanProviderType::Forgejo => Err(FORGEJO_BOARDS_UNSUPPORTED.into()),
         KanbanProviderType::Openspec => Err(
             "OpenSpec has no credentials to test; configure [kanban.openspec.<name>] root_path"
                 .to_string(),
@@ -775,7 +804,7 @@ pub fn validate_sync_source(slug: &str) -> Result<KanbanProviderType, String> {
     let sources = || {
         KanbanProviderType::ALL
             .into_iter()
-            .filter(|p| !p.is_builtin())
+            .filter(|p| !p.is_builtin() && p.is_operational())
             .map(|p| format!("'{}'", p.slug()))
             .collect::<Vec<_>>()
             .join(", ")
@@ -787,6 +816,7 @@ pub fn validate_sync_source(slug: &str) -> Result<KanbanProviderType, String> {
             p.display_name(),
             sources()
         )),
+        Some(KanbanProviderType::Forgejo) => Err(FORGEJO_BOARDS_UNSUPPORTED.into()),
         Some(p) => Ok(p),
         None => Err(format!(
             "Unknown kanban provider: {slug}. Use one of: {}.",
@@ -822,6 +852,24 @@ pub fn get_provider_from_config(
     project_key: &str,
 ) -> Result<Box<dyn KanbanProvider>, ApiError> {
     match provider_name.to_lowercase().as_str() {
+        "forgejo" => Err(ApiError::http("forgejo", 501, FORGEJO_BOARDS_UNSUPPORTED)),
+        "gitea" => {
+            let mut matches = kanban
+                .gitea
+                .values()
+                .filter(|cfg| cfg.enabled && cfg.projects.contains_key(project_key));
+            let cfg = matches
+                .next()
+                .ok_or_else(|| ApiError::not_configured("gitea"))?;
+            if matches.next().is_some() {
+                return Err(ApiError::http(
+                    "gitea",
+                    400,
+                    "Board is configured in multiple instances",
+                ));
+            }
+            GiteaProjectsProvider::from_config(cfg).map(|p| Box::new(p) as Box<dyn KanbanProvider>)
+        }
         "jira" => {
             let (domain, cfg) = kanban
                 .jira
@@ -1143,7 +1191,7 @@ mod tests {
 
     #[test]
     fn test_provider_type_all_lists_the_builtin_board_first() {
-        assert_eq!(KanbanProviderType::ALL.len(), 5);
+        assert_eq!(KanbanProviderType::ALL.len(), 7);
         assert_eq!(
             KanbanProviderType::ALL,
             [
@@ -1152,6 +1200,8 @@ mod tests {
                 KanbanProviderType::Linear,
                 KanbanProviderType::Github,
                 KanbanProviderType::Openspec,
+                KanbanProviderType::Gitea,
+                KanbanProviderType::Forgejo,
             ]
         );
     }
@@ -1168,7 +1218,11 @@ mod tests {
     fn test_validate_sync_source_accepts_external_providers() {
         for provider in KanbanProviderType::ALL {
             let result = validate_sync_source(provider.slug());
-            assert_eq!(result.is_ok(), !provider.is_builtin(), "{provider:?}");
+            assert_eq!(
+                result.is_ok(),
+                !provider.is_builtin() && provider.is_operational(),
+                "{provider:?}"
+            );
         }
         assert!(validate_sync_source("nope").is_err());
     }

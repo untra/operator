@@ -127,3 +127,17 @@ Separately from step-wrapping, `opr8r relay` runs as an MCP stdio server - a *ch
 - [CLI Reference](/docs/cli/) - `opr8r`'s full flag reference
 - [Delegators](/docs/delegators/) - how Operator picks the LLM tool/model a session launches with
 - [LLM Tools](/docs/llm-tools/) - how Operator detects and invokes CLI coding agents
+
+## Telemetry channel
+
+Alongside callback completion and the relay, opr8r can send OTLP JSON to
+`/otlp/v1/traces` and `/otlp/v1/logs` using a separate ingest-audience token.
+It emits step-started/completed events and an `opr8r.step` span, and passes that
+span's `TRACEPARENT` to the child CLI. Only classified scalar output is exported;
+captured stdout/stderr and free-text summaries remain outside this channel.
+
+Completion reporting happens before telemetry flush. Completion sends run
+concurrently with two-second attempt limits, one retry, and a shared four-second
+flush deadline before exit or exec. Telemetry errors preserve the normal exit
+status. `next_env` carries fresh trace context and ingest credentials into the
+next exec; the completion response also rotates the callback credential.

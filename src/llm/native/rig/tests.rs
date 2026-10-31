@@ -66,6 +66,7 @@ fn loopback_policy() -> EgressPolicy {
     EgressPolicy {
         allow_loopback: true,
         allow_private: false,
+        allowed_private: Vec::new(),
     }
 }
 

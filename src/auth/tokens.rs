@@ -28,10 +28,16 @@ pub const ISSUER: &str = "operator";
 pub const AUDIENCE_API: &str = "operator-api";
 /// Audience for single-purpose agent step-completion callbacks.
 pub const AUDIENCE_CALLBACK: &str = "opr8r-callback";
+/// Audience for agent-session OTLP ingest; carries no API scopes.
+pub const AUDIENCE_TELEMETRY: &str = "otlp-ingest";
 
 /// Registered and Operator-specific claims.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
+    #[serde(default)]
+    pub credential_version: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<uuid::Uuid>,
     /// Issuer.
@@ -176,6 +182,8 @@ impl SigningKey {
 /// Build the claims for an ordinary API access token.
 pub fn api_claims(subject: &str, scopes: &[Scope], now: DateTime<Utc>, jti: String) -> Claims {
     Claims {
+        credential_version: 1,
+        key_id: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_API.to_string(),
@@ -212,11 +220,46 @@ pub fn callback_claims(
     jti: String,
 ) -> Claims {
     Claims {
+        credential_version: 1,
+        key_id: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_CALLBACK.to_string(),
         sub: subject.to_string(),
         scope: Scope::Execute.as_str().to_string(),
+        exp: (now + ttl).timestamp(),
+        iat: now.timestamp(),
+        jti,
+        ticket_id: Some(ticket_id.to_string()),
+        step: Some(step.to_string()),
+        session_id: Some(session_id.to_string()),
+    }
+}
+
+/// Build the claims for an agent session's OTLP ingest token.
+///
+/// Pinned like a callback token, but it carries **no** scopes, so it fails
+/// every ordinary route; only `/otlp/v1/*` accepts its audience. The pinned
+/// ticket, step and session become the trusted correlation attributes that
+/// overwrite whatever the client claimed.
+#[allow(dead_code)]
+pub fn telemetry_claims(
+    subject: &str,
+    ticket_id: &str,
+    step: &str,
+    session_id: &str,
+    ttl: Duration,
+    now: DateTime<Utc>,
+    jti: String,
+) -> Claims {
+    Claims {
+        credential_version: 1,
+        key_id: None,
+        profile_id: None,
+        iss: ISSUER.to_string(),
+        aud: AUDIENCE_TELEMETRY.to_string(),
+        sub: subject.to_string(),
+        scope: String::new(),
         exp: (now + ttl).timestamp(),
         iat: now.timestamp(),
         jti,
@@ -458,5 +501,25 @@ mod tests {
         claims.iss = "somebody-else".to_string();
         let token = key.sign(&claims).unwrap();
         assert!(key.verify(&token, AUDIENCE_API).is_err());
+    }
+
+    #[test]
+    fn test_telemetry_token_has_no_scopes_and_its_own_audience() {
+        let key = test_support::key();
+        let claims = telemetry_claims(
+            "admin",
+            "FEAT-1",
+            "build",
+            "sess",
+            Duration::hours(1),
+            Utc::now(),
+            "jti".to_string(),
+        );
+        let token = key.sign(&claims).unwrap();
+        let verified = key.verify(&token, AUDIENCE_TELEMETRY).unwrap();
+        assert!(verified.scopes().is_empty());
+        assert_eq!(verified.session_id.as_deref(), Some("sess"));
+        assert!(key.verify(&token, AUDIENCE_API).is_err());
+        assert!(key.verify(&token, AUDIENCE_CALLBACK).is_err());
     }
 }

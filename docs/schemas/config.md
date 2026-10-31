@@ -27,22 +27,23 @@ JSON Schema for the Operator configuration file (`config.toml`).
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `profile` | → `ProfileIdentity` | No |  |
+| `profile` | → `ProfileIdentity` | No | Active configuration profile (id and name). |
 | `projects` | `array` | No | List of projects operator can assign work to |
-| `agents` | → `AgentsConfig` | Yes |  |
-| `notifications` | → `NotificationsConfig` | Yes |  |
-| `queue` | → `QueueConfig` | Yes |  |
-| `paths` | → `PathsConfig` | Yes |  |
-| `ui` | → `UiConfig` | Yes |  |
-| `launch` | → `LaunchConfig` | Yes |  |
-| `templates` | → `TemplatesConfig` | Yes |  |
-| `api` | → `ApiConfig` | No |  |
-| `logging` | → `LoggingConfig` | No |  |
-| `tmux` | → `TmuxConfig` | No |  |
+| `agents` | → `AgentsConfig` | Yes | Agent lifecycle, parallelism, and health monitoring. |
+| `notifications` | → `NotificationsConfig` | Yes | Notification integrations. |
+| `queue` | → `QueueConfig` | Yes | Queue ordering and assignment. |
+| `paths` | → `PathsConfig` | Yes | Ticket, project, state, and worktree directories. |
+| `ui` | → `UiConfig` | Yes | Terminal UI appearance and behavior. |
+| `launch` | → `LaunchConfig` | Yes | Launch confirmations and execution defaults. |
+| `templates` | → `TemplatesConfig` | Yes | Issue type collections and presets. |
+| `api` | → `ApiConfig` | No | Pull-request and rate-limit polling. |
+| `logging` | → `LoggingConfig` | No | Log level and output. |
+| `telemetry` | → `TelemetryConfig` | No | OTLP ingest, session window, and export. |
+| `tmux` | → `TmuxConfig` | No | Tmux integration configuration. |
 | `sessions` | → `SessionsConfig` | No | Session wrapper configuration (tmux, vscode, or cmux) |
-| `llm_tools` | → `LlmToolsConfig` | No |  |
-| `rest_api` | → `RestApiConfig` | No |  |
-| `git` | → `GitConfig` | No |  |
+| `llm_tools` | → `LlmToolsConfig` | No | Detected LLM CLIs and provider preferences. |
+| `rest_api` | → `RestApiConfig` | No | Embedded REST API server. |
+| `git` | → `GitConfig` | No | Git provider, identity, and worktree settings. |
 | `kanban` | → `KanbanConfig` | No | Kanban provider configuration for syncing issues from Jira, Linear, etc. |
 | `version_check` | → `VersionCheckConfig` | No | Version check configuration for automatic update notifications |
 | `delegators` | `array` | No | Agent delegator configurations for autonomous ticket launching |
@@ -61,17 +62,19 @@ JSON Schema for the Operator configuration file (`config.toml`).
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `string` | Yes |  |
-| `name` | `string` | Yes |  |
+| `id` | `string` | Yes | Stable profile id. Nil until the profile is registered. |
+| `name` | `string` | Yes | Profile name. The default primary profile is `legacy`. |
 
 ### AgentsConfig
 
+Agent lifecycle, parallelism, and health monitoring.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `max_parallel` | `integer` | Yes |  |
-| `cores_reserved` | `integer` | Yes |  |
+| `max_parallel` | `integer` | Yes | Upper bound on concurrent agents (default: 5). The effective cap is also limited by CPU cores minus `cores_reserved`. |
+| `cores_reserved` | `integer` | Yes | CPU cores kept free when computing the effective agent cap (default: 1). |
 | `max_agents_per_repo` | `integer` | No | Maximum concurrent agents per project/repo (default: 1). Requires `git.use_worktrees` = true when > 1 to avoid conflicts. |
-| `health_check_interval` | `integer` | Yes |  |
+| `health_check_interval` | `integer` | Yes | Seconds between agent health checks (default: 30). |
 | `generation_timeout_secs` | `integer` | No | Timeout in seconds for each agent generation (default: 300 = 5 min) |
 | `sync_interval` | `integer` | No | Interval in seconds between ticket-session syncs (default: 60) |
 | `step_timeout` | `integer` | No | Maximum seconds a step can run before timing out (default: 1800 = 30 min) |
@@ -115,46 +118,56 @@ Webhook notification configuration.
 
 ### QueueConfig
 
+Queue ordering and assignment.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `auto_assign` | `boolean` | Yes |  |
-| `priority_order` | `array` | Yes |  |
-| `poll_interval_ms` | `integer` | Yes |  |
+| `auto_assign` | `boolean` | Yes | Assign the next ticket when an agent slot frees (default: true). |
+| `priority_order` | `array` | Yes | Issue-type keys, highest priority first (default: INV, FIX, TASK, FEAT, SPIKE). |
+| `poll_interval_ms` | `integer` | Yes | How often the queue is polled, in milliseconds (default: 1000). |
 
 ### PathsConfig
 
+Directories for tickets, projects, state, and worktrees.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `tickets` | `string` | Yes |  |
-| `projects` | `string` | Yes |  |
-| `state` | `string` | Yes |  |
+| `tickets` | `string` | Yes | Ticket root, relative to the working directory or absolute (default: `.tickets`). |
+| `projects` | `string` | Yes | Projects root scanned for agent marker files (default: `.`). |
+| `state` | `string` | Yes | Operator state directory (default: `.tickets/operator`). |
 | `worktrees` | `string` | No | Base directory for per-ticket worktrees (default: ~/.operator/worktrees) |
 
 ### UiConfig
 
+Terminal UI appearance and behavior.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `refresh_rate_ms` | `integer` | Yes |  |
-| `completed_history_hours` | `integer` | Yes |  |
-| `summary_max_length` | `integer` | Yes |  |
-| `panel_names` | → `PanelNamesConfig` | No |  |
+| `refresh_rate_ms` | `integer` | Yes | TUI redraw interval in milliseconds (default: 250). |
+| `completed_history_hours` | `integer` | Yes | Hours of completed tickets shown on the dashboard (default: 24). |
+| `summary_max_length` | `integer` | Yes | Maximum characters shown for a ticket summary (default: 40). |
+| `panel_names` | → `PanelNamesConfig` | No | Custom titles for the dashboard panels. |
 
 ### PanelNamesConfig
 
+Custom titles for the dashboard panels.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `status` | `string` | No |  |
-| `queue` | `string` | No |  |
-| `in_progress` | `string` | No |  |
-| `completed` | `string` | No |  |
+| `status` | `string` | No | Status panel title (default: `STATUS`). |
+| `queue` | `string` | No | Queue panel title (default: `TODO QUEUE`). |
+| `in_progress` | `string` | No | In-progress panel title (default: `IN PROGRESS`). The key `agents` is accepted as an alias. |
+| `completed` | `string` | No | Completed panel title (default: `DONE`). |
 
 ### LaunchConfig
 
+Agent launch behavior and confirmations.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `confirm_autonomous` | `boolean` | Yes |  |
-| `confirm_paired` | `boolean` | Yes |  |
-| `launch_delay_ms` | `integer` | Yes |  |
+| `confirm_autonomous` | `boolean` | Yes | Ask before launching an autonomous ticket (default: true). |
+| `confirm_paired` | `boolean` | Yes | Ask before launching a paired ticket (default: true). |
+| `launch_delay_ms` | `integer` | Yes | Milliseconds to wait after confirmation before the agent starts (default: 2000). |
 | `target` | `string` \| `null` | No | Default named execution target. Per-launch and per-delegator choices take precedence. |
 | `docker` | → `DockerConfig` | No | Docker execution configuration |
 | `yolo` | → `YoloConfig` | No | YOLO (auto-accept) mode configuration |
@@ -180,6 +193,8 @@ YOLO (auto-accept) mode configuration for fully autonomous execution
 | `enabled` | `boolean` | No | Whether YOLO mode option is available in launch dialog |
 
 ### TemplatesConfig
+
+Issue type collections and presets.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -219,8 +234,85 @@ Logging configuration
 | --- | --- | --- | --- |
 | `level` | `string` | No | Log level filter (trace, debug, info, warn, error) |
 | `to_file` | `boolean` | No | Whether to log to file in TUI mode (false = stderr for debugging) |
+| `format` | → `LogFormat` | No | Line format for console and file logs (default: text).  `json` emits one JSON object per line with `trace_id` and `span_id`. Override with `OPERATOR_LOGGING__FORMAT=json`. |
+
+### LogFormat
+
+Console and file log line format.
+
+**Allowed Values:**
+
+- `text` - Human-readable lines.
+- `json` - One JSON object per line, with `trace_id`/`span_id` when a trace is active.
+
+### TelemetryConfig
+
+OTLP telemetry: ingest from agents, a bounded per-session window, and export upstream.
+
+Off by default. Operator never configures a destination of its own.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Accept OTLP from agent sessions on `/otlp/v1/*` and inject agent OTLP env |
+| `enable_redaction` | `boolean` | No | Hash personal data and drop content and unapproved signal names, while secrets are protected in both modes. |
+| `ingest` | → `TelemetryIngestConfig` | No | Inbound OTLP limits and agent environment injection. |
+| `export` | → `TelemetryExportConfig` | No | Upstream OTLP export. |
+| `window` | → `TelemetryWindowConfig` | No | Bounded in-memory session window. |
+
+### TelemetryIngestConfig
+
+Limits incoming OTLP requests and controls agent environment injection.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `max_body_bytes` | `integer` | No | Maximum request body size, enforced both compressed and decompressed |
+| `queue_capacity` | `integer` | No | Bounded ingest queue; a full queue answers 503 with Retry-After |
+| `inject_agent_env` | `boolean` | No | Export OTLP endpoint, token and trace context into launched agent sessions |
+
+### TelemetryExportConfig
+
+Describes the user-configured upstream OTLP destination.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `endpoint` | `string` \| `null` | No | Upstream OTLP base URL; falls back to the standard `OTEL_EXPORTER_OTLP_*` variables |
+| `protocol` | object | No | OTLP encoding. Default is `http/protobuf`. |
+| `headers_env` | `string` \| `null` | No | Name of an environment variable holding OTLP headers (`key=value,...`) |
+| `compression` | object | No | Request compression. Default is `gzip`. |
+| `timeout_secs` | `integer` \| `null` | No | Upstream export timeout in seconds (default: 10). |
+| `self_telemetry` | `boolean` | No | Export Operator's own traces, logs and metrics alongside forwarded agent telemetry |
+
+### OtlpProtocol
+
+Selects the OTLP HTTP payload encoding.
+
+**Allowed Values:**
+
+- `http/protobuf` - OTLP/HTTP protobuf (`http/protobuf`).
+- `http/json` - OTLP/HTTP JSON (`http/json`).
+
+### OtlpCompression
+
+Selects compression for outgoing OTLP requests.
+
+**Allowed Values:**
+
+- `gzip` - gzip request compression.
+- `none` - Send the OTLP body uncompressed.
+
+### TelemetryWindowConfig
+
+Bounds session retention in the in-memory telemetry window.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `max_sessions` | `integer` | No | Sessions retained; the least recently updated is evicted first |
+| `records_per_session` | `integer` | No | Records retained per session; the oldest are evicted first |
+| `grace_secs` | `integer` | No | Seconds an ended session stays readable before eviction |
 
 ### TmuxConfig
+
+Tmux integration configuration.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -414,8 +506,8 @@ Git provider configuration for PR/MR operations
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `identity` | object | No | Default commit identity for delegated work. |
-| `gitea` | → `GiteaConfig` | No |  |
-| `forgejo` | → `ForgejoConfig` | No |  |
+| `gitea` | → `GiteaConfig` | No | Gitea forge settings for pull requests. |
+| `forgejo` | → `ForgejoConfig` | No | Forgejo forge settings for pull requests. |
 | `provider` | object | No | Active provider (auto-detected from remote URL if not specified) |
 | `github` | → `GitHubConfig` | No | GitHub-specific configuration |
 | `gitlab` | → `GitLabConfig` | No | GitLab-specific configuration |
@@ -428,26 +520,30 @@ Commit identity template for delegated work.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | `string` | Yes |  |
-| `email` | `string` | Yes |  |
+| `name` | `string` | Yes | Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}` |
+| `email` | `string` | Yes | Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}` |
 
 ### GiteaConfig
 
+Gitea forge settings for pull requests.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | No |  |
-| `token_env` | `string` | No |  |
+| `enabled` | `boolean` | No | Whether Gitea integration is enabled (default: false). |
+| `token_env` | `string` | No | Environment variable containing the Gitea token (default: `GITEA_TOKEN`). |
 | `host` | `string` \| `null` | No | HTTPS host or base URL; defaults to gitea.com. |
-| `wip_prefix` | `string` | No |  |
+| `wip_prefix` | `string` | No | Prefix applied to draft pull request titles (default: `WIP: `). |
 
 ### ForgejoConfig
 
+Forgejo forge settings for pull requests.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | No |  |
-| `token_env` | `string` | No |  |
+| `enabled` | `boolean` | No | Whether Forgejo integration is enabled (default: false). |
+| `token_env` | `string` | No | Environment variable containing the Forgejo token (default: `FORGEJO_TOKEN`). |
 | `host` | `string` \| `null` | No | HTTPS host or base URL; defaults to codeberg.org. |
-| `wip_prefix` | `string` | No |  |
+| `wip_prefix` | `string` | No | Prefix applied to draft pull request titles (default: `WIP: `). |
 
 ### GitProviderConfig
 
@@ -484,31 +580,28 @@ GitLab-specific configuration
 ### KanbanConfig
 
 Kanban provider configuration for syncing issues from external systems
-
 Providers are keyed by domain/workspace:
-- Jira: keyed by domain (e.g., "foobar.atlassian.net")
-- Linear: keyed by workspace slug (e.g., "myworkspace")
-- GitHub Projects: keyed by owner login (e.g., "my-org")
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `gitea` | `object` | No | Gitea repository project boards, keyed by instance name. Import-only. |
+| `forgejo` | `object` | No | Reserved Forgejo project boards; enabling requires an upstream board API. |
 | `jira` | `object` | No | Jira Cloud instances keyed by domain (e.g., "foobar.atlassian.net") |
 | `linear` | `object` | No | Linear instances keyed by workspace slug |
 | `github` | `object` | No | GitHub Projects v2 instances keyed by owner login (user or org)  NOTE: This is the *kanban* GitHub integration (Projects v2), distinct from `GitHubConfig` which is the *git provider* used for PRs and branches. The two use different env vars and different scopes - see `docs/getting-started/kanban/github.md` for the full disambiguation. |
 | `openspec` | `object` | No | `OpenSpec` roots keyed by a free-form instance name (e.g., a repo alias). Experimental, pull-only: each active change under `<root_path>/changes/` acts as a kanban "project" whose issues are the tasks.md task groups. |
 
-### JiraConfig
+### GiteaProjectsConfig
 
-Jira Cloud provider configuration
-
-The domain is specified as the `HashMap` key in KanbanConfig.jira
+Repository project board configuration; credentials are environment variable names.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | No | Whether this provider is enabled |
-| `api_key_env` | `string` | No | Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`) |
-| `email` | `string` | No | Atlassian account email for authentication |
-| `projects` | `object` | No | Per-project sync configuration |
+| `enabled` | `boolean` | No | Whether this instance is synced (default: false). |
+| `base_url` | `string` | Yes | Instance base URL, including any deployment path prefix. |
+| `api_key_env` | `string` | No | Environment variable containing the API token (default: `OPERATOR_GITEA_TOKEN`). |
+| `repositories` | `array` | No | Repositories to discover, in owner/name form. |
+| `projects` | `object` | No | Keys are absolute project URLs returned by discovery. |
 
 ### ProjectSyncConfig
 
@@ -547,6 +640,31 @@ An upstream container synced as one campaign.
 
 **Allowed Values:**
 
+
+### ForgejoProjectsConfig
+
+Repository project board configuration; credentials are environment variable names.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Whether this instance is synced (default: false). |
+| `base_url` | `string` | Yes | Instance base URL, including any deployment path prefix. |
+| `api_key_env` | `string` | No | Environment variable containing the API token (default: `OPERATOR_FORGEJO_TOKEN`). |
+| `repositories` | `array` | No | Repositories to discover, in owner/name form. |
+| `projects` | `object` | No | Keys are absolute project URLs returned by discovery. |
+
+### JiraConfig
+
+Jira Cloud provider configuration
+
+The domain is specified as the `HashMap` key in KanbanConfig.jira
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Whether this provider is enabled |
+| `api_key_env` | `string` | No | Environment variable name containing the API key (default: `OPERATOR_JIRA_API_KEY`) |
+| `email` | `string` | No | Atlassian account email for authentication |
+| `projects` | `object` | No | Per-project sync configuration |
 
 ### LinearConfig
 
@@ -632,9 +750,9 @@ Git settings owned by a named delegator.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `identity` | object | No |  |
-| `credentials` | object | No |  |
-| `settings` | `array` | No |  |
+| `identity` | object | No | Commit identity; falls back to the global `git.identity` |
+| `credentials` | object | No | HTTPS credential for the ticket's repository |
+| `settings` | `array` | No | Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`, `user.email`, `core.askpass` and `core.sshCommand` are rejected |
 
 ### GitCredentialConfig
 
@@ -642,16 +760,18 @@ Supplied HTTPS credential, bound to a repository; contains no secret value.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `repository_url` | `string` | Yes |  |
-| `username` | `string` | Yes |  |
-| `token_env` | `string` | Yes |  |
+| `repository_url` | `string` | Yes | HTTPS repository URL the credential is bound to, with no embedded credentials, query or fragment |
+| `username` | `string` | Yes | HTTPS username sent with the token |
+| `token_env` | `string` | Yes | Environment variable holding the token, read at launch |
 
 ### GitConfigEntry
 
+One `git config` entry applied to delegated work.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `key` | `string` | Yes |  |
-| `value` | `string` | Yes |  |
+| `key` | `string` | Yes | Dotted config key (e.g. "commit.gpgsign"); identity and authentication keys are rejected |
+| `value` | `string` | Yes | Config value |
 
 ### DelegatorLaunchConfig
 
@@ -753,7 +873,12 @@ SSH remote-launch path. There is no `enabled` field - presence in
 | `stop_on_complete` | `boolean` | No | Stop the workspace when the ticket completes (never delete) |
 | `create_timeout_secs` | `integer` | No | Bound on workspace create + agent-ready wait |
 | `callback_url` | `string` \| `null` | No | Control-plane-reachable `OPERATOR_API_URL` override for detached multi-step (empty/None = reverse tunnel default) |
-| `parameters` | `object` | No | Passthrough `--parameter` template parameters for `coder create` |
+| `parameters` | `object` | No | Passthrough `--parameter` template parameters for `coder create`. Values may use `{{ticket_id}}`, `{{project}}`, `{{step}}` and `{{delegator}}` |
+| `preset` | `string` \| `null` | No | Template preset passed to `coder create --preset` |
+| `remote_callback_port` | `integer` \| `null` | No | Workspace-side port the reverse tunnel binds (None = the local API port) |
+| `forward_env` | `array` | No | Env var NAMES resolved on the control plane and shipped to the agent (e.g. LLM provider credentials); a missing one fails the launch |
+| `delete_on_complete` | `boolean` | No | Delete the workspace when the ticket completes (wins over `stop_on_complete`) |
+| `delete_on_merge` | `boolean` | No | Delete the workspace when the ticket's PR merges |
 
 ### SshTarget
 
@@ -765,6 +890,7 @@ connection shape (`RemoteHost` minus identity).
 | `ssh_alias` | `string` | Yes | Host alias resolved via the user's `~/.ssh/config` (or `ssh_config_path`) |
 | `workdir` | `string` | Yes | Absolute project root on the remote machine |
 | `ssh_config_path` | `string` \| `null` | No | SSH config fragment passed with `-F` (used by provisioned coder aliases) |
+| `remote_callback_port` | `integer` \| `null` | No | Remote port the reverse tunnel binds for callbacks (None = the local API port) |
 
 ### GovernancePolicy
 

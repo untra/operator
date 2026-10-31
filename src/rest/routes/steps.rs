@@ -1,9 +1,7 @@
 //! Step management endpoints.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 
 use crate::issuetypes::schema::IssueTypeSource;
 use crate::rest::dto::{StepResponse, UpdateStepRequest};

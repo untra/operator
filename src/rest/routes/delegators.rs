@@ -3,10 +3,8 @@
 //! Manages agent delegator configurations that define named {tool, model}
 //! pairings for autonomous ticket launching.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 
 use crate::config::{
     agent_profile::{delegator_to_profile, profile_to_delegator, AgentProfile},

@@ -24,6 +24,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Linear | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [Linear](https://operator.untra.io/getting-started/kanban/linear/) |
 | GitHub Projects | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [GitHub Projects](https://operator.untra.io/getting-started/kanban/github/) |
 | OpenSpec | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [OpenSpec](https://operator.untra.io/getting-started/kanban/openspec/) |
+| Gitea Projects | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Gitea Projects](https://operator.untra.io/getting-started/kanban/gitea/) |
 
 ## Model Provider
 
@@ -42,6 +43,7 @@ Operator integrates with many providers and tools across several **verticals**. 
 |---|---|---|---|
 | GitHub | ![Beta](https://img.shields.io/badge/Beta-E8A33D) | Included | [GitHub](https://operator.untra.io/getting-started/git/github/) |
 | GitLab | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [GitLab](https://operator.untra.io/getting-started/git/gitlab/) |
+| Forgejo | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Forgejo](https://operator.untra.io/getting-started/git/forgejo/) |
 | Gitea | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [Gitea](https://operator.untra.io/getting-started/git/gitea/) |
 
 ## Session Management
@@ -81,6 +83,8 @@ Operator integrates with many providers and tools across several **verticals**. 
 | Integration | Status | Availability | Docs |
 |---|---|---|---|
 | AGNT | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Included | [AGNT](https://operator.untra.io/getting-started/integrations/agnt/) |
+| Keycloak | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Keycloak](https://operator.untra.io/getting-started/integrations/keycloak/) |
+| Authentik | ![Alpha](https://img.shields.io/badge/Alpha-6495ED) | Premium | [Authentik](https://operator.untra.io/getting-started/integrations/authentik/) |
 
 ## Workflow Export Format
 

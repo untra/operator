@@ -7,12 +7,26 @@
 
 import * as vscode from "vscode";
 import { OperatorApiClient } from "../api-client";
+import { approvalTarget, VerificationOriginError } from "../connection";
 import type { CredentialProvider } from "./credentials";
 import type { DeviceFlowOutcome } from "./device-flow";
 import { runDeviceFlow } from "./device-flow";
 import type { TokenStore } from "./token-store";
 
+export { VerificationOriginError };
+
 const COPY_CODE = "Copy code";
+
+/** Open the device-approval page. Loopback URLs are port-forwarded; a public origin is opened unchanged. */
+export async function openApprovalPage(apiUrl: string, verificationUri: string): Promise<void> {
+  const target = approvalTarget(apiUrl, verificationUri);
+  if (!target.ok) {
+    throw new VerificationOriginError(target.message);
+  }
+  const uri = vscode.Uri.parse(target.url);
+  const external = target.portForward ? await vscode.env.asExternalUri(uri) : uri;
+  await vscode.env.openExternal(external);
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -65,36 +79,46 @@ export async function signIn(
     return undefined;
   }
 
-  const outcome = await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "Operator sign-in",
-      cancellable: true,
-    },
-    (progress, token) =>
-      runDeviceFlow(apiUrl, store, {
-        onCode: async (authorization) => {
-          progress.report({
-            message: `Approve code ${authorization.user_code} in the browser`,
-          });
-          const external = await vscode.env.asExternalUri(
-            vscode.Uri.parse(authorization.verification_uri_complete),
-          );
-          await vscode.env.openExternal(external);
-          void vscode.window
-            .showInformationMessage(`Operator sign-in code: ${authorization.user_code}`, COPY_CODE)
-            .then((choice) => {
-              if (choice === COPY_CODE) {
-                return vscode.env.clipboard.writeText(authorization.user_code);
-              }
-              return undefined;
+  let outcome: DeviceFlowOutcome;
+  try {
+    outcome = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Operator sign-in",
+        cancellable: true,
+      },
+      (progress, token) =>
+        runDeviceFlow(apiUrl, store, {
+          onCode: async (authorization) => {
+            const target = approvalTarget(apiUrl, authorization.verification_uri_complete);
+            const host = target.ok ? target.host : apiUrl;
+            progress.report({
+              message: `Approve code ${authorization.user_code} on ${host}`,
             });
-        },
-        isCancelled: () => token.isCancellationRequested,
-        sleep,
-        now: Date.now,
-      }),
-  );
+            await openApprovalPage(apiUrl, authorization.verification_uri_complete);
+            void vscode.window
+              .showInformationMessage(
+                `Approve Operator sign-in code ${authorization.user_code} on ${host}`,
+                COPY_CODE,
+              )
+              .then((choice) => {
+                if (choice === COPY_CODE) {
+                  return vscode.env.clipboard.writeText(authorization.user_code);
+                }
+                return undefined;
+              });
+          },
+          isCancelled: () => token.isCancellationRequested,
+          sleep,
+          now: Date.now,
+        }),
+    );
+  } catch (err) {
+    if (err instanceof VerificationOriginError) {
+      return { status: "error", message: err.message };
+    }
+    throw err;
+  }
 
   const message = describeOutcome(apiUrl, outcome);
   if (outcome.status === "approved") {

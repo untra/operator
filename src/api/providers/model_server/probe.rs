@@ -91,7 +91,7 @@ async fn probe_models_inner(
         .or_else(|| kind.default_base_url())
         .ok_or_else(|| ProbeError::NoBaseUrl(server.name.clone()))?;
 
-    let url = format!("{}{}", base.trim_end_matches('/'), kind.models_endpoint());
+    let url = kind.models_url(base);
 
     let api_key = super::resolve_api_key(server, kind);
 

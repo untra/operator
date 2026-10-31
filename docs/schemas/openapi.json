@@ -47,7 +47,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}": {
@@ -105,6 +106,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:read",
         "x-operator-scope": "read"
       }
     },
@@ -172,7 +174,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:approve"
       }
     },
     "/api/v1/agents/{agent_id}/connect/terminal": {
@@ -230,7 +233,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}/focus": {
@@ -310,6 +314,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "agents:focus",
         "x-operator-scope": "execute"
       }
     },
@@ -387,7 +392,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:reject"
       }
     },
     "/api/v1/alerts": {
@@ -396,7 +402,7 @@
           "Tickets"
         ],
         "summary": "Raise an external alert as an investigation (INV) ticket.",
-        "description": "Creates an investigation through the same embedded-template path as\n[`create`], folding the alert's `source`/`severity` into the ticket values.\nPowers the AGNT `operator-alert` node.",
+        "description": "The alert's free-form `source`/`severity` are recorded in the body; the\nfrontmatter gets the schema's `alert` source and the severity option whose\n`S0`/`S1`/`S2` prefix matches, if any.",
         "operationId": "alerts_create",
         "parameters": [
           {
@@ -455,7 +461,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "alerts:create"
       }
     },
     "/api/v1/auth/bootstrap": {
@@ -536,6 +543,41 @@
           }
         },
         "security": []
+      }
+    },
+    "/api/v1/auth/capabilities": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "capabilities",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/auth/csrf": {
@@ -728,15 +770,14 @@
         "tags": [
           "Auth"
         ],
-        "summary": "List access keys",
-        "operationId": "auth_list_access_keys",
+        "operationId": "keys",
         "responses": {
           "200": {
-            "description": "Access keys",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccessKeyListResponse"
+                  "$ref": "#/components/schemas/UserKeyList"
                 }
               }
             }
@@ -750,9 +791,6 @@
         },
         "security": [
           {
-            "bearerAuth": []
-          },
-          {
             "sessionCookie": []
           }
         ],
@@ -762,8 +800,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Create an access key",
-        "operationId": "auth_create_access_key",
+        "operationId": "create_key",
         "parameters": [
           {
             "name": "x-operator-csrf",
@@ -779,7 +816,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateAccessKeyRequest"
+                "$ref": "#/components/schemas/CreateUserKey"
               }
             }
           },
@@ -787,11 +824,11 @@
         },
         "responses": {
           "200": {
-            "description": "Key created; secret returned once",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateAccessKeyResponse"
+                  "$ref": "#/components/schemas/IssuedUserKey"
                 }
               }
             }
@@ -805,9 +842,6 @@
         },
         "security": [
           {
-            "bearerAuth": []
-          },
-          {
             "sessionCookie": []
           }
         ],
@@ -819,13 +853,11 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Revoke an access key",
-        "operationId": "auth_revoke_access_key",
+        "operationId": "revoke_key",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "Access key id",
             "required": true,
             "schema": {
               "type": "string"
@@ -843,11 +875,65 @@
         ],
         "responses": {
           "200": {
-            "description": "Revoked",
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/keys/{id}/rotate": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "rotate_key",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserKey"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RevokeAccessKeyResponse"
+                  "$ref": "#/components/schemas/IssuedUserKey"
                 }
               }
             }
@@ -857,22 +943,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "description": "Unknown or already revoked",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         },
         "security": [
-          {
-            "bearerAuth": []
-          },
           {
             "sessionCookie": []
           }
@@ -1009,6 +1082,198 @@
           }
         ],
         "x-operator-scope": "write"
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "callback",
+        "responses": {
+          "303": {
+            "description": "See Other"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/auth/oidc/connections": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "connections",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcConnection"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      },
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "create_connection",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOidcConnection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/oidc/connections/{id}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "disable_connection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/oidc/login/{id}": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "login",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "See Other"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/auth/oidc/providers": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "providers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcLoginProvider"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
       }
     },
     "/api/v1/auth/reset-password": {
@@ -1267,6 +1532,95 @@
         "security": []
       }
     },
+    "/api/v1/auth/users": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "users",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperatorUser"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/auth/users/{id}": {
+      "put": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "update_user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOperatorUser"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin"
+      }
+    },
     "/api/v1/campaigns": {
       "get": {
         "tags": [
@@ -1275,7 +1629,7 @@
         "operationId": "campaigns_list",
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1309,6 +1663,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -1339,7 +1694,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1373,7 +1728,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "campaigns:create"
       }
     },
     "/api/v1/campaigns/{id}": {
@@ -1394,7 +1750,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1428,6 +1784,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:read",
         "x-operator-scope": "read"
       }
     },
@@ -1469,7 +1826,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1513,6 +1870,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:launch",
         "x-operator-scope": "execute"
       }
     },
@@ -1544,7 +1902,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1578,6 +1936,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:pause",
         "x-operator-scope": "execute"
       }
     },
@@ -1599,7 +1958,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1633,6 +1992,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "campaigns:read",
         "x-operator-scope": "read"
       }
     },
@@ -1672,7 +2032,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/active": {
@@ -1718,6 +2079,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "collections:read",
         "x-operator-scope": "read"
       }
     },
@@ -1775,6 +2137,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "collections:read",
         "x-operator-scope": "read"
       }
     },
@@ -1841,6 +2204,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "collections:update",
         "x-operator-scope": "write"
       }
     },
@@ -1876,6 +2240,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "configuration:read",
         "x-operator-scope": "admin"
       },
       "patch": {
@@ -1940,6 +2305,82 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "configuration:update",
+        "x-operator-scope": "admin"
+      }
+    },
+    "/api/v1/connections": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "connections_get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "connections:read"
+      }
+    },
+    "/api/v1/connections/mcp/clients": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "connections_mcp_clients",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/McpClientStatus"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-capability": "connections:read",
         "x-operator-scope": "admin"
       }
     },
@@ -1976,6 +2417,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -2041,6 +2483,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:create",
         "x-operator-scope": "admin"
       }
     },
@@ -2119,7 +2562,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/import-profile": {
@@ -2187,7 +2631,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/{name}": {
@@ -2244,7 +2689,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       },
       "put": {
         "tags": [
@@ -2318,6 +2764,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:update",
         "x-operator-scope": "admin"
       },
       "delete": {
@@ -2382,6 +2829,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "delegators:delete",
         "x-operator-scope": "admin"
       }
     },
@@ -2440,7 +2888,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       }
     },
     "/api/v1/execution-targets": {
@@ -2475,7 +2924,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "execution-targets:read"
       }
     },
     "/api/v1/git/config": {
@@ -2507,7 +2957,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -2531,7 +2981,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:update"
       }
     },
     "/api/v1/git/providers": {
@@ -2542,7 +2993,7 @@
         "operationId": "git_providers",
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -2569,6 +3020,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "git:read",
         "x-operator-scope": "read"
       }
     },
@@ -2601,7 +3053,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -2625,6 +3077,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "git:create",
         "x-operator-scope": "admin"
       }
     },
@@ -2657,7 +3110,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -2681,7 +3134,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "git:execute"
       }
     },
     "/api/v1/health": {
@@ -2717,7 +3171,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "health:read"
       }
     },
     "/api/v1/integrations": {
@@ -2757,6 +3212,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "integrations:read",
         "x-operator-scope": "read"
       }
     },
@@ -2820,7 +3276,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "post": {
         "tags": [
@@ -2895,7 +3352,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:create"
       }
     },
     "/api/v1/issuetypes/{key}": {
@@ -2964,7 +3422,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "put": {
         "tags": [
@@ -3055,6 +3514,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:update",
         "x-operator-scope": "write"
       },
       "delete": {
@@ -3119,6 +3579,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:delete",
         "x-operator-scope": "write"
       }
     },
@@ -3187,7 +3648,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/issuetypes/{key}/steps": {
@@ -3247,6 +3709,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       }
     },
@@ -3313,7 +3776,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "put": {
         "tags": [
@@ -3413,7 +3877,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:update"
       }
     },
     "/api/v1/issuetypes/{key}/workflow-preview": {
@@ -3480,6 +3945,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "issuetypes:read",
         "x-operator-scope": "read"
       }
     },
@@ -3538,7 +4004,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "kanban:update"
       }
     },
     "/api/v1/kanban/projects": {
@@ -3596,7 +4063,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "kanban:execute"
       }
     },
     "/api/v1/kanban/providers": {
@@ -3636,6 +4104,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:read",
         "x-operator-scope": "read"
       }
     },
@@ -3694,6 +4163,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:create",
         "x-operator-scope": "admin"
       }
     },
@@ -3752,6 +4222,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "kanban:execute",
         "x-operator-scope": "execute"
       }
     },
@@ -3810,7 +4281,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "kanban:execute"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes": {
@@ -3890,7 +4362,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes/sync": {
@@ -3976,7 +4449,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "kanban:create"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/statuses": {
@@ -4053,7 +4527,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/license": {
@@ -4064,7 +4539,7 @@
         "operationId": "license_get",
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -4088,6 +4563,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "license:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -4118,7 +4594,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -4152,6 +4628,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "license:update",
         "x-operator-scope": "admin"
       },
       "delete": {
@@ -4172,7 +4649,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -4196,7 +4673,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "license:delete"
       }
     },
     "/api/v1/llm-tools": {
@@ -4232,7 +4710,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "llm-tools:read"
       }
     },
     "/api/v1/llm-tools/default": {
@@ -4268,6 +4747,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "llm-tools:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -4333,6 +4813,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "llm-tools:update",
         "x-operator-scope": "admin"
       }
     },
@@ -4342,7 +4823,7 @@
           "MCP"
         ],
         "summary": "MCP descriptor endpoint",
-        "description": "Returns metadata for registering operator with an MCP-capable client.\nThe transport URL is derived from the request Host header so it reflects\nthe actual running port; the stdio entrypoint reflects this binary's path.",
+        "description": "Returns metadata for registering operator with an MCP-capable client.\nTransport URLs use the configured public base or relative API paths.",
         "operationId": "mcp_descriptor",
         "responses": {
           "200": {
@@ -4370,7 +4851,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "mcp:read"
       }
     },
     "/api/v1/mcp/message": {
@@ -4444,7 +4926,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/mcp/sse": {
@@ -4481,7 +4964,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/model-servers": {
@@ -4517,7 +5001,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       },
       "post": {
         "tags": [
@@ -4582,6 +5067,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:create",
         "x-operator-scope": "admin"
       }
     },
@@ -4621,7 +5107,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       }
     },
     "/api/v1/model-servers/kinds/{slug}/models": {
@@ -4679,6 +5166,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:read",
         "x-operator-scope": "read"
       }
     },
@@ -4736,6 +5224,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:read",
         "x-operator-scope": "read"
       },
       "put": {
@@ -4820,6 +5309,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:update",
         "x-operator-scope": "admin"
       },
       "delete": {
@@ -4895,6 +5385,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:delete",
         "x-operator-scope": "admin"
       }
     },
@@ -4953,6 +5444,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "model-servers:execute",
         "x-operator-scope": "execute"
       }
     },
@@ -4991,7 +5483,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "profiles:read"
       },
       "post": {
         "tags": [
@@ -5055,7 +5548,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:create"
       }
     },
     "/api/v1/profiles/{profile_id}": {
@@ -5102,6 +5596,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "profiles:read",
         "x-operator-scope": "read"
       },
       "patch": {
@@ -5166,6 +5661,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "profiles:update",
         "x-operator-scope": "admin"
       }
     },
@@ -5205,7 +5701,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "projects:read"
       }
     },
     "/api/v1/projects/{name}/assess": {
@@ -5271,7 +5768,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "projects:create"
       }
     },
     "/api/v1/queue/kanban": {
@@ -5308,7 +5806,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/pause": {
@@ -5356,7 +5855,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "queue:create"
       }
     },
     "/api/v1/queue/resume": {
@@ -5404,7 +5904,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "queue:create"
       }
     },
     "/api/v1/queue/status": {
@@ -5441,7 +5942,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/sync": {
@@ -5489,6 +5991,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "queue:sync",
         "x-operator-scope": "execute"
       }
     },
@@ -5555,7 +6058,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "queue:execute"
       }
     },
     "/api/v1/sections": {
@@ -5595,7 +6099,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "sections:read"
       }
     },
     "/api/v1/setup/collections": {
@@ -5606,7 +6111,7 @@
         "operationId": "setup_collections",
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -5633,6 +6138,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "setup:read",
         "x-operator-scope": "read"
       }
     },
@@ -5665,7 +6171,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -5709,7 +6215,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "setup:create"
       }
     },
     "/api/v1/setup/status": {
@@ -5720,7 +6227,7 @@
         "operationId": "setup_status",
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -5744,6 +6251,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "setup:read",
         "x-operator-scope": "read"
       }
     },
@@ -5755,7 +6263,7 @@
         "operationId": "setup_steps",
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -5782,7 +6290,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "setup:read"
       }
     },
     "/api/v1/skills": {
@@ -5818,6 +6327,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "skills:read",
         "x-operator-scope": "read"
       }
     },
@@ -5854,7 +6364,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "status:read"
       }
     },
     "/api/v1/targets": {
@@ -5865,7 +6376,7 @@
         "operationId": "targets_list",
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -5889,6 +6400,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "targets:read",
         "x-operator-scope": "read"
       },
       "post": {
@@ -5917,7 +6429,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -5951,6 +6463,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "targets:create",
         "x-operator-scope": "admin"
       }
     },
@@ -5989,7 +6502,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6023,7 +6536,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:update"
       },
       "delete": {
         "tags": [
@@ -6051,7 +6565,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6085,6 +6599,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "targets:delete",
         "x-operator-scope": "admin"
       }
     },
@@ -6115,7 +6630,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6149,7 +6664,66 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:create"
+      }
+    },
+    "/api/v1/telemetry/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Read an agent session's telemetry window",
+        "operationId": "telemetry_get_session",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "description": "Agent session id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session's retained records, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetrySessionWindow"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled, or the session has no retained records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin",
+        "x-operator-capability": "telemetry:read"
       }
     },
     "/api/v1/tickets": {
@@ -6157,8 +6731,8 @@
         "tags": [
           "Tickets"
         ],
-        "summary": "Create a new ticket from a template and write it to the queue.",
-        "description": "Reuses the same [`TicketCreator`] the CLI (`operator create`) and MCP\n(`operator_create_ticket`) use, so a ticket created over HTTP is identical to\none created on any other surface. Powers the AGNT `operator-create-ticket`\nnode.",
+        "summary": "Create a new ticket and write it to the queue.",
+        "description": "Validates against the issue type's field schema, numbers and renders the\nticket through [`ticket_creation`] - the same path MCP and the CLI use - and\npushes it to the project's bidirectional kanban board unless\n`sync_to_kanban` is `false`.",
         "operationId": "tickets_create",
         "parameters": [
           {
@@ -6193,7 +6767,7 @@
             }
           },
           "400": {
-            "description": "Unknown template type",
+            "description": "Unknown issue type or invalid field values",
             "content": {
               "application/json": {
                 "schema": {
@@ -6217,6 +6791,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:create",
         "x-operator-scope": "write"
       }
     },
@@ -6250,7 +6825,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6284,6 +6859,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:create",
         "x-operator-scope": "write"
       }
     },
@@ -6317,7 +6893,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6341,6 +6917,75 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
+      }
+    },
+    "/api/v1/tickets/preview": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "summary": "Dry-run a create: field errors, rendered markdown and kanban target.",
+        "operationId": "tickets_preview",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Preview of the ticket that would be created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown issue type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
       }
     },
@@ -6399,7 +7044,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
       }
     },
     "/api/v1/tickets/{id}/campaign": {
@@ -6439,7 +7085,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6473,6 +7119,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:update",
         "x-operator-scope": "write"
       }
     },
@@ -6590,6 +7237,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:launch",
         "x-operator-scope": "execute"
       }
     },
@@ -6677,6 +7325,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:update",
         "x-operator-scope": "write"
       }
     },
@@ -6783,7 +7432,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "tickets:complete"
       }
     },
     "/api/v1/tickets/{id}/workflow-export": {
@@ -6859,6 +7509,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
       }
     },
@@ -6899,6 +7550,7 @@
             "sessionCookie": []
           }
         ],
+        "x-operator-capability": "workflow-formats:read",
         "x-operator-scope": "read"
       }
     },
@@ -6916,6 +7568,282 @@
           }
         },
         "security": []
+      }
+    },
+    "/otlp/v1/logs": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP logs",
+        "operationId": "telemetry_ingest_logs",
+        "requestBody": {
+          "description": "ExportLogsServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportLogsServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
+      }
+    },
+    "/otlp/v1/metrics": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP metrics",
+        "operationId": "telemetry_ingest_metrics",
+        "requestBody": {
+          "description": "ExportMetricsServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportMetricsServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
+      }
+    },
+    "/otlp/v1/traces": {
+      "post": {
+        "tags": [
+          "Telemetry"
+        ],
+        "summary": "Ingest OTLP traces",
+        "operationId": "telemetry_ingest_traces",
+        "requestBody": {
+          "description": "ExportTraceServiceRequest as protobuf or OTLP JSON, optionally gzip-encoded",
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ExportTraceServiceResponse in the request's encoding"
+          },
+          "400": {
+            "description": "Malformed body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Telemetry is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds the ingest limit, compressed or expanded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported content type or encoding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ingest queue is full; retry after the Retry-After delay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "otlp-ingest"
       }
     },
     "/readyz": {
@@ -6947,22 +7875,6 @@
   },
   "components": {
     "schemas": {
-      "AccessKeyListResponse": {
-        "type": "object",
-        "description": "All access keys, active and revoked.",
-        "required": [
-          "keys"
-        ],
-        "properties": {
-          "keys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AccessKeySummary"
-            },
-            "description": "The keys."
-          }
-        }
-      },
       "AccessKeySummary": {
         "type": "object",
         "description": "Access key metadata. Carries no secret and no hash.",
@@ -7035,11 +7947,11 @@
           "attention": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/Attention",
                 "description": "Set when the agent needs the operator"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -7160,11 +8072,11 @@
           "attention": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/Attention",
                 "description": "Set when the agent needs the operator"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -7349,11 +8261,11 @@
           "remote_agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/RemoteAgentRef",
                 "description": "Declarative reference to a remote, named agent. `None` = a locally launchable agent, not bound to a remote target."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -7387,11 +8299,11 @@
           "x_operator": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/XOperator",
                 "description": "Operator-owned extension fields (typed). `None` when the agent carries no Operator-specific configuration."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -7960,11 +8872,11 @@
           "governance_overrides": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GovernancePolicy",
                 "description": "Inline policy layered over `governance`."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -7982,11 +8894,11 @@
           "workspace": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/CampaignWorkspace",
                 "description": "Shared execution environment; absent runs each ticket in its own workspace."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -8337,6 +9249,98 @@
         ],
         "description": "One execution environment shared by every ticket in a campaign."
       },
+      "CapabilityDescription": {
+        "type": "object",
+        "required": [
+          "capability",
+          "resource",
+          "label",
+          "description"
+        ],
+        "properties": {
+          "capability": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          }
+        }
+      },
+      "CapabilityResponse": {
+        "type": "object",
+        "required": [
+          "grants",
+          "oidc_user",
+          "administrator",
+          "can_issue",
+          "capability_descriptions"
+        ],
+        "properties": {
+          "administration_grants": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PermissionGrant"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "administrator": {
+            "type": "boolean"
+          },
+          "can_issue": {
+            "type": "boolean"
+          },
+          "capability_descriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CapabilityDescription"
+            }
+          },
+          "connection_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          },
+          "issuance_block_reason": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/KeyIssuanceBlockReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuance_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "oidc_user": {
+            "type": "boolean"
+          },
+          "owner_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "CollectionPreset": {
         "type": "string",
         "description": "Predefined issue type collections",
@@ -8436,11 +9440,11 @@
           "workflow_hints": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/WorkflowHintsDto",
                 "description": "Descriptive workflow hints (present for hosted collections)."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -8566,11 +9570,11 @@
           "preferred": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/ConnectOption",
                 "description": "Primary option (configured preference, else the session wrapper's)"
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -8613,58 +9617,56 @@
           }
         }
       },
-      "CreateAccessKeyRequest": {
+      "ConnectionsResponse": {
         "type": "object",
-        "description": "Create a service access key for an integration.",
         "required": [
-          "name",
-          "scopes",
-          "expires_in_days"
+          "version",
+          "profile_name",
+          "observed_at",
+          "api_path",
+          "mcp_path",
+          "mcp_http_mounted",
+          "mcp_stdio_advertised",
+          "acp_stdio_advertised",
+          "mcp_connected_clients"
         ],
         "properties": {
-          "expires_in_days": {
+          "acp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "api_path": {
+            "type": "string"
+          },
+          "mcp_connected_clients": {
             "type": "integer",
-            "format": "int64",
-            "description": "Days until the key expires. Expiry is mandatory - there is no\nnon-expiring key.",
-            "maximum": 365,
-            "minimum": 1
+            "minimum": 0
           },
-          "name": {
+          "mcp_http_mounted": {
+            "type": "boolean",
+            "description": "Whether this running router mounted the SSE transport."
+          },
+          "mcp_path": {
+            "type": "string"
+          },
+          "mcp_stdio_advertised": {
+            "type": "boolean"
+          },
+          "observed_at": {
             "type": "string",
-            "description": "Human-readable label identifying what holds this key.",
-            "maxLength": 128,
-            "minLength": 1
+            "format": "date-time"
           },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Scope"
-            },
-            "description": "Scopes to grant. Only what the integration needs.",
-            "maxItems": 4,
-            "minItems": 1
-          }
-        }
-      },
-      "CreateAccessKeyResponse": {
-        "type": "object",
-        "description": "A newly created access key. **The secret appears here and nowhere else,\never** - only its hash is stored, so it cannot be shown again.",
-        "required": [
-          "key",
-          "secret"
-        ],
-        "properties": {
-          "key": {
-            "$ref": "#/components/schemas/AccessKeySummary",
-            "description": "Metadata for the created key."
+          "profile_name": {
+            "type": "string"
           },
-          "secret": {
-            "type": "string",
-            "format": "password",
-            "description": "The key secret, returned exactly once. Store it now; it is unrecoverable.",
-            "readOnly": true,
-            "maxLength": 47,
-            "minLength": 47
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Externally configured base URL, if present."
+          },
+          "version": {
+            "type": "string"
           }
         }
       },
@@ -8733,22 +9735,22 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
                 "description": "Optional launch configuration"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -8798,11 +9800,11 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -8816,11 +9818,11 @@
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
                 "description": "Optional launch configuration"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -8856,11 +9858,11 @@
           "remote_agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/RemoteAgentRef",
                 "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When\nset, the delegator is export-only and cannot be launched locally."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -9021,6 +10023,35 @@
           }
         }
       },
+      "CreateOidcConnection": {
+        "type": "object",
+        "required": [
+          "provider",
+          "issuer",
+          "client_id",
+          "redirect_uri"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret_file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          },
+          "redirect_uri": {
+            "type": "string"
+          }
+        }
+      },
       "CreateStepRequest": {
         "type": "object",
         "description": "Request to create a step",
@@ -9070,32 +10101,39 @@
       },
       "CreateTicketRequest": {
         "type": "object",
-        "description": "Request to create a new ticket from a template.",
+        "description": "Request to create a new ticket. Every surface (web, TUI, VS Code, CLI,\nMCP) sends this same shape to `POST /api/v1/tickets`.",
         "required": [
-          "template"
+          "issue_type"
         ],
         "properties": {
+          "issue_type": {
+            "type": "string",
+            "description": "Issue type key from the registry (e.g. `FEAT`, `FIX`, or a custom\ncollection type). `template` is accepted as a legacy alias."
+          },
           "project": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Project the ticket targets (filled into the template's `project` value)."
+            "description": "Project the ticket targets. Required when the issue type sets\n`project_required`."
           },
           "summary": {
             "type": [
               "string",
               "null"
             ],
-            "description": "One-line summary (filled into the template's `summary` value)."
+            "description": "One-line summary."
           },
-          "template": {
-            "type": "string",
-            "description": "Template type key (feature, fix, spike, investigation, task)."
+          "sync_to_kanban": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Push the new ticket to the mapped kanban board. `None` pushes whenever\nthe project maps to a bidirectional kanban project."
           },
           "values": {
             "type": "object",
-            "description": "Additional Handlebars values for the template. Explicit `project`/\n`summary` fields take precedence over the same keys here.",
+            "description": "Values for the issue type's user-editable fields, keyed by field name.\nExplicit `project`/`summary` take precedence over the same keys here.",
             "additionalProperties": {
               "type": "string"
             },
@@ -9111,7 +10149,8 @@
         "required": [
           "id",
           "filename",
-          "path"
+          "path",
+          "kanban"
         ],
         "properties": {
           "filename": {
@@ -9122,9 +10161,34 @@
             "type": "string",
             "description": "The created ticket's id (e.g. `FEAT-1234`)."
           },
+          "kanban": {
+            "$ref": "#/components/schemas/KanbanPushOutcome",
+            "description": "What happened when mirroring the ticket to its kanban board. A failed\npush never fails the create: the ticket exists locally regardless."
+          },
           "path": {
             "type": "string",
             "description": "The absolute path the ticket was written to."
+          }
+        }
+      },
+      "CreateUserKey": {
+        "type": "object",
+        "required": [
+          "name",
+          "expires_in_days",
+          "grants"
+        ],
+        "properties": {
+          "expires_in_days": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -9395,11 +10459,11 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -9413,11 +10477,11 @@
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfigDto",
                 "description": "Optional launch configuration"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -9453,11 +10517,11 @@
           "remote_agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/RemoteAgentRef",
                 "description": "Declarative reference to a remote, named agent (AGNT, `OpenAI`, ...). When\nset, the delegator is export-only and cannot be launched locally."
+              },
+              {
+                "type": "null"
               }
             ]
           }
@@ -9709,10 +10773,10 @@
           "feature": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PremiumFeature"
               },
               {
-                "$ref": "#/components/schemas/PremiumFeature"
+                "type": "null"
               }
             ]
           },
@@ -9814,6 +10878,24 @@
           }
         }
       },
+      "FieldError": {
+        "type": "object",
+        "description": "A value that failed issue type field validation.",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Field name (`project`, `summary`, or an issue type field)."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable reason."
+          }
+        }
+      },
       "FieldResponse": {
         "type": "object",
         "description": "Response for a field",
@@ -9833,6 +10915,14 @@
           },
           "description": {
             "type": "string"
+          },
+          "display_order": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Form position (lower first); unordered fields sort last."
           },
           "field_type": {
             "type": "string"
@@ -9941,22 +11031,22 @@
           "credentials": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitCredentialConfig",
                 "description": "HTTPS credential for the ticket's repository"
+              },
+              {
+                "type": "null"
               }
             ]
           },
           "identity": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitIdentityConfig",
                 "description": "Commit identity; falls back to the global `git.identity`"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -10037,6 +11127,89 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "GiteaCredentials": {
+        "type": "object",
+        "description": "Ephemeral Gitea credentials for repository board discovery.",
+        "required": [
+          "base_url",
+          "repositories",
+          "token"
+        ],
+        "properties": {
+          "base_url": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "GiteaSessionEnv": {
+        "type": "object",
+        "required": [
+          "base_url",
+          "api_key_env",
+          "token"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          }
+        }
+      },
+      "GiteaUserDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "GiteaValidationDetailsDto": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "user_name",
+          "users"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GiteaUserDto"
+            }
           }
         }
       },
@@ -10469,6 +11642,21 @@
           }
         }
       },
+      "IssuedUserKey": {
+        "type": "object",
+        "required": [
+          "key",
+          "secret"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/UserKey"
+          },
+          "secret": {
+            "type": "string"
+          }
+        }
+      },
       "JiraCredentials": {
         "type": "object",
         "description": "Ephemeral Jira credentials supplied by a client during onboarding.\n\nThese are never persisted to disk by the onboarding endpoints that take\nthis struct - the actual secret stays in the env var named in\n`api_key_env` once set via `/api/v1/kanban/session-env`.",
@@ -10701,13 +11889,109 @@
       },
       "KanbanProviderKind": {
         "type": "string",
-        "description": "Which external kanban provider an onboarding request targets.\nDeliberately one variant smaller than [`KanbanProviderType`]\n\n[`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType",
+        "description": "Which external kanban provider an onboarding request targets.\nExcludes the built-in board and providers without an operational adapter.\n\n[`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType",
         "enum": [
           "jira",
           "linear",
           "github",
-          "openspec"
+          "openspec",
+          "gitea"
         ]
+      },
+      "KanbanPushOutcome": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The ticket's project maps to no bidirectional kanban project.",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_configured"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A target exists but the push was not attempted.",
+            "required": [
+              "reason",
+              "status"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "skipped"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Pushed; the external ids were written back into the ticket.",
+            "required": [
+              "provider",
+              "project_key",
+              "external_id",
+              "status"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "string"
+              },
+              "external_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "project_key": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pushed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The provider rejected or could not be reached.",
+            "required": [
+              "provider",
+              "message",
+              "status"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Result of pushing a newly created ticket to its kanban board."
       },
       "KanbanStatusMapping": {
         "type": "object",
@@ -10788,6 +12072,24 @@
           }
         }
       },
+      "KanbanTarget": {
+        "type": "object",
+        "description": "The kanban project a new ticket would be pushed to.",
+        "required": [
+          "provider",
+          "project_key"
+        ],
+        "properties": {
+          "project_key": {
+            "type": "string",
+            "description": "Provider project / team key."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider name (`jira`, `linear`, `github`, `gitea`)."
+          }
+        }
+      },
       "KanbanTicketCard": {
         "type": "object",
         "description": "A ticket card for the kanban board",
@@ -10805,11 +12107,11 @@
           "attention": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/AttentionReason",
                 "description": "Set when the ticket's agent needs the operator"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -10857,6 +12159,15 @@
             "description": "Timestamp for sorting (YYYYMMDD-HHMM format)"
           }
         }
+      },
+      "KeyIssuanceBlockReason": {
+        "type": "string",
+        "enum": [
+          "oidc_required",
+          "recent_login_required",
+          "premium_required",
+          "permissions_required"
+        ]
       },
       "LaunchCampaignRequest": {
         "type": "object",
@@ -10955,10 +12266,10 @@
           "session_wrapper": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/SessionWrapper"
               },
               {
-                "$ref": "#/components/schemas/SessionWrapper"
+                "type": "null"
               }
             ],
             "default": null
@@ -11153,10 +12464,10 @@
           "terms": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LicenseTerms"
               },
               {
-                "$ref": "#/components/schemas/LicenseTerms"
+                "type": "null"
               }
             ]
           }
@@ -11313,43 +12624,53 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubCredentials"
               },
               {
-                "$ref": "#/components/schemas/GithubCredentials"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraCredentials"
               },
               {
-                "$ref": "#/components/schemas/JiraCredentials"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearCredentials"
               },
               {
-                "$ref": "#/components/schemas/LinearCredentials"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/OpenspecSourceDto"
               },
               {
-                "$ref": "#/components/schemas/OpenspecSourceDto"
+                "type": "null"
               }
             ]
           },
@@ -11381,43 +12702,53 @@
           "project_key"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubCredentials"
               },
               {
-                "$ref": "#/components/schemas/GithubCredentials"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraCredentials"
               },
               {
-                "$ref": "#/components/schemas/JiraCredentials"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearCredentials"
               },
               {
-                "$ref": "#/components/schemas/LinearCredentials"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/OpenspecSourceDto"
               },
               {
-                "$ref": "#/components/schemas/OpenspecSourceDto"
+                "type": "null"
               }
             ]
           },
@@ -11560,6 +12891,44 @@
           }
         }
       },
+      "McpClientStatus": {
+        "type": "object",
+        "required": [
+          "id",
+          "initialized",
+          "connected_at",
+          "last_activity_at"
+        ],
+        "properties": {
+          "client_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "description": "Display identifier, unrelated to the transport session credential."
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "last_activity_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "McpDescriptorResponse": {
         "type": "object",
         "description": "MCP server descriptor for client discovery",
@@ -11568,9 +12937,14 @@
           "server_id",
           "version",
           "transport_url",
+          "http_available",
           "label"
         ],
         "properties": {
+          "http_available": {
+            "type": "boolean",
+            "description": "Whether the running API has mounted the SSE transport."
+          },
           "label": {
             "type": "string",
             "description": "Human-readable label for the server"
@@ -11593,17 +12967,17 @@
           "stdio": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/StdioCommand",
                 "description": "Stdio transport entrypoint. Present when `[mcp].stdio_advertised = true`.\nClients may spawn this as a subprocess instead of using `transport_url`."
+              },
+              {
+                "type": "null"
               }
             ]
           },
           "transport_url": {
             "type": "string",
-            "description": "Full URL of the MCP SSE transport endpoint"
+            "description": "SSE endpoint, relative unless a public URL is configured."
           },
           "version": {
             "type": "string",
@@ -11839,11 +13213,11 @@
           "governance_overrides": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GovernancePolicy",
                 "description": "Inline policy layered over `governance`."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -11853,10 +13227,10 @@
           "workspace": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/CampaignWorkspace"
               },
               {
-                "$ref": "#/components/schemas/CampaignWorkspace"
+                "type": "null"
               }
             ]
           }
@@ -11933,6 +13307,59 @@
             "description": "Documentation link."
           }
         }
+      },
+      "OidcConnection": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "issuer",
+          "client_id",
+          "redirect_uri",
+          "disabled"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          },
+          "redirect_uri": {
+            "type": "string"
+          }
+        }
+      },
+      "OidcLoginProvider": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/OidcProvider"
+          }
+        }
+      },
+      "OidcProvider": {
+        "type": "string",
+        "enum": [
+          "keycloak",
+          "authentik"
+        ]
       },
       "OpenspecSourceDto": {
         "type": "object",
@@ -12041,6 +13468,44 @@
           }
         }
       },
+      "OperatorUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "connection_id",
+          "issuer",
+          "subject",
+          "enabled",
+          "administrator",
+          "grants"
+        ],
+        "properties": {
+          "administrator": {
+            "type": "boolean"
+          },
+          "connection_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PermissionGrant"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
       "PanelNamesConfiguration": {
         "type": "object",
         "required": [
@@ -12099,6 +13564,35 @@
         },
         "additionalProperties": false
       },
+      "PermissionGrant": {
+        "type": "object",
+        "required": [
+          "profile_id",
+          "capabilities",
+          "projects"
+        ],
+        "properties": {
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "instance_wide": {
+            "type": "boolean"
+          },
+          "profile_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "PlannedTicket": {
         "type": "object",
         "description": "One item as it would be written.",
@@ -12144,7 +13638,9 @@
         "type": "string",
         "enum": [
           "remote_targets",
-          "campaigns"
+          "campaigns",
+          "oidc_connections",
+          "api_keys"
         ]
       },
       "PrincipalKind": {
@@ -12153,8 +13649,10 @@
         "enum": [
           "session",
           "access_token",
+          "api_key",
           "local_process",
-          "agent_callback"
+          "agent_callback",
+          "telemetry_ingest"
         ]
       },
       "ProfileNameRequest": {
@@ -12534,26 +14032,6 @@
           }
         }
       },
-      "RevokeAccessKeyResponse": {
-        "type": "object",
-        "description": "Result of revoking an access key.",
-        "required": [
-          "id",
-          "revoked_at"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The revoked key's identifier."
-          },
-          "revoked_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When revocation took effect."
-          }
-        }
-      },
       "RowActionDto": {
         "type": "object",
         "description": "A browser-openable action on a status section row (e.g. \"Open Web UI\",\n\"Swagger\"). Only URL-style actions surface to the web UI; TUI-only actions\n(toggles, env edits) are omitted.",
@@ -12833,33 +14311,43 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GiteaSessionEnv"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubSessionEnv"
               },
               {
-                "$ref": "#/components/schemas/GithubSessionEnv"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraSessionEnv"
               },
               {
-                "$ref": "#/components/schemas/JiraSessionEnv"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearSessionEnv"
               },
               {
-                "$ref": "#/components/schemas/LinearSessionEnv"
+                "type": "null"
               }
             ]
           },
@@ -13303,14 +14791,18 @@
             "format": "int32",
             "description": "Exit code from the LLM command"
           },
+          "no_auto_proceed": {
+            "type": "boolean",
+            "description": "Finish this session without executing another step."
+          },
           "output": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/OperatorOutput",
                 "description": "Structured output from agent (parsed `OPERATOR_STATUS` block)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -13341,6 +14833,13 @@
               "null"
             ],
             "description": "Session ID from the LLM session"
+          },
+          "traceparent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "W3C context of the completed opr8r step."
           }
         }
       },
@@ -13385,14 +14884,27 @@
             ],
             "description": "Command to execute for the next step (opr8r wrapped)"
           },
+          "next_env": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Per-step telemetry credentials and context for the next command.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
           "next_step": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/NextStepInfo",
                 "description": "Information about the next step (if any)"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -13600,6 +15112,97 @@
             "minimum": 0
           }
         }
+      },
+      "TelemetryRecord": {
+        "type": "object",
+        "description": "One span, log record or metric from an agent session, after the shared ingest policy.",
+        "required": [
+          "signal",
+          "name",
+          "time_unix_nano",
+          "attributes"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "description": "Record attributes merged over resource attributes"
+          },
+          "body": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Log body retained with secret scrubbing only when optional redaction is disabled"
+          },
+          "name": {
+            "type": "string",
+            "description": "Span name, log event name, or metric name"
+          },
+          "signal": {
+            "$ref": "#/components/schemas/TelemetrySignal",
+            "description": "Identifies the OTLP signal that supplied this record."
+          },
+          "span_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Lowercase hex span id, when the record is trace-correlated"
+          },
+          "time_unix_nano": {
+            "type": "string",
+            "description": "Nanoseconds since the Unix epoch, as a decimal string (OTLP JSON convention)"
+          },
+          "trace_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Lowercase hex trace id, when the record is trace-correlated"
+          }
+        }
+      },
+      "TelemetrySessionWindow": {
+        "type": "object",
+        "description": "The bounded in-memory telemetry window for one agent session.",
+        "required": [
+          "session_id",
+          "ended",
+          "evicted_records",
+          "records"
+        ],
+        "properties": {
+          "ended": {
+            "type": "boolean",
+            "description": "Whether the session has ended and is within its grace period"
+          },
+          "evicted_records": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Records evicted from this session because the ring was full",
+            "minimum": 0
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TelemetryRecord"
+            },
+            "description": "Oldest first"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Identifies the agent session whose sanitized records are retained."
+          }
+        }
+      },
+      "TelemetrySignal": {
+        "type": "string",
+        "description": "OTLP signal a record arrived on.",
+        "enum": [
+          "traces",
+          "metrics",
+          "logs"
+        ]
       },
       "TickReport": {
         "type": "object",
@@ -13874,11 +15477,11 @@
           "agent": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/TicketAgent",
                 "description": "The agent working this ticket, if any"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -14044,6 +15647,38 @@
           }
         }
       },
+      "TicketPreviewResponse": {
+        "type": "object",
+        "description": "Dry run of `POST /api/v1/tickets`: what would be written, and where it\nwould sync, without allocating an id or touching the queue.",
+        "required": [
+          "markdown",
+          "errors"
+        ],
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "description": "Validation errors; the create would be rejected while non-empty."
+          },
+          "kanban_target": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/KanbanTarget",
+                "description": "The kanban project the ticket would be pushed to, if any."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "markdown": {
+            "type": "string",
+            "description": "Rendered markdown, with a placeholder id. Empty when `errors` is not."
+          }
+        }
+      },
       "TicketPriority": {
         "type": "string",
         "description": "Ticket urgency, as constrained by `src/schemas/ticket_metadata.schema.json`.\n\nVariants are declared most-urgent first, so the derived `Ord` is the sort order.",
@@ -14138,8 +15773,8 @@
                 "type": "string",
                 "format": "password",
                 "writeOnly": true,
-                "maxLength": 47,
-                "minLength": 47
+                "maxLength": 87,
+                "minLength": 87
               },
               "grant_type": {
                 "type": "string",
@@ -14255,10 +15890,10 @@
           "panel_names": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/PanelNamesConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/PanelNamesConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -14290,10 +15925,10 @@
           "agents": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/AgentsConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/AgentsConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -14301,10 +15936,10 @@
           "launch": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LaunchConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/LaunchConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -14312,10 +15947,10 @@
           "queue": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/QueueConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/QueueConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -14323,10 +15958,10 @@
           "ui": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/UiConfigurationPatch"
               },
               {
-                "$ref": "#/components/schemas/UiConfigurationPatch"
+                "type": "null"
               }
             ],
             "default": null
@@ -14438,6 +16073,25 @@
           }
         }
       },
+      "UpdateOperatorUser": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "administrator",
+          "grants"
+        ],
+        "properties": {
+          "administrator": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "grants": {
+            "$ref": "#/components/schemas/PermissionGrant"
+          }
+        }
+      },
       "UpdateStepRequest": {
         "type": "object",
         "description": "Request to update a step",
@@ -14534,6 +16188,57 @@
           }
         }
       },
+      "UserKey": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AccessKeySummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "owner_id",
+              "profile_id",
+              "display_prefix",
+              "grants"
+            ],
+            "properties": {
+              "display_prefix": {
+                "type": "string"
+              },
+              "grants": {
+                "$ref": "#/components/schemas/PermissionGrant"
+              },
+              "owner_id": {
+                "type": "string"
+              },
+              "profile_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "replaces_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "UserKeyList": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserKey"
+            }
+          }
+        }
+      },
       "ValidateGitTokenRequest": {
         "type": "object",
         "required": [
@@ -14581,43 +16286,53 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GiteaCredentials"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubCredentials"
               },
               {
-                "$ref": "#/components/schemas/GithubCredentials"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraCredentials"
               },
               {
-                "$ref": "#/components/schemas/JiraCredentials"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearCredentials"
               },
               {
-                "$ref": "#/components/schemas/LinearCredentials"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/OpenspecSourceDto"
               },
               {
-                "$ref": "#/components/schemas/OpenspecSourceDto"
+                "type": "null"
               }
             ]
           },
@@ -14639,33 +16354,43 @@
               "null"
             ]
           },
+          "gitea": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GiteaValidationDetailsDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/GithubValidationDetailsDto"
               },
               {
-                "$ref": "#/components/schemas/GithubValidationDetailsDto"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/JiraValidationDetailsDto"
               },
               {
-                "$ref": "#/components/schemas/JiraValidationDetailsDto"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/LinearValidationDetailsDto"
               },
               {
-                "$ref": "#/components/schemas/LinearValidationDetailsDto"
+                "type": "null"
               }
             ]
           },
@@ -14850,6 +16575,50 @@
           }
         }
       },
+      "WriteGiteaConfigBody": {
+        "type": "object",
+        "required": [
+          "instance",
+          "base_url",
+          "repositories",
+          "api_key_env",
+          "project_key",
+          "sync_user_id"
+        ],
+        "properties": {
+          "api_key_env": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "project_key": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status_mapping": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/KanbanStatusMapping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync_user_id": {
+            "type": "string"
+          }
+        }
+      },
       "WriteGithubConfigBody": {
         "type": "object",
         "description": "Body for writing a GitHub Projects v2 config section.",
@@ -14875,11 +16644,11 @@
           "status_mapping": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/KanbanStatusMapping",
                 "description": "Mapping of operator todo/doing/done to external board columns"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -14915,11 +16684,11 @@
           "status_mapping": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/KanbanStatusMapping",
                 "description": "Mapping of operator todo/doing/done to external board columns"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -14935,43 +16704,53 @@
           "provider"
         ],
         "properties": {
+          "gitea": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WriteGiteaConfigBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "github": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteGithubConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteGithubConfigBody"
+                "type": "null"
               }
             ]
           },
           "jira": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteJiraConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteJiraConfigBody"
+                "type": "null"
               }
             ]
           },
           "linear": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteLinearConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteLinearConfigBody"
+                "type": "null"
               }
             ]
           },
           "openspec": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/WriteOpenspecConfigBody"
               },
               {
-                "$ref": "#/components/schemas/WriteOpenspecConfigBody"
+                "type": "null"
               }
             ]
           },
@@ -15017,11 +16796,11 @@
           "status_mapping": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/KanbanStatusMapping",
                 "description": "Mapping of operator todo/doing/done to external board columns"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -15072,11 +16851,11 @@
           "git": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/GitExecutionConfig",
                 "description": "Optional Git identity, HTTPS credential reference, and runtime settings."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -15090,11 +16869,11 @@
           "launch_config": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/DelegatorLaunchConfig",
                 "description": "Launch configuration (permission mode, flags, worktree/docker, prompt\nwrapping, ...)."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -15247,6 +17026,10 @@
     {
       "name": "Git",
       "description": "Git provider onboarding"
+    },
+    {
+      "name": "Telemetry",
+      "description": "OTLP ingest from agent sessions and the per-session telemetry window"
     }
   ]
 }

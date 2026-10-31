@@ -9,6 +9,9 @@ image:
 imagePullSecrets: []
 publicUrl: ""
 
+egress:
+  allowPrivateCidrs: []
+
 bootstrap:
   existingSecret: ""
   passwordKey: password
@@ -77,3 +80,26 @@ networkPolicy:
   egress:
     allowDNS: true
     to: []
+    additionalRules: []
+
+telemetry:
+  enabled: false
+  enableRedaction: false
+  injectAgentEnv: true
+  window:
+    maxSessions: 64
+    recordsPerSession: 2048
+    graceSeconds: 300
+  export:
+    endpoint: ""
+    protocol: http/protobuf
+    compression: gzip
+    timeoutMillis: 10000
+    serviceName: operator
+    headers:
+      existingSecret: ""
+      key: headers
+  collectorEgress:
+    enabled: false
+    peers: []
+    port: 4318

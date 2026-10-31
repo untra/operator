@@ -476,7 +476,8 @@ impl Launcher {
                     String::new()
                 });
 
-        let operator_env = prompt::OperatorEnvVars {
+        let mut operator_env = prompt::OperatorEnvVars {
+            telemetry_env: std::collections::HashMap::new(),
             profile_id: self.config.profile.id,
             git_context: crate::git::identity::resolve_config(
                 &self.config,
@@ -494,6 +495,26 @@ impl Launcher {
             ),
             ui_port: self.config.rest_api.port,
         };
+        operator_env.telemetry_env = crate::telemetry::agent_env::launch_env(
+            &self.config,
+            (
+                &operator_env.ticket_id,
+                &operator_env.step,
+                &operator_env.agent_id,
+            ),
+            &format!("http://127.0.0.1:{}", self.config.rest_api.port),
+            options.provider.as_ref().map_or_else(
+                || {
+                    self.config
+                        .llm_tools
+                        .detected
+                        .first()
+                        .map_or("claude", |tool| tool.name.as_str())
+                },
+                |provider| provider.tool.as_str(),
+            ),
+            options.provider.is_some(),
+        );
 
         // Remote launches: verify the host is reachable and provisioned before
         // any session or workspace is created.
@@ -1224,19 +1245,38 @@ impl Launcher {
                 step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
         }
 
+        let mut target_env = options
+            .provider
+            .as_ref()
+            .map(|p| p.env.clone())
+            .unwrap_or_default();
+        let telemetry_env = crate::telemetry::agent_env::launch_env(
+            &self.config,
+            (&ticket.id, &step_name, &agent_id),
+            env_vars.get("OPERATOR_API_URL").expect("prepared API URL"),
+            &tool_name,
+            options.provider.is_some(),
+        );
+        env_vars.extend(telemetry_env.clone());
+        target_env.extend(telemetry_env);
         // Wrap for the resolved execution target (local = identity)
         llm_cmd = wrap_for_target(
             &self.config,
             &llm_cmd,
             &working_dir_str,
             &options.target,
-            options.provider.as_ref().map(|p| &p.env),
+            Some(&target_env),
         )?;
 
         // Strip Coder session tokens from the client-executed command's env
-        let token_envs = crate::config::coder_token_envs(&self.config);
+        let mut token_envs = crate::config::coder_token_envs(&self.config);
+        token_envs.extend(crate::telemetry::agent_env::inherited_otel_env());
         if !token_envs.is_empty() {
-            llm_cmd = format!("unset {}; {llm_cmd}", token_envs.join(" "));
+            llm_cmd = format!(
+                "unset {}; {}{llm_cmd}",
+                token_envs.join(" "),
+                prompt::render_env_exports(&env_vars)
+            );
         }
 
         // Determine tool name from options or default
@@ -1540,19 +1580,39 @@ impl Launcher {
                 step_command::wrap_step(&opr8r, &ticket.id, &step_name, &session_uuid, &llm_cmd);
         }
 
+        let mut target_env = options
+            .launch_options
+            .provider
+            .as_ref()
+            .map(|p| p.env.clone())
+            .unwrap_or_default();
+        let telemetry_env = crate::telemetry::agent_env::launch_env(
+            &self.config,
+            (&ticket.id, &step_name, &agent_id),
+            env_vars.get("OPERATOR_API_URL").expect("prepared API URL"),
+            &tool_name,
+            options.launch_options.provider.is_some(),
+        );
+        env_vars.extend(telemetry_env.clone());
+        target_env.extend(telemetry_env);
         // Wrap for the resolved execution target (local = identity)
         llm_cmd = wrap_for_target(
             &self.config,
             &llm_cmd,
             &working_dir_str,
             &options.launch_options.target,
-            options.launch_options.provider.as_ref().map(|p| &p.env),
+            Some(&target_env),
         )?;
 
         // Strip Coder session tokens from the client-executed command's env
-        let token_envs = crate::config::coder_token_envs(&self.config);
+        let mut token_envs = crate::config::coder_token_envs(&self.config);
+        token_envs.extend(crate::telemetry::agent_env::inherited_otel_env());
         if !token_envs.is_empty() {
-            llm_cmd = format!("unset {}; {llm_cmd}", token_envs.join(" "));
+            llm_cmd = format!(
+                "unset {}; {}{llm_cmd}",
+                token_envs.join(" "),
+                prompt::render_env_exports(&env_vars)
+            );
         }
 
         // Determine tool name from options or default
@@ -1758,7 +1818,8 @@ impl Launcher {
                     String::new()
                 });
 
-        let operator_env = prompt::OperatorEnvVars {
+        let mut operator_env = prompt::OperatorEnvVars {
+            telemetry_env: std::collections::HashMap::new(),
             profile_id: self.config.profile.id,
             git_context: crate::git::runtime::current(),
             agent_id: agent_id.clone(),
@@ -1772,6 +1833,26 @@ impl Launcher {
             ),
             ui_port: self.config.rest_api.port,
         };
+        operator_env.telemetry_env = crate::telemetry::agent_env::launch_env(
+            &self.config,
+            (
+                &operator_env.ticket_id,
+                &operator_env.step,
+                &operator_env.agent_id,
+            ),
+            &format!("http://127.0.0.1:{}", self.config.rest_api.port),
+            options.launch_options.provider.as_ref().map_or_else(
+                || {
+                    self.config
+                        .llm_tools
+                        .detected
+                        .first()
+                        .map_or("claude", |tool| tool.name.as_str())
+                },
+                |provider| provider.tool.as_str(),
+            ),
+            options.launch_options.provider.is_some(),
+        );
 
         // Remote relaunches preflight too: the wrapper is regenerated and the
         // remote session reattached, so the host must still be reachable.

@@ -285,20 +285,15 @@ impl StatusAction {
         }
     }
 
-    /// The browser URL this action opens, if it is a link-style action.
-    ///
-    /// Shared by the TUI action handler (`App::handle_status_action`) and the
-    /// web `/api/v1/sections` projection so both open the same destinations.
-    /// Returns `None` for command/file-writing actions that have no
-    /// web-openable URL.
+    /// Browser action URL; server paths resolve against the active API host.
     pub fn web_url(&self) -> Option<String> {
         match self {
-            Self::OpenSwagger { port } => Some(format!("http://localhost:{port}/swagger-ui")),
-            Self::OpenWebUi { port } => Some(format!("http://localhost:{port}/")),
-            Self::OpenWebUiAt { port, route } => Some(format!("http://localhost:{port}/#{route}")),
+            Self::OpenSwagger { .. } => Some("/swagger-ui/".into()),
+            Self::OpenWebUi { .. } => Some("/".into()),
+            Self::OpenWebUiAt { route, .. } => Some(format!("/#{route}")),
             Self::OpenUrl(url) => Some(url.clone()),
-            Self::OpenMcpDocs => Some("https://untra.io/operator/docs/mcp/".to_string()),
-            Self::OpenAcpDocs => Some("https://untra.io/operator/docs/acp/".to_string()),
+            Self::OpenMcpDocs => Some("https://operator.untra.io/getting-started/integrations/#connect-from-the-web-interface".to_string()),
+            Self::OpenAcpDocs => Some("https://operator.untra.io/getting-started/integrations/#connect-from-the-web-interface".to_string()),
             // The web `/#/kanban` "Configure" rows link to the provider's token
             // page (there is no in-browser onboarding wizard).
             Self::ConfigureKanbanProvider { provider } => {
@@ -723,6 +718,14 @@ impl StatusSnapshot {
                 provider_type: KanbanProviderType::Github.slug().to_string(),
                 domain: owner.clone(),
             });
+        }
+        for (instance, cfg) in &config.kanban.gitea {
+            if cfg.enabled {
+                kanban_providers.push(KanbanProviderInfo {
+                    provider_type: "gitea".into(),
+                    domain: instance.clone(),
+                });
+            }
         }
         for instance in config.kanban.openspec.keys() {
             kanban_providers.push(KanbanProviderInfo {
@@ -1636,7 +1639,10 @@ mod tests {
             .find(|r| r.id == "mcp")
             .expect("mcp row");
         assert!(
-            mcp_row.actions.iter().any(|a| a.url.contains("/docs/mcp")),
+            mcp_row
+                .actions
+                .iter()
+                .any(|a| a.url.contains("/getting-started/integrations/")),
             "MCP row should carry a docs link"
         );
     }
@@ -1657,7 +1663,7 @@ mod tests {
 
         // The built-in board leads as a connected row, then every external
         // provider is offered.
-        assert_eq!(kanban.children.len(), 5);
+        assert_eq!(kanban.children.len(), 6);
         assert_eq!(kanban.children[0].label, "operator");
         assert!(
             !kanban.children[0].id.starts_with("configure-"),
@@ -1674,6 +1680,10 @@ mod tests {
             (
                 "configure-openspec",
                 "operator.untra.io/getting-started/kanban/openspec",
+            ),
+            (
+                "configure-gitea",
+                "operator.untra.io/getting-started/kanban/gitea",
             ),
         ] {
             let row = kanban

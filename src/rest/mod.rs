@@ -22,6 +22,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod directory;
 pub mod dto;
 pub mod error;
+pub mod local_client;
 pub mod middleware;
 pub mod openapi;
 mod profile_router;
@@ -90,10 +91,22 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::revoke_session))
         .routes(routes!(routes::auth::device_approve))
         .routes(routes!(
-            routes::auth::list_access_keys,
-            routes::auth::create_access_key
+            routes::identity::keys,
+            routes::identity::create_key
         ))
-        .routes(routes!(routes::auth::revoke_access_key))
+        .routes(routes!(routes::identity::revoke_key))
+        .routes(routes!(routes::identity::rotate_key))
+        .routes(routes!(routes::identity::providers))
+        .routes(routes!(
+            routes::identity::connections,
+            routes::identity::create_connection
+        ))
+        .routes(routes!(routes::identity::disable_connection))
+        .routes(routes!(routes::identity::login))
+        .routes(routes!(routes::identity::callback))
+        .routes(routes!(routes::identity::users))
+        .routes(routes!(routes::identity::update_user))
+        .routes(routes!(routes::identity::capabilities))
 }
 
 /// Configuration registry, licence, remote-target and campaign routes.
@@ -202,6 +215,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // Ticket endpoints
         .routes(routes!(routes::tickets::get_one))
         .routes(routes!(routes::tickets::create))
+        .routes(routes!(routes::tickets::preview))
         .routes(routes!(routes::campaigns::batch_preview))
         .routes(routes!(routes::campaigns::batch_create))
         .routes(routes!(routes::tickets::update_status))
@@ -275,6 +289,18 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // MCP descriptor - always mounted so non-HTTP MCP clients can still
         // discover the stdio entrypoint.
         .routes(routes!(crate::mcp::descriptor::descriptor))
+        .routes(routes!(routes::connections::get))
+        .routes(routes!(routes::connections::clients))
+        .merge(telemetry_router())
+}
+
+/// OTLP ingest (outside `/api/v1`, at the paths OTLP exporters derive) and the session window.
+fn telemetry_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(routes::telemetry::ingest_traces))
+        .routes(routes!(routes::telemetry::ingest_metrics))
+        .routes(routes!(routes::telemetry::ingest_logs))
+        .routes(routes!(routes::telemetry::get_session))
 }
 
 /// The canonical OpenAPI spec for the documented API surface.
@@ -343,10 +369,11 @@ pub fn build_router(state: ApiState) -> Router {
 }
 
 pub(crate) fn build_profile_router(state: ApiState) -> Router {
+    state.auth.store.start_usage_tracking();
     let config = state.config();
     let cors = cors_layer(&config);
 
-    let mcp_enabled = config.mcp.http_enabled;
+    let mcp_enabled = state.mcp_http_mounted;
 
     let (mut router, _api) = documented_router().split_for_parts();
 
@@ -376,6 +403,9 @@ pub(crate) fn build_profile_router(state: ApiState) -> Router {
         ))
         .layer(
             TraceLayer::new_for_http()
+                .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
+                    tracing::info_span!("http_request", method = %request.method(), path = request.uri().path())
+                })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
@@ -401,9 +431,14 @@ pub async fn serve(state: ApiState, port: u16) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     // Serve with graceful shutdown
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(state.clone()))
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal(state.clone()))
+    .await?;
+
+    state.auth.store.flush_usage()?;
 
     // Clean up session file on shutdown
     remove_session_file(&tickets_path);

@@ -303,7 +303,7 @@ pub fn support_for(vertical: Vertical, slug: &str) -> VerticalSupport {
                 write_back: true,
             })
         }
-        (Vertical::Kanban, "openspec") => VerticalSupport::Kanban(KanbanSupport {
+        (Vertical::Kanban, "openspec" | "gitea") => VerticalSupport::Kanban(KanbanSupport {
             sync_in: true,
             write_back: false,
         }),
@@ -533,7 +533,12 @@ fn model_support_for_kind(kind: &str) -> Option<ModelProviderSupport> {
 pub fn compatibility(tool_id: &str, model_kind: &str) -> Option<Compatibility> {
     let tool = llm_support_for_id(tool_id)?;
     let model = model_support_for_kind(model_kind)?;
-    if tool.native_protocols.contains(&model.protocol) {
+    if tool.native_protocols.contains(&model.protocol)
+        || (model_kind == "lmstudio"
+            && tool
+                .native_protocols
+                .contains(&InferenceProtocol::Anthropic))
+    {
         return Some(Compatibility::Native);
     }
     if model.class == ProviderClass::Gateway {
@@ -583,6 +588,13 @@ pub fn model_supports() -> &'static [(&'static str, ModelProviderSupport)] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_lmstudio_supports_claude_and_codex_without_a_bridge() {
+        for tool in ["claude", "codex"] {
+            assert_eq!(compatibility(tool, "lmstudio"), Some(Compatibility::Native));
+        }
+    }
 
     #[test]
     fn test_claude_ollama_is_bridge() {

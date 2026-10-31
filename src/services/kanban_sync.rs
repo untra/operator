@@ -141,6 +141,18 @@ impl KanbanSyncService {
             }
         }
 
+        for cfg in self.config.kanban.gitea.values().filter(|cfg| cfg.enabled) {
+            for (key, project) in &cfg.projects {
+                collections.push(SyncableCollection {
+                    provider: "gitea".into(),
+                    project_key: key.clone(),
+                    collection_name: project.collection_name.clone(),
+                    sync_user_id: project.sync_user_id.clone(),
+                    status_mapping: project.status_mapping.clone(),
+                });
+            }
+        }
+
         // OpenSpec instances: each active change directory is a syncable collection
         for (instance, openspec_config) in &self.config.kanban.openspec {
             if !openspec_config.enabled {
@@ -406,6 +418,20 @@ impl KanbanSyncService {
         project_key: &str,
     ) -> Option<ProjectSyncConfig> {
         match provider_name {
+            "gitea" => {
+                let mut configs = self
+                    .config
+                    .kanban
+                    .gitea
+                    .values()
+                    .filter(|cfg| cfg.enabled)
+                    .filter_map(|cfg| cfg.projects.get(project_key));
+                let config = configs.next()?.clone();
+                if configs.next().is_some() {
+                    return None;
+                }
+                Some(config)
+            }
             "jira" => {
                 for jira_config in self.config.kanban.jira.values() {
                     if let Some(config) = jira_config.projects.get(project_key) {
@@ -716,7 +742,7 @@ fn openspec_status_mapping() -> crate::config::KanbanStatusMapping {
 
 /// Effective operator project for tickets from this source. Filename parsing
 /// splits on hyphens, so the project component must not contain any.
-fn ticket_project(config: &ProjectSyncConfig, project_key: &str) -> String {
+pub(crate) fn ticket_project(config: &ProjectSyncConfig, project_key: &str) -> String {
     let raw = config.ticket_project.as_deref().unwrap_or(project_key);
     let cleaned: String = raw.chars().filter(char::is_ascii_alphanumeric).collect();
     if cleaned.is_empty() {

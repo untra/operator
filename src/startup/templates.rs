@@ -31,6 +31,22 @@ const MIGRATION_MARKER: &str = "MIGRATED.md";
 /// 3. Load from `.tickets/templates/` (collection-scoped structure), falling
 ///    back to embedded builtins if that fails or yields nothing.
 /// 4. Load kanban-provider imports and honor a legacy `collections.toml`.
+///
+/// Load the registry from `tickets_path` and activate the configured
+/// collection - the registry every surface resolves issue types against.
+pub fn load_active_registry(
+    tickets_path: &Path,
+    active_collection: Option<&str>,
+) -> IssueTypeRegistry {
+    let mut registry = load_registry(tickets_path);
+    if let Some(active) = active_collection {
+        if let Err(e) = registry.activate_collection(active) {
+            tracing::warn!("Failed to activate collection '{}': {}", active, e);
+        }
+    }
+    registry
+}
+
 pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
     let mut registry = IssueTypeRegistry::new();
     let templates_path = tickets_path.join("templates");

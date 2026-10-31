@@ -67,11 +67,11 @@ Delegators that omit `model_server` resolve to these builtins automatically. Exi
 | `ollama`        | Local ollama server (`ollama serve`, default `http://localhost:11434`)   |
 | `openrouter`    | [OpenRouter](/getting-started/model-servers/openrouter/) hosted gateway to 300+ models (`https://openrouter.ai/api/v1`) |
 | `openai-compat` | Any OpenAI-API-compatible server (vllm, lmstudio, together.ai, groq, …)  |
-| `lmstudio`      | LM Studio's local server                                                 |
+| `lmstudio`      | [LM Studio](/getting-started/model-servers/lmstudio/) on a local or LAN GPU host                                                 |
 
 ## Declaring a model server
 
-Edit `operator.toml` (or create a delegator via the REST API / VS Code status tree):
+Edit `.tickets/operator/config.toml` (or create a delegator via the REST API / VS Code status tree):
 
 ```toml
 [[model_servers]]
@@ -115,6 +115,9 @@ operator launch \
 | `claude` | Only via bridge    | Claude CLI speaks Anthropic protocol. Run `claude-code-router` (or similar) at a port and point `base_url` at that bridge with `kind = "anthropic-api"`. |
 | `gemini` | Only via bridge    | Same story as claude; use `litellm-proxy` or similar.                                  |
 
+LM Studio supports both Codex (Responses API) and Claude Code (Anthropic
+Messages API) without a bridge. One `lmstudio` server entry supplies per-tool launch settings.
+
 ## Listing models
 
 Each kind knows how to enumerate the models its endpoint serves (ollama `/api/tags`,
@@ -150,15 +153,12 @@ keyed by the server's protocol:
 | `openai-api` / `openai-compat` / `ollama` / `openrouter` / `lmstudio` | `OPENAI_BASE_URL` | `OPENAI_API_KEY` |
 | `google-api`    | `GOOGLE_GEMINI_BASE_URL` | `GEMINI_API_KEY`                      |
 
-The API key is injected **by reference**, not by value: if `api_key_env = "MY_KEY"`,
-the script exports `OPENAI_API_KEY="${MY_KEY}"`, which the shell resolves from the
-inherited environment at run time. The secret is never written into the on-disk
-command script. Any `extra_env` entries are exported verbatim and take precedence.
-Implicit builtins with no `base_url` inject nothing - the vendor-default path is unchanged.
+The API key is injected **by reference**, not by value: if `api_key_env = "MY_KEY"`, the script exports `OPENAI_API_KEY="${MY_KEY}"`, which the shell resolves from the inherited environment at run time.
+Any `extra_env` entries are exported verbatim and take precedence. OpenAI-protocol spawn URLs include `/v1` where required; root and `/v1` inputs are accepted for LM Studio and Ollama. Its probes use
+only the explicitly configured `api_key_env`, never an inherited cloud key.
 
 **Still deferred:**
 
 - Automatic ollama detection during `operator setup`
 - Full walkthroughs / bundled binaries for wiring up claude/gemini via a bridge
-- A primary "select server" UI action (selecting a server is currently inert; use a
-  delegator's `model_server` to bind one)
+- A primary "select server" UI action (selecting a server is currently inert; use a delegator's `model_server` to bind one)

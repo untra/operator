@@ -8,10 +8,13 @@
  */
 
 import * as vscode from "vscode";
+import { guardRemoteCommand } from "./command-policy";
 import * as fs from "node:fs/promises";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from "./config-paths";
+import { openOperatorUi } from "./open-operator-ui";
+import * as path from "node:path";
 import { showEnvVarInstructions } from "./kanban-onboarding";
 
 const execAsync = promisify(exec);
@@ -103,6 +106,10 @@ async function writeGitConfig(
  * 4. Write config
  */
 export async function onboardGitHub(): Promise<void> {
+  if (await guardRemoteCommand("operator.configureGitHub", undefined)) {
+    return;
+  }
+
   let token: string | undefined;
 
   // Try gh CLI first
@@ -198,6 +205,10 @@ export async function onboardGitHub(): Promise<void> {
  * 5. Write config
  */
 export async function onboardGitLab(): Promise<void> {
+  if (await guardRemoteCommand("operator.configureGitLab", undefined)) {
+    return;
+  }
+
   // Ask for host
   const host =
     (await vscode.window.showInputBox({
@@ -303,10 +314,16 @@ export async function onboardGitLab(): Promise<void> {
  * Entry point: let user pick GitHub or GitLab, then route to the right flow
  */
 export async function startGitOnboarding(): Promise<void> {
+  if (await guardRemoteCommand("operator.startGitOnboarding", undefined)) {
+    return;
+  }
+
   const choice = await vscode.window.showQuickPick(
     [
       { label: "GitHub", description: "Connect to github.com", detail: "github" },
       { label: "GitLab", description: "Connect to gitlab.com or self-hosted", detail: "gitlab" },
+      { label: "Gitea", description: "Connect through Operator setup", detail: "gitea" },
+      { label: "Forgejo", description: "Connect through Operator setup", detail: "forgejo" },
       { label: "Skip", description: "Configure later" },
     ],
     {
@@ -322,6 +339,9 @@ export async function startGitOnboarding(): Promise<void> {
 
   if (choice.detail === "github") {
     await onboardGitHub();
+  } else if (choice.detail === "gitea" || choice.detail === "forgejo") {
+    const workDir = resolveWorkingDirectory();
+    await openOperatorUi(workDir ? path.join(workDir, ".tickets") : undefined, "setup");
   } else if (choice.detail === "gitlab") {
     await onboardGitLab();
   }

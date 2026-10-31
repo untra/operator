@@ -1,0 +1,215 @@
+groups:
+  - id: registry.operator
+    type: "attribute_group"
+    brief: "Reviewed telemetry attributes."
+    attributes:
+      - id: operator.ticket.id
+        type: "string"
+        brief: "Operator ticket id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.session.id
+        type: "string"
+        brief: "Operator session id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.agent.id
+        type: "string"
+        brief: "Operator agent id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.step.name
+        type: "string"
+        brief: "Operator step name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.project
+        type: "string"
+        brief: "Operator project."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.profile.id
+        type: "string"
+        brief: "Operator profile id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.issuetype.key
+        type: "string"
+        brief: "Operator issuetype key."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.session.name
+        type: "string"
+        brief: "Operator session name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.pr.url
+        type: "string"
+        brief: "Operator pr url."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.pr.number
+        type: "int"
+        brief: "Operator pr number."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: operator.llm_tool
+        type: "string"
+        brief: "Operator llm tool."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.launch.mode
+        type: "string"
+        brief: "Operator launch mode."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.investigation.source
+        type: "string"
+        brief: "Operator investigation source."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.investigation.severity
+        type: "string"
+        brief: "Operator investigation severity."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.status
+        type: "string"
+        brief: "Operator output status."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.tests_status
+        type: "string"
+        brief: "Operator output tests status."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.telemetry.signal
+        type: "string"
+        brief: "Operator telemetry signal."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.telemetry.reason
+        type: "string"
+        brief: "Operator telemetry reason."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.exit_code
+        type: "int"
+        brief: "Operator exit code."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.confidence
+        type: "int"
+        brief: "Operator output confidence."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.files_modified
+        type: "int"
+        brief: "Operator output files modified."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.error_count
+        type: "int"
+        brief: "Operator output error count."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.tasks_completed
+        type: "int"
+        brief: "Operator output tasks completed."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.tasks_remaining
+        type: "int"
+        brief: "Operator output tasks remaining."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.redacted.count
+        type: "int"
+        brief: "Operator redacted count."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.duration
+        type: "double"
+        brief: "Operator duration."
+        stability: "development"
+        examples: [0.5]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.output.exit_signal
+        type: "boolean"
+        brief: "Operator output exit signal."
+        stability: "development"
+        examples: [false]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.auth.succeeded
+        type: "boolean"
+        brief: "Operator auth succeeded."
+        stability: "development"
+        examples: [false]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: operator.error
+        type: "string"
+        brief: "Operator error."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: operator.reason
+        type: "string"
+        brief: "Operator reason."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: operator.summary
+        type: "string"
+        brief: "Operator summary."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: operator.output.summary
+        type: "string"
+        brief: "Operator output summary."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: operator.output.recommendation
+        type: "string"
+        brief: "Operator output recommendation."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: operator.auth.detail
+        type: "string"
+        brief: "Operator auth detail."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: operator.auth.token
+        type: "string"
+        brief: "Operator auth token."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "secret"}}

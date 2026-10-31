@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use std::sync::RwLock as StdRwLock;
 
@@ -18,13 +18,13 @@ use crate::auth::store::AuthStore;
 use crate::auth::tokens::SigningKey;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
-use crate::rest::dto::auth::Scope;
 use crate::rest::error::ApiError;
 use crate::startup::templates::load_registry;
 
 /// Shared state for the REST API
 #[derive(Clone)]
 pub struct ApiState {
+    pub authorization: Option<Arc<crate::auth::identity::UserAuthority>>,
     /// Issue type registry (thread-safe read-write access)
     pub registry: Arc<RwLock<IssueTypeRegistry>>,
     /// Live application configuration.
@@ -35,11 +35,15 @@ pub struct ApiState {
     pub tickets_path: PathBuf,
     /// Active MCP SSE sessions, each bound to the principal that opened it.
     pub mcp_sessions: Arc<Mutex<HashMap<String, McpSession>>>,
+    /// Whether the MCP SSE transport is mounted; fixed when the router is built.
+    pub mcp_http_mounted: bool,
     /// Bidirectional kanban sync service (present only when at least one project has
     /// `bidirectional: true` in its sync config).
     pub kanban_sync: Option<Arc<KanbanBidirectionalSync>>,
     /// Authentication store and signing key.
     pub auth: Arc<AuthContext>,
+    /// OTLP ingest pipeline, built on first use so a disabled deployment pays nothing.
+    telemetry: Arc<OnceLock<Arc<crate::telemetry::TelemetryHub>>>,
     lifecycle: Arc<LifecycleState>,
 }
 
@@ -64,12 +68,33 @@ impl Drop for OperationPermit {
 /// every message: the session id alone is a bearer credential, and binding it
 /// to an identity means a leaked id cannot be used by anyone else.
 pub struct McpSession {
+    /// Display identifier for observers, unrelated to the session credential.
+    pub observation_id: String,
     /// Channel that relays JSON-RPC responses back over the SSE stream.
-    pub tx: tokio::sync::mpsc::UnboundedSender<String>,
+    pub tx: tokio::sync::mpsc::Sender<String>,
     /// Who opened the stream.
     pub subject: String,
-    /// Scopes that principal held.
-    pub scopes: Vec<Scope>,
+    pub credential_id: Option<String>,
+    pub authority_grants: Option<crate::auth::identity::PermissionGrant>,
+    /// The client completed the `initialize` / `notifications/initialized` handshake.
+    pub initialized: bool,
+    /// The client sent an `initialize` request.
+    pub initialize_received: bool,
+    /// Operator's own connection check, hidden from client listings.
+    pub diagnostic: bool,
+    /// `clientInfo.name` from `initialize`, truncated.
+    pub client_name: Option<String>,
+    /// `clientInfo.version` from `initialize`, truncated.
+    pub client_version: Option<String>,
+    pub connected_at: chrono::DateTime<chrono::Utc>,
+    pub last_activity_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl McpSession {
+    /// An initialized, non-diagnostic client whose stream is still open.
+    pub fn is_connected_client(&self) -> bool {
+        self.initialized && !self.diagnostic && !self.tx.is_closed()
+    }
 }
 
 /// Authentication state shared by every surface.
@@ -123,12 +148,31 @@ impl ApiState {
         Self::with_auth(config, tickets_path, Arc::new(auth))
     }
 
+    /// State over an in-memory auth store and a throwaway tickets directory.
+    #[cfg(test)]
+    pub fn in_memory(config: Config) -> Self {
+        let store = AuthStore::in_memory().expect("in-memory auth store");
+        let signing_key = store
+            .load_or_create_signing_key()
+            .expect("in-memory signing key");
+        let auth = AuthContext {
+            store,
+            signing_key,
+            local_token: None,
+        };
+        let tickets_path = tempfile::TempDir::new()
+            .expect("temporary tickets directory")
+            .keep();
+        Self::with_auth(config, tickets_path, Arc::new(auth))
+    }
+
     /// Build with a caller-supplied auth context, so tests and the TUI can share
     /// one already-open store instead of racing to open the same database file.
     pub fn with_auth(config: Config, tickets_path: PathBuf, auth: Arc<AuthContext>) -> Self {
         // Shared loader; keeps the API's issue-type resolution identical to the CLI/TUI `workflow export` produces the same output on every surface.
         let registry = load_registry(&tickets_path);
 
+        let mcp_http_mounted = config.mcp.http_enabled;
         let config_arc = Arc::new(config);
         let kanban_sync = {
             let ks = KanbanBidirectionalSync::new(Arc::clone(&config_arc));
@@ -140,13 +184,16 @@ impl ApiState {
         };
 
         Self {
+            authorization: None,
             registry: Arc::new(RwLock::new(registry)),
             config: Arc::new(StdRwLock::new(config_arc)),
             config_update: Arc::new(Mutex::new(())),
             tickets_path,
             mcp_sessions: Arc::new(Mutex::new(HashMap::new())),
+            mcp_http_mounted,
             kanban_sync,
             auth,
+            telemetry: Arc::new(OnceLock::new()),
             lifecycle: Arc::new(LifecycleState {
                 phase: AtomicU8::new(PHASE_RUNNING),
                 in_flight: AtomicUsize::new(0),
@@ -258,9 +305,80 @@ impl ApiState {
         Ok(result)
     }
 
+    /// The telemetry hub when telemetry is enabled in the live configuration.
+    ///
+    /// Policies and capacities are taken from the configuration at first use.
+    pub fn telemetry(&self) -> Result<Option<Arc<crate::telemetry::TelemetryHub>>, ApiError> {
+        let config = self.config();
+        if !config.telemetry.enabled {
+            return Ok(None);
+        }
+        if let Some(hub) = self.telemetry.get() {
+            return Ok(Some(Arc::clone(hub)));
+        }
+        let key = self
+            .auth
+            .store
+            .load_or_create_telemetry_key()
+            .map_err(|e| {
+                ApiError::InternalError(format!("loading the telemetry installation key: {e}"))
+            })?;
+        let hub = crate::telemetry::TelemetryHub::new(
+            &config.telemetry,
+            &key,
+            crate::telemetry::sink::installed(),
+        )
+        .map_err(|e| ApiError::InternalError(format!("building the telemetry hub: {e}")))?;
+        let hub = self.telemetry.get_or_init(|| Arc::new(hub));
+        crate::telemetry::metrics::attach_hub_stats(&hub.stats);
+        Ok(Some(Arc::clone(hub)))
+    }
+
     /// Get the templates directory path
     pub fn templates_path(&self) -> PathBuf {
         self.tickets_path.join("templates")
+    }
+}
+
+pub struct RequestState<T>(pub T);
+
+impl axum::extract::FromRequestParts<ApiState> for RequestState<ApiState> {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &ApiState,
+    ) -> Result<Self, Self::Rejection> {
+        let mut state = state.clone();
+        if let Some(principal) = parts.extensions.get::<crate::auth::scope::Principal>() {
+            state.authorization = principal.authority.clone().map(Arc::new);
+        }
+        Ok(Self(state))
+    }
+}
+
+impl ApiState {
+    pub fn may_access_project(&self, project: &str) -> bool {
+        crate::auth::policy::project_allowed(self.authorization.as_deref(), project)
+    }
+
+    pub fn require_project(&self, project: &str) -> Result<(), ApiError> {
+        if self.may_access_project(project) {
+            Ok(())
+        } else {
+            Err(ApiError::NotFound("Resource not found".into()))
+        }
+    }
+
+    pub fn project_filter(&self) -> Option<Vec<String>> {
+        self.authorization
+            .as_ref()
+            .filter(|a| a.key_id.is_some() || !a.user.administrator)
+            .map(|a| a.grants.projects.clone())
+    }
+
+    pub fn queue(&self) -> anyhow::Result<crate::queue::Queue> {
+        Ok(crate::queue::Queue::new(&self.config())?.restrict_projects(self.project_filter()))
     }
 }
 
@@ -321,9 +439,7 @@ mod tests {
         let config = Config {
             kanban: KanbanConfig {
                 jira: jira_map,
-                linear: HashMap::new(),
-                github: HashMap::new(),
-                openspec: HashMap::new(),
+                ..Default::default()
             },
             ..Default::default()
         };

@@ -104,7 +104,7 @@ pub async fn handle_jsonrpc(
                 .cloned()
                 .unwrap_or_else(|| json!({}));
 
-            match Box::pin(tools::execute_tool(tool_name, arguments, state, scopes)).await {
+            match tools::execute_tool(tool_name, arguments, state, scopes).await {
                 Ok(result) => {
                     let text = serde_json::to_string_pretty(&result).unwrap_or_default();
                     JsonRpcResponse {

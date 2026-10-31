@@ -47,8 +47,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}": {
@@ -106,8 +106,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "agents:read"
+        "x-operator-capability": "agents:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/agents/{agent_id}/approve": {
@@ -174,8 +174,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:approve",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:approve"
       }
     },
     "/api/v1/agents/{agent_id}/connect/terminal": {
@@ -392,8 +392,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:reject",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:reject"
       }
     },
     "/api/v1/alerts": {
@@ -553,6 +553,7 @@
         "operationId": "capabilities",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -772,6 +773,7 @@
         "operationId": "keys",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -822,6 +824,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -871,7 +874,9 @@
           }
         ],
         "responses": {
-          "200": {},
+          "200": {
+            "description": "OK"
+          },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
@@ -924,6 +929,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1085,7 +1091,9 @@
         ],
         "operationId": "callback",
         "responses": {
-          "303": {}
+          "303": {
+            "description": "See Other"
+          }
         },
         "security": []
       }
@@ -1098,6 +1106,7 @@
         "operationId": "connections",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1151,6 +1160,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1200,7 +1210,9 @@
           }
         ],
         "responses": {
-          "200": {},
+          "200": {
+            "description": "OK"
+          },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
@@ -1233,7 +1245,9 @@
           }
         ],
         "responses": {
-          "303": {}
+          "303": {
+            "description": "See Other"
+          }
         },
         "security": []
       }
@@ -1246,6 +1260,7 @@
         "operationId": "providers",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1525,6 +1540,7 @@
         "operationId": "users",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1587,7 +1603,9 @@
           "required": true
         },
         "responses": {
-          "200": {},
+          "200": {
+            "description": "OK"
+          },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
@@ -1611,6 +1629,7 @@
         "operationId": "campaigns_list",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1644,8 +1663,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "campaigns:read"
+        "x-operator-capability": "campaigns:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -1675,6 +1694,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1730,6 +1750,7 @@
         ],
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1805,6 +1826,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1848,8 +1870,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "campaigns:launch"
+        "x-operator-capability": "campaigns:launch",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/campaigns/{id}/pause": {
@@ -1880,6 +1902,7 @@
         ],
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1913,8 +1936,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "campaigns:pause"
+        "x-operator-capability": "campaigns:pause",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/campaigns/{id}/status": {
@@ -1935,6 +1958,7 @@
         ],
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -1968,8 +1992,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "campaigns:read"
+        "x-operator-capability": "campaigns:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/collections": {
@@ -2113,8 +2137,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "collections:read"
+        "x-operator-capability": "collections:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/collections/{name}/activate": {
@@ -2281,8 +2305,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "configuration:update"
+        "x-operator-capability": "configuration:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/connections": {
@@ -2293,6 +2317,7 @@
         "operationId": "connections_get",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -2328,6 +2353,7 @@
         "operationId": "connections_mcp_clients",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -2354,8 +2380,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "connections:read"
+        "x-operator-capability": "connections:read",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators": {
@@ -2457,8 +2483,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "delegators:create"
+        "x-operator-capability": "delegators:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators/from-tool": {
@@ -2605,8 +2631,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/{name}": {
@@ -2803,8 +2829,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "delegators:delete"
+        "x-operator-capability": "delegators:delete",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators/{name}/profile": {
@@ -2862,8 +2888,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       }
     },
     "/api/v1/execution-targets": {
@@ -2898,8 +2924,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "execution-targets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "execution-targets:read"
       }
     },
     "/api/v1/git/config": {
@@ -2931,6 +2957,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -2954,8 +2981,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "git:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:update"
       }
     },
     "/api/v1/git/providers": {
@@ -2966,6 +2993,7 @@
         "operationId": "git_providers",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -3025,6 +3053,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -3048,8 +3077,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "git:create"
+        "x-operator-capability": "git:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/git/validate": {
@@ -3081,6 +3110,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -3104,8 +3134,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "git:execute",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "git:execute"
       }
     },
     "/api/v1/health": {
@@ -3322,8 +3352,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:create"
       }
     },
     "/api/v1/issuetypes/{key}": {
@@ -3392,8 +3422,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "put": {
         "tags": [
@@ -3549,8 +3579,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "issuetypes:delete"
+        "x-operator-capability": "issuetypes:delete",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/issuetypes/{key}/document": {
@@ -3746,8 +3776,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "put": {
         "tags": [
@@ -3915,8 +3945,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "issuetypes:read"
+        "x-operator-capability": "issuetypes:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/kanban/config": {
@@ -4074,8 +4104,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "kanban:read"
+        "x-operator-capability": "kanban:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/kanban/session-env": {
@@ -4133,8 +4163,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "kanban:create"
+        "x-operator-capability": "kanban:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/kanban/statuses": {
@@ -4251,8 +4281,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:execute",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "kanban:execute"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes": {
@@ -4419,8 +4449,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "kanban:create"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/statuses": {
@@ -4497,8 +4527,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/license": {
@@ -4509,6 +4539,7 @@
         "operationId": "license_get",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -4532,8 +4563,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "license:read"
+        "x-operator-capability": "license:read",
+        "x-operator-scope": "read"
       },
       "put": {
         "tags": [
@@ -4563,6 +4594,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -4596,8 +4628,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "license:update"
+        "x-operator-capability": "license:update",
+        "x-operator-scope": "admin"
       },
       "delete": {
         "tags": [
@@ -4617,6 +4649,7 @@
         ],
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -4640,8 +4673,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "license:delete",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "license:delete"
       }
     },
     "/api/v1/llm-tools": {
@@ -4677,8 +4710,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "llm-tools:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "llm-tools:read"
       }
     },
     "/api/v1/llm-tools/default": {
@@ -4714,8 +4747,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "llm-tools:read"
+        "x-operator-capability": "llm-tools:read",
+        "x-operator-scope": "read"
       },
       "put": {
         "tags": [
@@ -4818,8 +4851,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "mcp:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "mcp:read"
       }
     },
     "/api/v1/mcp/message": {
@@ -4893,8 +4926,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "mcp:connect",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/mcp/sse": {
@@ -4968,8 +5001,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       },
       "post": {
         "tags": [
@@ -5034,8 +5067,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "model-servers:create"
+        "x-operator-capability": "model-servers:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/model-servers/kinds": {
@@ -5074,8 +5107,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       }
     },
     "/api/v1/model-servers/kinds/{slug}/models": {
@@ -5133,8 +5166,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/model-servers/{name}": {
@@ -5191,8 +5224,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       },
       "put": {
         "tags": [
@@ -5276,8 +5309,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "model-servers:update"
+        "x-operator-capability": "model-servers:update",
+        "x-operator-scope": "admin"
       },
       "delete": {
         "tags": [
@@ -5352,8 +5385,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "model-servers:delete"
+        "x-operator-capability": "model-servers:delete",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/model-servers/{name}/models": {
@@ -5411,8 +5444,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "model-servers:execute"
+        "x-operator-capability": "model-servers:execute",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/profiles": {
@@ -5515,8 +5548,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "profiles:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:create"
       }
     },
     "/api/v1/profiles/{profile_id}": {
@@ -5563,8 +5596,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "profiles:read"
+        "x-operator-capability": "profiles:read",
+        "x-operator-scope": "read"
       },
       "patch": {
         "tags": [
@@ -5628,8 +5661,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "profiles:update"
+        "x-operator-capability": "profiles:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/projects": {
@@ -5773,8 +5806,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "queue:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/pause": {
@@ -5822,8 +5855,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "queue:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "queue:create"
       }
     },
     "/api/v1/queue/resume": {
@@ -5909,8 +5942,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "queue:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/sync": {
@@ -6066,8 +6099,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "sections:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "sections:read"
       }
     },
     "/api/v1/setup/collections": {
@@ -6078,6 +6111,7 @@
         "operationId": "setup_collections",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6137,6 +6171,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6192,6 +6227,7 @@
         "operationId": "setup_status",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6215,8 +6251,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "setup:read"
+        "x-operator-capability": "setup:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/setup/steps": {
@@ -6227,6 +6263,7 @@
         "operationId": "setup_steps",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6253,8 +6290,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "setup:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "setup:read"
       }
     },
     "/api/v1/skills": {
@@ -6327,8 +6364,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "status:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "status:read"
       }
     },
     "/api/v1/targets": {
@@ -6339,6 +6376,7 @@
         "operationId": "targets_list",
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6362,8 +6400,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "targets:read"
+        "x-operator-capability": "targets:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -6391,6 +6429,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6463,6 +6502,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6496,8 +6536,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "targets:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:update"
       },
       "delete": {
         "tags": [
@@ -6525,6 +6565,7 @@
         ],
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6589,6 +6630,7 @@
         ],
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6680,8 +6722,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "telemetry:read",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "telemetry:read"
       }
     },
     "/api/v1/tickets": {
@@ -6749,8 +6791,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "tickets:create"
+        "x-operator-capability": "tickets:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/tickets/batch": {
@@ -6783,6 +6825,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6816,8 +6859,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "tickets:create"
+        "x-operator-capability": "tickets:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/tickets/batch/preview": {
@@ -6850,6 +6893,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -6873,8 +6917,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
       }
     },
     "/api/v1/tickets/preview": {
@@ -7000,8 +7044,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
       }
     },
     "/api/v1/tickets/{id}/campaign": {
@@ -7041,6 +7085,7 @@
         },
         "responses": {
           "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
@@ -7505,8 +7550,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "workflow-formats:read"
+        "x-operator-capability": "workflow-formats:read",
+        "x-operator-scope": "read"
       }
     },
     "/livez": {

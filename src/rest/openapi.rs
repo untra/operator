@@ -378,6 +378,25 @@ fn document_error_responses(operation: &mut Operation) {
     }
 }
 
+fn document_missing_descriptions(operation: &mut Operation) {
+    for (status, response) in &mut operation.responses.responses {
+        let RefOr::T(response) = response else {
+            continue;
+        };
+        if !response.description.is_empty() {
+            continue;
+        }
+        if let Some(reason) = status
+            .parse::<u16>()
+            .ok()
+            .and_then(|code| axum::http::StatusCode::from_u16(code).ok())
+            .and_then(|code| code.canonical_reason())
+        {
+            response.description = reason.to_string();
+        }
+    }
+}
+
 fn document_set_cookie(operation: &mut Operation, description: &str) {
     let Some(RefOr::T(response)) = operation.responses.responses.get_mut("200") else {
         return;
@@ -544,6 +563,7 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
     }
 
     document_error_responses(operation);
+    document_missing_descriptions(operation);
 
     match (method, path) {
         ("POST", "/api/v1/auth/login") => {

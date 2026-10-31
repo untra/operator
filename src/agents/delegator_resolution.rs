@@ -558,7 +558,7 @@ mod tests {
             kind: "lmstudio".into(),
             base_url: Some("http://pc:1234".into()),
             api_key_env: Some("LM_TOKEN".into()),
-            extra_env: Default::default(),
+            extra_env: std::collections::HashMap::new(),
             display_name: None,
         });
         let mut delegator = make_delegator("local-codex", "codex", "local-model");

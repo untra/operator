@@ -50,7 +50,8 @@ fn build_judge(
         &judge.model_server,
     )
     .map_err(|e| NativeLlmError::Config(e.to_string()))?;
-    let policy = crate::auth::egress::EgressPolicy::from_config(config);
+    let policy = crate::auth::egress::EgressPolicy::from_config(config)
+        .map_err(|e| NativeLlmError::Config(e.to_string()))?;
     let llm = crate::llm::native::rig::RigJudge::new(
         &server,
         &judge.model,

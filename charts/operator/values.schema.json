@@ -314,6 +314,54 @@
               "items": {
                 "$ref": "#/definitions/networkPeer"
               }
+            },
+            "additionalRules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "to": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/networkPeer"
+                    }
+                  },
+                  "ports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "port": {
+                          "oneOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 65535
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "protocol": {
+                          "enum": [
+                            "TCP",
+                            "UDP",
+                            "SCTP"
+                          ]
+                        },
+                        "endPort": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 65535
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -410,6 +458,19 @@
               "minimum": 1,
               "maximum": 65535
             }
+          }
+        }
+      }
+    },
+    "egress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowPrivateCidrs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

@@ -20,7 +20,7 @@ spec:
       from:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  {{- if or .Values.networkPolicy.egress.allowDNS .Values.networkPolicy.egress.to .Values.telemetry.collectorEgress.enabled }}
+  {{- if or .Values.networkPolicy.egress.allowDNS .Values.networkPolicy.egress.to .Values.networkPolicy.egress.additionalRules .Values.telemetry.collectorEgress.enabled }}
   egress:
     {{- if .Values.networkPolicy.egress.allowDNS }}
     - to:
@@ -36,6 +36,9 @@ spec:
     {{- with .Values.networkPolicy.egress.to }}
     - to:
         {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.egress.additionalRules }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
     {{- if .Values.telemetry.collectorEgress.enabled }}
     {{- if not .Values.telemetry.collectorEgress.peers }}

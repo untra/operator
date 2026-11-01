@@ -26,6 +26,8 @@ This page is the authoritative reference for what Operator supports on each oper
 | Agent: Claude Code | ✅ | ✅ | ✅ |
 | Agent: Codex | ✅ | ✅ | ✅ |
 | Agent: Gemini CLI | ⚠️ | ⚠️ | ⚠️ |
+| Model host (LM Studio, Ollama) | ✅ | ✅ | ✅ |
+| Remote SSH execution target | ✅ | ✅ | ❌ |
 
 **Legend:** ✅ Fully supported &nbsp;·&nbsp; ❌ Not available &nbsp;·&nbsp; ⚠️ Partial / planned
 
@@ -33,7 +35,7 @@ This page is the authoritative reference for what Operator supports on each oper
 
 ## Windows
 
-Windows is a supported download target on both x86_64 and ARM64. The step-wrapper (`opr8r`), REST API, kanban sync, and VS Code extension all work. The following features are currently unavailable on Windows (both architectures).
+Windows is a supported download target on both x86_64 and ARM64. The REST API, kanban sync, and VS Code extension all work, and the `opr8r` binary runs. A Windows PC also works well as a **model host**: run [LM Studio](/getting-started/model-servers/lmstudio/) or Ollama on it and point a delegator's model server at it, with nothing from Operator installed there. The following features are currently unavailable on Windows (both architectures).
 
 | Feature | Status | Reason | Workaround |
 |---------|--------|--------|------------|
@@ -41,6 +43,7 @@ Windows is a supported download target on both x86_64 and ARM64. The step-wrappe
 | tmux session manager | ❌ N/A | tmux does not run on Windows | Use the VS Code Extension |
 | cmux session manager | ❌ N/A | cmux is macOS-specific | Use the VS Code Extension |
 | Zellij session manager | ❌ N/A | Zellij does not run on Windows | Use the VS Code Extension |
+| Remote SSH execution target | ❌ Planned | Remote launches ship a bash payload, require `tmux` on the target, quote commands for a POSIX shell (including the step-transition commands `opr8r` runs), and probe agent CLIs with `which`. Windows OpenSSH defaults to `cmd.exe` and has no `tmux` | Use the PC as a model host instead, or install WSL2 with `tmux`, the agent CLI, and the Linux `opr8r`, and make the SSH alias land in the WSL shell |
 | Native OS notifications | ⚠️ Planned | Platform notification crates (`mac-notification-sys`, `notify-rust`) are Unix-only; a Windows crate has not been integrated | Notifications fall back to log output only |
 
 ---

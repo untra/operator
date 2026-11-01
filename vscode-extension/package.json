@@ -559,95 +559,102 @@
       }
     ],
     "icons": {
+      "operator-lmstudio": {
+        "description": "LM Studio model-provider icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F10B"
+        }
+      },
       "operator-atlassian": {
         "description": "Atlassian (Jira) provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F112"
+          "fontCharacter": "\\F117"
         }
       },
       "operator-linear": {
         "description": "Linear provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F109"
+          "fontCharacter": "\\F10C"
         }
       },
       "operator-claude": {
         "description": "Claude LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F111"
+          "fontCharacter": "\\F116"
         }
       },
       "operator-codex": {
         "description": "Codex LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10E"
+          "fontCharacter": "\\F113"
         }
       },
       "operator-gemini": {
         "description": "Gemini LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10D"
+          "fontCharacter": "\\F111"
         }
       },
       "operator-google": {
         "description": "Google (Gemini API) model-server icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10A"
+          "fontCharacter": "\\F10D"
         }
       },
       "operator-anthropic": {
         "description": "Anthropic (Claude API) model-server icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F113"
+          "fontCharacter": "\\F118"
         }
       },
       "operator-ollama": {
         "description": "Ollama model-provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F107"
+          "fontCharacter": "\\F109"
         }
       },
       "operator-openrouter": {
         "description": "OpenRouter model-provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F106"
+          "fontCharacter": "\\F108"
         }
       },
       "operator-github": {
         "description": "GitHub provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10C"
+          "fontCharacter": "\\F10F"
         }
       },
       "operator-gitlab": {
         "description": "GitLab provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10B"
+          "fontCharacter": "\\F10E"
         }
       },
       "operator-tmux": {
         "description": "tmux session wrapper icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F105"
+          "fontCharacter": "\\F106"
         }
       },
       "operator-cmux": {
         "description": "cmux session wrapper icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F110"
+          "fontCharacter": "\\F115"
         }
       },
       "operator-zellij": {
@@ -661,7 +668,7 @@
         "description": "VS Code session wrapper icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F104"
+          "fontCharacter": "\\F105"
         }
       }
     },

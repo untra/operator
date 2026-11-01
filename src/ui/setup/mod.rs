@@ -791,7 +791,16 @@ impl SetupScreen {
             return;
         }
         self.model_servers_probed = true;
-        let policy = crate::auth::egress::EgressPolicy::from_config(config);
+        let policy = match crate::auth::egress::EgressPolicy::from_config(config) {
+            Ok(policy) => policy,
+            Err(error) => {
+                for (_, kind) in Self::model_providers() {
+                    self.model_server_probes
+                        .insert(kind.slug().to_string(), error.to_string());
+                }
+                return;
+            }
+        };
         for (_, kind) in Self::model_providers() {
             if !kind.connectable_from_defaults() {
                 continue;

@@ -46,7 +46,7 @@ Run **Operator: Choose Connection**. This editor is free. The choice is saved in
 
 - **Running on this machine** attaches to an Operator that is already listening for this folder. The extension reads `.tickets/operator/api-session.json`, then `http://localhost:7008`. Nothing is downloaded.
 - **Run for this folder** is the free local install. It uses the `.tickets` directory in the parent of the project and can download the Operator binary.
-- **Connect to a server** saves an `https` origin, for example `https://operator.kube.untra.casa`. The sidebar, queue, and status views use that API. The extension does not download, update, or start a binary, and it does not compare the server version to a binary on the laptop.
+- **Connect to a server** saves an `https` origin, for example `https://operator.kube.untra.casa`. The sidebar, queue, and status views use that API. The extension does not download, update, or start a binary.
 
 SSH, Coder, and other remote targets are entitled by the server's license, not by the extension.
 

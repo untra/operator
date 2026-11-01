@@ -153,6 +153,15 @@ const MIGRATIONS: &[&str] = &[
     );
     ",
     include_str!("identity_migration.sql"),
+    // v5 - strip whitespace stored around OIDC issuers.
+    r"
+    UPDATE oidc_connection SET issuer = trim(issuer, ' ' || char(9, 10, 13))
+    WHERE issuer <> trim(issuer, ' ' || char(9, 10, 13))
+      AND NOT EXISTS (SELECT 1 FROM oidc_connection o WHERE o.issuer = trim(oidc_connection.issuer, ' ' || char(9, 10, 13)));
+    UPDATE operator_user SET issuer = trim(issuer, ' ' || char(9, 10, 13))
+    WHERE issuer <> trim(issuer, ' ' || char(9, 10, 13))
+      AND NOT EXISTS (SELECT 1 FROM operator_user o WHERE o.subject = operator_user.subject AND o.issuer = trim(operator_user.issuer, ' ' || char(9, 10, 13)));
+    ",
 ];
 
 /// Apply any migrations the database has not seen.
@@ -272,6 +281,30 @@ mod tests {
         }
         conn.prepare("SELECT profile_id, user_id FROM access_key")
             .unwrap();
+    }
+
+    #[test]
+    fn test_migration_trims_padded_oidc_issuers() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        apply_pragmas(&conn).unwrap();
+        for migration in &MIGRATIONS[..4] {
+            conn.execute_batch(migration).unwrap();
+        }
+        conn.execute_batch("PRAGMA user_version = 4").unwrap();
+        conn.execute_batch(
+            "INSERT INTO oidc_connection (id, provider, issuer, client_id, redirect_uri, created_at) \
+             VALUES ('c', 'keycloak', ' https://identity.example/realm', 'operator', 'https://operator.example/cb', 0); \
+             INSERT INTO operator_user (id, connection_id, issuer, subject, created_at) \
+             VALUES ('u', 'c', ' https://identity.example/realm', 'subject', 0);",
+        )
+        .unwrap();
+        migrate(&mut conn).unwrap();
+        for table in ["oidc_connection", "operator_user"] {
+            let issuer: String = conn
+                .query_row(&format!("SELECT issuer FROM {table}"), [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(issuer, "https://identity.example/realm", "{table}");
+        }
     }
 
     #[test]

@@ -276,6 +276,17 @@ mod tests {
     }
 
     #[test]
+    fn test_codex_fresh_launch_does_not_resume_an_operator_uuid() {
+        let config: ToolConfig = serde_json::from_str(include_str!("tools/codex.json")).unwrap();
+        let command =
+            config.build_command("local-model", "operator-tracking-id", "/tmp/prompt.txt");
+        assert!(!command.contains("--resume"));
+        assert!(!command.contains("operator-tracking-id"));
+        assert!(command.contains("-m local-model"));
+        assert!(!config.yolo_flags.iter().any(|flag| flag == "--full-auto"));
+    }
+
+    #[test]
     fn test_load_all_tool_configs() {
         let configs = load_all_tool_configs_with(None);
         assert_eq!(configs.len(), BUILTIN_TOOL_CONFIGS.len());
@@ -399,7 +410,7 @@ mod tests {
 
         let cmd = codex.build_command("gpt-4o", "xyz-789", "/tmp/prompt.txt");
         assert!(cmd.contains("-m gpt-4o"));
-        assert!(cmd.contains("--resume xyz-789"));
+        assert!(!cmd.contains("xyz-789"));
         assert!(cmd.contains("/tmp/prompt.txt"));
     }
 

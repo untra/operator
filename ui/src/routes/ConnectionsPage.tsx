@@ -251,7 +251,9 @@ function Connections() {
                 onClick={() =>
                   downloadRecipe(
                     recipe,
-                    client === "json" || client === "oauth" ? "operator-mcp.json" : "operator-mcp.txt",
+                    client === "json" || client === "oauth"
+                      ? "operator-mcp.json"
+                      : "operator-mcp.txt",
                   )
                 }
               >

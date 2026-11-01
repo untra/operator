@@ -15,7 +15,7 @@
 
 mod probe;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 pub use probe::{probe_models, ModelInfo, ProbeError, ProbeOutcome};
 
@@ -42,7 +42,10 @@ pub fn env_for_server(server: &ModelServer) -> HashMap<String, String> {
 
     if let Some(kind) = ModelServerKind::from_slug(&server.kind) {
         if let Some(base) = server.base_url.as_deref().filter(|u| !u.is_empty()) {
-            env.insert(kind.base_url_env_var().to_string(), base.to_string());
+            env.insert(
+                kind.base_url_env_var().to_string(),
+                kind.spawn_base_url(base),
+            );
         }
         // Map the user's key var to the canonical one the CLI reads, by reference
         // (no value copy). When they already match this is a harmless self-export.
@@ -56,6 +59,124 @@ pub fn env_for_server(server: &ModelServer) -> HashMap<String, String> {
     }
 
     env
+}
+
+const LM_STUDIO_PROVIDER: &str = "operator_lmstudio";
+const LM_STUDIO_TOKEN_ENV: &str = "OPERATOR_LM_STUDIO_TOKEN";
+const LM_STUDIO_PLACEHOLDER_TOKEN: &str = "lmstudio";
+const CLAUDE_TOOL: &str = "claude";
+const CODEX_TOOL: &str = "codex";
+const ANTHROPIC_AUTH_TOKEN_ENV: &str = "ANTHROPIC_AUTH_TOKEN";
+const CLAUDE_ATTRIBUTION_HEADER_ENV: &str = "CLAUDE_CODE_ATTRIBUTION_HEADER";
+
+/// Every env var a model-server launch setting can export. A step that switches
+/// delegators unsets the ones its own provider does not set, so a baseline
+/// server's endpoint cannot leak into the next step.
+pub fn launch_env_vars() -> BTreeSet<&'static str> {
+    ModelServerKind::ALL
+        .iter()
+        .flat_map(|kind| [kind.base_url_env_var(), kind.api_key_env_var()])
+        .chain([
+            ANTHROPIC_AUTH_TOKEN_ENV,
+            CLAUDE_ATTRIBUTION_HEADER_ENV,
+            LM_STUDIO_TOKEN_ENV,
+        ])
+        .collect()
+}
+
+#[derive(Debug, Default)]
+pub struct ModelServerLaunchSettings {
+    pub env: HashMap<String, String>,
+    pub flags: Vec<String>,
+}
+
+pub fn openai_v1_base(base: &str) -> String {
+    let base = base.trim_end_matches('/');
+    if base.ends_with("/v1") {
+        base.to_string()
+    } else {
+        format!("{base}/v1")
+    }
+}
+
+pub(crate) fn openai_root(base: &str) -> &str {
+    let base = base.trim_end_matches('/');
+    base.strip_suffix("/v1").unwrap_or(base)
+}
+
+pub fn launch_settings_for_server(
+    server: &ModelServer,
+    tool: &str,
+) -> anyhow::Result<ModelServerLaunchSettings> {
+    let mut settings = ModelServerLaunchSettings {
+        env: env_for_server(server),
+        flags: Vec::new(),
+    };
+    if server.kind != ModelServerKind::LmStudio.slug() {
+        return Ok(settings);
+    }
+    let base = server
+        .base_url
+        .as_deref()
+        .filter(|base| !base.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("LM Studio server '{}' requires base_url", server.name))?;
+    let url = url::Url::parse(base)?;
+    anyhow::ensure!(
+        matches!(url.scheme(), "http" | "https"),
+        "LM Studio base_url requires http or https"
+    );
+    let key = server.api_key_env.as_deref().filter(|key| !key.is_empty());
+    match tool {
+        CLAUDE_TOOL => {
+            settings.env = HashMap::from([
+                (
+                    ModelServerKind::AnthropicApi.base_url_env_var().into(),
+                    openai_root(base).into(),
+                ),
+                (
+                    ANTHROPIC_AUTH_TOKEN_ENV.into(),
+                    key.map_or_else(
+                        || LM_STUDIO_PLACEHOLDER_TOKEN.into(),
+                        |key| format!("${{{key}}}"),
+                    ),
+                ),
+                (
+                    ModelServerKind::AnthropicApi.api_key_env_var().into(),
+                    String::new(),
+                ),
+                (CLAUDE_ATTRIBUTION_HEADER_ENV.into(), "0".into()),
+            ]);
+        }
+        CODEX_TOOL => {
+            settings.env.insert(
+                ModelServerKind::LmStudio.api_key_env_var().into(),
+                String::new(),
+            );
+            if let Some(key) = key {
+                settings
+                    .env
+                    .insert(LM_STUDIO_TOKEN_ENV.into(), format!("${{{key}}}"));
+            }
+            let base = settings
+                .env
+                .get(ModelServerKind::LmStudio.base_url_env_var())
+                .cloned()
+                .unwrap_or_else(|| openai_v1_base(base));
+            let base = toml::Value::String(base);
+            let auth = if key.is_some() {
+                format!(",env_key=\"{LM_STUDIO_TOKEN_ENV}\"")
+            } else {
+                String::new()
+            };
+            settings.flags = vec![
+                "-c".into(), format!("model_provider=\"{LM_STUDIO_PROVIDER}\""),
+                "-c".into(), format!("model_providers.{LM_STUDIO_PROVIDER}={{name=\"LM Studio\",base_url={base},wire_api=\"responses\",requires_openai_auth=false{auth}}}"),
+            ];
+        }
+        _ => {}
+    }
+    settings.env.extend(server.extra_env.clone());
+    Ok(settings)
 }
 
 /// The sub-class of the *Model Provider* vertical a [`ModelServerKind`] belongs
@@ -131,6 +252,25 @@ pub enum ModelServerKind {
 }
 
 impl ModelServerKind {
+    pub fn spawn_base_url(self, base: &str) -> String {
+        match self {
+            Self::OpenAiApi | Self::XaiApi | Self::OpenAiCompat | Self::LmStudio | Self::Ollama => {
+                openai_v1_base(base)
+            }
+            _ => base.to_string(),
+        }
+    }
+
+    pub fn models_url(self, base: &str) -> String {
+        let base = match self {
+            Self::OpenAiApi | Self::XaiApi | Self::OpenAiCompat | Self::LmStudio | Self::Ollama => {
+                openai_root(base)
+            }
+            _ => base.trim_end_matches('/'),
+        };
+        format!("{base}{}", self.models_endpoint())
+    }
+
     /// The canonical list of supported model-server kinds, in display order.
     ///
     /// Single source of truth - every surface derives its catalog from here.
@@ -270,9 +410,8 @@ impl ModelServerKind {
             ModelServerKind::XaiApi => Some("xai"),
             ModelServerKind::Ollama => Some("ollama"),
             ModelServerKind::OpenRouter => Some("openrouter"),
-            ModelServerKind::OpenAiApi
-            | ModelServerKind::OpenAiCompat
-            | ModelServerKind::LmStudio => None,
+            ModelServerKind::LmStudio => Some("lmstudio"),
+            ModelServerKind::OpenAiApi | ModelServerKind::OpenAiCompat => None,
         }
     }
 
@@ -386,6 +525,134 @@ impl ModelServerKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_lmstudio_missing_endpoint_fails_instead_of_using_cloud() {
+        let server = server("lmstudio", None);
+        for tool in ["codex", "claude"] {
+            assert!(launch_settings_for_server(&server, tool).is_err());
+        }
+    }
+
+    #[test]
+    fn test_lmstudio_overrides_and_unauthenticated_provider() {
+        let mut server = server("lmstudio", Some("http://pc:1234"));
+        assert!(resolve_api_key(&server, ModelServerKind::LmStudio).is_none());
+        let settings = launch_settings_for_server(&server, "codex").unwrap();
+        assert!(settings.flags.iter().all(|flag| !flag.contains("env_key")));
+        assert_eq!(settings.env["OPENAI_API_KEY"], "");
+        server
+            .extra_env
+            .insert("OPENAI_BASE_URL".into(), "https://pc.example/v1".into());
+        server
+            .extra_env
+            .insert("ANTHROPIC_BASE_URL".into(), "https://pc.example".into());
+        assert!(launch_settings_for_server(&server, "codex")
+            .unwrap()
+            .flags
+            .iter()
+            .any(|flag| flag.contains("https://pc.example/v1")));
+        assert_eq!(
+            launch_settings_for_server(&server, "claude").unwrap().env["ANTHROPIC_BASE_URL"],
+            "https://pc.example"
+        );
+    }
+
+    #[test]
+    fn test_spawn_bases_preserve_other_protocols() {
+        for (kind, base) in [
+            (ModelServerKind::AnthropicApi, "https://api.anthropic.com"),
+            (ModelServerKind::OpenRouter, "https://openrouter.ai/api/v1"),
+            (
+                ModelServerKind::GoogleApi,
+                "https://generativelanguage.googleapis.com",
+            ),
+        ] {
+            assert_eq!(kind.spawn_base_url(base), base);
+        }
+    }
+
+    #[test]
+    fn test_lmstudio_launch_settings_are_tool_specific_and_secret_references() {
+        let server = ModelServer {
+            name: "pc".into(),
+            kind: "lmstudio".into(),
+            base_url: Some("http://pc:1234/v1/".into()),
+            api_key_env: Some("LM_STUDIO_TOKEN".into()),
+            extra_env: HashMap::new(),
+            display_name: None,
+        };
+        let codex = launch_settings_for_server(&server, "codex").unwrap();
+        assert_eq!(codex.env["OPERATOR_LM_STUDIO_TOKEN"], "${LM_STUDIO_TOKEN}");
+        assert!(codex
+            .flags
+            .iter()
+            .any(|flag| flag.contains("model_provider=")));
+        assert!(codex
+            .flags
+            .iter()
+            .any(|flag| flag.contains("requires_openai_auth=false")));
+        assert!(codex
+            .flags
+            .iter()
+            .any(|flag| flag.contains("http://pc:1234/v1")));
+        let claude = launch_settings_for_server(&server, "claude").unwrap();
+        assert_eq!(claude.env["ANTHROPIC_BASE_URL"], "http://pc:1234");
+        assert_eq!(claude.env["ANTHROPIC_AUTH_TOKEN"], "${LM_STUDIO_TOKEN}");
+        assert_eq!(claude.env["ANTHROPIC_API_KEY"], "");
+        assert!(claude.flags.is_empty());
+        assert!(!claude.env.contains_key("OPENAI_API_KEY"));
+    }
+
+    #[test]
+    fn test_model_probe_urls_accept_root_and_versioned_bases() {
+        for kind in [
+            ModelServerKind::LmStudio,
+            ModelServerKind::OpenAiCompat,
+            ModelServerKind::Ollama,
+        ] {
+            for base in [
+                "http://pc:1234",
+                "http://pc:1234/",
+                "http://pc:1234/v1",
+                "http://pc:1234/v1/",
+            ] {
+                let endpoint = if kind == ModelServerKind::Ollama {
+                    "/api/tags"
+                } else {
+                    "/v1/models"
+                };
+                assert_eq!(kind.models_url(base), format!("http://pc:1234{endpoint}"));
+            }
+        }
+        assert_eq!(
+            ModelServerKind::OpenRouter.models_url("https://openrouter.ai/api/v1/"),
+            "https://openrouter.ai/api/v1/models"
+        );
+    }
+
+    #[test]
+    fn test_lmstudio_spawn_base_includes_v1() {
+        for base in [
+            "http://pc:1234",
+            "http://pc:1234/",
+            "http://pc:1234/v1",
+            "http://pc:1234/v1/",
+        ] {
+            let server = ModelServer {
+                name: "gaming-pc".into(),
+                kind: "lmstudio".into(),
+                base_url: Some(base.into()),
+                api_key_env: None,
+                extra_env: HashMap::new(),
+                display_name: None,
+            };
+            assert_eq!(
+                env_for_server(&server)["OPENAI_BASE_URL"],
+                "http://pc:1234/v1"
+            );
+        }
+    }
 
     #[test]
     fn test_slug_roundtrip_for_all_kinds() {
@@ -542,7 +809,7 @@ mod tests {
         let env = env_for_server(&s);
         assert_eq!(
             env.get("OPENAI_BASE_URL").map(String::as_str),
-            Some("http://localhost:11434")
+            Some("http://localhost:11434/v1")
         );
     }
 

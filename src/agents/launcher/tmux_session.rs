@@ -205,6 +205,10 @@ pub fn launch_in_tmux_with_options(
         llm_cmd = apply_yolo_flags(config, &llm_cmd, &tool_name);
     }
 
+    if !options.extra_flags.is_empty() {
+        llm_cmd = format!("{} {}", llm_cmd, options.extra_flags.join(" "));
+    }
+
     // Wrap in the opr8r step wrapper when the issuetype defines this step,
     // so completion reporting and exec-chain transitions engage.
     if step_command::chain_step(config, ticket, &step_name) {
@@ -469,6 +473,14 @@ pub fn launch_in_tmux_with_relaunch_options(
     // Apply YOLO flags if enabled
     if options.launch_options.yolo_mode {
         llm_cmd = apply_yolo_flags(config, &llm_cmd, &tool_name);
+    }
+
+    if !options.launch_options.extra_flags.is_empty() {
+        llm_cmd = format!(
+            "{} {}",
+            llm_cmd,
+            options.launch_options.extra_flags.join(" ")
+        );
     }
 
     // Wrap in the opr8r step wrapper when the issuetype defines this step,

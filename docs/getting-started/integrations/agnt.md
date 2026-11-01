@@ -16,11 +16,7 @@ and native MCP support. Operator connects to AGNT in three different ways.
 | An AGNT visual workflow | [`operator-plugin`](https://github.com/untra/operator/tree/main/agnt-plugin) nodes | Operator REST |
 | An Operator ticket export | The emitted graph, as a scaffold | `operator-run-step` nodes back into Operator REST |
 
-`operator mcp` is a local subprocess. It opens the tickets of the machine it runs on. It does not call a remote Operator URL. Desktop AGNT registered like this drives the local daemon:
-
-```json
-{ "name": "operator", "command": "operator", "args": ["mcp"] }
-```
+`operator mcp` is a local subprocess. It opens the tickets of the machine it runs on.
 
 A cluster Operator exposes the same tools over HTTP MCP. `GET /api/v1/mcp/descriptor` returns `transport_url` (normally `https://<host>/api/v1/mcp/sse`). That stream requires the same bearer as the REST API. On that deployment set `[mcp].stdio_advertised = false`: the advertised stdio command is the path inside the pod.
 

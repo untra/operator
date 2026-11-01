@@ -89,7 +89,7 @@ curl -X POST http://localhost:3333/api/plugins/reload
 
 ## MCP for interactive agents
 
-`operator mcp` is a local subprocess. It opens the tickets on the machine where AGNT spawns it. It does not call a remote Operator URL.
+`operator mcp` is a local subprocess. It opens the tickets on the machine where AGNT spawns.
 
 ```json
 { "name": "operator", "command": "operator", "args": ["mcp"] }

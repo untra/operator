@@ -90,6 +90,7 @@ pub(super) async fn request(
     let policy = super::egress::EgressPolicy {
         allow_loopback: false,
         allow_private: true,
+        allowed_private: Vec::new(),
     };
     for address in &addresses {
         super::egress::check_addr(address.ip(), &policy)?;

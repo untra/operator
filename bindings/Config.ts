@@ -3,6 +3,7 @@ import type { AcpConfig } from "./AcpConfig";
 import type { AgentsConfig } from "./AgentsConfig";
 import type { ApiConfig } from "./ApiConfig";
 import type { Delegator } from "./Delegator";
+import type { EgressConfig } from "./EgressConfig";
 import type { GitConfig } from "./GitConfig";
 import type { GovernancePolicy } from "./GovernancePolicy";
 import type { KanbanConfig } from "./KanbanConfig";
@@ -92,6 +93,10 @@ llm_tools: LlmToolsConfig,
  * Embedded REST API server.
  */
 rest_api: RestApiConfig, 
+/**
+ * Private destinations permitted for guarded outbound model requests.
+ */
+egress: EgressConfig, 
 /**
  * Git provider, identity, and worktree settings.
  */

@@ -9,6 +9,9 @@ image:
 imagePullSecrets: []
 publicUrl: ""
 
+egress:
+  allowPrivateCidrs: []
+
 bootstrap:
   existingSecret: ""
   passwordKey: password
@@ -77,6 +80,7 @@ networkPolicy:
   egress:
     allowDNS: true
     to: []
+    additionalRules: []
 
 telemetry:
   enabled: false

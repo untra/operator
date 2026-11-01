@@ -437,7 +437,7 @@ mod tests {
             .next()
             .unwrap()
             .clone();
-        let response = Box::pin(message_handler(
+        let response = message_handler(
             Query(MessageQuery { session_id }),
             State(state),
             Authenticated(principal()),
@@ -447,7 +447,7 @@ mod tests {
                 method: "notifications/initialized".into(),
                 params: json!({}),
             }),
-        ))
+        )
         .await
         .into_response();
         assert_eq!(response.status(), axum::http::StatusCode::ACCEPTED);
@@ -475,7 +475,7 @@ mod lifecycle_tests {
             ),
             ("notifications/initialized", None, json!({})),
         ] {
-            let response = Box::pin(message_handler(
+            let response = message_handler(
                 Query(MessageQuery {
                     session_id: session_id.into(),
                 }),
@@ -487,7 +487,7 @@ mod lifecycle_tests {
                     id,
                     params,
                 }),
-            ))
+            )
             .await;
             assert_eq!(response.status(), axum::http::StatusCode::ACCEPTED);
         }
@@ -517,7 +517,7 @@ mod lifecycle_tests {
                 .mcp_connected_clients,
             0
         );
-        Box::pin(initialize(&state, &id, "Claude Code")).await;
+        initialize(&state, &id, "Claude Code").await;
         assert_eq!(
             connections::get(State(state.clone()))
                 .await
@@ -528,7 +528,7 @@ mod lifecycle_tests {
         let clients = connections::clients(State(state.clone())).await.0;
         assert_eq!(clients[0].client_name.as_deref(), Some("Claude Code"));
         assert_ne!(clients[0].id, id);
-        Box::pin(initialize(&state, &id, DIAGNOSTIC_CLIENT)).await;
+        initialize(&state, &id, DIAGNOSTIC_CLIENT).await;
         assert!(connections::clients(State(state.clone()))
             .await
             .0

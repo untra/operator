@@ -7,8 +7,17 @@ yanked = "deny"
 ignore = [
   # instant: unmaintained, pulled in by notify-types. No upgrade path available.
   { id = "RUSTSEC-2024-0384" },
-  # paste: unmaintained, pulled in by utoipa-axum; no upgrade path available.
-  { id = "RUSTSEC-2024-0436" },
+  # rsa (Marvin Attack): only reached via openidconnect 4.0.1 (latest), which uses it to verify RS256 ID-token signatures with public JWKS keys.
+  # The attack needs a private-key decrypt/sign oracle; operator holds no RSA private keys and signs its own JWTs with EdDSA.
+  { id = "RUSTSEC-2023-0071", reason = "verify-only use via openidconnect; no RSA private-key operations" },
+  # crypto-bigint 0.5 timing: reached via openidconnect -> p256/p384, used only
+  # for ECDSA verification over public data. Same revisit trigger as rsa.
+  { id = "RUSTSEC-2026-0387", reason = "verify-only ECDSA via openidconnect; no secret-dependent operations" },
+  # zbus 5 subcrates unmaintained (merged into zbus 6): pulled in by notify-rust 4
+  # for Linux desktop notifications; notify-rust has no zbus 6 release yet.
+  { id = "RUSTSEC-2026-0370", reason = "zvariant via notify-rust/zbus 5; no upstream upgrade path" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names via notify-rust/zbus 5; no upstream upgrade path" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via notify-rust/zbus 5; no upstream upgrade path" },
 ]
 
 [licenses]

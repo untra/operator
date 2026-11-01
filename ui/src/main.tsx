@@ -29,8 +29,11 @@ import { RemoteTargetsPage } from "./routes/RemoteTargetsPage";
 import { CampaignsPage } from "./routes/CampaignsPage";
 import { CampaignDetailPage } from "./routes/CampaignDetailPage";
 import { TicketPage } from "./routes/TicketPage";
+import { LicenseReturnPage } from "./routes/LicenseReturnPage";
+import { rewriteLicenseFragment } from "./license-return";
 
 const host = createBrowserHost();
+rewriteLicenseFragment();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -46,6 +49,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="setup" element={<SetupPage />} />
             <Route element={<ProfilesProvider />}>
               <Route path="onboarding" element={<OnboardingPage />} />
+              <Route path="license/return" element={<LicenseReturnPage />} />
               <Route element={<WorkspaceGate />}>
                 <Route element={<Layout />}>
                   <Route path="device" element={<DevicePage />} />

@@ -1,0 +1,172 @@
+name: e2e-checkout
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or sha to test (blank tests the dispatched branch)
+        required: false
+        default: ""
+      purchase_url:
+        description: Sandbox storefront checkout link compiled into the build (blank uses OPERATOR_E2E_PURCHASE_URL)
+        required: false
+        default: ""
+
+# Ad hoc: proves in-app purchase end to end in Stripe sandbox mode.
+#   arm64  runs-on: docker  builds this ref's Dockerfile.local (--load, nothing pushed) with the sandbox purchase URL,
+#                           forwards the sandbox's Stripe events to the platform webhook with `stripe listen`, then runs
+#                           e2e/checkout against a throwaway server: first-time setup → Buy → storefront → Stripe test
+#                           card → license pickup → back to the server with #license_key → installed → Premium.
+# The platform webhook hosted from private network is not reachable from Stripe, so its signing secret must accept `stripe listen --print-secret`
+# for STRIPE_SANDBOX_API_KEY (STRIPE_WEBHOOK_SECRET or _PREVIOUS); see .forgejo/README.md "Sandbox checkout".
+# The platform must already serve the checkout return (operator-platform CONTRACT.md "Checkout return").
+#
+# Variables: REGISTRY_IMAGE
+# Secrets:   REGISTRY_USERNAME, REGISTRY_TOKEN,
+#            OPERATOR_LICENSE_ROOT_KEYS (dev root only), OPERATOR_LICENSE_ISSUER,
+#            OPERATOR_E2E_PURCHASE_URL (https://app.operator.untra.casa/checkout?sku=<sandbox sku>; or the input),
+#            STRIPE_SANDBOX_API_KEY (sk_test_/rk_test_ of the sandbox the casa api uses),
+#            OPERATOR_E2E_CA_CERT (optional; PEM for the casa CA, else the listener skips TLS verification)
+
+concurrency:
+  group: e2e-checkout
+  cancel-in-progress: false
+
+env:
+  PLATFORM_APP_ORIGIN: https://app.operator.untra.casa
+  PLATFORM_WEBHOOK_URL: https://webhook.operator.untra.casa/webhooks/stripe
+  STRIPE_EVENTS: checkout.session.completed,invoice.paid,invoice.payment_failed,customer.subscription.deleted
+  STRIPE_CLI_IMAGE: stripe/stripe-cli:v1.21.0
+
+jobs:
+  arm64:
+    runs-on: docker
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Secrets present
+        run: |
+          missing=0
+          for name in OPERATOR_LICENSE_ROOT_KEYS OPERATOR_LICENSE_ISSUER STRIPE_SANDBOX_API_KEY PURCHASE_URL; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "::error::$name is unset or empty"
+              missing=1
+            fi
+          done
+          case "$STRIPE_SANDBOX_API_KEY" in
+            sk_test_*|rk_test_*) ;;
+            *) echo "::error::STRIPE_SANDBOX_API_KEY must be a sandbox (sk_test_/rk_test_) key"; missing=1 ;;
+          esac
+          case "$PURCHASE_URL" in
+            "$PLATFORM_APP_ORIGIN"/checkout\?*sku=*) ;;
+            *) echo "::error::purchase URL must be $PLATFORM_APP_ORIGIN/checkout?sku=<sandbox sku>"; missing=1 ;;
+          esac
+          exit "$missing"
+        env:
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+          STRIPE_SANDBOX_API_KEY: ${{ secrets.STRIPE_SANDBOX_API_KEY }}
+          PURCHASE_URL: ${{ inputs.purchase_url || secrets.OPERATOR_E2E_PURCHASE_URL }}
+
+      - uses: https://forgejo.kube.untra.casa/actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - id: meta
+        run: |
+          echo "tag=e2e-checkout-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+          echo "listener=stripe-listen-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Registry login
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login "${REGISTRY_IMAGE%%/*}" -u "$REGISTRY_USERNAME" --password-stdin
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+      # As pr.yaml: reads main's cache, never writes it. Only the purchase URL differs from a casa build.
+      - name: Build
+        run: |
+          docker buildx build \
+            --file Dockerfile.local \
+            --build-arg BASE_REGISTRY="${REGISTRY_IMAGE%/*}/mirror/" \
+            --build-arg OPERATOR_RELEASE=1 \
+            --build-arg OPERATOR_LICENSE_ISSUER="$OPERATOR_LICENSE_ISSUER" \
+            --build-arg OPERATOR_LICENSE_ROOT_KEYS="$OPERATOR_LICENSE_ROOT_KEYS" \
+            --build-arg OPERATOR_PURCHASE_URL="$PURCHASE_URL" \
+            --cache-from "type=registry,ref=$REGISTRY_IMAGE:buildcache" \
+            --tag "operator:${{ steps.meta.outputs.tag }}" \
+            --load \
+            .
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
+          OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
+          PURCHASE_URL: ${{ inputs.purchase_url || secrets.OPERATOR_E2E_PURCHASE_URL }}
+
+      # Daemon API only (create, cp, start), so it works under dind like scripts/ci/e2e.sh.
+      - name: Start Stripe listener
+        run: |
+          image="${REGISTRY_IMAGE%/*}/mirror/$STRIPE_CLI_IMAGE"
+          secret=$(docker run --rm --env STRIPE_API_KEY "$image" listen --print-secret)
+          echo "::add-mask::$secret"
+
+          tls=(--skip-verify)
+          cert_env=()
+          if [ -n "${OPERATOR_E2E_CA_CERT:-}" ]; then
+            tls=()
+            cert_env=(--env SSL_CERT_FILE=/tmp/casa-ca.pem)
+          fi
+          docker create --name "$LISTENER" --env STRIPE_API_KEY ${cert_env[@]+"${cert_env[@]}"} "$image" \
+            listen --forward-to "$PLATFORM_WEBHOOK_URL" --events "$STRIPE_EVENTS" ${tls[@]+"${tls[@]}"} >/dev/null
+          if [ -n "${OPERATOR_E2E_CA_CERT:-}" ]; then
+            printf '%s\n' "$OPERATOR_E2E_CA_CERT" > "$RUNNER_TEMP/casa-ca.pem"
+            docker cp "$RUNNER_TEMP/casa-ca.pem" "$LISTENER:/tmp/casa-ca.pem"
+          fi
+          docker start "$LISTENER" >/dev/null
+
+          for _ in $(seq 30); do
+            if docker logs "$LISTENER" 2>&1 | grep -q 'Ready!'; then
+              echo "stripe listen forwarding $STRIPE_EVENTS to $PLATFORM_WEBHOOK_URL"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::stripe listen was not ready after 30s"
+          docker logs "$LISTENER" 2>&1 | sed "s/whsec_[A-Za-z0-9]*/whsec_***/g"
+          exit 1
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          LISTENER: ${{ steps.meta.outputs.listener }}
+          STRIPE_API_KEY: ${{ secrets.STRIPE_SANDBOX_API_KEY }}
+          OPERATOR_E2E_CA_CERT: ${{ secrets.OPERATOR_E2E_CA_CERT }}
+
+      - name: E2E checkout
+        run: |
+          export BASE_REGISTRY="${REGISTRY_IMAGE%/*}/mirror/"
+          scripts/ci/e2e.sh "operator:${{ steps.meta.outputs.tag }}" --project=checkout
+        env:
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
+          E2E_RUN_ID: ${{ github.run_id }}
+          OPERATOR_E2E_CHECKOUT: "1"
+          OPERATOR_E2E_PLATFORM_APP_ORIGIN: ${{ env.PLATFORM_APP_ORIGIN }}
+          OPERATOR_E2E_CA_CERT: ${{ secrets.OPERATOR_E2E_CA_CERT }}
+
+      # A [400] here means the casa webhook rejected the listener's signature: its secret is not this sandbox's.
+      - name: Stripe listener log
+        if: always()
+        run: |
+          echo "::group::stripe listen"
+          docker logs "$LISTENER" 2>&1 | sed "s/whsec_[A-Za-z0-9]*/whsec_***/g" || true
+          echo "::endgroup::"
+        env:
+          LISTENER: ${{ steps.meta.outputs.listener }}
+
+      - name: Clean up
+        if: always()
+        run: |
+          docker rm -f "$LISTENER" >/dev/null 2>&1 || true
+          docker rmi "operator:${{ steps.meta.outputs.tag }}" >/dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/casa-ca.pem"
+        env:
+          LISTENER: ${{ steps.meta.outputs.listener }}

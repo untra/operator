@@ -8,3 +8,9 @@ export const ISSUER_URL = process.env.OPERATOR_E2E_ISSUER_URL ?? "";
 export const LICENSE_TOKEN = process.env.OPERATOR_E2E_LICENSE_TOKEN ?? "";
 
 export const ADMIN_STATE = ".auth/admin.json";
+
+/** The sandbox checkout suite drives a real Stripe payment; it only runs when asked for. */
+export const CHECKOUT_ENABLED = process.env.OPERATOR_E2E_CHECKOUT === "1";
+/** Origin of the platform storefront the build's purchase URL points at. */
+export const PLATFORM_APP_ORIGIN =
+  process.env.OPERATOR_E2E_PLATFORM_APP_ORIGIN || "https://app.operator.untra.casa";

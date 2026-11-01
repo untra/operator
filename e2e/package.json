@@ -5,7 +5,8 @@
   "scripts": {
     "test": "playwright test",
     "test:workspace": "playwright test --project=workspace",
-    "test:license": "playwright test --project=license"
+    "test:license": "playwright test --project=license",
+    "test:checkout": "playwright test --project=checkout"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

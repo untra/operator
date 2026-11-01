@@ -4,11 +4,11 @@ import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepComponent, StepProps, StepRow } from "./types";
 import { Choice, ChoiceGroup, PremiumPaywall } from "@operator/webcomponents";
 import { LicensePanel } from "../../components/LicensePanel";
+import { onPurchaseLinkClick, useLicenseQuery, withReturnTo } from "../../license-return";
 import { useApiMutation, useApiQuery } from "../../api";
 import {
   gitProvidersQuery,
   kanbanProvidersQuery,
-  licenseQuery,
   listKanbanProjectsMutation,
   listKanbanStatusesMutation,
   providerKindsQuery,
@@ -87,7 +87,7 @@ const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
 const License: StepComponent = () => <LicensePanel />;
 
 const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
-  const licenseQueryResult = useApiQuery(licenseQuery());
+  const licenseQueryResult = useLicenseQuery();
   const [showLicense, setShowLicense] = useState(false);
   const license = licenseQueryResult.data;
 
@@ -132,12 +132,14 @@ const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
         </Choice>
       </ChoiceGroup>
       {!license?.premium && (
-        <PremiumPaywall
-          inline
-          feature="Remote targets"
-          purchaseUrl={license?.purchase_url}
-          onAddLicense={addLicense}
-        />
+        <div onClickCapture={onPurchaseLinkClick}>
+          <PremiumPaywall
+            inline
+            feature="Remote targets"
+            purchaseUrl={withReturnTo(license?.purchase_url)}
+            onAddLicense={addLicense}
+          />
+        </div>
       )}
       {showLicense && <LicensePanel />}
     </Intro>

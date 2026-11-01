@@ -22,5 +22,10 @@ export default defineConfig({
       dependencies: ["workspace"],
       use: { storageState: ADMIN_STATE },
     },
+    {
+      name: "checkout",
+      testDir: "./checkout",
+      use: { ignoreHTTPSErrors: true },
+    },
   ],
 });

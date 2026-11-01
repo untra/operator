@@ -844,7 +844,7 @@ fn test_launch_in_tmux_yolo_mode_disabled_no_flags() {
     let keys_sent = mock.get_session_keys_sent(&session_name);
     let sent_cmd = &keys_sent.unwrap()[0];
 
-    // Read the script content and verify it does NOT contain the YOLO flag
+    // Read the script content and verify doesn't contain the YOLO flag
     let script_content =
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     assert!(
@@ -1640,7 +1640,7 @@ fn test_relaunch_missing_prompt_fresh_start() {
     let keys_sent = mock.get_session_keys_sent(&session_name);
     let sent_cmd = &keys_sent.unwrap()[0];
 
-    // Read the script content and verify it does NOT have resume flag
+    // Read the script content and verify NO resume flag
     let script_content =
         read_command_file_content(sent_cmd).expect("Should be able to read command file content");
     // Should NOT have resume flag since prompt file doesn't exist

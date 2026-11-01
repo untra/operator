@@ -326,8 +326,8 @@ const FORBIDDEN_RESPONSE_NAME: &str = "Forbidden";
 const JSON_MEDIA_TYPE: &str = "application/json";
 const UNAUTHORIZED_RESPONSE_NAME: &str = "Unauthorized";
 
-fn error_content() -> Content {
-    Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME)))
+fn error_content() -> RefOr<Content> {
+    RefOr::T(Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME))))
 }
 
 fn error_response(description: &str) -> Response {
@@ -338,10 +338,10 @@ fn error_response(description: &str) -> Response {
     response
 }
 
-fn response_header(description: &str, schema_type: Type) -> Header {
+fn response_header(description: &str, schema_type: Type) -> RefOr<Header> {
     let mut header = Header::new(Object::with_type(schema_type));
     header.description = Some(description.to_string());
-    header
+    RefOr::T(header)
 }
 
 fn document_error_responses(operation: &mut Operation) {
@@ -375,6 +375,25 @@ fn document_error_responses(operation: &mut Operation) {
                     Type::Integer,
                 ),
             );
+        }
+    }
+}
+
+fn document_missing_descriptions(operation: &mut Operation) {
+    for (status, response) in &mut operation.responses.responses {
+        let RefOr::T(response) = response else {
+            continue;
+        };
+        if !response.description.is_empty() {
+            continue;
+        }
+        if let Some(reason) = status
+            .parse::<u16>()
+            .ok()
+            .and_then(|code| axum::http::StatusCode::from_u16(code).ok())
+            .and_then(|code| code.canonical_reason())
+        {
+            response.description = reason.to_string();
         }
     }
 }
@@ -449,7 +468,7 @@ fn prune_unreachable_schemas(spec: &mut utoipa::openapi::OpenApi) {
         .retain(|name, _| reachable.contains(name));
 }
 
-fn csrf_parameter() -> Parameter {
+fn csrf_parameter() -> RefOr<Parameter> {
     let mut parameter = Parameter::new(crate::rest::middleware::auth::CSRF_HEADER);
     parameter.parameter_in = ParameterIn::Header;
     parameter.required = Required::False;
@@ -458,7 +477,7 @@ fn csrf_parameter() -> Parameter {
             .to_string(),
     );
     parameter.schema = Some(Object::with_type(Type::String).into());
-    parameter
+    RefOr::T(parameter)
 }
 
 fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>) {
@@ -545,6 +564,7 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
     }
 
     document_error_responses(operation);
+    document_missing_descriptions(operation);
 
     match (method, path) {
         ("POST", "/api/v1/auth/login") => {
@@ -730,6 +750,31 @@ mod tests {
                     if status == "429" {
                         assert!(response["headers"]["Retry-After"].is_object());
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_every_response_has_a_description() {
+        let spec = parsed_spec();
+        for (path, item) in spec["paths"].as_object().expect("paths") {
+            for (method, operation) in item.as_object().expect("path item") {
+                let Some(responses) = operation
+                    .get("responses")
+                    .and_then(|value| value.as_object())
+                else {
+                    continue;
+                };
+                for (status, response) in responses {
+                    if response.get("$ref").is_some() {
+                        continue;
+                    }
+                    let description = response["description"].as_str().unwrap_or_default();
+                    assert!(
+                        !description.is_empty(),
+                        "{method} {path} {status} must have a description (required by OpenAPI)"
+                    );
                 }
             }
         }

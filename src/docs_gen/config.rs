@@ -20,6 +20,11 @@ struct ConfigSection {
 /// All configuration sections in documentation order
 const CONFIG_SECTIONS: &[ConfigSection] = &[
     ConfigSection {
+        name: "egress",
+        schema_name: "EgressConfig",
+        description: "Private model endpoint allowlist",
+    },
+    ConfigSection {
         name: "agents",
         schema_name: "AgentsConfig",
         description: "Agent lifecycle, parallelism, and health monitoring",

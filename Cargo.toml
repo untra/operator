@@ -86,6 +86,7 @@ sysinfo = "0.39"
 sha2 = "0.11"
 
 # HTTP client for API calls
+ipnet = "2"
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "blocking", "query", "charset", "http2", "system-proxy"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
@@ -105,8 +106,8 @@ tower-http = { version = "0.7", features = ["cors", "trace"] }
 http-body-util = "0.1"
 
 # OpenAPI documentation
-utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
-utoipa-swagger-ui = { version = "9", features = ["axum"] }
+utoipa = { version = "6", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "10", features = ["axum"] }
 
 # Agent Client Protocol (ACP) JSON-RPC 2.0 over stdio for editor integration
 agent-client-protocol = "2.0"
@@ -127,7 +128,7 @@ url = "2"
 # Embedded web UI (behind embed-ui feature flag)
 rust-embed = { version = "8", optional = true }
 mime_guess = { version = "2", optional = true }
-utoipa-axum = "0.2"
+utoipa-axum = "0.3"
 openidconnect = { version = "4", default-features = false, features = ["reqwest", "rustls-tls"] }
 
 [features]

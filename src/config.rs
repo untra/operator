@@ -90,6 +90,9 @@ pub struct Config {
     /// Embedded REST API server.
     #[serde(default)]
     pub rest_api: RestApiConfig,
+    /// Private destinations permitted for guarded outbound model requests.
+    #[serde(default)]
+    pub egress: EgressConfig,
     /// Git provider, identity, and worktree settings.
     #[serde(default)]
     pub git: GitConfig,
@@ -354,7 +357,29 @@ pub struct TmuxConfig {
     pub config_generated: bool,
 }
 
-/// REST API server configuration
+/// Outbound model destination exceptions.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[ts(export)]
+pub struct EgressConfig {
+    /// Private IPv4/IPv6 CIDRs allowed in published deployments; reserved and loopback addresses remain blocked.
+    #[serde(default)]
+    pub allow_private_cidrs: Vec<String>,
+}
+
+impl EgressConfig {
+    pub fn private_networks(&self) -> Result<Vec<ipnet::IpNet>> {
+        self.allow_private_cidrs
+            .iter()
+            .map(|cidr| {
+                cidr.parse().with_context(|| {
+                    format!("Invalid egress.allow_private_cidrs entry {cidr:?}: expected a CIDR")
+                })
+            })
+            .collect()
+    }
+}
+
+/// REST API server configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct RestApiConfig {
@@ -804,6 +829,8 @@ fn env_source() -> config::Environment {
         .prefix_separator("_")
         .separator("__")
         .try_parsing(true)
+        .list_separator(",")
+        .with_list_parse_key("egress.allow_private_cidrs")
 }
 
 impl Config {
@@ -901,6 +928,7 @@ impl Config {
         if let Some(path) = config_path {
             cfg.config_file = Some(std::fs::canonicalize(path)?);
         }
+        cfg.egress.private_networks()?;
         validate_targets(&cfg)?;
         cfg.kanban.validate_forge_projects()?;
         crate::git::identity::validate_config(&cfg)?;
@@ -910,6 +938,7 @@ impl Config {
 
     /// Save config to `paths.state`/config.toml.
     pub fn save(&self) -> Result<()> {
+        self.egress.private_networks()?;
         validate_targets(self)?;
         self.kanban.validate_forge_projects()?;
         crate::git::identity::validate_config(self)?;
@@ -1074,6 +1103,7 @@ impl Default for Config {
             sessions: SessionsConfig::default(),
             llm_tools: LlmToolsConfig::default(),
             rest_api: RestApiConfig::default(),
+            egress: EgressConfig::default(),
             git: GitConfig::default(),
             kanban: KanbanConfig::default(),
             version_check: VersionCheckConfig::default(),
@@ -1179,6 +1209,36 @@ mod tests {
             .unwrap()
             .try_deserialize()
             .unwrap()
+    }
+
+    #[test]
+    fn test_env_private_cidrs_parse_as_list_without_splitting_other_strings() {
+        let cfg = config_from_env(&[
+            (
+                "OPERATOR_EGRESS__ALLOW_PRIVATE_CIDRS",
+                "192.168.1.50/32,fd12::50/128",
+            ),
+            ("OPERATOR_REST_API__PUBLIC_URL", "https://example.com/a,b"),
+        ]);
+        assert_eq!(
+            cfg.egress.allow_private_cidrs,
+            ["192.168.1.50/32", "fd12::50/128"]
+        );
+        assert_eq!(
+            cfg.rest_api.public_url.as_deref(),
+            Some("https://example.com/a,b")
+        );
+    }
+
+    #[test]
+    fn test_invalid_private_cidr_rejected_before_save() {
+        let mut cfg = Config::default();
+        cfg.egress.allow_private_cidrs = vec!["bad-cidr".into()];
+        assert!(cfg
+            .save()
+            .unwrap_err()
+            .to_string()
+            .contains("egress.allow_private_cidrs"));
     }
 
     #[test]

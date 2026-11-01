@@ -56,7 +56,7 @@ When started for the first time, Operator will setup configuration to consume an
 
 Operator comes with a separate web component, unneeded to do work but purpose built to give you a developer portal to expand their workflows and administrate Operator with ease.
 
-Operator starts and runs it's own REST API, which can be reached by outside clients, including by the `opr8r` wrapper client. This is included to communicate with Operator api hosts outside of where it's hosted.
+Operator starts and runs its own REST API, which outside clients such as the VS Code extension can reach, locally or against a remote server. The `opr8r` binary is the step wrapper that runs beside each agent CLI on the execution host: it reports step completion back to that API and chains the next workflow step. It is not a remote worker client.
 
 ## Usage
 
@@ -304,6 +304,22 @@ operator launch --delegator codex-local-qwen
 operator launch --llm-tool codex --model qwen2.5-coder --model-server ollama-local
 ```
 
-**Protocol compatibility.** Codex speaks the OpenAI API - pairing with ollama requires no bridge. Claude and Gemini use their own vendor protocols and require a translating proxy (e.g. `claude-code-router`, `litellm-proxy`) between the CLI and ollama; declare the bridge URL as your `model_server.base_url`.
+A model server can live on another machine. For example, a Windows gaming PC running [LM Studio](https://operator.untra.io/getting-started/model-servers/lmstudio/) can serve both codex and claude delegators over your LAN, with nothing from Operator installed on it:
 
-Current release ships the infrastructure - ollama detection and automatic env-var injection on spawn land in the next release. See `docs/getting-started/model-servers/` for the full walkthrough.
+```toml
+[[model_servers]]
+name = "gaming-pc"
+kind = "lmstudio"
+base_url = "http://192.168.1.50:1234"
+api_key_env = "LM_STUDIO_API_TOKEN"
+
+[[delegators]]
+name = "gaming-codex"
+llm_tool = "codex"
+model = "MODEL_ID"
+model_server = "gaming-pc"
+```
+
+**Protocol compatibility.** Codex speaks the OpenAI API, so pairing with ollama or LM Studio needs no bridge. Claude speaks the Anthropic protocol: LM Studio serves Anthropic's `/v1/messages`, so claude works with it directly; other servers need a translating proxy (e.g. `claude-code-router`, `litellm-proxy`). Gemini needs a proxy too; declare the bridge URL as your `model_server.base_url`.
+
+On spawn, Operator exports the server's connection settings (base URL, plus API key by reference) into the agent's environment. OpenAI-protocol base URLs get `/v1` appended for the agent, so `base_url` can be the host root. Automatic ollama detection during setup is still deferred. See `docs/getting-started/model-servers/` for the full walkthrough.

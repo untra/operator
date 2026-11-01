@@ -4,8 +4,11 @@
 //! read-only MCP tools. Includes a descriptor endpoint for client discovery,
 //! tool definitions, and an SSE transport for JSON-RPC communication.
 
+pub mod args;
 pub mod campaigns;
+pub mod catalog;
 pub mod client_configs;
+pub mod control;
 pub mod descriptor;
 pub mod handler;
 pub mod resources;
@@ -19,11 +22,6 @@ use axum::http::request::Parts;
 
 /// Host (`host:port`) extracted from the request, for building the absolute
 /// MCP URLs advertised to clients.
-///
-/// Replaces the deprecated `axum_extra::extract::Host` extractor (axum
-/// [#3442](https://github.com/tokio-rs/axum/issues/3442)). Reads only the
-/// standard `Host` header, falling back to the URI authority for HTTP/2; it
-/// deliberately does *not* trust `X-Forwarded-Host`.
 pub struct Host(pub String);
 
 impl<S: Send + Sync> FromRequestParts<S> for Host {

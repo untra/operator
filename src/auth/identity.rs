@@ -318,11 +318,13 @@ impl AuthStore {
         actor: &str,
         request: &CreateOidcConnection,
     ) -> Result<String> {
+        let issuer = request.issuer.trim();
+        super::oidc::validate_url(issuer)?;
         let id = Uuid::new_v4().to_string();
         self.with_conn(|conn| {
             let tx = conn.transaction()?;
             let provider = match request.provider { OidcProvider::Keycloak => "keycloak", OidcProvider::Authentik => "authentik" };
-            tx.execute("INSERT INTO oidc_connection (id, provider, issuer, client_id, client_secret_file, redirect_uri, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![id, provider, request.issuer, request.client_id, request.client_secret_file, request.redirect_uri, Utc::now().timestamp()])?;
+            tx.execute("INSERT INTO oidc_connection (id, provider, issuer, client_id, client_secret_file, redirect_uri, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![id, provider, issuer, request.client_id, request.client_secret_file, request.redirect_uri, Utc::now().timestamp()])?;
             record_audit(&tx, actor, AuditAction::OidcConnectionCreated, &id)?;
             tx.commit()?;
             Ok(())
@@ -764,6 +766,42 @@ pub(crate) mod tests {
                 grants,
             },
         )
+    }
+
+    fn connection_request(issuer: &str) -> CreateOidcConnection {
+        CreateOidcConnection {
+            provider: OidcProvider::Keycloak,
+            issuer: issuer.into(),
+            client_id: "operator".into(),
+            redirect_uri: "https://operator.example/api/v1/auth/oidc/callback".into(),
+            client_secret_file: None,
+        }
+    }
+
+    #[test]
+    fn test_add_oidc_connection_trims_issuer() {
+        let store = AuthStore::in_memory().unwrap();
+        store
+            .add_oidc_connection(
+                "admin",
+                &connection_request(" https://identity.example/realm \n"),
+            )
+            .unwrap();
+        assert_eq!(
+            store.oidc_connections().unwrap()[0].issuer,
+            "https://identity.example/realm"
+        );
+    }
+
+    #[test]
+    fn test_add_oidc_connection_rejects_non_https_issuer() {
+        let store = AuthStore::in_memory().unwrap();
+        for issuer in ["http://identity.example/realm", "not a url", " "] {
+            assert!(store
+                .add_oidc_connection("admin", &connection_request(issuer))
+                .is_err());
+        }
+        assert!(store.oidc_connections().unwrap().is_empty());
     }
 
     #[test]

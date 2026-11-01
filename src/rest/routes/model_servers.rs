@@ -266,7 +266,8 @@ pub async fn models(
 
     let outcome = probe_models(
         &server,
-        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+        &crate::auth::egress::EgressPolicy::from_config(&state.config())
+            .map_err(|e| ApiError::InternalError(e.to_string()))?,
     )
     .await;
     Ok(Json(ModelServerModelsResponse {
@@ -361,7 +362,8 @@ pub async fn kind_models(
 
     let outcome = probe_models(
         &server,
-        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+        &crate::auth::egress::EgressPolicy::from_config(&state.config())
+            .map_err(|e| ApiError::InternalError(e.to_string()))?,
     )
     .await;
     Ok(Json(ModelServerModelsResponse {

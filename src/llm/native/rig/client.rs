@@ -8,6 +8,7 @@ use rig_core::completion::{CompletionError, CompletionModel, CompletionResponse,
 use rig_core::message::ToolChoice;
 use rig_core::providers::{anthropic, gemini, ollama, openai, openrouter, xai};
 
+use crate::api::providers::model_server::{openai_root, openai_v1_base};
 use crate::api::providers::model_server::{resolve_api_key, ModelServerKind};
 use crate::auth::egress::{self, EgressPolicy};
 use crate::config::ModelServer;
@@ -152,7 +153,7 @@ pub(super) fn build(
         ModelServerKind::Ollama => JudgeModel::Ollama(
             ollama::Client::builder()
                 .api_key(key)
-                .base_url(&base)
+                .base_url(openai_root(&base))
                 .http_client(http)
                 .build()
                 .map_err(built)?
@@ -168,16 +169,6 @@ pub(super) fn build(
                 .completion_model(model),
         ),
     })
-}
-
-/// Operator stores OpenAI-protocol bases at the host root (the probe appends
-/// `/v1/models`); Rig's OpenAI client expects the `/v1` prefix in the base.
-fn openai_v1_base(base: &str) -> String {
-    if base.ends_with("/v1") {
-        base.to_string()
-    } else {
-        format!("{base}/v1")
-    }
 }
 
 #[cfg(test)]

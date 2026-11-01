@@ -37,6 +37,7 @@ See [Telemetry](/telemetry/) for configuration and ingest access.
 | `cost_usd` | double | public | Cost usd. | `telemetry/model/third_party/claude_code.yaml` |
 | `duration_ms` | int | public | Duration ms. | `telemetry/model/third_party/claude_code.yaml` |
 | `error` | string | content | Error. | `telemetry/model/third_party/claude_code.yaml` |
+| `error.type` | string | public | Telemetry SDK failure category. | `telemetry/model/attributes/resource.yaml` |
 | `gen_ai.conversation.id` | string | internal | Gen ai conversation id. | `telemetry/model/third_party/gen_ai.yaml` |
 | `gen_ai.input.messages` | any | content | Gen ai input messages. | `telemetry/model/third_party/gen_ai.yaml` |
 | `gen_ai.operation.name` | string | public | Gen ai operation name. | `telemetry/model/third_party/gen_ai.yaml` |
@@ -93,6 +94,8 @@ See [Telemetry](/telemetry/) for configuration and ingest access.
 | `operator.telemetry.signal` | string | public | Operator telemetry signal. | `telemetry/model/attributes/operator.yaml` |
 | `operator.ticket.id` | string | internal | Operator ticket id. | `telemetry/model/attributes/operator.yaml` |
 | `organization.id` | string | internal | Organization id. | `telemetry/model/third_party/claude_code.yaml` |
+| `otel.component.name` | string | internal | Telemetry SDK component instance. | `telemetry/model/attributes/resource.yaml` |
+| `otel.component.type` | string | public | Telemetry SDK component type. | `telemetry/model/attributes/resource.yaml` |
 | `output_tokens` | int | public | Output tokens. | `telemetry/model/third_party/claude_code.yaml` |
 | `process.executable.path` | string | personal | Process executable path. | `telemetry/model/attributes/resource.yaml` |
 | `process.owner` | string | personal | Process owner. | `telemetry/model/attributes/resource.yaml` |
@@ -218,6 +221,14 @@ Source: `telemetry/model/events/auth.yaml`.
 
 Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
 
+### `operator.auth.access_key_rotated`
+
+Operator auth access key rotated.
+
+Source: `telemetry/model/events/auth.yaml`.
+
+Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
+
 ### `operator.auth.admin_created`
 
 Operator auth admin created.
@@ -266,6 +277,30 @@ Source: `telemetry/model/events/auth.yaml`.
 
 Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
 
+### `operator.auth.oidc_connection_created`
+
+Operator auth oidc connection created.
+
+Source: `telemetry/model/events/auth.yaml`.
+
+Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
+
+### `operator.auth.oidc_connection_disabled`
+
+Operator auth oidc connection disabled.
+
+Source: `telemetry/model/events/auth.yaml`.
+
+Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
+
+### `operator.auth.oidc_login`
+
+Operator auth oidc login.
+
+Source: `telemetry/model/events/auth.yaml`.
+
+Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
+
 ### `operator.auth.password_reset`
 
 Operator auth password reset.
@@ -285,6 +320,14 @@ Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
 ### `operator.auth.session_revoked`
 
 Operator auth session revoked.
+
+Source: `telemetry/model/events/auth.yaml`.
+
+Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
+
+### `operator.auth.user_permissions_changed`
+
+Operator auth user permissions changed.
 
 Source: `telemetry/model/events/auth.yaml`.
 
@@ -425,6 +468,56 @@ Source: `telemetry/model/metrics/operator.yaml`.
 Instrument: `gauge`. Unit: `{agent}`.
 
 Attributes: `operator.profile.id`.
+
+### `operator.auth.authentication.denied`
+
+Failed credential authentication attempts.
+
+Source: `telemetry/model/metrics/operator.yaml`.
+
+Instrument: `counter`. Unit: `{attempt}`.
+
+Attributes: .
+
+### `operator.auth.authorization.denied`
+
+Denied authenticated operations.
+
+Source: `telemetry/model/metrics/operator.yaml`.
+
+Instrument: `counter`. Unit: `{attempt}`.
+
+Attributes: .
+
+### `operator.auth.rate_limited`
+
+Requests rejected by credential rate limits.
+
+Source: `telemetry/model/metrics/operator.yaml`.
+
+Instrument: `counter`. Unit: `{request}`.
+
+Attributes: .
+
+### `operator.auth.usage.dropped`
+
+Credential usage observations lost to capacity or lock failure.
+
+Source: `telemetry/model/metrics/operator.yaml`.
+
+Instrument: `counter`. Unit: `{observation}`.
+
+Attributes: .
+
+### `operator.auth.usage.flush_failed`
+
+Failed credential usage database flushes.
+
+Source: `telemetry/model/metrics/operator.yaml`.
+
+Instrument: `counter`. Unit: `{flush}`.
+
+Attributes: .
 
 ### `operator.queue.depth`
 

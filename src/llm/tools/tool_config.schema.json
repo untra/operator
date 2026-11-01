@@ -175,7 +175,7 @@
       "examples": [
         "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
         "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
-        "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+        "codex exec {{config_flags}}{{model_flag}} \"$(cat {{prompt_file}})\""
       ]
     },
     "permission_modes": {

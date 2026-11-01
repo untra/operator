@@ -66,7 +66,7 @@ jobs:
             artifact: operator-linux-x64
           - os: ubuntu-24.04-arm
             artifact: operator-linux-arm64
-          - os: macos-14
+          - os: macos-15
             artifact: operator-macos-arm64
           - os: windows-latest
             artifact: operator-windows-x64
@@ -108,7 +108,7 @@ jobs:
             artifact: opr8r-linux-x64
           - os: ubuntu-24.04-arm
             artifact: opr8r-linux-arm64
-          - os: macos-14
+          - os: macos-15
             artifact: opr8r-macos-arm64
           - os: windows-latest
             artifact: opr8r-windows-x64
@@ -159,7 +159,7 @@ jobs:
           - os: ubuntu-24.04-arm
             operator_artifact: operator-linux-arm64
             opr8r_artifact: opr8r-linux-arm64
-          - os: macos-14
+          - os: macos-15
             operator_artifact: operator-macos-arm64
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
@@ -291,7 +291,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             operator_artifact: operator-macos-arm64
             opr8r_artifact: opr8r-macos-arm64
     runs-on: ${{ matrix.os }}
@@ -343,7 +343,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-          - os: macos-14
+          - os: macos-15
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -377,7 +377,7 @@ jobs:
         include:
           - os: ubuntu-latest
           - os: ubuntu-24.04-arm
-          - os: macos-14
+          - os: macos-15
           - os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -415,7 +415,7 @@ jobs:
             opr8r_artifact: opr8r-linux-x64
           - os: ubuntu-24.04-arm
             opr8r_artifact: opr8r-linux-arm64
-          - os: macos-14
+          - os: macos-15
             opr8r_artifact: opr8r-macos-arm64
           - os: windows-latest
             opr8r_artifact: opr8r-windows-x64
@@ -464,7 +464,7 @@ jobs:
         include:
           - os: ubuntu-latest
             opr8r_artifact: opr8r-linux-x64
-          - os: macos-14
+          - os: macos-15
             opr8r_artifact: opr8r-macos-arm64
           - os: windows-latest
             opr8r_artifact: opr8r-windows-x64

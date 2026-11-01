@@ -154,6 +154,13 @@
         "shutdown_cleanup_seconds": 15
       }
     },
+    "egress": {
+      "description": "Private destinations permitted for guarded outbound model requests.",
+      "$ref": "#/$defs/EgressConfig",
+      "default": {
+        "allow_private_cidrs": []
+      }
+    },
     "git": {
       "description": "Git provider, identity, and worktree settings.",
       "$ref": "#/$defs/GitConfig",
@@ -1530,7 +1537,7 @@
       }
     },
     "RestApiConfig": {
-      "description": "REST API server configuration",
+      "description": "REST API server configuration.",
       "type": "object",
       "properties": {
         "enabled": {
@@ -1580,6 +1587,20 @@
           "format": "uint32",
           "minimum": 0,
           "default": 15
+        }
+      }
+    },
+    "EgressConfig": {
+      "description": "Outbound model destination exceptions.",
+      "type": "object",
+      "properties": {
+        "allow_private_cidrs": {
+          "description": "Private IPv4/IPv6 CIDRs allowed in published deployments; reserved and loopback addresses remain blocked.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         }
       }
     },

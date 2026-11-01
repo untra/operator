@@ -3,15 +3,13 @@
 use crate::rest::state::RequestState as State;
 use axum::extract::Path;
 use axum::Json;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use serde_json::{json, Value};
 
+use super::args::{parse, reply, required_str};
 use super::tools::McpToolDefinition;
 use crate::campaigns::batch::BatchRequest;
 use crate::campaigns::service::NewCampaignInput;
 use crate::rest::dto::{AssignCampaignRequest, LaunchCampaignRequest};
-use crate::rest::error::ApiError;
 use crate::rest::routes::campaigns as routes;
 use crate::rest::state::ApiState;
 
@@ -76,27 +74,8 @@ pub fn definitions() -> Vec<McpToolDefinition> {
     ]
 }
 
-fn mcp_error(error: ApiError) -> String {
-    let (_, code, message) = error.parts();
-    format!("{code}: {message}")
-}
-
-fn parse<T: DeserializeOwned>(args: &Value) -> Result<T, String> {
-    serde_json::from_value(args.clone()).map_err(|e| format!("invalid arguments: {e}"))
-}
-
 fn id(args: &Value) -> Result<String, String> {
-    args.get("id")
-        .and_then(Value::as_str)
-        .map(String::from)
-        .ok_or_else(|| "Missing required parameter: id".to_string())
-}
-
-fn reply<T: Serialize>(result: Result<Json<T>, ApiError>) -> Result<Value, String> {
-    match result {
-        Ok(Json(body)) => serde_json::to_value(body).map_err(|e| e.to_string()),
-        Err(e) => Err(mcp_error(e)),
-    }
+    required_str(args, "id").map(String::from)
 }
 
 pub async fn preview(args: Value, state: &ApiState) -> Result<Value, String> {

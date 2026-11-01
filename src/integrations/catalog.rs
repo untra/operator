@@ -326,7 +326,15 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             false,
             Proto,
         ),
-        entry(Model, "lmstudio", "LM Studio", None, None, false, Proto),
+        entry(
+            Model,
+            "lmstudio",
+            "LM Studio",
+            Some("getting-started/model-servers/lmstudio"),
+            Some("lmstudio"),
+            false,
+            Proto,
+        ),
         // --- Git providers (mirror GitProvider::ALL) ---
         entry(
             Git,

@@ -5,6 +5,7 @@
 
 use serde_json::{json, Value};
 
+use super::args::required_str;
 use crate::queue::{Queue, Ticket, TicketColumn};
 use crate::rest::state::ApiState;
 use crate::services::ticket_transitions;
@@ -76,10 +77,7 @@ async fn find_ticket(state: &ApiState, id: &str, in_status: &str) -> Result<Tick
 }
 
 pub async fn claim_ticket(args: Value, state: &ApiState) -> Result<Value, String> {
-    let id = args
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing required arg: id")?;
+    let id = required_str(&args, "id")?;
     let ticket = find_ticket(state, id, "queue").await?;
     let id_str = id.to_string();
     ticket_transitions::move_ticket(state, &ticket, TicketColumn::InProgress).await?;
@@ -87,10 +85,7 @@ pub async fn claim_ticket(args: Value, state: &ApiState) -> Result<Value, String
 }
 
 pub async fn complete_ticket(args: Value, state: &ApiState) -> Result<Value, String> {
-    let id = args
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing required arg: id")?;
+    let id = required_str(&args, "id")?;
     let ticket = find_ticket(state, id, "in-progress").await?;
     let id_str = id.to_string();
     ticket_transitions::move_ticket(state, &ticket, TicketColumn::Completed).await?;
@@ -98,10 +93,7 @@ pub async fn complete_ticket(args: Value, state: &ApiState) -> Result<Value, Str
 }
 
 pub async fn return_to_queue(args: Value, state: &ApiState) -> Result<Value, String> {
-    let id = args
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing required arg: id")?;
+    let id = required_str(&args, "id")?;
     let ticket = find_ticket(state, id, "in-progress").await?;
     let id_str = id.to_string();
     ticket_transitions::move_ticket(state, &ticket, TicketColumn::Queue).await?;

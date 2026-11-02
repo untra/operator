@@ -273,6 +273,7 @@ pub async fn models(
     Ok(Json(ModelServerModelsResponse {
         server: name,
         reachable: outcome.reachable,
+        status: outcome.status,
         models: outcome
             .models
             .into_iter()
@@ -369,6 +370,7 @@ pub async fn kind_models(
     Ok(Json(ModelServerModelsResponse {
         server: kind.slug().to_string(),
         reachable: outcome.reachable,
+        status: outcome.status,
         models: outcome
             .models
             .into_iter()

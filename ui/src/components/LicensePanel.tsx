@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import type { LicenseResponse } from "../api-client";
-import { useApiMutation, useApiQuery } from "../api";
-import { installLicenseMutation, licenseQuery, removeLicenseMutation } from "../api/definitions";
+import { useApiMutation } from "../api";
+import { installLicenseMutation, removeLicenseMutation } from "../api/definitions";
+import { markCheckoutStarted, useLicenseQuery, withReturnTo } from "../license-return";
 import styles from "./LicensePanel.module.css";
 
 const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
@@ -14,11 +15,11 @@ const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
 /// Licence timestamps are i64 seconds, which cross the wire as bigint.
 const date = (seconds: bigint) => new Date(Number(seconds) * 1000).toLocaleString();
 
-export function LicensePanel() {
-  const query = useApiQuery(licenseQuery());
+export function LicensePanel({ initialKey = "" }: { initialKey?: string } = {}) {
+  const query = useLicenseQuery();
   const install = useApiMutation(installLicenseMutation);
   const remove = useApiMutation(removeLicenseMutation);
-  const [key, setKey] = useState("");
+  const [key, setKey] = useState(initialKey);
   const [error, setError] = useState<string | null>(null);
   const license = query.data;
   const busy = install.isPending || remove.isPending;
@@ -55,6 +56,11 @@ export function LicensePanel() {
   );
 
   const displayError = error ?? query.error?.message ?? null;
+  const purchaseUrl =
+    license?.purchase_url && /^https:\/\//i.test(license.purchase_url)
+      ? withReturnTo(license.purchase_url)
+      : null;
+  const awaiting = query.checkout === "awaiting" && !license?.premium;
 
   return (
     <section className={styles.panel} aria-label="Operator license">
@@ -64,6 +70,15 @@ export function LicensePanel() {
         <p role="alert" className={styles.error}>
           {displayError}
         </p>
+      )}
+      {awaiting && (
+        <output>
+          Finish checkout in the new tab. This page updates automatically once your license is
+          applied.
+        </output>
+      )}
+      {query.checkout === "activated" && license?.premium && (
+        <output>Operator Premium is active. Thanks for your purchase!</output>
       )}
       {license ? (
         <>
@@ -91,11 +106,10 @@ export function LicensePanel() {
               </>
             )}
           </dl>
-          {license.purchase_url &&
-            /^https:\/\//i.test(license.purchase_url) &&
+          {purchaseUrl &&
             (license.premium ? (
               <p>
-                <a href={license.purchase_url} target="_blank" rel="noopener noreferrer">
+                <a href={purchaseUrl} target="_blank" rel="noopener noreferrer">
                   View Operator Premium
                 </a>
               </p>
@@ -103,13 +117,17 @@ export function LicensePanel() {
               <div className={styles.purchase}>
                 <a
                   className={styles.buy}
-                  href={license.purchase_url}
+                  href={purchaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={markCheckoutStarted}
                 >
                   Buy Operator Premium
                 </a>
-                <p>After checkout, copy your license key and paste it below.</p>
+                <p>
+                  After checkout you are returned here and the license is applied for you. You can
+                  also paste a license key below.
+                </p>
               </div>
             ))}
         </>

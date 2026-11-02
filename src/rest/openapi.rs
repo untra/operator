@@ -122,6 +122,7 @@ use crate::rest::error::ErrorResponse;
             ModelServerKindEntry,
             ModelEntry,
             ModelServerModelsResponse,
+            crate::api::providers::model_server::ProbeStatus,
             // LLM tools types
             SetDefaultLlmRequest,
             DefaultLlmResponse,

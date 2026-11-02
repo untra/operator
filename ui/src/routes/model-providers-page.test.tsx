@@ -96,6 +96,7 @@ describe("ModelProvidersPage", () => {
           json({
             server: "openai",
             reachable: true,
+            status: "connected",
             models: [{ id: "gpt-test", display_name: "GPT Test" }],
             error: null,
           }),

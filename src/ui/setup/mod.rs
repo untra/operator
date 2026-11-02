@@ -816,11 +816,10 @@ impl SetupScreen {
             let outcome = crate::api::providers::model_server::probe_models(&server, &policy).await;
             let status = if outcome.reachable {
                 format!("{} models", outcome.models.len())
-            } else if kind
-                .default_api_key_env()
-                .is_some_and(|e| std::env::var(e).is_err())
+            } else if outcome.status == crate::api::providers::model_server::ProbeStatus::MissingKey
             {
-                "key missing".to_string()
+                kind.default_api_key_env()
+                    .map_or_else(|| "key missing".to_string(), |e| format!("set {e}"))
             } else {
                 outcome
                     .error

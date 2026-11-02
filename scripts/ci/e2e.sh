@@ -6,7 +6,9 @@
 # Usage: scripts/ci/e2e.sh <operator-image> [playwright args...]
 # Env:   BASE_REGISTRY (mirror prefix for the Playwright image), E2E_ARTIFACTS (copy the HTML report here),
 #        OPERATOR_E2E_ISSUER_URL, OPERATOR_E2E_LICENSE_TOKEN (license suite; skipped when unset),
-#        OPERATOR_E2E_CA_CERT (PEM trusted for the issuer, e.g. the casa internal CA)
+#        OPERATOR_E2E_CA_CERT (PEM trusted for the issuer, e.g. the casa internal CA),
+#        OPERATOR_E2E_CHECKOUT=1 + OPERATOR_E2E_PLATFORM_APP_ORIGIN (sandbox checkout suite; run it
+#        alone with --project=checkout, it needs a fresh server)
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -56,6 +58,8 @@ docker create --name "$RUNNER" \
   --env OPERATOR_E2E_BOOTSTRAP_PASSWORD="$(cat "$SCRATCH/bootstrap")" \
   --env OPERATOR_E2E_ISSUER_URL="${OPERATOR_E2E_ISSUER_URL:-}" \
   --env OPERATOR_E2E_LICENSE_TOKEN="${OPERATOR_E2E_LICENSE_TOKEN:-}" \
+  --env OPERATOR_E2E_CHECKOUT="${OPERATOR_E2E_CHECKOUT:-}" \
+  --env OPERATOR_E2E_PLATFORM_APP_ORIGIN="${OPERATOR_E2E_PLATFORM_APP_ORIGIN:-}" \
   ${ca_env[@]+"${ca_env[@]}"} \
   "$RUNNER_IMAGE" "$@" >/dev/null
 if [ -f "$SCRATCH/ca.pem" ]; then

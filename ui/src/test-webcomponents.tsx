@@ -218,3 +218,4 @@ export function sessionTargets(agent: {
 }
 
 export { PermissionSelector } from "../../webcomponents/src/components/PermissionSelector";
+export { ModelProviderCard } from "../../webcomponents/src/components/ModelProviderChoices";

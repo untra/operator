@@ -47,9 +47,7 @@ function IdentityAdministration({ available }: { available: PermissionGrant }) {
   return (
     <section>
       <h2>Operator identities</h2>
-      <p>
-        OIDC connections. New users await approval and start without permissions.
-      </p>
+      <p>OIDC connections. New users await approval and start without permissions.</p>
       {error && <p role="alert">{error.message}</p>}
       <button
         type="button"

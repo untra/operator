@@ -95,6 +95,102 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+function modelEntry(slug: string, label: string) {
+  return {
+    vertical: "model",
+    vertical_label: "Model Provider",
+    slug,
+    label,
+    docs_url: null,
+    readme_badge: false,
+    status: "ga" as const,
+    premium: false,
+    session_wrappers: null,
+    support: null,
+  };
+}
+
+const MODEL_ENTRIES = [
+  modelEntry("anthropic-api", "Anthropic"),
+  modelEntry("ollama", "Ollama"),
+  modelEntry("openai-api", "OpenAI"),
+];
+
+function modelKind(slug: string, env: string | null, baseUrl: string) {
+  return {
+    slug,
+    display_name: slug,
+    description: "",
+    setup_url: "",
+    icon: "model",
+    is_builtin: env !== null,
+    category: "first_party",
+    category_label: "First party",
+    brand_icon: null,
+    default_base_url: baseUrl,
+    default_api_key_env: env,
+    connectable: true,
+  };
+}
+
+function probeBody(server: string, status: string, error: string | null) {
+  return { server, reachable: status === "connected", status, models: [], error };
+}
+
+describe("onboarding model-server step", () => {
+  test("renders probe states without echoing provider error bodies", async () => {
+    mockFetch((input) => {
+      const path = requestPath(input);
+      if (path.endsWith("/model-servers/kinds")) {
+        return Promise.resolve(
+          json([
+            modelKind("anthropic-api", "ANTHROPIC_API_KEY", "https://api.anthropic.com"),
+            modelKind("ollama", null, "http://localhost:11434"),
+            modelKind("openai-api", "OPENAI_API_KEY", "https://api.openai.com"),
+          ]),
+        );
+      }
+      if (path.endsWith("/kinds/anthropic-api/models")) {
+        return Promise.resolve(
+          json(probeBody("anthropic-api", "missing_key", "ANTHROPIC_API_KEY is not set")),
+        );
+      }
+      if (path.endsWith("/kinds/ollama/models")) {
+        return Promise.resolve(
+          json(probeBody("ollama", "unreachable", "request failed: connection refused")),
+        );
+      }
+      if (path.endsWith("/kinds/openai-api/models")) {
+        return Promise.resolve(
+          json(probeBody("openai-api", "unauthorized", "server returned 401: raw body")),
+        );
+      }
+      return Promise.resolve(json({ message: `Unexpected request: ${path}` }, 500));
+    });
+    const ModelServer = STEP_COMPONENTS["model-server"];
+    render(
+      <ApiProvider>
+        <HostContext.Provider value={TEST_HOST}>
+          <ModelServer
+            status={SETUP_STATUS}
+            integrations={MODEL_ENTRIES}
+            collections={EMPTY_VALUES}
+            creating={false}
+            draft={DRAFT}
+            setDraft={ignoreDraftUpdate}
+            exports={recordedExports}
+            addExport={recordExport}
+          />
+        </HostContext.Provider>
+      </ApiProvider>,
+    );
+    expect(await screen.findByText("set ANTHROPIC_API_KEY")).toBeTruthy();
+    expect(await screen.findByText("not running")).toBeTruthy();
+    expect(await screen.findByText("API key rejected")).toBeTruthy();
+    expect(screen.queryByText(/server returned/)).toBeNull();
+  });
+});
+
 describe("onboarding integration steps", () => {
   test("keeps chained mutations separate when the final write fails", async () => {
     const requests: string[] = [];

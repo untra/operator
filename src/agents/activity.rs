@@ -612,7 +612,7 @@ mod tests {
         // Prime the hash
         let _ = detector.has_resumed("session-1");
 
-        // Clear removes workspace ref → subsequent calls fail with SessionNotFound
+        // Clear removes workspace ref -> subsequent calls fail with SessionNotFound
         detector.clear("session-1").unwrap();
         assert!(detector.is_idle("session-1").is_err());
     }
@@ -684,7 +684,7 @@ mod tests {
         // Prime the hash
         let _ = detector.has_resumed("session-1");
 
-        // Clear removes tab name → subsequent calls fail with SessionNotFound
+        // Clear removes tab name, subsequent calls fail
         detector.clear("session-1").unwrap();
         assert!(detector.get_tab_name("session-1").is_none());
     }

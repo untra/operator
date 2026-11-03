@@ -43,7 +43,7 @@ impl KanbanBidirectionalSync {
                 .any(|w| w.projects.values().any(|p| p.bidirectional))
     }
 
-    /// Called when a ticket is claimed (todo → doing). Pushes "doing" status to provider.
+    /// Called when a ticket is claimed (todo -> doing). Pushes "doing" status to provider.
     pub async fn on_ticket_claimed(&self, ticket: &Ticket) {
         if let Some((provider, sync_cfg)) = self.resolve(ticket) {
             let status = doing_status(&sync_cfg).to_string();
@@ -51,7 +51,7 @@ impl KanbanBidirectionalSync {
         }
     }
 
-    /// Called when a ticket is completed (doing → done). Pushes "done" status to provider.
+    /// Called when a ticket is completed (doing -> done). Pushes "done" status to provider.
     pub async fn on_ticket_completed(&self, ticket: &Ticket) {
         if let Some((provider, sync_cfg)) = self.resolve(ticket) {
             let status = done_status(&sync_cfg).to_string();
@@ -59,7 +59,7 @@ impl KanbanBidirectionalSync {
         }
     }
 
-    /// Called when a ticket is returned to the queue (doing → todo). Pushes the
+    /// Called when a ticket is returned to the queue (doing -> todo). Pushes the
     /// mapped "todo" status to the provider - no-op unless `status_mapping.todo`
     /// is explicitly configured (there is no safe universal default column).
     pub async fn on_ticket_requeued(&self, ticket: &Ticket) {

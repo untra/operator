@@ -42,8 +42,6 @@ pub fn embedded_ui_state() -> EmbeddedUiState {
 }
 
 /// Axum fallback handler that serves embedded SPA assets.
-///
-/// Priority: exact file match → index.html (SPA client-side routing).
 pub async fn spa_handler(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
 

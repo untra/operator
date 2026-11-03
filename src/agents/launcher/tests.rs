@@ -1389,8 +1389,7 @@ fn test_relaunch_remote_resume_reuses_session_and_adds_resume_flag() {
     let session_name = result.unwrap();
     let keys_sent = mock.get_session_keys_sent(&session_name).unwrap();
 
-    // The pane runs the regenerated remote wrapper (same uuid → same remote
-    // session name → tmux new -A reattaches a surviving remote session).
+    // The pane runs the regenerated remote wrapper
     assert_eq!(keys_sent.len(), 1, "got: {keys_sent:?}");
     let sent_cmd = keys_sent[0].trim_end_matches(" [Enter]");
     assert!(

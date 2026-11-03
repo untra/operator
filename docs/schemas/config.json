@@ -2282,7 +2282,7 @@
           "default": null
         },
         "model_server": {
-          "description": "Name of a declared `ModelServer` (from `Config.model_servers`).\n`None` means use the `llm_tool`'s implicit vendor default\n(claude → anthropic-api, codex → openai-api, gemini → google-api).",
+          "description": "Name of a declared `ModelServer` (from `Config.model_servers`).\n`None` means use the `llm_tool`'s implicit vendor default\n(claude : anthropic-api, codex : openai-api, gemini → google-api).",
           "type": [
             "string",
             "null"
@@ -2314,7 +2314,7 @@
           "description": "Opaque OpenAI-namespaced extension fields, preserved verbatim across an\n`AgentProfile` round-trip (e.g. `instructions`, `tools`, `tool_resources`,\n`metadata`, thread refs). Mirror of [`Self::x_agnt`]; never interpreted."
         },
         "unmapped_core": {
-          "description": "Opaque carry for `AgentProfile` shared-core fields Operator cannot model\nfirst-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an\nimport→export round-trip is lossless. Distinct from `x_agnt`: these are\nshared-core fields, not AGNT-specific, so folding them into `x_agnt` would\ncorrupt that namespace. Operator never interprets this."
+          "description": "Opaque carry for `AgentProfile` shared-core fields Operator cannot model\nfirst-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an\nimport-export round-trip is lossless. Distinct from `x_agnt`: these are\nshared-core fields, not AGNT-specific, so folding them into `x_agnt` would\ncorrupt that namespace. Operator never interprets this."
         }
       },
       "required": [

@@ -1,4 +1,4 @@
-//! `ModelServer` → Rig completion model. Every client is built on the
+//! `ModelServer` -> Rig completion model. Every client is built on the
 //! egress-checked `reqwest::Client`, so a model call can't reach a destination (or redirect) the policy forbids.
 
 use std::time::Duration;

@@ -167,7 +167,7 @@ impl AgentSwitcher {
     /// Switch from the current agent to a new one in the given tmux session.
     ///
     /// 1. Send exit command for current tool
-    /// 2. Poll for shell prompt (3-tier escalation: exit → Ctrl+C → Ctrl+D)
+    /// 2. Poll for shell prompt (3-tier escalation: exit > Ctrl+C > Ctrl+D)
     /// 3. Wait for shell stabilization
     /// 4. Launch new agent command
     /// 5. Poll for agent readiness

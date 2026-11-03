@@ -75,7 +75,10 @@ x_agnt?: JsonValue | null,
  */
 x_openai?: JsonValue | null, 
 /**
- * Opaque carry for `AgentProfile` shared-core fields Operator cannot model first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an import→export round-trip is lossless.
- * Distinct from `x_agnt`: these are shared-core fields, so folding them into `x_agnt` would corrupt that namespace. Operator never interprets this.
+ * Opaque carry for `AgentProfile` shared-core fields Operator cannot model
+ * first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an
+ * import-export round-trip is lossless. Distinct from `x_agnt`: these are
+ * shared-core fields, not AGNT-specific, so folding them into `x_agnt` would
+ * corrupt that namespace. Operator never interprets this.
  */
 unmapped_core?: JsonValue | null, };

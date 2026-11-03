@@ -151,7 +151,7 @@ fn resolve_acp_delegator(config: &Config) -> Option<&Delegator> {
     crate::agents::delegator_resolution::resolve_default_delegator(config)
 }
 
-/// Run the prompt → delegator → stream-back-to-editor pipeline.
+/// Run the prompt -> delegator -> stream-back-to-editor pipeline.
 ///
 /// Returns the prompt response on success, or an `Err(String)` message that
 /// the caller will wrap in `internal_error`.

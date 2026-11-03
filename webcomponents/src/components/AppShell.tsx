@@ -1,4 +1,3 @@
-import { HealthIndicator } from "./HealthIndicator";
 /**
  * The SPA's application chrome: nav rail, main column, and an optional detail panel.
  *
@@ -8,7 +7,7 @@ import { HealthIndicator } from "./HealthIndicator";
 
 import { useId, type ReactNode } from "react";
 import { ConceptIcon } from "./ConceptIcon";
-import { HealthDot } from "./HealthDot";
+import { HealthIndicator } from "./HealthIndicator";
 import styles from "./AppShell.module.css";
 
 export interface AppShellProps {

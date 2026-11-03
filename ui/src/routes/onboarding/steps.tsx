@@ -1,14 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
+import type { ModelServerKindEntry } from "@operator/bindings/ModelServerKindEntry";
 import type { StepComponent, StepProps, StepRow } from "./types";
-import { Choice, ChoiceGroup, PremiumPaywall } from "@operator/webcomponents";
+import { Choice, ChoiceGroup, ModelProviderCard, PremiumPaywall } from "@operator/webcomponents";
 import { LicensePanel } from "../../components/LicensePanel";
+import { onPurchaseLinkClick, useLicenseQuery, withReturnTo } from "../../license-return";
 import { useApiMutation, useApiQuery } from "../../api";
 import {
   gitProvidersQuery,
   kanbanProvidersQuery,
-  licenseQuery,
   listKanbanProjectsMutation,
   listKanbanStatusesMutation,
   providerKindsQuery,
@@ -87,7 +88,7 @@ const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
 const License: StepComponent = () => <LicensePanel />;
 
 const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
-  const licenseQueryResult = useApiQuery(licenseQuery());
+  const licenseQueryResult = useLicenseQuery();
   const [showLicense, setShowLicense] = useState(false);
   const license = licenseQueryResult.data;
 
@@ -132,12 +133,14 @@ const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
         </Choice>
       </ChoiceGroup>
       {!license?.premium && (
-        <PremiumPaywall
-          inline
-          feature="Remote targets"
-          purchaseUrl={license?.purchase_url}
-          onAddLicense={addLicense}
-        />
+        <div onClickCapture={onPurchaseLinkClick}>
+          <PremiumPaywall
+            inline
+            feature="Remote targets"
+            purchaseUrl={withReturnTo(license?.purchase_url)}
+            onAddLicense={addLicense}
+          />
+        </div>
       )}
       {showLicense && <LicensePanel />}
     </Intro>
@@ -594,15 +597,43 @@ function KanbanInfo({ addExport }: StepProps) {
   );
 }
 
-function ProbeLabel({ slug }: { slug: string }) {
-  const { data, error, isLoading } = useApiQuery(providerModelsQuery(slug));
-  if (data?.reachable) {
-    return `${data.models.length} models`;
+function isLocalUrl(url: string | null | undefined): boolean {
+  if (!url) {
+    return false;
   }
-  if (isLoading) {
-    return "checking…";
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
+  } catch {
+    return false;
   }
-  return data?.error ?? (error ? "unreachable" : "checking…");
+}
+
+function ProbedProviderCard({
+  slug,
+  label,
+  kind,
+  selected,
+  onToggle,
+}: {
+  slug: string;
+  label: string;
+  kind: ModelServerKindEntry | undefined;
+  selected: boolean;
+  onToggle: (slug: string) => void;
+}) {
+  const { data, error } = useApiQuery(providerModelsQuery(slug));
+  const provider = useMemo(
+    () => ({
+      slug,
+      label,
+      probe: data ?? undefined,
+      fetchFailed: Boolean(error),
+      keyEnv: kind?.default_api_key_env ?? undefined,
+      local: isLocalUrl(kind?.default_base_url),
+    }),
+    [slug, label, data, error, kind],
+  );
+  return <ModelProviderCard provider={provider} selected={selected} onToggle={onToggle} />;
 }
 
 function ModelServer({ integrations, draft, setDraft }: StepProps) {
@@ -635,17 +666,14 @@ function ModelServer({ integrations, draft, setDraft }: StepProps) {
       </p>
       <ChoiceGroup>
         {entries.map((entry) => (
-          <Choice
+          <ProbedProviderCard
             key={entry.slug}
+            slug={entry.slug}
+            label={entry.label}
+            kind={kinds.find((kind) => kind.slug === entry.slug)}
             selected={draft.modelServers.includes(entry.slug)}
-            value={entry.slug}
-            onSelect={toggleProvider}
-          >
-            <strong>{entry.label}</strong>
-            <span>
-              <ProbeLabel slug={entry.slug} />
-            </span>
-          </Choice>
+            onToggle={toggleProvider}
+          />
         ))}
       </ChoiceGroup>
       {keyExports.length > 0 && <ExportBlock value={keyExports.join("\n")} />}

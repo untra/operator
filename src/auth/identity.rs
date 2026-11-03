@@ -318,11 +318,13 @@ impl AuthStore {
         actor: &str,
         request: &CreateOidcConnection,
     ) -> Result<String> {
+        let issuer = request.issuer.trim();
+        super::oidc::validate_url(issuer)?;
         let id = Uuid::new_v4().to_string();
         self.with_conn(|conn| {
             let tx = conn.transaction()?;
             let provider = match request.provider { OidcProvider::Keycloak => "keycloak", OidcProvider::Authentik => "authentik" };
-            tx.execute("INSERT INTO oidc_connection (id, provider, issuer, client_id, client_secret_file, redirect_uri, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![id, provider, request.issuer, request.client_id, request.client_secret_file, request.redirect_uri, Utc::now().timestamp()])?;
+            tx.execute("INSERT INTO oidc_connection (id, provider, issuer, client_id, client_secret_file, redirect_uri, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![id, provider, issuer, request.client_id, request.client_secret_file, request.redirect_uri, Utc::now().timestamp()])?;
             record_audit(&tx, actor, AuditAction::OidcConnectionCreated, &id)?;
             tx.commit()?;
             Ok(())
@@ -423,6 +425,19 @@ impl AuthStore {
         })?;
         export_audit(actor, AuditAction::UserPermissionsChanged, id);
         Ok(())
+    }
+
+    /// Authority of an already provisioned user, never provisioning one.
+    pub fn subject_authority(
+        &self,
+        connection: &OidcConnection,
+        subject: &str,
+        profile: Uuid,
+    ) -> Result<Option<UserAuthority>> {
+        self.with_conn(|conn| {
+            let id: Option<String> = conn.query_row("SELECT id FROM operator_user WHERE issuer = ?1 AND subject = ?2 AND connection_id = ?3", params![connection.issuer, subject, connection.id], |r| r.get(0)).optional()?;
+            id.map_or(Ok(None), |id| authority(conn, &id, profile))
+        })
     }
 
     pub fn user_authority(&self, id: &str, profile: Uuid) -> Result<Option<UserAuthority>> {
@@ -751,6 +766,65 @@ pub(crate) mod tests {
                 grants,
             },
         )
+    }
+
+    fn connection_request(issuer: &str) -> CreateOidcConnection {
+        CreateOidcConnection {
+            provider: OidcProvider::Keycloak,
+            issuer: issuer.into(),
+            client_id: "operator".into(),
+            redirect_uri: "https://operator.example/api/v1/auth/oidc/callback".into(),
+            client_secret_file: None,
+        }
+    }
+
+    #[test]
+    fn test_add_oidc_connection_trims_issuer() {
+        let store = AuthStore::in_memory().unwrap();
+        store
+            .add_oidc_connection(
+                "admin",
+                &connection_request(" https://identity.example/realm \n"),
+            )
+            .unwrap();
+        assert_eq!(
+            store.oidc_connections().unwrap()[0].issuer,
+            "https://identity.example/realm"
+        );
+    }
+
+    #[test]
+    fn test_add_oidc_connection_rejects_non_https_issuer() {
+        let store = AuthStore::in_memory().unwrap();
+        for issuer in ["http://identity.example/realm", "not a url", " "] {
+            assert!(store
+                .add_oidc_connection("admin", &connection_request(issuer))
+                .is_err());
+        }
+        assert!(store.oidc_connections().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_subject_authority_resolves_only_provisioned_enabled_users() {
+        let (store, owner, request) = fixture();
+        let profile = request.grants.profile_id;
+        let connection = store.oidc_connections().unwrap().remove(0);
+        let found = store
+            .subject_authority(&connection, "subject", profile)
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.user.id, owner.user.id);
+        assert!(store
+            .subject_authority(&connection, "stranger", profile)
+            .unwrap()
+            .is_none());
+        store
+            .disable_oidc_connection("admin", &connection.id)
+            .unwrap();
+        assert!(store
+            .subject_authority(&connection, "subject", profile)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

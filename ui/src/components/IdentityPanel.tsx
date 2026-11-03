@@ -47,10 +47,7 @@ function IdentityAdministration({ available }: { available: PermissionGrant }) {
   return (
     <section>
       <h2>Operator identities</h2>
-      <p>
-        Keycloak and Authentik connections require Premium. New users await approval and start
-        without permissions. Disabling a connection removes access for its users and their keys.
-      </p>
+      <p>OIDC connections. New users await approval and start without permissions.</p>
       {error && <p role="alert">{error.message}</p>}
       <button
         type="button"

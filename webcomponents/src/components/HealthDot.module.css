@@ -1,0 +1,31 @@
+/* Shape-coded health mark: circle for green/gray, triangles for yellow/red.
+ * Zero specificity so a host className can restyle it. */
+:where(.dot) {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+
+:where(.dot[data-health="green"]) {
+  background: var(--color-green-l1);
+}
+
+:where(.dot[data-health="yellow"]),
+:where(.dot[data-health="red"]) {
+  width: 13px;
+  height: 12px;
+  border-radius: 0;
+}
+
+:where(.dot[data-health="yellow"]) {
+  background: var(--warning);
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
+
+:where(.dot[data-health="red"]) {
+  background: var(--danger);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}

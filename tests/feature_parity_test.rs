@@ -333,7 +333,7 @@ fn test_concepts_docs_urls_resolve() {
         checked += 1;
     }
     assert!(
-        checked >= 9,
+        checked >= 13,
         "expected to verify all concept docsUrls; only matched {checked}"
     );
 }

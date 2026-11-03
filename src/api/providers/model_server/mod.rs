@@ -17,7 +17,7 @@ mod probe;
 
 use std::collections::{BTreeSet, HashMap};
 
-pub use probe::{probe_models, ModelInfo, ProbeError, ProbeOutcome};
+pub use probe::{probe_models, ModelInfo, ProbeError, ProbeOutcome, ProbeStatus};
 
 use crate::config::ModelServer;
 
@@ -491,6 +491,17 @@ impl ModelServerKind {
             ModelServerKind::Ollama => Some("http://localhost:11434"),
             ModelServerKind::OpenAiCompat | ModelServerKind::LmStudio => None,
         }
+    }
+
+    /// Whether listing models is refused without a key, so the probe skips the request.
+    pub fn probe_requires_key(&self) -> bool {
+        matches!(
+            self,
+            ModelServerKind::AnthropicApi
+                | ModelServerKind::OpenAiApi
+                | ModelServerKind::GoogleApi
+                | ModelServerKind::XaiApi
+        )
     }
 
     /// The default env var the **probe** reads to authenticate when an instance

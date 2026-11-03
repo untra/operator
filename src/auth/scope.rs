@@ -107,6 +107,7 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     public("POST", "/api/v1/auth/reset-password"),
     public("POST", "/api/v1/auth/device/code"),
     public("POST", "/api/v1/auth/token"),
+    public("GET", "/.well-known/oauth-protected-resource"),
     // --- Auth: authenticated session management -----------------------------
     read("GET", "/api/v1/auth/session"),
     read("GET", "/api/v1/auth/csrf"),
@@ -303,7 +304,10 @@ impl Principal {
             PrincipalKind::AccessToken | PrincipalKind::LocalProcess => {
                 self.has_scope(Scope::Admin)
             }
-            PrincipalKind::Session | PrincipalKind::AgentCallback | PrincipalKind::ApiKey => false,
+            PrincipalKind::Session
+            | PrincipalKind::AgentCallback
+            | PrincipalKind::ApiKey
+            | PrincipalKind::OidcToken => false,
         }
     }
 
@@ -366,6 +370,7 @@ mod tests {
             ("POST", "/api/v1/auth/reset-password"),
             ("POST", "/api/v1/auth/device/code"),
             ("POST", "/api/v1/auth/token"),
+            ("GET", "/.well-known/oauth-protected-resource"),
         ]
         .into_iter()
         .collect();

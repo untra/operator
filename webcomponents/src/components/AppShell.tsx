@@ -8,6 +8,7 @@ import { HealthIndicator } from "./HealthIndicator";
 
 import { useId, type ReactNode } from "react";
 import { ConceptIcon } from "./ConceptIcon";
+import { HealthDot } from "./HealthDot";
 import styles from "./AppShell.module.css";
 
 export interface AppShellProps {

@@ -220,7 +220,13 @@ function ProviderRow({
 }) {
   const query = useApiQuery(providerModelsQuery(kind.slug));
   const probe = query.error
-    ? { server: kind.slug, reachable: false, models: [], error: "probe failed" }
+    ? {
+        server: kind.slug,
+        reachable: false,
+        status: "error" as const,
+        models: [],
+        error: "probe failed",
+      }
     : (query.data ?? undefined);
   const conn = connectionLabel(probe);
   return (

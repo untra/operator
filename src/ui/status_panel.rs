@@ -292,8 +292,12 @@ impl StatusAction {
             Self::OpenWebUi { .. } => Some("/".into()),
             Self::OpenWebUiAt { route, .. } => Some(format!("/#{route}")),
             Self::OpenUrl(url) => Some(url.clone()),
-            Self::OpenMcpDocs => Some("https://operator.untra.io/getting-started/integrations/#connect-from-the-web-interface".to_string()),
-            Self::OpenAcpDocs => Some("https://operator.untra.io/getting-started/integrations/#connect-from-the-web-interface".to_string()),
+            Self::OpenMcpDocs => {
+                Some("https://operator.untra.io/getting-started/connections/mcp/".to_string())
+            }
+            Self::OpenAcpDocs => {
+                Some("https://operator.untra.io/getting-started/connections/acp/".to_string())
+            }
             // The web `/#/kanban` "Configure" rows link to the provider's token
             // page (there is no in-browser onboarding wizard).
             Self::ConfigureKanbanProvider { provider } => {

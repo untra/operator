@@ -18,6 +18,7 @@ pub mod launch;
 pub mod license;
 pub mod llm_tools;
 pub mod model_servers;
+pub mod oauth_metadata;
 pub mod probes;
 pub mod profiles;
 pub mod projects;

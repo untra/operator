@@ -172,9 +172,21 @@
 
 /* Health badge for a status section. A cream ring keeps every health color
  * legible against the green nav pill. Maps a semantic role to a token. */
+.navDot {
+  box-shadow: 0 0 0 1px var(--color-cream);
+}
+
+.navDot[data-health="green"] {
+  background: var(--color-green-l3);
+}
+
 /* On the active pill (bg green-l3) a green-l3 dot would vanish - lighten it so
  * the healthy dot stays a filled mark, not just the cream ring. */
-.active /* Section whose prerequisites aren't met: shown but not navigable. */
+.active .navDot[data-health="green"] {
+  background: var(--color-green-l1);
+}
+
+/* Section whose prerequisites aren't met: shown but not navigable. */
 .navDisabled,
 .navDisabled:hover {
   width: 100%;
@@ -205,8 +217,16 @@
   line-height: 1.25;
 }
 
-.navDisabled /* Pointed marks. The circle ring is cleared so the silhouette stays a triangle. */
+.navDisabled .navDot {
+  box-shadow: 0 0 0 1px var(--surface-alt);
+}
+
+/* Pointed marks drop the ring so the silhouette stays a triangle. */
 .navDot[data-health="yellow"],
+.navDot[data-health="red"] {
+  box-shadow: none;
+}
+
 .main {
   flex: 1;
   padding: 48px;

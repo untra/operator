@@ -3,4 +3,4 @@
 /**
  * What kind of credential authenticated a request.
  */
-export type PrincipalKind = "session" | "access_token" | "api_key" | "local_process" | "agent_callback" | "telemetry_ingest";
+export type PrincipalKind = "session" | "access_token" | "api_key" | "oidc_token" | "local_process" | "agent_callback" | "telemetry_ingest";

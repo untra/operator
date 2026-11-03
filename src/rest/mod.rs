@@ -83,6 +83,7 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::reset_password))
         .routes(routes!(routes::auth::device_code))
         .routes(routes!(routes::auth::token))
+        .routes(routes!(routes::oauth_metadata::protected_resource))
         // Managing credentials (authenticated).
         .routes(routes!(routes::auth::logout))
         .routes(routes!(routes::auth::current_session))

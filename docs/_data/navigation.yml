@@ -44,6 +44,17 @@ docs:
           - title: Zed
             url: /getting-started/ides/zed/
             icon: zed
+      - title: Connections
+        url: /getting-started/connections/
+        children:
+          - title: Operator API
+            url: /getting-started/connections/api/
+          - title: MCP
+            url: /getting-started/connections/mcp/
+          - title: ACP
+            url: /getting-started/connections/acp/
+          - title: Access Keys & Identities
+            url: /getting-started/connections/access-keys/
       - title: Execution Transports
         url: /getting-started/transports/
         children:

@@ -2,7 +2,34 @@ export const MCP_CHECK_TIMEOUT_MS = 10_000;
 export const MCP_DIAGNOSTIC_CLIENT = "operator-connections-check";
 export const LOCAL_OPERATOR_COMMAND = "operator";
 export const ACP_EDITORS = ["zed", "jetbrains", "emacs", "kiro"] as const;
-export const MCP_RECIPES = ["json", "cli", "generic"] as const;
+export const MCP_RECIPES = ["json", "cli", "generic", "oauth"] as const;
+
+export type Health = "green" | "yellow" | "red" | "gray";
+
+export function apiHealth({ error, reachable }: { error: boolean; reachable: boolean }): Health {
+  if (error) {
+    return "red";
+  }
+  return reachable ? "green" : "gray";
+}
+
+export function mcpHealth({
+  mounted,
+  checkError,
+  verified,
+}: {
+  mounted: boolean;
+  checkError: boolean;
+  verified: boolean;
+}): Health {
+  if (!mounted) {
+    return "gray";
+  }
+  if (checkError) {
+    return "red";
+  }
+  return verified ? "green" : "yellow";
+}
 
 export function connectionUrl(base: string, path: string): string {
   return new URL(path.replace(/^\//, ""), `${base.replace(/\/$/, "")}/`).href;
@@ -18,6 +45,9 @@ export function mcpRecipe(
   tokenUrl = new URL("/api/v1/auth/token", url).href,
 ): string {
   const helper = `jq -cn '{grant_type: "operator:access-key", access_key: env.OPERATOR_ACCESS_KEY}' | curl --fail --silent --show-error --max-time 8 -H 'Content-Type: application/json' --data-binary @- ${shellQuote(tokenUrl)} | jq -ce 'if (.access_token | type) == "string" then {Authorization: ("Bearer " + .access_token)} else error("Token exchange failed") end'`;
+  if (client === "oauth") {
+    return JSON.stringify({ mcpServers: { operator: { type: "sse", url } } }, null, 2);
+  }
   const server = { type: "sse", url, headersHelper: helper };
   if (client === "cli") {
     return `claude mcp add-json --scope user operator ${shellQuote(JSON.stringify(server))}`;

@@ -240,6 +240,17 @@ pub struct CurrentSessionResponse {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
+/// OAuth protected resource metadata (RFC 9728).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ProtectedResourceMetadata {
+    /// Canonical URL clients request tokens for; the expected token audience.
+    pub resource: String,
+    /// Issuers of the enabled OIDC connections.
+    pub authorization_servers: Vec<String>,
+    pub bearer_methods_supported: Vec<String>,
+    pub resource_name: String,
+}
+
 /// What kind of credential authenticated a request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -251,6 +262,8 @@ pub enum PrincipalKind {
     AccessToken,
     /// A bearer token derived from a user-owned API key.
     ApiKey,
+    /// An access token issued by a configured OIDC provider.
+    OidcToken,
     /// The automatically issued loopback credential for a local process.
     LocalProcess,
     /// A single-purpose agent step-completion callback token.

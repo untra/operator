@@ -11,11 +11,12 @@
 //! would make it an exploitable one.
 
 use axum::extract::{Request, State};
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
 use crate::auth::limits::Denial;
+use crate::auth::oidc_bearer::{active_connections, challenge, metadata_url};
 use crate::auth::scope::{required_access, Access, Principal};
 use crate::auth::store::RateLimitDecision;
 use crate::auth::tokens::{Claims, AUDIENCE_API, AUDIENCE_CALLBACK, AUDIENCE_TELEMETRY};
@@ -165,7 +166,15 @@ pub async fn resolve_principal(
                 PrincipalKind::TelemetryIngest,
             ));
         }
-        return Ok(None);
+        let config = state.config();
+        return crate::auth::oidc_bearer::authenticate(
+            &state.auth.store,
+            config.rest_api.public_base_url(),
+            config.profile.id,
+            &token,
+        )
+        .await
+        .map_err(|_| ApiError::Unavailable("OIDC provider unavailable".into()));
     }
 
     if let Some(cookie) = cookie_value(headers, SESSION_COOKIE) {
@@ -253,11 +262,36 @@ fn origin_is_acceptable(headers: &HeaderMap, allowed: &[String]) -> bool {
 }
 
 /// The authorization layer.
-pub async fn authorize(
-    State(state): State<ApiState>,
-    request: Request,
-    next: Next,
-) -> Result<Response, Rejection> {
+///
+/// A `401` on an API path names the protected-resource metadata when OIDC discovery is active.
+pub async fn authorize(State(state): State<ApiState>, request: Request, next: Next) -> Response {
+    let api = request.uri().path().starts_with("/api/");
+    let mut response = decide(state.clone(), request, next).await.into_response();
+    if api && response.status() == StatusCode::UNAUTHORIZED {
+        if let Some(value) = discovery_url(&state)
+            .await
+            .and_then(|url| HeaderValue::from_str(&challenge(Some(&url))).ok())
+        {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, value);
+        }
+    }
+    response
+}
+
+/// The metadata URL, when a public URL and an enabled OIDC connection exist.
+pub async fn discovery_url(state: &ApiState) -> Option<String> {
+    let public = state.config().rest_api.public_base_url()?;
+    let store = state.auth.store.clone();
+    let conns = tokio::task::spawn_blocking(move || store.oidc_connections())
+        .await
+        .ok()?
+        .ok()?;
+    (!active_connections(Some(&public), conns).is_empty()).then(|| metadata_url(&public))
+}
+
+async fn decide(state: ApiState, request: Request, next: Next) -> Result<Response, Rejection> {
     let method = request.method().clone();
     let path = request.uri().path().to_string();
     let headers = request.headers().clone();

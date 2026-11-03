@@ -113,6 +113,10 @@ export function ConceptIcon() {
   return <span />;
 }
 
+export function HealthDot({ health }: { health: string }) {
+  return <span data-health={health} />;
+}
+
 export function ChoiceGroup({ children }: { children: ReactNode }) {
   return <div>{children}</div>;
 }
@@ -214,3 +218,4 @@ export function sessionTargets(agent: {
 }
 
 export { PermissionSelector } from "../../webcomponents/src/components/PermissionSelector";
+export { ModelProviderCard } from "../../webcomponents/src/components/ModelProviderChoices";

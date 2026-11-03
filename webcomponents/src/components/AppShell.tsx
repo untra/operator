@@ -1,3 +1,4 @@
+import { HealthIndicator } from "./HealthIndicator";
 /**
  * The SPA's application chrome: nav rail, main column, and an optional detail panel.
  *
@@ -77,7 +78,7 @@ export function NavRow({ label, icon, health, disabledReason, renderLink }: NavR
     <>
       <ConceptIcon name={icon} className={styles.navIcon} />
       <span className={styles.navLabel}>{label}</span>
-      {health && <span className={styles.navDot} data-health={health} />}
+      {health && <HealthIndicator health={health} />}
     </>
   );
 
@@ -96,7 +97,7 @@ export function NavRow({ label, icon, health, disabledReason, renderLink }: NavR
             {disabledReason}
           </span>
         </span>
-        {health && <span className={styles.navDot} data-health={health} />}
+        {health && <HealthIndicator health={health} />}
       </button>
     );
   }
@@ -145,7 +146,9 @@ export function AccountFooter({
 }: AccountFooterProps) {
   return (
     <div className={styles.accountFooter}>
-      {failed && <p className={styles.signOutError}>Could not sign out.</p>}
+      <div role="alert" aria-atomic="true">
+        {failed && <p className={styles.signOutError}>Could not sign out.</p>}
+      </div>
       <div className={styles.accountRow}>
         <div className={styles.accountIdentity}>
           <span className={styles.username} title={username}>

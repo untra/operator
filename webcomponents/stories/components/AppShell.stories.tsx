@@ -1,3 +1,4 @@
+import { useCallback, useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   AccountFooter,
@@ -142,4 +143,23 @@ export const DarkTheme: Story = {
 
 export const Narrow: Story = {
   globals: { viewport: { value: "narrow" } },
+};
+
+export const SignOutFailure: Story = {
+  render: function Stateful(args) {
+    const [failed, setFailed] = useState(false);
+    const onSignOut = useCallback(() => setFailed(true), []);
+    const footer = useMemo(
+      () => (
+        <AccountFooter
+          username={STORY_USERNAME}
+          configurationName={STORY_CONFIGURATION}
+          failed={failed}
+          onSignOut={onSignOut}
+        />
+      ),
+      [failed, onSignOut],
+    );
+    return <AppShell {...args} footer={footer} />;
+  },
 };

@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { LaunchForm, type LaunchFormValue } from "../../src/components/LaunchForm";
 import { delegators, unnamedDelegator } from "../fixtures/operator";
@@ -59,4 +60,12 @@ export const UnnamedDelegator: Story = { args: { delegators: [unnamedDelegator] 
 
 export const YoloEnabled: Story = {
   args: { value: { ...DEFAULT_VALUE, delegator: "claude-opus", wrapper: "tmux", yolo: true } },
+};
+
+export const FailedSubmission: Story = {
+  render: function Stateful(args) {
+    const [error, setError] = useState<string | null>(null);
+    const onSubmit = useCallback(() => setError("Could not launch agent."), []);
+    return <LaunchForm {...args} error={error} onSubmit={onSubmit} />;
+  },
 };

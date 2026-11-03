@@ -1,8 +1,8 @@
 /**
  * `Operator: Sign In` / `Operator: Sign Out`.
  *
- * Sign-in is deliberately a command rather than something a 401 triggers: the
- * browser hand-off is a deliberate act the user starts, not a surprise.
+ * Sign-in is deliberately a command rather than something a 401 triggers.
+ * The browser hand-off is a deliberate act the user starts.
  */
 
 import * as vscode from "vscode";

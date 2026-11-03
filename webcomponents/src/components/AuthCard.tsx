@@ -38,8 +38,12 @@ export function AuthCard({
       <form className={styles.card} onSubmit={onSubmit}>
         <h1 className={styles.title}>{title}</h1>
         {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
-        {error && <p className={styles.error}>{error}</p>}
-        {notice && <p className={styles.notice}>{notice}</p>}
+        <div role="alert" aria-atomic="true">
+          {error && <p className={styles.error}>{error}</p>}
+        </div>
+        <output aria-live="polite" aria-atomic="true">
+          {notice && <p className={styles.notice}>{notice}</p>}
+        </output>
         {children}
         {actions}
         {links && <div className={styles.links}>{links}</div>}

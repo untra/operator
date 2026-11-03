@@ -1,5 +1,7 @@
+import { useCallback, useState } from "react";
+import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { IssueTypesView } from "../../src/views/IssueTypesView";
+import { IssueTypesView, type IssueTypesViewProps } from "../../src/views/IssueTypesView";
 import { featureWorkflow, issueTypeSummaries, selectedIssueType } from "../fixtures/operator";
 
 const meta = {
@@ -16,8 +18,8 @@ const meta = {
     selected: null,
     workflow: { status: "initial" },
     mode: "steps",
-    onSelect: () => undefined,
-    onModeChange: () => undefined,
+    onSelect: fn<IssueTypesViewProps["onSelect"]>(),
+    onModeChange: fn<IssueTypesViewProps["onModeChange"]>(),
   },
   decorators: [
     (Story) => (
@@ -74,4 +76,40 @@ export const NarrowGraph: Story = {
     mode: "graph",
   },
   globals: { viewport: { value: "narrow" } },
+};
+
+export const KeyboardSelection: Story = {
+  args: {
+    onSelect: fn(),
+    onModeChange: fn(),
+    workflow: { status: "ready", data: featureWorkflow },
+  },
+  render: function Stateful(args) {
+    const [selected, setSelected] = useState(args.selected);
+    const [mode, setMode] = useState(args.mode);
+    const onSelect = useCallback(
+      (key: string) => {
+        args.onSelect(key);
+        setSelected(selectedIssueType);
+      },
+      [args],
+    );
+    const onModeChange = useCallback(
+      (next: IssueTypesViewProps["mode"]) => {
+        args.onModeChange(next);
+        setMode(next);
+      },
+      [args],
+    );
+    return (
+      <IssueTypesView
+        {...args}
+        selected={selected}
+        mode={mode}
+        workflow={args.workflow}
+        onSelect={onSelect}
+        onModeChange={onModeChange}
+      />
+    );
+  },
 };

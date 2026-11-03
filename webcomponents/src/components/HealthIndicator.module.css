@@ -1,0 +1,23 @@
+.health {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.dot[data-health="green"] {
+  background: var(--success);
+}
+.dot[data-health="yellow"] {
+  background: var(--warning);
+}
+.dot[data-health="red"] {
+  background: var(--danger);
+}

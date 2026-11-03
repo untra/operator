@@ -6,7 +6,7 @@ raise investigations.
 
 This is the **AGNT -> Operator** direction. The companion direction (Operator -> AGNT) is `operator workflow export --format agnt`, which emits one `operator-run-step` node per issuetype step. `operator-launch-agent` remains a separate node: it launches a whole ticket by `id`.
 
-Operator exports AGNT workflows as runnable visual scaffolds of a ticket's execution shape, not as lossless equivalents of Operator's internal workflow semantics. Interactive AGNT agents should use Operator's MCP server against the Operator that holds their tickets. Visual workflows use these nodes. See `docs/getting-started/integrations/agnt.md`.
+Operator exports AGNT workflows as runnable visual scaffolds of a ticket's execution shape. Interactive AGNT agents should use Operator's MCP server against the Operator that holds their tickets. Visual workflows use these nodes. See `docs/getting-started/integrations/agnt.md`.
 
 ## Nodes
 

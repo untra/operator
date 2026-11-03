@@ -44,6 +44,11 @@ export function StepProgress({ steps, current, completed, finished }: StepProgre
             {GLYPH[step.state]}
           </span>
           {step.label}
+          {step.state !== "current" && (
+            <span className={styles.srOnly}>
+              {step.state === "done" ? ", Completed" : ", Pending"}
+            </span>
+          )}
         </li>
       ))}
     </ol>

@@ -86,7 +86,9 @@ export function TicketCreateForm({
           required
         />
       </label>
-      {error && <div className={styles.error}>{error}</div>}
+      <div role="alert" aria-atomic="true">
+        {error && <div className={styles.error}>{error}</div>}
+      </div>
       <button type="submit" className={styles.createBtn} disabled={busy || !ready}>
         {busy ? "Creating…" : "Add to queue"}
       </button>

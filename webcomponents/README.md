@@ -19,15 +19,20 @@ src/
 ├── elements.ts                 Custom-elements entry (docs/)
 ├── elements.css                Styles for the DOM these components create
 ├── workflow/
-│   ├── types.ts                The Operator workflow document shape
 │   ├── issuetype-to-ir.ts      steps[] → flat node/edge graph
 │   └── WorkflowGraph.tsx       The renderer
+├── components/                 Presentational components shared with ui/
+├── views/                      Page compositions of those components
 ├── elements/                   Custom-element wrappers
-└── shared/theme.ts             data-theme + brand-token plumbing
+├── shared/                     theme, kanban filters, ticket field/link helpers
+├── styles/semantic.css         Semantic tokens over the brand tokens
+└── generated/                  ts-rs types copied from bindings/ (gitignored)
 stories/
 ├── components/                 Focused component states
 ├── pages/                      Bounded page compositions
-└── fixtures/                   Fixed, local Operator data
+├── views/                      Docs-site view compositions
+├── fixtures/                   Fixed, local Operator data
+└── stories.browser.tsx         Behaviour assertions over the composed stories
 ```
 
 ## The native projection
@@ -63,5 +68,7 @@ bun run test:storybook
 `dist/` is gitignored. `make webcomponents` runs the full sequence, and both `make ui` and `make docs` depend on it so the artifact always exists before its consumers build.
 
 All Storybook files live under `stories/`. They render fixed controller outputs; API calls, routing, and application state remain in `ui/`.
+
+Stories render states only: no `play` functions and no `expect`. `test:storybook` checks every story with axe in light and dark themes at 1440px and 320px, and fails a story that overflows the viewport. Behavior lives in `stories/stories.browser.tsx`, which composes every story and applies bulk assertions: every focusable control must show a focus indicator, plus table-driven live-region and keyboard cases. To cover a new interactive state, add a stateful story and a row to the matching case table.
 
 This keeps the stories deterministic and gives Pixel a static Storybook build without shipping Storybook stories in the product package.

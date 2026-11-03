@@ -1,27 +1,28 @@
 ---
 title: "LM Studio"
-description: "Use a Windows personal computer for local inference from Operator in Kubernetes."
+description: "Use a Windows or Macos personal computer for local inference from Operator with LM Studio"
 layout: doc
 ---
 
 <span class="badge proto">Proto</span>
 
 Run your model on a Windows x64 personal computer or gaming machine.
-Model listing alone does not verify agent compatibility.
+Or run your model from a macos arm laptop with LM Studio.
+Model listing alone does not verify agent compatibility; running models locally carries its own risks.
 
 ```text
-VS Code on your workstation -- HTTPS --> Operator in Kubernetes
+VS Code on your workstation -- HTTPS --> Operator Server
                                             |
                                       opr8r + agent CLI
                                             |
                                       LAN HTTP inference
                                             v
-                                   Windows PC + LM Studio
+                                Personal Computer + LM Studio
 ```
 
 `opr8r` is a step wrapper: it runs the CLI, tracks its exit, and reports progress to Operator.
 
-## Prepare the PC
+## Prepare the personal 
 
 1. Install [LM Studio](https://lmstudio.ai/) and download a tool-capable model that fits your GPU memory.
    Use the exact model ID returned by `/v1/models`.

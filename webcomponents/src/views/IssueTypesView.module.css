@@ -101,6 +101,9 @@
   font-weight: 600;
 }
 .toggle {
+  padding: 0;
+  margin: 0;
+  min-width: 0;
   display: inline-flex;
   overflow: hidden;
   border: 1px solid var(--border);

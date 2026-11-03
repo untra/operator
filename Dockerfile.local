@@ -40,7 +40,7 @@ ARG OPERATOR_PURCHASE_URL=""
 
 RUN cargo build --release --locked --bin operator
 
-# opr8r is a separate cargo project with its own Cargo.lock, not a workspace member, so it needs its own invocation.
+# opr8r is a separate cargo project with its own Cargo.lock,  so it needs its own invocation.
 RUN cd opr8r && cargo build --release --locked
 
 # Mirrors Dockerfile; only the operator/opr8r binary source differs.

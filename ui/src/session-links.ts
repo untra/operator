@@ -8,7 +8,7 @@
 //  - cmux has NO browser URL scheme (per cmux docs - commands are palette /
 //    shortcut / button driven). Instead operator, which runs inside cmux, focuses
 //    the pane by shelling out to `cmux focus-workspace` via the control-plane
-//    endpoint `POST /api/v1/agents/{id}/focus`. So the UI calls the API, not a URL.
+//    endpoint `POST /api/v1/agents/{id}/focus`. The UI calls the API.
 //  - tmux / zellij have neither a URL scheme nor a control-plane focus path, so
 //    their session is shown read-only.
 

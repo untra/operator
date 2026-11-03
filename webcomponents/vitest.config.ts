@@ -5,26 +5,41 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
+const optimizeDeps = {
+  include: ["react", "react-dom/client", "react/jsx-runtime", "react/jsx-dev-runtime"],
+};
+
+const browser = () => ({
+  enabled: true,
+  provider: playwright({}),
+  headless: true,
+  instances: [{ browser: "chromium" as const }],
+});
+
+const setupFiles = [path.join(directory, ".storybook/vitest.setup.ts")];
 
 export default defineConfig({
   test: {
     projects: [
+      ...["light", "dark"].flatMap((theme) =>
+        [1440, 320].map((width) => ({
+          plugins: [
+            storybookTest({
+              configDir: path.join(directory, ".storybook"),
+              initialGlobals: { auditTheme: theme, auditWidth: width },
+            }),
+          ],
+          optimizeDeps,
+          test: { name: `storybook-${theme}-${width}`, setupFiles, browser: browser() },
+        })),
+      ),
       {
-        plugins: [storybookTest({ configDir: path.join(directory, ".storybook") })],
-        // Pre-bundle these or Vite discovers them mid-run and reloads, which
-        // destroys every in-flight suite on a cold cache (i.e. every CI run).
-        optimizeDeps: {
-          include: ["react", "react-dom/client", "react/jsx-runtime", "react/jsx-dev-runtime"],
-        },
+        optimizeDeps,
         test: {
-          name: "storybook",
-          setupFiles: [path.join(directory, ".storybook/vitest.setup.ts")],
-          browser: {
-            enabled: true,
-            provider: playwright({}),
-            headless: true,
-            instances: [{ browser: "chromium" }],
-          },
+          name: "stories-behaviour",
+          include: ["stories/**/*.browser.tsx"],
+          setupFiles,
+          browser: browser(),
         },
       },
     ],

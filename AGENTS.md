@@ -57,25 +57,15 @@ make test-rust         # cargo test --locked --all-features, all 3 crates
 make test-ts           # webcomponents + coder-module suites
 ```
 
-`make fmt` is the same striping in rewrite mode (`cargo fmt`, `bun run fmt`,
-`terraform fmt`); only `fmt-check` gates. `make relay` / `make opr8r` /
-`make vscode-extension` run every gate for one module when only it changed.
-Display-bound suites stay off `make test`: `make vscode-extension` (Electron)
-and `make storybook` (browser + axe) are run on their own.
+`make fmt` is the same striping in rewrite mode (`cargo fmt`, `bun run fmt`); only `fmt-check` gates. `make relay` / `make opr8r` / `make vscode-extension` run every gate for one module when only it changed.
+Display-bound suites stay off `make test`: `make vscode-extension`  and `make storybook` (browser + axe) are run on their own.
 
-Formatting and linting are enforced for every subproject, not just the main
-crate. Rust uses `cargo fmt`/`clippy` (root, `crates/relay`, `opr8r`,
-`zed-extension`), JS/TS uses root-installed `oxfmt` + `oxlint` (`ui`,
-`webcomponents`, `vscode-extension`, `agnt-plugin`, the `coder-module` test
-harness), Terraform uses `terraform fmt`, charts use `helm lint`, and shell
-scripts use `shellcheck`. `bun run fmt` rewrites; `bun run fmt:check` reports.
-Generated output (`bindings/`, `shared/types.ts`, each `*/generated/`) is
-excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
+Formatting and linting are enforced for every subproject, not just the main crate.
+Rust uses `cargo fmt`/`clippy` (root, `crates/relay`, `opr8r`, `zed-extension`), JS/TS uses root-installed `oxfmt` + `oxlint` (`ui`, `webcomponents`, `vscode-extension`, `agnt-plugin`, the `coder-module` test harness), Terraform uses `terraform fmt`, charts use `helm lint`, and shell scripts use `shellcheck`. `bun run fmt` rewrites; `bun run fmt:check` reports.
+Generated output (`bindings/`, `shared/types.ts`, each `*/generated/`) is excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
 
 > The `--locked --all-targets --all-features` flags matter: plain
-> `cargo clippy` misses test-target and feature-gated lints (e.g. a dependency
-> deprecation that only surfaces under `--all-targets`), which is how a clippy
-> failure can pass locally yet break CI. Always use the full command above.
+> `cargo clippy` misses test-target and feature-gated lints (e.g. a dependency deprecation that only surfaces under `--all-targets`), which is how a clippy failure can pass locally yet break CI. Always use the full command above.
 
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
 
@@ -184,10 +174,6 @@ site), `collections/community/`.
 
 ## Key Concepts
 
-### Ticket Priority
-Queue order is `queue.priority_order` (default INV > FIX > TASK > FEAT > SPIKE), then FIFO.
-Issue types are schema-driven (collections + customm templates), not a fixed set.
-
 ### Agent Modes
 Execution mode is declared per issue type (`mode` in the issuetype schema):
 - **Autonomous** (e.g. FEAT, FIX, TASK): launch and monitor progress
@@ -229,8 +215,7 @@ Per-ticket git worktrees are prepared by `launcher/worktree_setup.rs`.
 ## Notifications
 
 Dispatched through `src/notifications/service.rs` to the enabled integrations:
-OS notifications (mac-notification-sys on macOS, notify-rust on Linux) and
-webhooks.
+OS notifications (mac-notification-sys on macOS, notify-rust on Linux) and webhooks.
 
 ## Project Discovery
 

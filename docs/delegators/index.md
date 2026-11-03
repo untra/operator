@@ -119,8 +119,7 @@ target = "cloud"                 # default when a launch/delegator does not over
 4. `docker = false` - local
 5. `launch.target` - the named global default target.
 6. `launch.docker.enabled = true` - the synthesized docker target.
-   **Behavior change:** this was previously only a TUI dialog gate; it is now
-   a real fallback, so REST/CLI/auto launches with it set run in docker.
+   **Behavior change:** this was only a TUI dialog gate; it is now a real fallback, so REST/CLI/auto launches with it set run in docker.
 7. otherwise - local
 
 Legacy inputs are synthesized rather than special-cased: `[launch.docker]` becomes a target named `docker`, and every `[[hosts]]` entry becomes an ssh target of the same name.

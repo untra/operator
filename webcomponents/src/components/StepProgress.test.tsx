@@ -36,3 +36,11 @@ test("StepProgress marks the current step for assistive tech", () => {
   expect(markup).toContain('aria-current="step"');
   expect(markup).toContain("Plan");
 });
+
+test("StepProgress exposes completed and pending states", () => {
+  const markup = renderToStaticMarkup(
+    <StepProgress steps={STEPS} current="build" completed={NONE} />,
+  );
+  expect(markup).toContain("Completed");
+  expect(markup).toContain("Pending");
+});

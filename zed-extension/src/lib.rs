@@ -498,7 +498,7 @@ impl OperatorExtension {
             }
         }
 
-        // ACP is optional - show as a tip, not a checkbox
+        // ACP is optional - show as a tip
         lines.push(
             "\n> **Tip - ACP agent (optional):** Run `/op-setup-agent` to enable AI-to-Operator prompt delegation via `~/.config/zed/settings.json`."
                 .to_string(),

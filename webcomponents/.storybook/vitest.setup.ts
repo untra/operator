@@ -1,10 +1,5 @@
-import { afterEach } from "vitest";
+import { afterEach, expect } from "vitest";
 
-/**
- * Fails a story whose local fonts or images never resolved, rather than letting it
- * render as empty space. `decode()` waits for the load to settle and rejects only on
- * a genuine error, so a first-request image is not mistaken for a broken one.
- */
 afterEach(async () => {
   await document.fonts.ready;
   const broken: string[] = [];
@@ -20,4 +15,11 @@ afterEach(async () => {
   if (broken.length > 0) {
     throw new Error(`story assets failed to load: ${broken.join(", ")}`);
   }
+});
+
+afterEach(() => {
+  const roundingTolerance = 1;
+  expect(document.documentElement.scrollWidth, "Story overflows the viewport").toBeLessThanOrEqual(
+    window.innerWidth + roundingTolerance,
+  );
 });

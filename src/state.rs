@@ -63,7 +63,7 @@ pub struct State {
     #[serde(default)]
     pub multi_agent_groups: Vec<MultiAgentGroup>,
 
-    /// Campaign id → runner bookkeeping
+    /// Campaign id to runner bookkeeping
     #[serde(default)]
     pub campaign_runs: HashMap<String, CampaignRun>,
 
@@ -76,7 +76,7 @@ pub struct State {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct CampaignRun {
-    /// Ticket id → launches made by the runner
+    /// Ticket id to launches made by the runner
     #[serde(default)]
     pub launches: BTreeMap<String, u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

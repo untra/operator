@@ -30,16 +30,10 @@ the term _"Workflow"_ is overloaded in the AI space. Operator workflows are json
 Answer these before opening an editor. If you cannot answer them crisply, the
 collection is not ready to write.
 
-1. **What is the loop?** What repeats, and what ends it? "Implement one
-   right-sized story per fresh agent context" (`ralph_loop`) is a loop.
-   "Do software development" is not.
-2. **What are the work types?** Each issue type must be a *genuinely different
-   shape of work*, not a different priority or label. If two types have the
-   same steps, they are one type with a field.
-3. **Where does state live between steps?** Agents lose context. Name the
-   files or surfaces that carry memory forward (`workflow_hints.memory_surfaces`).
-4. **What are the gates?** Where must a human or a test approve before
-   continuing, and what happens on rejection?
+1. **What is the loop?** What repeats, and what ends it? "Implement one right-sized story per fresh agent context" (`ralph_loop`) is a loop. "Do software development" is not.
+2. **What are the work types?** Each issue type must be a *genuinely different shape of work*. If two types have the same steps, they are one type with a field.
+3. **Where does state live between steps?** Agents lose context. Name the files or surfaces that carry memory forward (`workflow_hints.memory_surfaces`).
+4. **What are the gates?** Where must a human or a test approve before continuing, and what happens on rejection?
 5. **When does it stop?** Both success and give-up conditions.
 
 Study the shipped collections before inventing a shape - they are short and

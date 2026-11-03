@@ -4,10 +4,10 @@
 //! `ChannelSession` keeps a persistent background reader task and routes every
 //! incoming `ServerMsg` to the appropriate waiter:
 //!
-//! - `Peers` / `Ack` / `Err { req_id: Some(_) }` → resolve via `req_map`
-//! - `IncomingReply` / `Err { ask_id: Some(_) }` → resolve via `ask_map`
-//! - `BroadcastAck` → resolve via `bcast_map`
-//! - `IncomingAsk` → pushed to the caller via `incoming_ask_tx`
+//! - `Peers` / `Ack` / `Err { req_id: Some(_) }` -> resolve via `req_map`
+//! - `IncomingReply` / `Err { ask_id: Some(_) }` -> resolve via `ask_map`
+//! - `BroadcastAck` -> resolve via `bcast_map`
+//! - `IncomingAsk` -> pushed to the caller via `incoming_ask_tx`
 
 use std::collections::HashMap;
 use std::path::Path;

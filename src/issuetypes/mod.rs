@@ -268,8 +268,8 @@ impl IssueTypeRegistry {
     }
 
     /// Resolve an issue type by key with collection precedence:
-    /// explicit collection → active collection → deterministic search across
-    /// collections in load order → kanban imports. Misses at an earlier level
+    /// explicit collection -> active collection -> deterministic search across
+    /// collections in load order -> kanban imports. Misses at an earlier level
     /// fall through to the next (logged at debug).
     pub fn resolve(&self, collection: Option<&str>, key: &str) -> Option<&IssueType> {
         if let Some(name) = collection {

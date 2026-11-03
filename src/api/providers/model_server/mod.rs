@@ -24,14 +24,14 @@ use crate::config::ModelServer;
 /// Build the environment variables an agent CLI needs to target this server.
 ///
 /// This is the mapping the `TODO(model-servers-v2)` called for: a resolved
-/// [`ModelServer`] → the env vars exported before the agent spawns.
+/// [`ModelServer`] the env vars exported before the agent spawns.
 ///
-/// - `base_url` → the protocol's [`ModelServerKind::base_url_env_var`].
-/// - `api_key_env` (if set) → a **shell indirection** `${api_key_env}` under the
+/// - `base_url` the protocol's [`ModelServerKind::base_url_env_var`].
+/// - `api_key_env` (if set) a **shell indirection** `${api_key_env}` under the
 ///   protocol's [`ModelServerKind::api_key_env_var`]. The spawned script inherits
 ///   operator's environment, so the reference resolves at run time and the secret
 ///   value is never written to the on-disk command file.
-/// - `extra_env` → passed through verbatim as the user's explicit escape hatch
+/// - `extra_env` passed through verbatim as the user's explicit escape hatch
 ///   (takes precedence over the derived vars).
 ///
 /// Pure (no environment reads), so the secret never transits this function.

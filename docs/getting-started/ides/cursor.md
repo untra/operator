@@ -106,7 +106,7 @@ Open the file in any text editor. To remove the operator entry, delete the `mcpS
 
 ### Switching between VS Code and Cursor on the same workspace
 
-If you previously ran `Operator: Connect MCP Server` in stock VS Code on the same workspace, the workspace `mcp.servers.operator` entry still exists in that workspace's `.vscode/settings.json`. Running the command again in Cursor adds a user-scope entry in `~/.cursor/mcp.json`. **Both work in their respective hosts**; the extension intentionally does not delete the workspace entry from inside Cursor (doing so would surprise you when you reopen the workspace in VS Code).
+Running the `Operator: Connect MCP Server` command again in Cursor adds a user-scope entry in `~/.cursor/mcp.json`. **Both work in their respective hosts**; the extension intentionally does not delete the workspace entry from inside Cursor (doing so would surprise you when you reopen the workspace in VS Code).
 
 If you want a clean slate in only one of the two editors, delete the entry from the file Cursor or VS Code doesn't see (`.vscode/settings.json` for VS Code, `~/.cursor/mcp.json` for Cursor).
 

@@ -148,18 +148,15 @@ fn adhoc_model_server_settings(
 /// Resolve the execution target for a launch.
 ///
 /// Precedence:
-/// 1. `target` name set → look up (explicit `[[targets]]`, builtin
+/// 1. `target` name set -> look up (explicit `[[targets]]`, builtin
 ///    `local`/`docker`, or a `[[hosts]]` name); unknown = hard error
-/// 2. `host` name set (deprecated) → ssh target of that name
-/// 3. `docker: Some(true)` (deprecated) → synthesized docker target
-/// 4. `docker: Some(false)` → local
-/// 5. `launch.target` → named global default
-/// 6. `launch.docker.enabled` → synthesized docker target
-/// 7. → local
+/// 2. `host` name set (deprecated) -> ssh target of that name
+/// 3. `docker: Some(true)` (deprecated) -> synthesized docker target
+/// 4. `docker: Some(false)` -> local
+/// 5. `launch.target` -> named global default
+/// 6. `launch.docker.enabled` -> synthesized docker target
+/// 7. -> local
 ///
-/// Deprecated combinations resolve deterministically (`target` wins over
-/// `host`/`docker`; `host` wins over `docker: true`) with one deprecation
-/// warning per process instead of the former hard error.
 pub fn resolve_target(
     launch_config: Option<&DelegatorLaunchConfig>,
     config: &Config,

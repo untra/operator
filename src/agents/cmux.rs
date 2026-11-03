@@ -683,9 +683,9 @@ impl CmuxClient for MockCmuxClient {
 pub struct CmuxWrapper {
     client: Arc<dyn CmuxClient>,
     placement: CmuxPlacementPolicy,
-    /// Map of session name → workspace ref (for routing operations)
+    /// Map of session name to workspace ref (for routing operations)
     session_workspaces: Mutex<HashMap<String, String>>,
-    /// Map of session name → window ref
+    /// Map of session name to window ref
     session_windows: Mutex<HashMap<String, String>>,
 }
 
@@ -742,7 +742,7 @@ impl CmuxWrapper {
                 Ok((window_id, true))
             }
             CmuxPlacementPolicy::Auto => {
-                // 0-1 windows → workspace in active window; >1 → new window
+                // 0-1 windows to workspace in active window; >1 to new window
                 let count = self.client.window_count()?;
                 if count <= 1 {
                     let window_id = self.client.active_window_id()?;
@@ -1049,7 +1049,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_single_window_placement() {
-        // Auto placement with 1 window → workspace in active window
+        // Auto placement with 1 window to workspace in active window
         let wrapper = make_wrapper(MockCmuxClient::new(), CmuxPlacementPolicy::Auto);
 
         wrapper
@@ -1065,7 +1065,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_multi_window_placement() {
-        // Auto placement with >1 windows → new window
+        // Auto placement with >1 windows to new window
         let client = MockCmuxClient::new();
         client.add_window("Second");
         let wrapper = make_wrapper(client, CmuxPlacementPolicy::Auto);
@@ -1083,7 +1083,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_workspace_policy() {
-        // Workspace policy → always in active window
+        // Workspace policy to always in active window
         let client = MockCmuxClient::new();
         client.add_window("Second");
         let wrapper = make_wrapper(client, CmuxPlacementPolicy::Workspace);
@@ -1099,7 +1099,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_window_policy() {
-        // Window policy → always creates a new window
+        // Window policy to always creates a new window
         let wrapper = make_wrapper(MockCmuxClient::new(), CmuxPlacementPolicy::Window);
 
         wrapper

@@ -57,6 +57,7 @@ vscode-extension/.vscode-test/
 test-output.txt
 .tickets/
 .proof/
+**/.vitest-attachments
 
 # terraform working files left by `bun test` in coder-module/
 coder-module/.terraform/

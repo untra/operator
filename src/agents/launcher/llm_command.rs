@@ -680,11 +680,11 @@ pub(crate) fn locate_opr8r_binary() -> Option<PathBuf> {
 /// Locate the relay command, returning `(binary_path, extra_args)`.
 ///
 /// Discovery order:
-/// 1. `opr8r` alongside the running operator binary → returns `(opr8r, ["relay"])`
-/// 2. `OPERATOR_RELAY` env var → returns `(path, ["relay"])` (treated as opr8r)
-/// 3. `opr8r` on PATH → returns `(opr8r, ["relay"])`
-/// 4. Legacy `operator-relay` standalone binary alongside operator → returns `(operator-relay, [])`
-/// 5. Legacy `operator-relay` on PATH → returns `(operator-relay, [])`
+/// 1. `opr8r` alongside the running operator binary > returns `(opr8r, ["relay"])`
+/// 2. `OPERATOR_RELAY` env var > returns `(path, ["relay"])` (treated as opr8r)
+/// 3. `opr8r` on PATH > returns `(opr8r, ["relay"])`
+/// 4. Legacy `operator-relay` standalone binary alongside operator > returns `(operator-relay, [])`
+/// 5. Legacy `operator-relay` on PATH > returns `(operator-relay, [])`
 fn locate_relay_command() -> Option<(PathBuf, Vec<String>)> {
     // 1. opr8r alongside the running operator binary (primary: signed distribution)
     if let Ok(exe) = std::env::current_exe() {

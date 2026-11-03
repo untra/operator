@@ -1346,7 +1346,7 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
 
     for generator in generators {
         generator.write(&docs_dir)?;
-        println!("  ✓ {} → {}", generator.name(), generator.output_path());
+        println!("  ✓ {} -> {}", generator.name(), generator.output_path());
     }
 
     println!("\nDocumentation generation complete.");

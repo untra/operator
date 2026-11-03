@@ -66,3 +66,8 @@ export const PrerequisitesUnlinked: Story = {
 export const WithoutBrandIcons: Story = { args: { brandIconSrc: undefined } };
 
 export const DarkTheme: Story = { globals: { theme: "dark" } };
+
+/** A collapsed card whose summary the behaviour suite toggles with Enter and Space. */
+export const KeyboardExpansion: Story = {
+  args: { section: lockedSectionWithChildren },
+};

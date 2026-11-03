@@ -15,7 +15,13 @@ export interface AsyncStateProps<T> {
 
 export function AsyncState<T>({ value, children }: AsyncStateProps<T>) {
   if (value.status === "ready") {
-    return children(value.data);
+    return (
+      <>
+        <output className={styles.silent} aria-live="polite" aria-atomic="true" />
+        <div className={styles.silent} role="alert" aria-atomic="true" />
+        {children(value.data)}
+      </>
+    );
   }
   const message =
     value.message ??
@@ -25,8 +31,21 @@ export function AsyncState<T>({ value, children }: AsyncStateProps<T>) {
         ? "Loading…"
         : "No data available.");
   return (
-    <div className={`${styles.state} ${value.status === "error" ? styles.error : ""}`}>
-      {message}
-    </div>
+    <>
+      <output
+        aria-live="polite"
+        aria-atomic="true"
+        className={value.status !== "error" ? styles.state : styles.silent}
+      >
+        {value.status !== "error" ? message : null}
+      </output>
+      <div
+        role="alert"
+        aria-atomic="true"
+        className={value.status === "error" ? `${styles.state} ${styles.error}` : styles.silent}
+      >
+        {value.status === "error" ? message : null}
+      </div>
+    </>
   );
 }

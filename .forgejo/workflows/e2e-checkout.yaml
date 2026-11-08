@@ -6,13 +6,9 @@ on:
         description: Branch, tag or sha to test (blank tests the dispatched branch)
         required: false
         default: ""
-      purchase_url:
-        description: Sandbox storefront checkout link compiled into the build (blank uses OPERATOR_E2E_PURCHASE_URL)
-        required: false
-        default: ""
 
 # Ad hoc: proves in-app purchase end to end in Stripe sandbox mode.
-#   arm64  runs-on: docker  builds this ref's Dockerfile.local (--load, nothing pushed) with the sandbox purchase URL,
+#   arm64  runs-on: docker  builds this ref's Dockerfile.local (--load, nothing pushed) exactly as a casa build,
 #                           forwards the sandbox's Stripe events to the platform webhook with `stripe listen`, then runs
 #                           e2e/checkout against a throwaway server: first-time setup → Buy → storefront → Stripe test
 #                           card → license pickup → back to the server with #license_key → installed → Premium.
@@ -23,7 +19,7 @@ on:
 # Variables: REGISTRY_IMAGE
 # Secrets:   REGISTRY_USERNAME, REGISTRY_TOKEN,
 #            OPERATOR_LICENSE_ROOT_KEYS (dev root only), OPERATOR_LICENSE_ISSUER,
-#            OPERATOR_E2E_PURCHASE_URL (https://app.operator.untra.casa/checkout?sku=<sandbox sku>; or the input),
+#            OPERATOR_PURCHASE_URL (the casa build's https://app.operator.untra.casa/checkout?sku=<sandbox sku>),
 #            STRIPE_SANDBOX_API_KEY (sk_test_/rk_test_ of the sandbox the casa api uses),
 #            OPERATOR_E2E_CA_CERT (optional; PEM for the casa CA, else the listener skips TLS verification)
 
@@ -47,7 +43,7 @@ jobs:
       - name: Secrets present
         run: |
           missing=0
-          for name in OPERATOR_LICENSE_ROOT_KEYS OPERATOR_LICENSE_ISSUER STRIPE_SANDBOX_API_KEY PURCHASE_URL; do
+          for name in OPERATOR_LICENSE_ROOT_KEYS OPERATOR_LICENSE_ISSUER STRIPE_SANDBOX_API_KEY OPERATOR_PURCHASE_URL; do
             if [ -z "$(printenv "$name")" ]; then
               echo "::error::$name is unset or empty"
               missing=1
@@ -57,16 +53,16 @@ jobs:
             sk_test_*|rk_test_*) ;;
             *) echo "::error::STRIPE_SANDBOX_API_KEY must be a sandbox (sk_test_/rk_test_) key"; missing=1 ;;
           esac
-          case "$PURCHASE_URL" in
+          case "$OPERATOR_PURCHASE_URL" in
             "$PLATFORM_APP_ORIGIN"/checkout\?*sku=*) ;;
-            *) echo "::error::purchase URL must be $PLATFORM_APP_ORIGIN/checkout?sku=<sandbox sku>"; missing=1 ;;
+            *) echo "::error::OPERATOR_PURCHASE_URL must be $PLATFORM_APP_ORIGIN/checkout?sku=<sandbox sku>"; missing=1 ;;
           esac
           exit "$missing"
         env:
           OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
           OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
           STRIPE_SANDBOX_API_KEY: ${{ secrets.STRIPE_SANDBOX_API_KEY }}
-          PURCHASE_URL: ${{ inputs.purchase_url || secrets.OPERATOR_E2E_PURCHASE_URL }}
+          OPERATOR_PURCHASE_URL: ${{ secrets.OPERATOR_PURCHASE_URL }}
 
       - uses: https://forgejo.kube.untra.casa/actions/checkout@v4
         with:
@@ -84,7 +80,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
-      # As pr.yaml: reads main's cache, never writes it. Only the purchase URL differs from a casa build.
+      # As pr.yaml: reads main's cache, never writes it.
       - name: Build
         run: |
           docker buildx build \
@@ -93,7 +89,7 @@ jobs:
             --build-arg OPERATOR_RELEASE=1 \
             --build-arg OPERATOR_LICENSE_ISSUER="$OPERATOR_LICENSE_ISSUER" \
             --build-arg OPERATOR_LICENSE_ROOT_KEYS="$OPERATOR_LICENSE_ROOT_KEYS" \
-            --build-arg OPERATOR_PURCHASE_URL="$PURCHASE_URL" \
+            --build-arg OPERATOR_PURCHASE_URL="$OPERATOR_PURCHASE_URL" \
             --cache-from "type=registry,ref=$REGISTRY_IMAGE:buildcache" \
             --tag "operator:${{ steps.meta.outputs.tag }}" \
             --load \
@@ -102,7 +98,7 @@ jobs:
           REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE }}
           OPERATOR_LICENSE_ISSUER: ${{ secrets.OPERATOR_LICENSE_ISSUER }}
           OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}
-          PURCHASE_URL: ${{ inputs.purchase_url || secrets.OPERATOR_E2E_PURCHASE_URL }}
+          OPERATOR_PURCHASE_URL: ${{ secrets.OPERATOR_PURCHASE_URL }}
 
       # Daemon API only (create, cp, start), so it works under dind like scripts/ci/e2e.sh.
       - name: Start Stripe listener

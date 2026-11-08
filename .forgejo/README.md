@@ -28,8 +28,21 @@ api() { curl -fsS -H "Authorization: token $FORGEJO_TOKEN" -H 'Content-Type: app
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_LICENSE_ROOT_KEYS" \
   -d "$(jq -cn --arg k "$(cat ~/untra-keys/keys/untra-dev-2026.pub)" '{data: ({"untra-dev-2026": $k} | tojson)}')"
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_LICENSE_ISSUER" -d '{"data":"operator-licensing"}'
-api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_PURCHASE_URL" -d '{"data":"https://app.operator.untra.casa/"}'
+api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_PURCHASE_URL" \
+  -d '{"data":"https://app.operator.untra.casa/checkout?sku=prod_VAdGh6Cnx85nYq"}'
 api "$FORGEJO/api/v1/repos/$REPO/actions/secrets" | jq -r '.[].name'   # names only; values are write-only
+```
+
+`OPERATOR_PURCHASE_URL` is the Buy Premium link compiled into the binary; the build appends `profile_id` and the UI appends `return_to`.
+A release build (`OPERATOR_RELEASE=1`) fails unless it is an `https://<storefront>/checkout?sku=<sku>` link.
+
+| Forge | `OPERATOR_PURCHASE_URL` | Stripe |
+| --- | --- | --- |
+| GitHub `untra/operator` (releases) | `https://app.operator.untra.app/checkout?sku=prod_VAdGh6Cnx85nYq` | live |
+| Forgejo (`deploy-casa`, `pr`, `e2e-checkout`) | `https://app.operator.untra.casa/checkout?sku=prod_VAdGh6Cnx85nYq` | sandbox |
+
+```sh
+gh secret set OPERATOR_PURCHASE_URL --repo untra/operator --body 'https://app.operator.untra.app/checkout?sku=prod_VAdGh6Cnx85nYq'
 ```
 
 ## Base image mirror
@@ -77,6 +90,8 @@ Run the same thing locally with `make e2e`; pass the two `OPERATOR_E2E_*` variab
 
 `workflows/e2e-checkout.yaml` (dispatch only) runs `e2e/checkout` against a throwaway server built from the dispatched ref. The suite does first-time setup and clicks Buy. It then pays on Stripe's hosted page with the sandbox test card. Finally it checks that the storefront sends the key back (`#license_key=…`), the server installs it, and both tabs show Premium.
 
+The build uses the casa `OPERATOR_PURCHASE_URL` (see License secrets), so the Buy link opens the sandbox storefront; the job fails unless it is `https://app.operator.untra.casa/checkout?sku=…`.
+
 Stripe cannot reach the casa webhook, so the job runs `stripe listen` and forwards to it. The casa webhook must accept the listener signing secret.
 
 ```sh
@@ -84,15 +99,13 @@ STRIPE_API_KEY=sk_test_... stripe listen --print-secret   # set as STRIPE_WEBHOO
 crane copy --platform linux/arm64 stripe/stripe-cli:v1.21.0 "$MIRROR/stripe/stripe-cli:v1.21.0"
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/STRIPE_SANDBOX_API_KEY" \
   -d "$(jq -cn --arg v "$STRIPE_API_KEY" '{data: $v}')"
-api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_E2E_PURCHASE_URL" \
-  -d '{"data":"https://app.operator.untra.casa/checkout?sku=<sandbox sku>"}'
 api -X POST "$FORGEJO/api/v1/repos/$REPO/actions/workflows/e2e-checkout.yaml/dispatches" -d '{"ref":"main"}'
 ```
 
 The casa `api` needs the same sandbox's `STRIPE_SECRET_KEY` and `STRIPE_CHECKOUT_SUCCESS_URL=https://app.operator.untra.casa/license?session_id={CHECKOUT_SESSION_ID}`. It also needs one active Price whose `lookup_key` is the SKU. If the listener log shows `[400]` responses, the webhook's secret is wrong.
 
 The same run works locally once `stripe listen --forward-to https://webhook.operator.untra.casa/webhooks/stripe` is running on the host:
-`OPERATOR_E2E_CHECKOUT=1 scripts/ci/e2e.sh <image built with that purchase URL> --project=checkout`.
+`OPERATOR_E2E_CHECKOUT=1 scripts/ci/e2e.sh <image built with the casa purchase URL> --project=checkout`.
 
 ## Required check on main
 

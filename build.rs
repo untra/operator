@@ -73,4 +73,22 @@ fn check_license_keys() {
         "OPERATOR_RELEASE=1 but OPERATOR_LICENSE_ROOT_KEYS is unset or empty - \
          this build would reject every Premium licence"
     );
+    let purchase = std::env::var("OPERATOR_PURCHASE_URL").unwrap_or_default();
+    assert!(
+        is_checkout_link(purchase.trim()),
+        "OPERATOR_RELEASE=1 but OPERATOR_PURCHASE_URL is not an \
+         https://<storefront>/checkout?sku=<sku> link - this build would offer no Buy Premium link"
+    );
+}
+
+/// `https://<host>/checkout?…sku=<non-empty>…`, the storefront shape the Buy link needs.
+fn is_checkout_link(url: &str) -> bool {
+    let Some((path, query)) = url.split_once('?') else {
+        return false;
+    };
+    path.starts_with("https://")
+        && path.ends_with("/checkout")
+        && query
+            .split('&')
+            .any(|pair| pair.strip_prefix("sku=").is_some_and(|sku| !sku.is_empty()))
 }

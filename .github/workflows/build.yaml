@@ -678,6 +678,7 @@ jobs:
       # runtime settings. build.rs refuses an empty root keyring or issuer when
       # OPERATOR_RELEASE=1, so a missing repository secret fails this job
       # instead of publishing a binary that rejects every license.
+      # OPERATOR_PURCHASE_URL is the prod https://app.operator.untra.app/checkout?sku=… link; build.rs rejects any other shape.
       - name: Build release
         run: cargo build --locked --release --target ${{ matrix.target }}
         env:

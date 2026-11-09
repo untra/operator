@@ -104,7 +104,18 @@ jobs:
       - name: Start Stripe listener
         run: |
           image="${REGISTRY_IMAGE%/*}/mirror/$STRIPE_CLI_IMAGE"
-          secret=$(docker run --rm --env STRIPE_API_KEY "$image" listen --print-secret)
+          # Both streams, so a failure shows the CLI's own message.
+          if ! out=$(docker run --rm --env STRIPE_API_KEY "$image" listen --print-secret 2>&1); then
+            echo "::error::stripe listen --print-secret failed for STRIPE_SANDBOX_API_KEY"
+            printf '%s\n' "$out" | sed "s/whsec_[A-Za-z0-9]*/whsec_***/g"
+            exit 1
+          fi
+          secret=$(printf '%s\n' "$out" | grep -o 'whsec_[A-Za-z0-9]*' | head -n1 || true)
+          if [ -z "$secret" ]; then
+            echo "::error::stripe listen --print-secret printed no whsec_ secret"
+            printf '%s\n' "$out" | sed "s/whsec_[A-Za-z0-9]*/whsec_***/g"
+            exit 1
+          fi
           echo "::add-mask::$secret"
 
           tls=(--skip-verify)

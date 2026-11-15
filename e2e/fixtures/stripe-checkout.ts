@@ -24,8 +24,22 @@ async function fillIfVisible(field: Locator, value: string): Promise<void> {
   }
 }
 
+/** The storefront stays put with a role=alert when its api refuses checkout; surface that reason. */
+async function reachStripe(page: Page): Promise<void> {
+  const stripe = /^https:\/\/checkout\.stripe\.com\//;
+  const refusal = page.getByRole("alert");
+  const outcome = await Promise.race([
+    page.waitForURL(stripe, { timeout: PAGE_TIMEOUT_MS }).then(() => "stripe" as const),
+    refusal.waitFor({ timeout: PAGE_TIMEOUT_MS }).then(() => "refused" as const),
+  ]).catch(() => "timeout" as const);
+  if (outcome === "refused" && !stripe.test(page.url())) {
+    throw new Error(`storefront refused checkout: ${(await refusal.innerText()).trim()}`);
+  }
+  await expect(page).toHaveURL(stripe, { timeout: PAGE_TIMEOUT_MS });
+}
+
 export async function payWithTestCard(page: Page): Promise<void> {
-  await expect(page).toHaveURL(/^https:\/\/checkout\.stripe\.com\//, { timeout: PAGE_TIMEOUT_MS });
+  await reachStripe(page);
 
   const email = page.locator("#email");
   await expect(email).toBeVisible({ timeout: PAGE_TIMEOUT_MS });

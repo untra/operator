@@ -41,32 +41,36 @@ async function reachStripe(page: Page): Promise<void> {
 export async function payWithTestCard(page: Page): Promise<void> {
   await reachStripe(page);
 
-  const email = page.locator("#email");
+  // Checkout renders its whole form inside one Elements iframe.
+  const form = page.frameLocator('iframe[title="Secure embedded form frame"]');
+
+  const email = form.locator("#linkAuthentication-emailInput");
   await expect(email).toBeVisible({ timeout: PAGE_TIMEOUT_MS });
   await email.fill(`e2e+${randomUUID()}@example.com`);
 
   // With several payment methods enabled, card sits in a collapsed accordion.
-  const cardAccordion = page.getByTestId("card-accordion-item-button");
-  if (await cardAccordion.isVisible()) {
-    await cardAccordion.click();
+  const cardNumber = form.locator("#payment-numberInput");
+  if (!(await cardNumber.isVisible())) {
+    await form.getByRole("button", { name: /^Card/ }).click();
   }
 
-  await page.locator("#cardNumber").fill(TEST_CARD);
-  await page.locator("#cardExpiry").fill(futureExpiry());
-  await page.locator("#cardCvc").fill(TEST_CVC);
-  await fillIfVisible(page.locator("#billingName"), "Operator E2E");
+  await expect(cardNumber).toBeVisible({ timeout: PAGE_TIMEOUT_MS });
+  await cardNumber.fill(TEST_CARD);
+  await form.locator("#payment-expiryInput").fill(futureExpiry());
+  await form.locator("#payment-cvcInput").fill(TEST_CVC);
+  await fillIfVisible(form.locator("#payment-nameInput"), "Operator E2E");
 
-  const country = page.locator("#billingCountry");
+  const country = form.locator("#payment-countryInput");
   if (await country.isVisible()) {
     await country.selectOption("US");
   }
-  await fillIfVisible(page.locator("#billingPostalCode"), TEST_POSTAL);
+  await fillIfVisible(form.locator("#payment-postalCodeInput"), TEST_POSTAL);
 
-  // Never enroll the throwaway buyer in Link.
-  const saveWithLink = page.locator("#enableStripePass");
+  // Never enroll the throwaway buyer in Link; it is opted in by default and demands a phone.
+  const saveWithLink = form.locator("#payment-linkOptInInput");
   if ((await saveWithLink.isVisible()) && (await saveWithLink.isChecked())) {
     await saveWithLink.uncheck();
   }
 
-  await page.getByTestId("hosted-payment-submit-button").click();
+  await form.getByTestId("payment-form-submit-button").click();
 }

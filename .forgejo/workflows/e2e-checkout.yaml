@@ -57,6 +57,9 @@ jobs:
             "$PLATFORM_APP_ORIGIN"/checkout\?*sku=*) ;;
             *) echo "::error::OPERATOR_PURCHASE_URL must be $PLATFORM_APP_ORIGIN/checkout?sku=<sandbox sku>"; missing=1 ;;
           esac
+          case "$OPERATOR_PURCHASE_URL" in
+            *sku=prod_*) echo "::error::OPERATOR_PURCHASE_URL sku must be a platform SKU id (GET /billing/products, e.g. premium-lifetime), not a Stripe product id"; missing=1 ;;
+          esac
           exit "$missing"
         env:
           OPERATOR_LICENSE_ROOT_KEYS: ${{ secrets.OPERATOR_LICENSE_ROOT_KEYS }}

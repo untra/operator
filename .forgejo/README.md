@@ -29,20 +29,21 @@ api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_LICENSE_ROOT_KE
   -d "$(jq -cn --arg k "$(cat ~/untra-keys/keys/untra-dev-2026.pub)" '{data: ({"untra-dev-2026": $k} | tojson)}')"
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_LICENSE_ISSUER" -d '{"data":"operator-licensing"}'
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_PURCHASE_URL" \
-  -d '{"data":"https://app.operator.untra.casa/checkout?sku=prod_VAdGh6Cnx85nYq"}'
+  -d '{"data":"https://app.operator.untra.casa/checkout?sku=premium-lifetime"}'
 api "$FORGEJO/api/v1/repos/$REPO/actions/secrets" | jq -r '.[].name'   # names only; values are write-only
 ```
 
 `OPERATOR_PURCHASE_URL` is the Buy Premium link compiled into the binary; the build appends `profile_id` and the UI appends `return_to`.
 A release build (`OPERATOR_RELEASE=1`) fails unless it is an `https://<storefront>/checkout?sku=<sku>` link.
+`<sku>` is a platform SKU id from `GET https://api.<zone>/billing/products` (also the Stripe Price `lookup_key`), never a Stripe `prod_` id; an unknown SKU makes the storefront answer "This checkout link is invalid." instead of redirecting to Stripe.
 
 | Forge | `OPERATOR_PURCHASE_URL` | Stripe |
 | --- | --- | --- |
-| GitHub `untra/operator` (releases) | `https://app.operator.untra.app/checkout?sku=prod_VAdGh6Cnx85nYq` | live |
-| Forgejo (`deploy-casa`, `pr`, `e2e-checkout`) | `https://app.operator.untra.casa/checkout?sku=prod_VAdGh6Cnx85nYq` | sandbox |
+| GitHub `untra/operator` (releases) | `https://app.operator.untra.app/checkout?sku=premium-lifetime` | live |
+| Forgejo (`deploy-casa`, `pr`, `e2e-checkout`) | `https://app.operator.untra.casa/checkout?sku=premium-lifetime` | sandbox |
 
 ```sh
-gh secret set OPERATOR_PURCHASE_URL --repo untra/operator --body 'https://app.operator.untra.app/checkout?sku=prod_VAdGh6Cnx85nYq'
+gh secret set OPERATOR_PURCHASE_URL --repo untra/operator --body 'https://app.operator.untra.app/checkout?sku=premium-lifetime'
 ```
 
 ## Base image mirror

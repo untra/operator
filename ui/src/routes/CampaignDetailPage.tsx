@@ -15,6 +15,7 @@ import {
   pauseCampaignMutation,
 } from "../api/definitions";
 import styles from "./CampaignsPage.module.css";
+import { PREMIUM_PAGE_HREF } from "../license-return";
 
 const LAUNCHABLE = new Set(["draft", "ready", "paused"]);
 
@@ -250,7 +251,12 @@ export function CampaignDetailPage() {
         {id} <span className={styles.badge}>Premium</span>
       </h1>
       {license.error && <output className={styles.status}>{license.error.message}</output>}
-      <PremiumGate feature="Campaigns" license={license.data} onAddLicense={onAddLicense}>
+      <PremiumGate
+        feature="Campaigns"
+        license={license.data}
+        premiumHref={PREMIUM_PAGE_HREF}
+        onAddLicense={onAddLicense}
+      >
         <CampaignDetail id={id} />
       </PremiumGate>
     </main>

@@ -24,6 +24,11 @@ export const Inline: Story = {
   args: { inline: true },
 };
 
+/** In-app paywalls link to the Premium page, where checkout starts, instead of the storefront. */
+export const InAppPremiumLink: Story = {
+  args: { purchaseUrl: null, premiumHref: "#/settings/premium" },
+};
+
 /** A build with no purchase destination configured offers only "Add license". */
 export const WithoutPurchaseUrl: Story = {
   args: { purchaseUrl: null },

@@ -15,6 +15,7 @@ const meta = {
   component: PremiumGate,
   args: {
     feature: "Campaigns",
+    premiumHref: "#/settings/premium",
     onAddLicense: NOOP,
     license: { ...LICENSE, premium: false },
     children: <p>Campaign content, shown only with Premium.</p>,

@@ -85,7 +85,7 @@ const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
   </Intro>
 );
 
-const License: StepComponent = () => <LicensePanel />;
+const License: StepComponent = () => <LicensePanel checkout="setup" />;
 
 const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
   const licenseQueryResult = useLicenseQuery();
@@ -137,7 +137,7 @@ const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
           <PremiumPaywall
             inline
             feature="Remote targets"
-            purchaseUrl={withReturnTo(license?.purchase_url)}
+            purchaseUrl={withReturnTo(license?.purchase_url, "setup")}
             onAddLicense={addLicense}
           />
         </div>

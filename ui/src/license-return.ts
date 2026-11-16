@@ -13,11 +13,47 @@ export const LICENSE_RETURN_PATH = "/license/return";
 /** How often a tab that opened checkout re-reads the licence until it turns Premium. */
 export const CHECKOUT_POLL_MS = 3000;
 
+/** Which purchase flow sent the buyer to checkout; it rides back in `return_to`'s query. */
+export type CheckoutFlow = "setup" | "upgrade";
+export const CHECKOUT_FLOW_PARAM = "checkout";
+const DESTINATIONS: Record<CheckoutFlow, string> = {
+  setup: "/onboarding?step=license",
+  upgrade: "/settings/premium",
+};
+
+export function parseCheckoutFlow(value: string | null | undefined): CheckoutFlow | null {
+  return value === "setup" || value === "upgrade" ? value : null;
+}
+
+/** Where a completed checkout continues once its key is installed; null stays on the return page. */
+export function checkoutDestination(flow: string | null | undefined): string | null {
+  const parsed = parseCheckoutFlow(flow);
+  return parsed ? DESTINATIONS[parsed] : null;
+}
+
+const PLATFORM_ACCOUNT_PATH = "/account";
+/** In-app paywalls link here; it is the only in-app place checkout starts. */
+export const PREMIUM_PAGE_HREF = `#${DESTINATIONS.upgrade}`;
+
+/** The platform page that manages and extends licenses, on the storefront this build buys from. */
+export function platformAccountUrl(purchaseUrl: string | null | undefined): string | null {
+  if (!purchaseUrl) {
+    return null;
+  }
+  try {
+    const url = new URL(purchaseUrl);
+    return url.protocol === "https:" ? `${url.origin}${PLATFORM_ACCOUNT_PATH}` : null;
+  } catch {
+    return null;
+  }
+}
+
 type LocationLike = Pick<Location, "origin" | "pathname">;
 
 /** The purchase URL plus where checkout should send the buyer back; null when unusable. */
 export function withReturnTo(
   purchaseUrl: string | null | undefined,
+  flow: CheckoutFlow,
   location: LocationLike = window.location,
 ): string | null {
   if (!purchaseUrl) {
@@ -29,15 +65,19 @@ export function withReturnTo(
   } catch {
     return null;
   }
-  url.searchParams.set(RETURN_TO_PARAM, `${location.origin}${location.pathname}`);
+  const back = new URLSearchParams({ [CHECKOUT_FLOW_PARAM]: flow });
+  url.searchParams.set(
+    RETURN_TO_PARAM,
+    `${location.origin}${location.pathname}?${back.toString()}`,
+  );
   return url.toString();
 }
 
 /**
- * `#license_key=X` → `#/license/return?license_key=X`, so the hash router can route it.
- * Returns the rewritten hash, or null when the hash is not a checkout return.
+ * `#license_key=X` → `#/license/return?license_key=X[&checkout=flow]`, so the hash router can route
+ * it. Returns the rewritten hash, or null when the hash is not a checkout return.
  */
-export function licenseReturnHash(hash: string): string | null {
+export function licenseReturnHash(hash: string, search = ""): string | null {
   if (!hash.startsWith(`#${LICENSE_KEY_PARAM}=`)) {
     return null;
   }
@@ -46,18 +86,32 @@ export function licenseReturnHash(hash: string): string | null {
     return null;
   }
   const query = new URLSearchParams({ [LICENSE_KEY_PARAM]: key });
+  const flow = parseCheckoutFlow(new URLSearchParams(search).get(CHECKOUT_FLOW_PARAM));
+  if (flow) {
+    query.set(CHECKOUT_FLOW_PARAM, flow);
+  }
   return `#${LICENSE_RETURN_PATH}?${query.toString()}`;
+}
+
+type ReturnLocation = Pick<Location, "pathname" | "search" | "hash">;
+
+/** The routed URL for a checkout return, with the checkout tag moved out of the query; else null. */
+export function returnLocation(location: ReturnLocation): string | null {
+  const rewritten = licenseReturnHash(location.hash, location.search);
+  if (!rewritten) {
+    return null;
+  }
+  const search = new URLSearchParams(location.search);
+  search.delete(CHECKOUT_FLOW_PARAM);
+  const rest = search.toString();
+  return `${location.pathname}${rest ? `?${rest}` : ""}${rewritten}`;
 }
 
 /** Runs before the router mounts; replaceState keeps the raw key out of history. */
 export function rewriteLicenseFragment(win: Window = window): void {
-  const rewritten = licenseReturnHash(win.location.hash);
+  const rewritten = returnLocation(win.location);
   if (rewritten) {
-    win.history.replaceState(
-      null,
-      "",
-      `${win.location.pathname}${win.location.search}${rewritten}`,
-    );
+    win.history.replaceState(null, "", rewritten);
   }
 }
 

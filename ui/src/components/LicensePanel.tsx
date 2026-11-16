@@ -2,7 +2,12 @@ import { useCallback, useState } from "react";
 import type { LicenseResponse } from "../api-client";
 import { useApiMutation } from "../api";
 import { installLicenseMutation, removeLicenseMutation } from "../api/definitions";
-import { markCheckoutStarted, useLicenseQuery, withReturnTo } from "../license-return";
+import {
+  type CheckoutFlow,
+  markCheckoutStarted,
+  useLicenseQuery,
+  withReturnTo,
+} from "../license-return";
 import styles from "./LicensePanel.module.css";
 
 const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
@@ -15,7 +20,14 @@ const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
 /// Licence timestamps are i64 seconds, which cross the wire as bigint.
 const date = (seconds: bigint) => new Date(Number(seconds) * 1000).toLocaleString();
 
-export function LicensePanel({ initialKey = "" }: { initialKey?: string } = {}) {
+/**
+ * The license as this machine reads it. `checkout` adds the Buy link for that flow; only setup
+ * passes it, since in-app purchases start on the Premium page.
+ */
+export function LicensePanel({
+  initialKey = "",
+  checkout,
+}: { initialKey?: string; checkout?: CheckoutFlow } = {}) {
   const query = useLicenseQuery();
   const install = useApiMutation(installLicenseMutation);
   const remove = useApiMutation(removeLicenseMutation);
@@ -57,8 +69,8 @@ export function LicensePanel({ initialKey = "" }: { initialKey?: string } = {}) 
 
   const displayError = error ?? query.error?.message ?? null;
   const purchaseUrl =
-    license?.purchase_url && /^https:\/\//i.test(license.purchase_url)
-      ? withReturnTo(license.purchase_url)
+    checkout && license?.purchase_url && /^https:\/\//i.test(license.purchase_url)
+      ? withReturnTo(license.purchase_url, checkout)
       : null;
   const awaiting = query.checkout === "awaiting" && !license?.premium;
 
@@ -106,30 +118,23 @@ export function LicensePanel({ initialKey = "" }: { initialKey?: string } = {}) 
               </>
             )}
           </dl>
-          {purchaseUrl &&
-            (license.premium ? (
+          {purchaseUrl && !license.premium && (
+            <div className={styles.purchase}>
+              <a
+                className={styles.buy}
+                href={purchaseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={markCheckoutStarted}
+              >
+                Buy Operator Premium
+              </a>
               <p>
-                <a href={purchaseUrl} target="_blank" rel="noopener noreferrer">
-                  View Operator Premium
-                </a>
+                After checkout you are returned here and the license is applied for you. You can
+                also paste a license key below.
               </p>
-            ) : (
-              <div className={styles.purchase}>
-                <a
-                  className={styles.buy}
-                  href={purchaseUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={markCheckoutStarted}
-                >
-                  Buy Operator Premium
-                </a>
-                <p>
-                  After checkout you are returned here and the license is applied for you. You can
-                  also paste a license key below.
-                </p>
-              </div>
-            ))}
+            </div>
+          )}
         </>
       ) : (
         <p>Loading license…</p>

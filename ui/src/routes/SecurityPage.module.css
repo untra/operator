@@ -1,6 +1,10 @@
-.page { padding: 1.5rem; }
+.page {
+  padding: 1.5rem;
+}
 
-.section { margin-bottom: 2.5rem; }
+.section {
+  margin-bottom: 2.5rem;
+}
 
 .sectionTitle {
   margin: 0 0 0.25rem;
@@ -31,7 +35,10 @@
   color: var(--text-muted);
 }
 
-.revoked { color: var(--text-muted); text-decoration: line-through; }
+.revoked {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
 
 .current {
   font-size: 0.6875rem;
@@ -52,7 +59,10 @@
   cursor: pointer;
 }
 
-.danger:disabled { opacity: 0.4; cursor: default; }
+.danger:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 
 .form {
   display: flex;
@@ -62,7 +72,12 @@
   margin-bottom: 1rem;
 }
 
-.form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; }
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+}
 
 .form input,
 .form select {
@@ -74,9 +89,17 @@
   border-radius: 4px;
 }
 
-.scopes { display: flex; gap: 0.75rem; align-items: center; }
+.scopes {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
 
-.scopes label { flex-direction: row; align-items: center; gap: 0.25rem; }
+.scopes label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+}
 
 .primary {
   font: inherit;
@@ -89,7 +112,10 @@
   cursor: pointer;
 }
 
-.primary:disabled { opacity: 0.5; cursor: default; }
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 .secretBox {
   margin-bottom: 1rem;

@@ -25,6 +25,7 @@ import { OnboardingPage } from "./routes/onboarding/OnboardingPage";
 import { WorkspaceGate } from "./WorkspaceGate";
 import { ProfilesProvider } from "./profiles-context";
 import { LicensePage } from "./routes/LicensePage";
+import { PremiumPage } from "./routes/PremiumPage";
 import { RemoteTargetsPage } from "./routes/RemoteTargetsPage";
 import { CampaignsPage } from "./routes/CampaignsPage";
 import { CampaignDetailPage } from "./routes/CampaignDetailPage";
@@ -55,6 +56,7 @@ createRoot(document.getElementById("root")!).render(
                   <Route path="device" element={<DevicePage />} />
                   <Route path="settings/security" element={<SecurityPage />} />
                   <Route path="settings/license" element={<LicensePage />} />
+                  <Route path="settings/premium" element={<PremiumPage />} />
                   <Route path="remote-targets" element={<RemoteTargetsPage />} />
                   <Route path="campaigns" element={<CampaignsPage />} />
                   <Route path="campaigns/:id" element={<CampaignDetailPage />} />

@@ -9,6 +9,11 @@ const TEST_CARD = "4242 4242 4242 4242";
 const TEST_CVC = "424";
 const TEST_POSTAL = "94103";
 const PAGE_TIMEOUT_MS = 30_000;
+/** Stripe → stripe listen → webhook inbox → license issuance → pickup poll (2 s ticks). */
+const LICENSE_ISSUED_TIMEOUT_MS = 90_000;
+const STRIPE_REDIRECT_TIMEOUT_MS = 60_000;
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** MM / YY two years out, always in the future. */
 function futureExpiry(): string {
@@ -73,4 +78,29 @@ export async function payWithTestCard(page: Page): Promise<void> {
   }
 
   await form.getByTestId("payment-form-submit-button").click();
+}
+
+/** Clicks a Buy link that opens checkout in a new tab; returns that tab. */
+export async function openCheckout(page: Page, buy: Locator): Promise<Page> {
+  const popupOpened = page.waitForEvent("popup");
+  await buy.click();
+  return popupOpened;
+}
+
+/**
+ * Pays in the checkout tab, then waits on the storefront's license pickup until it announces the
+ * hand-back to this operator, which it does once the webhook has issued the key.
+ */
+export async function payAndAwaitReturn(
+  shop: Page,
+  platformOrigin: string,
+  operator: URL,
+): Promise<void> {
+  await payWithTestCard(shop);
+  await expect(shop).toHaveURL(new RegExp(`^${escape(platformOrigin)}/license\\?session_id=`), {
+    timeout: STRIPE_REDIRECT_TIMEOUT_MS,
+  });
+  await expect(
+    shop.getByText(new RegExp(`returning you to operator at ${escape(operator.host)}`, "i")),
+  ).toBeVisible({ timeout: LICENSE_ISSUED_TIMEOUT_MS });
 }

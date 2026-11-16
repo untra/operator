@@ -4,6 +4,7 @@ import { PremiumGate } from "@operator/webcomponents";
 import { useApiQuery } from "../api";
 import { campaignsQuery, licenseQuery } from "../api/definitions";
 import styles from "./CampaignsPage.module.css";
+import { PREMIUM_PAGE_HREF } from "../license-return";
 
 function CampaignList() {
   const query = useApiQuery(campaignsQuery());
@@ -54,7 +55,12 @@ export function CampaignsPage() {
       </h1>
       <p>Epics of tickets, planned into dependency waves and launched together.</p>
       {license.error && <output className={styles.status}>{license.error.message}</output>}
-      <PremiumGate feature="Campaigns" license={license.data} onAddLicense={onAddLicense}>
+      <PremiumGate
+        feature="Campaigns"
+        license={license.data}
+        premiumHref={PREMIUM_PAGE_HREF}
+        onAddLicense={onAddLicense}
+      >
         <CampaignList />
       </PremiumGate>
     </main>

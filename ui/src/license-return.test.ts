@@ -1,37 +1,54 @@
 import { describe, expect, test } from "bun:test";
-import { licenseReturnHash, withReturnTo } from "./license-return";
+import {
+  checkoutDestination,
+  licenseReturnHash,
+  platformAccountUrl,
+  returnLocation,
+  withReturnTo,
+} from "./license-return";
 
 const HERE = { origin: "http://localhost:7008", pathname: "/" };
 
 describe("withReturnTo", () => {
   test("appends this UI's URL and keeps the existing query", () => {
     const url = new URL(
-      withReturnTo("https://app.operator.untra.casa/checkout?sku=premium&profile_id=abc", HERE)!,
+      withReturnTo(
+        "https://app.operator.untra.casa/checkout?sku=premium&profile_id=abc",
+        "setup",
+        HERE,
+      )!,
     );
     expect(url.searchParams.get("sku")).toBe("premium");
     expect(url.searchParams.get("profile_id")).toBe("abc");
-    expect(url.searchParams.get("return_to")).toBe("http://localhost:7008/");
+    expect(url.searchParams.get("return_to")).toBe("http://localhost:7008/?checkout=setup");
+  });
+
+  test("tags the return with the flow that started checkout", () => {
+    const url = new URL(withReturnTo("https://app.example/checkout", "upgrade", HERE)!);
+    expect(url.searchParams.get("return_to")).toBe("http://localhost:7008/?checkout=upgrade");
   });
 
   test("keeps a path prefix the UI is served under", () => {
     const url = new URL(
-      withReturnTo("https://app.example/checkout", {
+      withReturnTo("https://app.example/checkout", "upgrade", {
         origin: "https://ops.example",
         pathname: "/operator/",
       })!,
     );
-    expect(url.searchParams.get("return_to")).toBe("https://ops.example/operator/");
+    expect(url.searchParams.get("return_to")).toBe(
+      "https://ops.example/operator/?checkout=upgrade",
+    );
   });
 
   test("never carries the router fragment", () => {
-    const url = new URL(withReturnTo("https://app.example/checkout", HERE)!);
+    const url = new URL(withReturnTo("https://app.example/checkout", "setup", HERE)!);
     expect(url.searchParams.get("return_to")).not.toContain("#");
   });
 
   test("passes over a missing or malformed purchase URL", () => {
-    expect(withReturnTo(null, HERE)).toBeNull();
-    expect(withReturnTo(undefined, HERE)).toBeNull();
-    expect(withReturnTo("not a url", HERE)).toBeNull();
+    expect(withReturnTo(null, "setup", HERE)).toBeNull();
+    expect(withReturnTo(undefined, "setup", HERE)).toBeNull();
+    expect(withReturnTo("not a url", "setup", HERE)).toBeNull();
   });
 });
 
@@ -48,10 +65,70 @@ describe("licenseReturnHash", () => {
     expect(query.get("license_key")).toBe("KEY+/=.x");
   });
 
+  test("carries the checkout flow from the query into the route", () => {
+    expect(licenseReturnHash("#license_key=abc", "?checkout=setup")).toBe(
+      "#/license/return?license_key=abc&checkout=setup",
+    );
+  });
+
+  test("drops an unknown checkout flow", () => {
+    expect(licenseReturnHash("#license_key=abc", "?checkout=elsewhere")).toBe(
+      "#/license/return?license_key=abc",
+    );
+  });
+
   test.each([[""], ["#/"], ["#/settings/license"], ["#license_key="], ["#other=1"]])(
     "leaves %p alone",
     (hash) => {
       expect(licenseReturnHash(hash)).toBeNull();
+    },
+  );
+});
+
+describe("returnLocation", () => {
+  test("strips the checkout tag and keeps any other query", () => {
+    expect(
+      returnLocation({ pathname: "/", search: "?checkout=setup", hash: "#license_key=abc" }),
+    ).toBe("/#/license/return?license_key=abc&checkout=setup");
+    expect(
+      returnLocation({
+        pathname: "/ops/",
+        search: "?a=1&checkout=upgrade",
+        hash: "#license_key=k",
+      }),
+    ).toBe("/ops/?a=1#/license/return?license_key=k&checkout=upgrade");
+  });
+
+  test("is null when the hash is not a checkout return", () => {
+    expect(returnLocation({ pathname: "/", search: "?checkout=setup", hash: "#/" })).toBeNull();
+  });
+});
+
+describe("checkoutDestination", () => {
+  test("setup resumes onboarding at the license step", () => {
+    expect(checkoutDestination("setup")).toBe("/onboarding?step=license");
+  });
+
+  test("upgrade lands on the premium page", () => {
+    expect(checkoutDestination("upgrade")).toBe("/settings/premium");
+  });
+
+  test.each([[null], ["other"]])("%p stays on the return page", (flow) => {
+    expect(checkoutDestination(flow)).toBeNull();
+  });
+});
+
+describe("platformAccountUrl", () => {
+  test("is the account page on the storefront the build buys from", () => {
+    expect(platformAccountUrl("https://app.operator.untra.app/checkout?sku=premium-lifetime")).toBe(
+      "https://app.operator.untra.app/account",
+    );
+  });
+
+  test.each([[null], [undefined], ["not a url"], ["http://app.example/checkout"]])(
+    "is null for %p",
+    (url) => {
+      expect(platformAccountUrl(url)).toBeNull();
     },
   );
 });

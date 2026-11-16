@@ -154,21 +154,22 @@ export function OnboardingPage() {
   }
 
   useEffect(() => {
-    if (!status || (status.initialized && !creating)) {
+    if (!hydrated || !status || (status.initialized && !creating)) {
       return;
     }
     void navigate(`/onboarding?step=${currentSlug}`, { replace: true });
-  }, [creating, currentSlug, navigate, status]);
+  }, [creating, currentSlug, hydrated, navigate, status]);
 
+  // Before hydration the draft is empty; persisting it would clobber the saved one.
   useEffect(() => {
-    if (!selected || !status || status.initialized || creating) {
+    if (!hydrated || !selected || !status || status.initialized || creating) {
       return;
     }
     localStorage.setItem(
       draftStorageKey(selected.id),
       JSON.stringify({ version: WIZARD_DRAFT_VERSION, draft, currentSlug }),
     );
-  }, [creating, currentSlug, draft, selected, status]);
+  }, [creating, currentSlug, draft, hydrated, selected, status]);
 
   const slugs = useMemo(() => steps.map((step) => step.slug), [steps]);
   const walk = useMemo(() => visibleSteps(slugs, draft), [draft, slugs]);

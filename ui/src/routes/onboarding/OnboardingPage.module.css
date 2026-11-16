@@ -66,8 +66,8 @@
 }
 .content {
   min-width: 0;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
 }
 .content > header,
 .body,
@@ -89,6 +89,7 @@
   margin: 0.35rem 0;
 }
 .body {
+  flex: 1;
   padding-block: 2rem;
 }
 .intro h2 {
@@ -112,14 +113,6 @@
   border: 1px solid var(--border);
   border-radius: 0.4rem;
 }
-.form label,
-.mapping label {
-  display: grid;
-  gap: 0.35rem;
-}
-.form input,
-.form select,
-.mapping select,
 .editor {
   box-sizing: border-box;
   width: 100%;
@@ -150,9 +143,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   gap: 0.5rem;
-}
-.parameterRow input {
-  min-width: 0;
+  align-items: center;
 }
 .mapping {
   display: grid;

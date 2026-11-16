@@ -3,7 +3,8 @@ import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
 import type { CapabilityResponse } from "@operator/bindings/CapabilityResponse";
 import { getSessionVersion, subscribeSession } from "../api/adapter";
 import type { UserKey } from "@operator/bindings/UserKey";
-import { PermissionSelector } from "@operator/webcomponents";
+import { isValid, PermissionSelector, StringInput } from "@operator/webcomponents";
+import { requiredRules } from "../field-rules";
 import { useHost } from "../host";
 import { useApiMutation, useApiQuery } from "../api";
 import {
@@ -231,15 +232,13 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
             issue();
           }}
         >
-          <label>
-            Name
-            <input
-              required
-              maxLength={128}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
+          <StringInput
+            label="Name"
+            rules={requiredRules}
+            maxLength={128}
+            value={name}
+            onChange={setName}
+          />
           <label>
             Expires in days
             <input
@@ -258,7 +257,15 @@ function ProfileKeys({ available, clock }: ProfileKeysProps) {
             onChange={setGrants}
             disabled={busy || !canIssue}
           />
-          <button type="submit" disabled={busy || !canIssue || selected.capabilities.length === 0}>
+          <button
+            type="submit"
+            disabled={
+              busy ||
+              !canIssue ||
+              selected.capabilities.length === 0 ||
+              !isValid(name, requiredRules)
+            }
+          >
             Create key
           </button>
         </form>

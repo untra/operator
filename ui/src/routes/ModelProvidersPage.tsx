@@ -24,6 +24,8 @@ import { CONCEPTS } from "../concepts";
 import { PageHeader } from "../components/PageHeader";
 import { BrandIcon } from "../components/BrandIcon";
 import { ConceptIcon } from "../components/ConceptIcon";
+import { SelectInput, StringInput } from "@operator/webcomponents";
+import { envVarRules, gitDraftValid, httpUrlRules, requiredRules } from "../field-rules";
 import styles from "./ModelProvidersPage.module.css";
 
 const CONCEPT = CONCEPTS["model-servers"];
@@ -280,6 +282,11 @@ function CreateDelegatorForm({
   const liveModels =
     !selectedModels.error && selectedModels.data?.reachable ? selectedModels.data.models : [];
 
+  const selectProvider = useCallback((slug: string) => {
+    setProvider(slug);
+    setModel("");
+  }, []);
+
   const submit = () => {
     if (!selectedTool || !provider || !model) {
       onError("Pick a tool, a provider, and a model.");
@@ -319,78 +326,61 @@ function CreateDelegatorForm({
         Pair an llm tool with a connected provider and one of its live models.
       </p>
       <div className={styles.form}>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>LLM tool</span>
-          <select
-            value={selectedTool}
-            onChange={(e) => setTool(e.target.value)}
-            className={styles.select}
-          >
-            {detectedTools.length === 0 && <option value="">(none detected)</option>}
-            {detectedTools.map((t) => (
-              <option key={t.name} value={t.name}>
-                {t.healthOk ? t.name : `${t.name} (health check failed)`}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectInput
+          label="LLM tool"
+          placeholder={detectedTools.length === 0 ? "(none detected)" : undefined}
+          rules={requiredRules}
+          value={selectedTool}
+          options={detectedTools.map((t) => ({
+            value: t.name,
+            label: t.healthOk ? t.name : `${t.name} (health check failed)`,
+          }))}
+          onChange={setTool}
+        />
 
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Provider</span>
-          <select
-            value={provider}
-            onChange={(e) => {
-              setProvider(e.target.value);
-              setModel("");
-            }}
-            className={styles.select}
-          >
-            <option value="">Select…</option>
-            {kinds.map((k) => (
-              <option key={k.slug} value={k.slug}>
-                {k.display_name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectInput
+          label="Provider"
+          placeholder="Select…"
+          rules={requiredRules}
+          value={provider}
+          options={kinds.map((k) => ({ value: k.slug, label: k.display_name }))}
+          onChange={selectProvider}
+        />
 
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Model</span>
-          {liveModels.length > 0 ? (
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className={styles.select}
-            >
-              <option value="">Select…</option>
-              {liveModels.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.display_name ?? m.id}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              className={styles.input}
-              value={model}
-              placeholder={provider ? "model id (provider not connected)" : "pick a provider first"}
-              onChange={(e) => setModel(e.target.value)}
-            />
-          )}
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Name (optional)</span>
-          <input
-            className={styles.input}
-            value={name}
-            placeholder={selectedTool && model ? `${selectedTool}-${model}` : "delegator name"}
-            onChange={(e) => setName(e.target.value)}
+        {liveModels.length > 0 ? (
+          <SelectInput
+            label="Model"
+            placeholder="Select…"
+            rules={requiredRules}
+            value={model}
+            options={liveModels.map((m) => ({ value: m.id, label: m.display_name ?? m.id }))}
+            onChange={setModel}
           />
-        </label>
+        ) : (
+          <StringInput
+            label="Model"
+            rules={requiredRules}
+            value={model}
+            placeholder={provider ? "model id (provider not connected)" : "pick a provider first"}
+            onChange={setModel}
+          />
+        )}
+
+        <StringInput
+          label="Name (optional)"
+          value={name}
+          placeholder={selectedTool && model ? `${selectedTool}-${model}` : "delegator name"}
+          onChange={setName}
+        />
 
         <GitFields value={git} onChange={setGit} disabled={create.isPending} />
-        <button className={styles.submitBtn} onClick={submit} disabled={create.isPending}>
+        <button
+          className={styles.submitBtn}
+          onClick={submit}
+          disabled={
+            create.isPending || !selectedTool || !provider || !model.trim() || !gitDraftValid(git)
+          }
+        >
           {create.isPending ? "Creating…" : "Create delegator"}
         </button>
       </div>
@@ -410,6 +400,17 @@ function GitFields({
   const config: GitExecutionDraft = value ?? { identity: null, credentials: null, settings: [] };
   const identity = config.identity ?? { name: "", email: "" };
   const credentials = config.credentials ?? { repository_url: "", username: "", token_env: "" };
+  const setIdentity = (key: "name" | "email") => (text: string) =>
+    onChange({ ...config, identity: { ...identity, [key]: text } });
+  const setCredential = (key: "repository_url" | "username" | "token_env") => (text: string) =>
+    onChange({ ...config, credentials: { ...credentials, [key]: text } });
+  const setSetting = (index: number, key: "key" | "value") => (text: string) =>
+    onChange({
+      ...config,
+      settings: config.settings.map((entry, i) =>
+        i === index ? { ...entry, [key]: text } : entry,
+      ),
+    });
   return (
     <fieldset disabled={disabled}>
       <legend>Git identity and credentials</legend>
@@ -435,26 +436,18 @@ function GitFields({
           </label>
           {config.identity && (
             <>
-              <label className={styles.field}>
-                Commit name
-                <input
-                  className={styles.input}
-                  value={identity.name}
-                  onChange={(e) =>
-                    onChange({ ...config, identity: { ...identity, name: e.target.value } })
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                Commit email
-                <input
-                  className={styles.input}
-                  value={identity.email}
-                  onChange={(e) =>
-                    onChange({ ...config, identity: { ...identity, email: e.target.value } })
-                  }
-                />
-              </label>
+              <StringInput
+                label="Commit name"
+                rules={requiredRules}
+                value={identity.name}
+                onChange={setIdentity("name")}
+              />
+              <StringInput
+                label="Commit email"
+                rules={requiredRules}
+                value={identity.email}
+                onChange={setIdentity("email")}
+              />
               <p>
                 Templates support {"{ticket_id}"}, {"{project}"}, and {"{ticket_type}"}.
               </p>
@@ -472,80 +465,41 @@ function GitFields({
           </label>
           {config.credentials && (
             <>
-              <label className={styles.field}>
-                HTTPS repository URL
-                <input
-                  className={styles.input}
-                  value={credentials.repository_url}
-                  onChange={(e) =>
-                    onChange({
-                      ...config,
-                      credentials: { ...credentials, repository_url: e.target.value },
-                    })
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                Git username
-                <input
-                  className={styles.input}
-                  value={credentials.username}
-                  onChange={(e) =>
-                    onChange({
-                      ...config,
-                      credentials: { ...credentials, username: e.target.value },
-                    })
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                Token environment variable
-                <input
-                  className={styles.input}
-                  value={credentials.token_env}
-                  onChange={(e) =>
-                    onChange({
-                      ...config,
-                      credentials: { ...credentials, token_env: e.target.value },
-                    })
-                  }
-                />
-              </label>
+              <StringInput
+                label="HTTPS repository URL"
+                type="url"
+                rules={httpUrlRules}
+                value={credentials.repository_url}
+                onChange={setCredential("repository_url")}
+              />
+              <StringInput
+                label="Git username"
+                rules={requiredRules}
+                value={credentials.username}
+                onChange={setCredential("username")}
+              />
+              <StringInput
+                label="Token environment variable"
+                rules={envVarRules}
+                value={credentials.token_env}
+                onChange={setCredential("token_env")}
+              />
               <p>Enter the variable name configured on Operator, such as AGENT_GIT_TOKEN.</p>
             </>
           )}
           {config.settings.map((entry, index) => (
             <div key={entry.id}>
-              <label>
-                Git setting
-                <input
-                  className={styles.input}
-                  value={entry.key}
-                  onChange={(e) =>
-                    onChange({
-                      ...config,
-                      settings: config.settings.map((v, i) =>
-                        i === index ? { ...v, key: e.target.value } : v,
-                      ),
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Value
-                <input
-                  className={styles.input}
-                  value={entry.value}
-                  onChange={(e) =>
-                    onChange({
-                      ...config,
-                      settings: config.settings.map((v, i) =>
-                        i === index ? { ...v, value: e.target.value } : v,
-                      ),
-                    })
-                  }
-                />
-              </label>
+              <StringInput
+                label="Git setting"
+                rules={requiredRules}
+                value={entry.key}
+                onChange={setSetting(index, "key")}
+              />
+              <StringInput
+                label="Value"
+                value={entry.value}
+                onChange={setSetting(index, "value")}
+              />
               <button
                 type="button"
                 onClick={() =>
@@ -612,7 +566,7 @@ function DelegatorGitEditor({ delegator }: { delegator: DelegatorResponse }) {
       <summary>Git settings</summary>
       <GitFields value={git} onChange={setGit} disabled={update.isPending} />
       {error && <p role="alert">{error}</p>}
-      <button type="button" onClick={save} disabled={update.isPending}>
+      <button type="button" onClick={save} disabled={update.isPending || !gitDraftValid(git)}>
         {update.isPending ? "Saving…" : "Save Git settings"}
       </button>
     </details>

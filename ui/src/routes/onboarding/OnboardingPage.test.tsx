@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { HostContext, type Host } from "../../host";
 import { resetSessionState } from "../../api/adapter";
@@ -105,5 +105,48 @@ describe("OnboardingPage", () => {
     expect(await screen.findByDisplayValue("e2e")).toBeTruthy();
     const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
     expect(saved.draft).toMatchObject({ configurationName: "e2e", executionMode: "remote" });
+  });
+
+  test("disables Continue while the configuration name is invalid", async () => {
+    mockFetch((input) => {
+      const path = requestPath(input);
+      if (path === "/api/v1/profiles") {
+        return Promise.resolve(json(PROFILES));
+      }
+      if (path.endsWith("/setup/status")) {
+        return Promise.resolve(json(STATUS));
+      }
+      if (path.endsWith("/setup/steps")) {
+        return Promise.resolve(
+          json([
+            ...STEPS,
+            { slug: "confirm", name: "Confirm", description: "", help_text: "", order: 1 },
+          ]),
+        );
+      }
+      return Promise.resolve(json([]));
+    });
+
+    render(
+      <ApiProvider>
+        <HostContext.Provider value={host}>
+          <MemoryRouter initialEntries={ENTRIES}>
+            <Routes>
+              <Route element={PROVIDER}>
+                <Route path="onboarding" element={PAGE} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </HostContext.Provider>
+      </ApiProvider>,
+    );
+    await act(settle);
+
+    const name = await screen.findByLabelText("Configuration name");
+    const next = screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
+    fireEvent.change(name, { target: { value: "untra.casa" } });
+    expect(next.disabled).toBe(true);
+    fireEvent.change(name, { target: { value: "untra-casa" } });
+    expect(next.disabled).toBe(false);
   });
 });

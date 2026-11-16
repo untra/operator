@@ -66,3 +66,5 @@ coder-module/terraform.tfstate*
 
 # superpowers and agent internal notes
 superpowers/
+
+webcomponents/stories/__screenshots__/

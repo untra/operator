@@ -32,6 +32,23 @@ export {
   type AuthFieldProps,
   type AuthSubmitProps,
 } from "./components/AuthCard";
+export { StringInput, type StringInputProps } from "./components/fields/StringInput";
+export {
+  SelectInput,
+  type SelectInputProps,
+  type SelectOption,
+} from "./components/fields/SelectInput";
+export {
+  isValid,
+  maxLength,
+  minLength,
+  oneOf,
+  pattern,
+  required,
+  url,
+  validate,
+  type Validator,
+} from "./components/fields/validators";
 export { Choice, ChoiceGroup, type ChoiceProps, type ChoiceGroupProps } from "./components/Choice";
 export { AsyncState } from "./components/AsyncState";
 export type { AsyncStateProps, AsyncValue } from "./components/AsyncState";

@@ -8,6 +8,8 @@ import {
   useLicenseQuery,
   withReturnTo,
 } from "../license-return";
+import { StringInput } from "@operator/webcomponents";
+import { requiredRules } from "../field-rules";
 import styles from "./LicensePanel.module.css";
 
 const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
@@ -140,16 +142,15 @@ export function LicensePanel({
         <p>Loading license…</p>
       )}
       <form className={styles.form} onSubmit={onSubmit}>
-        <label>
-          License key
-          <input
-            type="password"
-            autoComplete="off"
-            value={key}
-            onChange={(event) => setKey(event.target.value)}
-            disabled={busy}
-          />
-        </label>
+        <StringInput
+          label="License key"
+          type="password"
+          autoComplete="off"
+          rules={requiredRules}
+          value={key}
+          onChange={setKey}
+          disabled={busy}
+        />
         <button type="submit" disabled={busy || !key.trim()}>
           {busy ? "Saving…" : "Apply license"}
         </button>

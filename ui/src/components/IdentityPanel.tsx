@@ -3,7 +3,7 @@ import type { OidcProvider } from "@operator/bindings/OidcProvider";
 import type { OperatorUser } from "@operator/bindings/OperatorUser";
 import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
 import type { UpdateOperatorUser } from "@operator/bindings/UpdateOperatorUser";
-import { PermissionSelector } from "@operator/webcomponents";
+import { isValid, PermissionSelector, SelectInput, StringInput } from "@operator/webcomponents";
 import { useApiMutation, useApiQuery } from "../api";
 import {
   createOidcConnectionMutation,
@@ -14,8 +14,13 @@ import {
   updateOperatorUserMutation,
 } from "../api/definitions";
 import { useHost } from "../host";
+import { httpUrlRules, requiredRules } from "../field-rules";
 
 const PAGE_SIZE = 50;
+const OIDC_PROVIDERS = [
+  { value: "keycloak", label: "Keycloak" },
+  { value: "authentik", label: "Authentik" },
+] as const satisfies readonly { value: OidcProvider; label: string }[];
 
 export function IdentityPanel() {
   const host = useHost();
@@ -70,50 +75,47 @@ function IdentityAdministration({ available }: { available: PermissionGrant }) {
           });
         }}
       >
-        <label>
-          Provider
-          <select
-            value={provider}
-            onChange={(event) =>
-              setProvider(event.target.value === "authentik" ? "authentik" : "keycloak")
-            }
-          >
-            <option value="keycloak">Keycloak</option>
-            <option value="authentik">Authentik</option>
-          </select>
-        </label>
-        <label>
-          Issuer HTTPS URL
-          <input
-            required
-            type="url"
-            value={issuer}
-            onChange={(event) => setIssuer(event.target.value)}
-          />
-        </label>
-        <label>
-          Client ID
-          <input
-            required
-            maxLength={128}
-            value={clientId}
-            onChange={(event) => setClientId(event.target.value)}
-          />
-        </label>
-        <label>
-          Redirect URI
-          <input
-            required
-            type="url"
-            value={redirect}
-            onChange={(event) => setRedirect(event.target.value)}
-          />
-        </label>
-        <label>
-          Client secret file on the Operator server (optional)
-          <input value={secretFile} onChange={(event) => setSecretFile(event.target.value)} />
-        </label>
-        <button disabled={create.isPending} type="submit">
+        <SelectInput
+          label="Provider"
+          options={OIDC_PROVIDERS}
+          value={provider}
+          onChange={setProvider}
+        />
+        <StringInput
+          label="Issuer HTTPS URL"
+          type="url"
+          rules={httpUrlRules}
+          value={issuer}
+          onChange={setIssuer}
+        />
+        <StringInput
+          label="Client ID"
+          rules={requiredRules}
+          maxLength={128}
+          value={clientId}
+          onChange={setClientId}
+        />
+        <StringInput
+          label="Redirect URI"
+          type="url"
+          rules={httpUrlRules}
+          value={redirect}
+          onChange={setRedirect}
+        />
+        <StringInput
+          label="Client secret file on the Operator server (optional)"
+          value={secretFile}
+          onChange={setSecretFile}
+        />
+        <button
+          disabled={
+            create.isPending ||
+            !isValid(issuer, httpUrlRules) ||
+            !isValid(clientId, requiredRules) ||
+            !isValid(redirect, httpUrlRules)
+          }
+          type="submit"
+        >
           Add connection
         </button>
       </form>

@@ -8,6 +8,7 @@ import * as AsyncStateStories from "./components/AsyncState.stories";
 import * as AuthCardStories from "./components/AuthCard.stories";
 import * as LaunchFormStories from "./components/LaunchForm.stories";
 import * as SectionCardStories from "./components/SectionCard.stories";
+import * as StringInputStories from "./components/StringInput.stories";
 import * as TicketCreateFormStories from "./components/TicketCreateForm.stories";
 import * as IssueTypesViewStories from "./pages/IssueTypesView.stories";
 
@@ -25,6 +26,7 @@ const AsyncState = composeStories(AsyncStateStories);
 const AuthCard = composeStories(AuthCardStories);
 const LaunchForm = composeStories(LaunchFormStories);
 const SectionCard = composeStories(SectionCardStories);
+const StringInput = composeStories(StringInputStories);
 const TicketCreateForm = composeStories(TicketCreateFormStories);
 const IssueTypesView = composeStories(IssueTypesViewStories);
 
@@ -250,4 +252,33 @@ test.each(KEYBOARD_CASES)("$name", async ({ story, steps, calls }) => {
       expect(handler).toHaveBeenCalledTimes(call.times);
     }
   }
+});
+
+const NAME_ERROR = "Use lowercase letters, numbers, hyphens, or underscores";
+
+test("StringInput reports rule errors only after blur and clears them on fix", async () => {
+  const canvas = await render(StringInput.ValidatesOnBlur);
+  const input = canvas.getByLabelText("Configuration name");
+  await userEvent.type(input, "untra.casa");
+  expect(input.getAttribute("aria-invalid")).toBe("false");
+  expect(canvas.queryByText(NAME_ERROR)).toBeNull();
+  await userEvent.tab();
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect(canvas.getByText(NAME_ERROR).tagName).toBe("EM");
+  await userEvent.clear(input);
+  await userEvent.type(input, "untra-casa");
+  expect(input.getAttribute("aria-invalid")).toBe("false");
+  expect(canvas.queryByText(NAME_ERROR)).toBeNull();
+});
+
+test("GatedForm enables Continue only once every field validates", async () => {
+  const canvas = await render(StringInput.GatedForm);
+  const submit = canvas.getByRole("button", { name: "Continue" });
+  expect((submit as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.selectOptions(canvas.getByLabelText("Provider"), "jira");
+  await userEvent.type(canvas.getByLabelText("Instance URL"), "not a url");
+  expect((submit as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.clear(canvas.getByLabelText("Instance URL"));
+  await userEvent.type(canvas.getByLabelText("Instance URL"), "https://org.atlassian.net");
+  expect((submit as HTMLButtonElement).disabled).toBe(false);
 });

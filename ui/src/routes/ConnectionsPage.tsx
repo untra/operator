@@ -10,7 +10,8 @@ import {
   mcpClientsQuery,
   sectionsQuery,
 } from "../api/definitions";
-import { HealthDot } from "@operator/webcomponents";
+import { HealthDot, SelectInput, StringInput } from "@operator/webcomponents";
+import { requiredRules } from "../field-rules";
 import { CONCEPTS, CONNECTION_CARDS, type ConnectionCard } from "../concepts";
 import {
   ACP_EDITORS,
@@ -203,24 +204,25 @@ function Connections() {
           <code>{endpoint}</code>
           <details>
             <summary>Configure MCP client</summary>
-            <label>
-              Client setup
-              <select value={client} onChange={(event) => setClient(event.target.value)}>
-                {MCP_RECIPES.filter(
-                  (value) => value !== "oauth" || data?.oauth_resource_metadata,
-                ).map((value) => (
-                  <option key={value} value={value}>
-                    {value === "json"
-                      ? "Claude Code JSON"
-                      : value === "cli"
-                        ? "Claude Code CLI"
-                        : value === "oauth"
-                          ? "OAuth (OIDC) client"
-                          : "Generic SSE client"}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectInput
+              className={styles.field}
+              label="Client setup"
+              value={client}
+              options={MCP_RECIPES.filter(
+                (value) => value !== "oauth" || data?.oauth_resource_metadata,
+              ).map((value) => ({
+                value,
+                label:
+                  value === "json"
+                    ? "Claude Code JSON"
+                    : value === "cli"
+                      ? "Claude Code CLI"
+                      : value === "oauth"
+                        ? "OAuth (OIDC) client"
+                        : "Generic SSE client",
+              }))}
+              onChange={setClient}
+            />
             {client === "oauth" && data?.oauth_resource_metadata && (
               <p className={styles.hint}>
                 The client discovers the identity provider from{" "}
@@ -261,15 +263,14 @@ function Connections() {
               </button>
             </div>
           </details>
-          <label>
-            Access key for test (optional)
-            <input
-              type="password"
-              autoComplete="off"
-              value={accessKey}
-              onChange={(event) => setAccessKey(event.target.value)}
-            />
-          </label>
+          <StringInput
+            className={styles.field}
+            label="Access key for test (optional)"
+            type="password"
+            autoComplete="off"
+            value={accessKey}
+            onChange={setAccessKey}
+          />
           <div className={styles.actions}>
             <button
               onClick={checkMcp}
@@ -344,27 +345,26 @@ function Connections() {
           <p className={styles.hint}>Local editors only</p>
           <details>
             <summary>Configure local ACP editor</summary>
-            <label>
-              Editor
-              <select value={editor} onChange={(event) => setEditor(event.target.value)}>
-                {ACP_EDITORS.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Local Operator executable
-              <input value={command} onChange={(event) => setCommand(event.target.value)} />
-            </label>
-            <label>
-              Local profile (optional)
-              <input
-                value={localProfile}
-                onChange={(event) => setLocalProfile(event.target.value)}
-              />
-            </label>
+            <SelectInput
+              className={styles.field}
+              label="Editor"
+              value={editor}
+              options={ACP_EDITORS.map((value) => ({ value, label: value }))}
+              onChange={setEditor}
+            />
+            <StringInput
+              className={styles.field}
+              label="Local Operator executable"
+              rules={requiredRules}
+              value={command}
+              onChange={setCommand}
+            />
+            <StringInput
+              className={styles.field}
+              label="Local profile (optional)"
+              value={localProfile}
+              onChange={setLocalProfile}
+            />
             <pre>{localRecipe}</pre>
             <div className={styles.actions}>
               <button

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PremiumPaywall } from "@operator/webcomponents";
+import { PremiumPaywall, SelectInput, StringInput } from "@operator/webcomponents";
 import type { TargetDef } from "@operator/bindings/TargetDef";
 import type { TargetResponse } from "../api-client";
 import { useApiMutation, useApiQuery } from "../api";
@@ -11,6 +11,7 @@ import {
   saveTargetMutation,
   targetsQuery,
 } from "../api/definitions";
+import { envVarRules, requiredRules, targetDraftValid } from "../field-rules";
 import form from "./onboarding/OnboardingPage.module.css";
 import styles from "./RemoteTargetsPage.module.css";
 
@@ -24,6 +25,10 @@ const DEFAULT_CODER = {
   delete_on_complete: false,
   delete_on_merge: false,
 };
+const TARGET_KINDS = [
+  { value: "ssh", label: "SSH host" },
+  { value: "coder", label: "Coder workspace" },
+] as const;
 const emptyTarget = (): TargetDef => ({ name: "", kind: "ssh", ssh_alias: "", workdir: "" });
 
 /// This page manages remote targets only; local and docker are built in.
@@ -134,6 +139,56 @@ export function RemoteTargetsPage() {
     [remove],
   );
 
+  const setCommonField = useCallback(
+    (key: "name" | "display_name") => (value: string) =>
+      setDraft((current) => ({ ...current, [key]: value })),
+    [],
+  );
+  const setSshField = useCallback(
+    (key: "ssh_alias" | "workdir") => (value: string) =>
+      setDraft((current) => (current.kind === "ssh" ? { ...current, [key]: value } : current)),
+    [],
+  );
+  const setSshConfigPath = useCallback(
+    (value: string) =>
+      setDraft((current) =>
+        current.kind === "ssh" ? { ...current, ssh_config_path: value || null } : current,
+      ),
+    [],
+  );
+  const setCoderField = useCallback(
+    (key: "template" | "url_env" | "token_env") => (value: string) =>
+      setDraft((current) => (current.kind === "coder" ? { ...current, [key]: value } : current)),
+    [],
+  );
+  const setCoderWorkdir = useCallback(
+    (value: string) =>
+      setDraft((current) =>
+        current.kind === "coder" ? { ...current, workdir: value || null } : current,
+      ),
+    [],
+  );
+  const selectKind = useCallback(
+    (kind: "ssh" | "coder") =>
+      setDraft((current) =>
+        kind === "ssh"
+          ? {
+              name: current.name,
+              display_name: current.display_name,
+              kind: "ssh",
+              ssh_alias: "",
+              workdir: "",
+            }
+          : {
+              name: current.name,
+              display_name: current.display_name,
+              kind: "coder",
+              ...DEFAULT_CODER,
+            },
+      ),
+    [],
+  );
+
   const onAddLicense = useCallback(() => {
     void navigate("/settings/license");
   }, [navigate]);
@@ -200,116 +255,75 @@ export function RemoteTargetsPage() {
       {license.data?.premium && (
         <form className={form.form} onSubmit={onSubmit}>
           <h2>{editing ? "Edit target" : "Register target"}</h2>
-          <label>
-            Name
-            <input
-              required
-              value={draft.name}
-              disabled={busy || !!editing}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            />
-          </label>
-          <label>
-            Display name
-            <input
-              value={draft.display_name ?? ""}
-              disabled={busy}
-              onChange={(event) => setDraft({ ...draft, display_name: event.target.value })}
-            />
-          </label>
-          <label>
-            Type
-            <select
-              value={draft.kind}
-              disabled={busy || !!editing}
-              onChange={(event) =>
-                setDraft(
-                  event.target.value === "ssh"
-                    ? {
-                        name: draft.name,
-                        display_name: draft.display_name,
-                        kind: "ssh",
-                        ssh_alias: "",
-                        workdir: "",
-                      }
-                    : {
-                        name: draft.name,
-                        display_name: draft.display_name,
-                        kind: "coder",
-                        ...DEFAULT_CODER,
-                      },
-                )
-              }
-            >
-              <option value="ssh">SSH host</option>
-              <option value="coder">Coder workspace</option>
-            </select>
-          </label>
+          <StringInput
+            label="Name"
+            rules={requiredRules}
+            value={draft.name}
+            disabled={busy || !!editing}
+            onChange={setCommonField("name")}
+          />
+          <StringInput
+            label="Display name"
+            value={draft.display_name ?? ""}
+            disabled={busy}
+            onChange={setCommonField("display_name")}
+          />
+          <SelectInput
+            label="Type"
+            options={TARGET_KINDS}
+            value={draft.kind === "ssh" || draft.kind === "coder" ? draft.kind : ""}
+            disabled={busy || !!editing}
+            onChange={selectKind}
+          />
           {draft.kind === "ssh" && (
             <>
-              <label>
-                SSH alias
-                <input
-                  required
-                  value={draft.ssh_alias}
-                  onChange={(event) => setDraft({ ...draft, ssh_alias: event.target.value })}
-                />
-              </label>
-              <label>
-                Remote project root
-                <input
-                  required
-                  value={draft.workdir}
-                  onChange={(event) => setDraft({ ...draft, workdir: event.target.value })}
-                />
-              </label>
-              <label>
-                SSH configuration path (optional)
-                <input
-                  value={draft.ssh_config_path ?? ""}
-                  onChange={(event) =>
-                    setDraft({ ...draft, ssh_config_path: event.target.value || null })
-                  }
-                />
-              </label>
+              <StringInput
+                label="SSH alias"
+                rules={requiredRules}
+                value={draft.ssh_alias}
+                onChange={setSshField("ssh_alias")}
+              />
+              <StringInput
+                label="Remote project root"
+                rules={requiredRules}
+                value={draft.workdir}
+                onChange={setSshField("workdir")}
+              />
+              <StringInput
+                label="SSH configuration path (optional)"
+                value={draft.ssh_config_path ?? ""}
+                onChange={setSshConfigPath}
+              />
             </>
           )}
           {draft.kind === "coder" && (
             <>
-              <label>
-                Template
-                <input
-                  required
-                  value={draft.template}
-                  onChange={(event) => setDraft({ ...draft, template: event.target.value })}
-                />
-              </label>
-              <label>
-                Deployment URL environment variable
-                <input
-                  required
-                  value={draft.url_env}
-                  onChange={(event) => setDraft({ ...draft, url_env: event.target.value })}
-                />
-              </label>
-              <label>
-                Session token environment variable
-                <input
-                  required
-                  value={draft.token_env}
-                  onChange={(event) => setDraft({ ...draft, token_env: event.target.value })}
-                />
-              </label>
-              <label>
-                Remote project root (optional)
-                <input
-                  value={draft.workdir ?? ""}
-                  onChange={(event) => setDraft({ ...draft, workdir: event.target.value || null })}
-                />
-              </label>
+              <StringInput
+                label="Template"
+                rules={requiredRules}
+                value={draft.template}
+                onChange={setCoderField("template")}
+              />
+              <StringInput
+                label="Deployment URL environment variable"
+                rules={envVarRules}
+                value={draft.url_env}
+                onChange={setCoderField("url_env")}
+              />
+              <StringInput
+                label="Session token environment variable"
+                rules={envVarRules}
+                value={draft.token_env}
+                onChange={setCoderField("token_env")}
+              />
+              <StringInput
+                label="Remote project root (optional)"
+                value={draft.workdir ?? ""}
+                onChange={setCoderWorkdir}
+              />
             </>
           )}
-          <button type="submit" disabled={busy}>
+          <button type="submit" disabled={busy || !targetDraftValid(draft)}>
             Save target
           </button>
           {editing && (

@@ -14,7 +14,12 @@ const LICENSE = {
 
 function render(license: Parameters<typeof PremiumGate>[0]["license"]) {
   return renderToStaticMarkup(
-    <PremiumGate feature="Campaigns" license={license} onAddLicense={handleAddLicense}>
+    <PremiumGate
+      feature="Campaigns"
+      license={license}
+      premiumHref="#/settings/premium"
+      onAddLicense={handleAddLicense}
+    >
       <p>premium content</p>
     </PremiumGate>,
   );
@@ -31,6 +36,13 @@ describe("PremiumGate", () => {
     expect(markup).toContain("Campaigns");
     expect(markup).toContain("Add license");
     expect(markup).not.toContain("premium content");
+  });
+
+  test("points the paywall at the in-app Premium page, never straight at checkout", () => {
+    const markup = render({ ...LICENSE, premium: false });
+    expect(markup).toContain('href="#/settings/premium"');
+    expect(markup).toContain("See Premium");
+    expect(markup).not.toContain(LICENSE.purchase_url);
   });
 
   test("renders its children with a premium license", () => {

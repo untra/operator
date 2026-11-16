@@ -14,7 +14,10 @@ import * as IssueTypesViewStories from "./pages/IssueTypesView.stories";
 setProjectAnnotations([previewAnnotations]);
 
 type Canvas = ReturnType<typeof within>;
-type RunnableStory = { id: string; run: (context: { canvasElement: HTMLElement }) => Promise<void> };
+type RunnableStory = {
+  id: string;
+  run: (context: { canvasElement: HTMLElement }) => Promise<void>;
+};
 type StoryModule = Parameters<typeof composeStories>[0];
 
 const AppShell = composeStories(AppShellStories);
@@ -26,8 +29,8 @@ const TicketCreateForm = composeStories(TicketCreateFormStories);
 const IssueTypesView = composeStories(IssueTypesViewStories);
 
 const STORY_MODULES = import.meta.glob<StoryModule>("./**/*.stories.tsx", { eager: true });
-const ALL_STORIES = Object.values(STORY_MODULES).flatMap(
-  (module): RunnableStory[] => Object.values(composeStories(module)),
+const ALL_STORIES = Object.values(STORY_MODULES).flatMap((module): RunnableStory[] =>
+  Object.values(composeStories(module)),
 );
 
 const FOCUSABLE_SELECTOR =
@@ -215,7 +218,9 @@ const KEYBOARD_CASES: KeyboardCase[] = [
     steps: [
       { act: (canvas) => userEvent.selectOptions(canvas.getByLabelText("Issue type"), "FEAT") },
       { act: (canvas) => userEvent.selectOptions(canvas.getByLabelText("Project"), "operator") },
-      { act: (canvas) => userEvent.type(canvas.getByLabelText("Summary"), "Make status accessible") },
+      {
+        act: (canvas) => userEvent.type(canvas.getByLabelText("Summary"), "Make status accessible"),
+      },
       { act: () => userEvent.tab() },
       { act: () => userEvent.keyboard("{Enter}") },
     ],

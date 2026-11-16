@@ -10,8 +10,11 @@ on:
 # Ad hoc: proves in-app purchase end to end in Stripe sandbox mode.
 #   arm64  runs-on: docker  builds this ref's Dockerfile.local (--load, nothing pushed) exactly as a casa build,
 #                           forwards the sandbox's Stripe events to the platform webhook with `stripe listen`, then runs
-#                           e2e/checkout against a throwaway server: first-time setup → Buy → storefront → Stripe test
-#                           card → license pickup → back to the server with #license_key → installed → Premium.
+#                           e2e/checkout against a throwaway server, one sandbox purchase per flow:
+#                           setup   onboarding paywall → storefront → Stripe → back to /?checkout=setup#license_key
+#                                   → installed → onboarding resumes at the license step → initialized;
+#                           upgrade free workspace → paywall → #/settings/premium → Buy → Stripe → back to the
+#                                   Premium page → installed → License page shows Premium and "Manage license".
 # The platform webhook hosted from private network is not reachable from Stripe, so its signing secret must accept `stripe listen --print-secret`
 # for STRIPE_SANDBOX_API_KEY (STRIPE_WEBHOOK_SECRET or _PREVIOUS); see .forgejo/README.md "Sandbox checkout".
 # The platform must already serve the checkout return (operator-platform CONTRACT.md "Checkout return").

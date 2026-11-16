@@ -75,11 +75,14 @@
   font-size: 0.95rem;
 }
 
-.prSection, .stepsSection, .meta {
+.prSection,
+.stepsSection,
+.meta {
   margin-bottom: 16px;
 }
 
-.prSection h2, .stepsSection h2 {
+.prSection h2,
+.stepsSection h2 {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 8px;

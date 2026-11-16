@@ -33,6 +33,7 @@ export async function operatorApi(request: APIRequestContext) {
     license: () => json<LicenseResponse>(request.get("/api/v1/license")),
     installLicense: (key: string) =>
       request.put("/api/v1/license", { headers, data: { license_key: key } }),
+    removeLicense: () => request.delete("/api/v1/license", { headers }),
     createTarget: (target: Record<string, unknown>) =>
       request.post("/api/v1/targets", { headers, data: target }),
     removeTarget: (name: string) =>

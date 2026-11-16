@@ -3,7 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useApiMutation, useApiQuery } from "../api";
 import { installLicenseMutation, setupStatusQuery } from "../api/definitions";
 import { LicensePanel } from "../components/LicensePanel";
-import { LICENSE_KEY_PARAM, LICENSE_RETURN_PATH } from "../license-return";
+import {
+  CHECKOUT_FLOW_PARAM,
+  LICENSE_KEY_PARAM,
+  LICENSE_RETURN_PATH,
+  checkoutDestination,
+} from "../license-return";
 import styles from "./LicensePage.module.css";
 
 /** Licence timestamps are i64 seconds, which cross the wire as bigint. */
@@ -11,7 +16,8 @@ const date = (seconds: bigint) => new Date(Number(seconds) * 1000).toLocaleStrin
 
 /**
  * Where checkout sends the buyer back (`#license_key=…`, rewritten in main.tsx). It sits outside
- * WorkspaceGate so a purchase made during onboarding lands here too, then hands back to onboarding.
+ * WorkspaceGate so a purchase made during onboarding lands here too. A tagged return continues to
+ * its flow: setup resumes onboarding at the license step, upgrade lands on the Premium page.
  */
 export function LicenseReturnPage() {
   const [params] = useSearchParams();
@@ -19,6 +25,7 @@ export function LicenseReturnPage() {
   const install = useApiMutation(installLicenseMutation);
   const setup = useApiQuery(setupStatusQuery());
   const key = params.get(LICENSE_KEY_PARAM)?.trim() ?? "";
+  const destination = checkoutDestination(params.get(CHECKOUT_FLOW_PARAM));
   const attempted = useRef(false);
 
   useEffect(() => {
@@ -28,10 +35,12 @@ export function LicenseReturnPage() {
     attempted.current = true;
     const forgetKey = () => {
       // Once applied, the key has no reason to stay in the address bar or history.
-      Promise.resolve(navigate(LICENSE_RETURN_PATH, { replace: true })).catch(() => undefined);
+      Promise.resolve(navigate(destination ?? LICENSE_RETURN_PATH, { replace: true })).catch(
+        () => undefined,
+      );
     };
     install.mutate({ licenseKey: key }, { onSuccess: forgetKey });
-  }, [install, key, navigate]);
+  }, [destination, install, key, navigate]);
 
   const onContinue = useCallback(() => {
     void navigate(setup.data?.initialized ? "/settings/license" : "/onboarding");

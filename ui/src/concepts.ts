@@ -143,6 +143,14 @@ export const CONCEPTS: Record<string, Concept> = {
     summary:
       "Epics of tickets planned into dependency waves and launched together. Requires Premium.",
   },
+  premium: {
+    key: "premium",
+    icon: "sparkle",
+    label: "Premium",
+    route: "/settings/premium",
+    docsUrl: `${DOCS_BASE}/getting-started/premium/`,
+    summary: "What Operator Premium unlocks, where to get it, and where Operator lives online.",
+  },
   license: {
     key: "license",
     icon: "key",
@@ -202,4 +210,16 @@ export const STATUS_KEYS = [
 ] as const;
 
 /** Sidebar order for the web-only pages. */
-export const PAGE_KEYS = ["dashboard", "queue", "campaigns"] as const;
+export const PAGE_KEYS = ["dashboard", "queue", "campaigns", "premium"] as const;
+
+export interface ExternalLink {
+  label: string;
+  href: string;
+}
+
+/** Everywhere Operator lives outside this server; the Premium page lists them. */
+export const EXTERNAL_LINKS: readonly ExternalLink[] = [
+  { label: "Documentation", href: DOCS_BASE },
+  { label: "GitHub", href: "https://github.com/untra/operator" },
+  { label: "Premium guide", href: `${DOCS_BASE}/getting-started/premium/` },
+];

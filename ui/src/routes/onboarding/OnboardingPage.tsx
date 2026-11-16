@@ -44,6 +44,7 @@ function emptyDraft(configurationName: string, acceptanceCriteria = ""): WizardD
   };
 }
 
+/** localStorage, so a checkout return in another tab resumes the same draft. */
 function draftStorageKey(profileId: string): string {
   return `${WIZARD_DRAFT_PREFIX}.${profileId}`;
 }
@@ -130,10 +131,10 @@ export function OnboardingPage() {
     if (selected && !creating) {
       try {
         saved = JSON.parse(
-          sessionStorage.getItem(draftStorageKey(selected.id)) ?? "null",
+          localStorage.getItem(draftStorageKey(selected.id)) ?? "null",
         ) as SavedDraft | null;
       } catch {
-        sessionStorage.removeItem(draftStorageKey(selected.id));
+        localStorage.removeItem(draftStorageKey(selected.id));
       }
     }
     setHydrated(true);
@@ -163,7 +164,7 @@ export function OnboardingPage() {
     if (!selected || !status || status.initialized || creating) {
       return;
     }
-    sessionStorage.setItem(
+    localStorage.setItem(
       draftStorageKey(selected.id),
       JSON.stringify({ version: WIZARD_DRAFT_VERSION, draft, currentSlug }),
     );
@@ -199,7 +200,7 @@ export function OnboardingPage() {
     setCreatingBusy(true);
     try {
       const profile = await create(draft.configurationName);
-      sessionStorage.setItem(
+      localStorage.setItem(
         draftStorageKey(profile.id),
         JSON.stringify({
           version: WIZARD_DRAFT_VERSION,
@@ -310,7 +311,7 @@ export function OnboardingPage() {
         }),
       });
       if (selected) {
-        sessionStorage.removeItem(draftStorageKey(selected.id));
+        localStorage.removeItem(draftStorageKey(selected.id));
       }
       await refresh();
       void navigate("/", { replace: true });

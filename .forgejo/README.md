@@ -89,11 +89,16 @@ Run the same thing locally with `make e2e`; pass the two `OPERATOR_E2E_*` variab
 
 ## Sandbox checkout
 
-`workflows/e2e-checkout.yaml` (dispatch only) runs `e2e/checkout` against a throwaway server built from the dispatched ref. The suite does first-time setup and clicks Buy. It then pays on Stripe's hosted page with the sandbox test card. Finally it checks that the storefront sends the key back (`#license_key=…`), the server installs it, and both tabs show Premium.
+`workflows/e2e-checkout.yaml` (dispatch only) runs `e2e/checkout` against a throwaway server built from the dispatched ref. It makes two sandbox purchases, one per flow, each paid on Stripe's hosted page with the test card:
+
+- **setup**: a new workspace buys from the onboarding paywall. The storefront sends the key back to `/?checkout=setup#license_key=…`; the server installs it and onboarding resumes at the license step with its draft intact, then initializes.
+- **upgrade**: the same workspace, made free again, follows a paywall to `#/settings/premium` and buys there. The return lands on the Premium page's unlocked view, and `#/settings/license` shows Premium with a "Manage license" link to the storefront's `/account`.
+
+The `checkout` query on `return_to` names the flow; the storefront keeps it because it only rejects a fragment.
 
 The build uses the casa `OPERATOR_PURCHASE_URL` (see License secrets), so the Buy link opens the sandbox storefront; the job fails unless it is `https://app.operator.untra.casa/checkout?sku=…`.
 
-Stripe cannot reach the casa webhook, so the job runs `stripe listen` and forwards to it. The casa webhook must accept the listener signing secret.
+Stripe cannot reach the casa webhook. casa runs a `stripe-listen` relay for every purchase (operator-private `stripeListen` in `deploy/env/casa.yaml`, Secret `stripe-listen`); the job also runs its own `stripe listen`, which is redundant but harmless because the webhook inbox is unique per event id. The casa webhook must accept the listener signing secret.
 
 ```sh
 STRIPE_API_KEY=sk_test_... stripe listen --print-secret   # set as STRIPE_WEBHOOK_SECRET (or _PREVIOUS) in operator-private deploy/env/casa.yaml

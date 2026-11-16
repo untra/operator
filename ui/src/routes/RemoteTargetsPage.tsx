@@ -4,7 +4,7 @@ import { PremiumPaywall } from "@operator/webcomponents";
 import type { TargetDef } from "@operator/bindings/TargetDef";
 import type { TargetResponse } from "../api-client";
 import { useApiMutation, useApiQuery } from "../api";
-import { onPurchaseLinkClick, useLicenseQuery, withReturnTo } from "../license-return";
+import { PREMIUM_PAGE_HREF, useLicenseQuery } from "../license-return";
 import {
   probeTargetMutation,
   removeTargetMutation,
@@ -176,13 +176,11 @@ export function RemoteTargetsPage() {
       {statusMessage && <output className={styles.status}>{statusMessage}</output>}
       {loading && <p className={styles.status}>Loading remote targets…</p>}
       {license.data && !license.data.premium && (
-        <div onClickCapture={onPurchaseLinkClick}>
-          <PremiumPaywall
-            feature="Remote targets"
-            purchaseUrl={withReturnTo(license.data.purchase_url)}
-            onAddLicense={onAddLicense}
-          />
-        </div>
+        <PremiumPaywall
+          feature="Remote targets"
+          premiumHref={PREMIUM_PAGE_HREF}
+          onAddLicense={onAddLicense}
+        />
       )}
       {!loading && !targetsResult.error && targets.length === 0 && (
         <p className={styles.status}>No remote targets are registered.</p>

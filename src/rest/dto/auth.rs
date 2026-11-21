@@ -447,6 +447,7 @@ pub enum OAuthErrorCode {
 // =============================================================================
 
 /// Create a service access key for an integration.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyRequest {
@@ -464,6 +465,7 @@ pub struct CreateAccessKeyRequest {
 
 /// A newly created access key. **The secret appears here and nowhere else,
 /// ever** - only its hash is stored, so it cannot be shown again.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyResponse {
@@ -498,6 +500,7 @@ pub struct AccessKeySummary {
 }
 
 /// All access keys, active and revoked.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct AccessKeyListResponse {
@@ -506,6 +509,7 @@ pub struct AccessKeyListResponse {
 }
 
 /// Result of revoking an access key.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct RevokeAccessKeyResponse {

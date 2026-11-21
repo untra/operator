@@ -193,7 +193,7 @@ impl StateSchemaDocGenerator {
         } else if prop.get("$ref").is_some() {
             let ref_path = prop.get("$ref").and_then(|r| r.as_str()).unwrap_or("");
             let ref_name = ref_path.split('/').next_back().unwrap_or("ref");
-            format!("→ {}", inline_code(ref_name))
+            format!("\u{2192} {}", inline_code(ref_name))
         } else {
             "object".to_string()
         }

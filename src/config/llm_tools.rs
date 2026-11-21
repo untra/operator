@@ -138,7 +138,7 @@ pub struct SkillDirectoriesOverride {
 pub struct RemoteAgentRef {
     /// Hosting platform (e.g. `"agnt"`, `"openai"`).
     pub platform: String,
-    /// Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id).
+    /// Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_` id).
     pub id: String,
 }
 

@@ -927,7 +927,7 @@ impl KanbanProvider for JiraProvider {
         // Format the comment text
         let timestamp = entry.completed_at.format("%Y-%m-%d %H:%M UTC").to_string();
         let mut text = format!(
-            "🤖 opr8r - step: {} | delegator: {} | {}",
+            "opr8r - step: {} | delegator: {} | {}",
             entry.step, entry.delegator, timestamp
         );
         if let Some(ref summary) = entry.summary {

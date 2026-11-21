@@ -52,6 +52,12 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Install Unicleaner
+        run: make install-unicleaner
+
+      - name: Lint Unicode
+        run: make lint-unicode
+
       # The frontend is typed against these; generate before anything compiles.
       - name: Generate TypeScript bindings and verify they are committed
         run: |

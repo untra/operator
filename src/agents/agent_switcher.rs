@@ -101,7 +101,7 @@ const GEMINI_EXIT_CMD: &str = "/quit";
 const CODEX_EXIT_CMD: &str = "\x03"; // Ctrl+C
 
 // Shell prompt patterns indicating agent has exited
-const SHELL_PROMPT_PATTERNS: &[&str] = &["$ ", "% ", "# ", "❯ "];
+const SHELL_PROMPT_PATTERNS: &[&str] = &["$ ", "% ", "# ", "\u{276f} "];
 
 // Timing constants
 const EXIT_POLL_INTERVAL: Duration = Duration::from_millis(200);

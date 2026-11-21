@@ -550,7 +550,7 @@ impl AuthStore {
                 },
                 owner_id: user.user.id.clone(),
                 profile_id: request.grants.profile_id,
-                display_prefix: format!("{KEY_PREFIX}_{id}_…"),
+                display_prefix: format!("{KEY_PREFIX}_{id}_\u{2026}"),
                 grants: request.grants.clone(),
                 replaces_id: replaces.map(str::to_owned),
             },
@@ -670,7 +670,7 @@ impl AuthStore {
             let rows = stmt.query_map(params![owner, profile.to_string(), KEY_PAGE_SIZE, offset], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<String>>(6)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
             rows.into_iter().map(|(id, name, created, expires, used, revoked, replaces_id)| {
                 let parse = |s: &str| -> Result<DateTime<Utc>> { Ok(DateTime::parse_from_rfc3339(s)?.with_timezone(&Utc)) };
-                Ok(UserKey { display_prefix: format!("{KEY_PREFIX}_{id}_…"), owner_id: owner.to_string(), profile_id: profile, grants: read_grants(conn, &id, profile, true)?, replaces_id, summary: AccessKeySummary { id, name, scopes: Vec::new(), created_at: parse(&created)?, expires_at: parse(&expires)?, last_used_at: used.as_deref().map(parse).transpose()?, revoked_at: revoked.as_deref().map(parse).transpose()? } })
+                Ok(UserKey { display_prefix: format!("{KEY_PREFIX}_{id}_\u{2026}"), owner_id: owner.to_string(), profile_id: profile, grants: read_grants(conn, &id, profile, true)?, replaces_id, summary: AccessKeySummary { id, name, scopes: Vec::new(), created_at: parse(&created)?, expires_at: parse(&expires)?, last_used_at: used.as_deref().map(parse).transpose()?, revoked_at: revoked.as_deref().map(parse).transpose()? } })
             }).collect()
         })
     }

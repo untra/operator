@@ -1,4 +1,4 @@
-//! The route → required-scope table, and the authenticated principal.
+//! The route required-scope table, and the authenticated principal.
 //!
 //! Authorization is decided by matching a request's [`MatchedPath`] against
 //! [`ROUTE_RULES`] rather than by per-handler extractors. The tradeoff is

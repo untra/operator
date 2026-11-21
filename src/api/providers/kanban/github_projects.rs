@@ -1729,12 +1729,12 @@ impl KanbanProvider for GithubProjectsProvider {
 
             let comment_body = if summary_text.is_empty() {
                 format!(
-                    "🤖 **opr8r activity** - step: `{}` | delegator: `{}` | {}",
+                    "**opr8r activity** - step: `{}` | delegator: `{}` | {}",
                     entry.step, entry.delegator, timestamp
                 )
             } else {
                 format!(
-                    "🤖 **opr8r activity** - step: `{}` | delegator: `{}` | {}\n\n> {}",
+                    "**opr8r activity** - step: `{}` | delegator: `{}` | {}\n\n> {}",
                     entry.step, entry.delegator, timestamp, summary_text
                 )
             };

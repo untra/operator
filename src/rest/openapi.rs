@@ -19,28 +19,27 @@ use utoipa::{Modify, OpenApi};
 use crate::auth::scope::{required_access, Access};
 use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
-    AccessKeyListResponse, AccessKeySummary, ActiveAgentResponse, ActiveAgentsResponse,
-    AgentDetailResponse, AssessTicketResponse, BootstrapState, BootstrapStatusResponse,
-    BootstrapSubmitRequest, BootstrapSubmitResponse, CollectionResponse, CreateAccessKeyRequest,
-    CreateAccessKeyResponse, CreateAlertRequest, CreateAlertResponse,
-    CreateDelegatorFromToolRequest, CreateDelegatorRequest, CreateFieldRequest,
-    CreateIssueTypeRequest, CreateModelServerRequest, CreateStepRequest, CreateTicketRequest,
-    CreateTicketResponse, CsrfTokenResponse, CurrentSessionResponse, DefaultLlmResponse,
-    DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, DeviceApprovalRequest,
-    DeviceApprovalResponse, DeviceAuthorizationRequest, DeviceAuthorizationResponse, DeviceSummary,
-    ExternalIssueTypeSummary, FieldError, FieldResponse, ForgotPasswordRequest,
-    ForgotPasswordResponse, GitOnboardingState, GitProviderOnboardingResponse, HealthResponse,
-    HostedCollectionSelection, IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary,
-    KanbanBoardResponse, KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanPushOutcome,
-    KanbanSyncResponse, KanbanTarget, KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse,
+    ActiveAgentResponse, ActiveAgentsResponse, AgentDetailResponse, AssessTicketResponse,
+    BootstrapState, BootstrapStatusResponse, BootstrapSubmitRequest, BootstrapSubmitResponse,
+    CollectionResponse, CreateAlertRequest, CreateAlertResponse, CreateDelegatorFromToolRequest,
+    CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest, CreateModelServerRequest,
+    CreateStepRequest, CreateTicketRequest, CreateTicketResponse, CsrfTokenResponse,
+    CurrentSessionResponse, DefaultLlmResponse, DelegatorLaunchConfigDto, DelegatorResponse,
+    DelegatorsResponse, DeviceApprovalRequest, DeviceApprovalResponse, DeviceAuthorizationRequest,
+    DeviceAuthorizationResponse, DeviceSummary, ExternalIssueTypeSummary, FieldError,
+    FieldResponse, ForgotPasswordRequest, ForgotPasswordResponse, GitOnboardingState,
+    GitProviderOnboardingResponse, HealthResponse, HostedCollectionSelection,
+    IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary, KanbanBoardResponse,
+    KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanPushOutcome, KanbanSyncResponse,
+    KanbanTarget, KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse,
     ListKanbanProjectsRequest, ListKanbanProjectsResponse, ListKanbanStatusesRequest,
     ListKanbanStatusesResponse, LoginRequest, LoginResponse, LogoutResponse, ModelEntry,
     ModelServerKindEntry, ModelServerModelsResponse, ModelServerResponse, ModelServersResponse,
     NextStepInfo, OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind,
     ProjectSummary, ProtectedResourceMetadata, QueueByType, QueueControlResponse,
     QueueStatusResponse, RejectReviewRequest, ResetPasswordRequest, ResetPasswordResponse,
-    ReviewResponse, RevokeAccessKeyResponse, Scope, SectionDto, SectionRowDto, SessionListResponse,
-    SessionSummary, SetDefaultLlmRequest, SetGitSessionEnvRequest, SetGitSessionEnvResponse,
+    ReviewResponse, Scope, SectionDto, SectionRowDto, SessionListResponse, SessionSummary,
+    SetDefaultLlmRequest, SetGitSessionEnvRequest, SetGitSessionEnvResponse,
     SetKanbanSessionEnvRequest, SetKanbanSessionEnvResponse, SetupCollectionResponse,
     SetupExecutionTarget, SetupInitializeRequest, SetupInitializeResponse, SetupStatusResponse,
     SetupStepResponse, SkillEntry, SkillsResponse, StatusResponse, StepCompleteRequest,
@@ -217,11 +216,6 @@ use crate::rest::error::ErrorResponse;
             ProtectedResourceMetadata,
             OAuthErrorCode,
             OAuthErrorResponse,
-            CreateAccessKeyRequest,
-            CreateAccessKeyResponse,
-            AccessKeySummary,
-            AccessKeyListResponse,
-            RevokeAccessKeyResponse,
             // Setup
             SetupStatusResponse,
             SetupStepResponse,
@@ -723,8 +717,7 @@ mod tests {
             if matches!(
                 rule.access,
                 Access::Public | Access::TelemetryIngest | Access::Endpoint
-            )
-                || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
+            ) || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
             {
                 continue;
             }
@@ -855,10 +848,19 @@ mod tests {
 
     #[test]
     fn test_openapi_registers_auth_schemas() {
-        // Phase 2 ships the contract before any handler exists, so these types
-        // are reachable only through `components(schemas(...))`. Dropping one
-        // would silently remove it from the spec and from every generated client.
-        let spec = ApiDoc::json().expect("generate spec");
+        let spec = parsed_spec();
+        let schemas = spec["components"]["schemas"].as_object().unwrap();
+        for obsolete in [
+            "CreateAccessKeyRequest",
+            "CreateAccessKeyResponse",
+            "AccessKeyListResponse",
+            "RevokeAccessKeyResponse",
+        ] {
+            assert!(
+                !schemas.contains_key(obsolete),
+                "obsolete schema {obsolete}"
+            );
+        }
         for schema in [
             "Scope",
             "BootstrapState",
@@ -875,13 +877,14 @@ mod tests {
             "TokenRequest",
             "TokenResponse",
             "OAuthErrorResponse",
+            "AccessKeySummary",
             "UserKeyList",
             "IssuedUserKey",
             "CreateUserKey",
             "SessionListResponse",
         ] {
             assert!(
-                spec.contains(&format!("\"{schema}\"")),
+                schemas.contains_key(schema),
                 "spec should register the {schema} component schema"
             );
         }

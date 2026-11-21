@@ -10,7 +10,7 @@ import styles from "./LicensePage.module.css";
 const date = (seconds: bigint) => new Date(Number(seconds) * 1000).toLocaleString();
 
 /**
- * Where checkout sends the buyer back (`#license_key=…`, rewritten in main.tsx). It sits outside
+ * Where checkout sends the buyer back (`#license_key=...`, rewritten in main.tsx). It sits outside
  * WorkspaceGate so a purchase made during onboarding lands here too, then hands back to onboarding.
  */
 export function LicenseReturnPage() {

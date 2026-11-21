@@ -46,7 +46,7 @@ test("first-time setup buys Premium in the sandbox and the key comes back on its
   expect((await operator.createTarget(REMOTE_TARGET)).status()).toBe(PAYMENT_REQUIRED);
 
   // Remote needs Premium: choosing it opens the paywall and the license panel.
-  await page.getByText("Remote targets · Premium").click();
+  await page.getByText("Remote targets \u00B7 Premium").click();
   const panel = page.getByRole("region", { name: "Operator license" });
   await expect(panel.locator("dt:text-is('Status') + dd")).toHaveText("Free");
 

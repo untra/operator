@@ -53,7 +53,7 @@ function ExportBlock({ value }: { value: string }) {
 const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
   <Intro>
     <h2>Welcome to Operator</h2>
-    <p>We’ll configure this workspace for both the terminal and browser.</p>
+    <p>We&rsquo;ll configure this workspace for both the terminal and browser.</p>
     <label className={styles.form}>
       Configuration name
       <input

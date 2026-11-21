@@ -117,31 +117,28 @@ async fn test_operator_acp_stdio_initialize_roundtrip() {
 
 #[cfg(unix)]
 #[tokio::test]
-async fn test_acp_initialize_survives_unwritable_registry() {
+async fn test_protocol_commands_reject_unwritable_registry() {
     let unwritable = ReadOnlyDir::new();
+    let registry = unwritable.registry();
+    let registry_dir = registry.parent().unwrap().to_str().unwrap();
     let tickets = tempfile::TempDir::new().unwrap();
     let (_config_keep, config_path) = write_cat_delegator_config(tickets.path());
-    let mut child = operator_command(&unwritable.registry(), Some(&config_path), "acp")
-        .spawn()
-        .expect("spawn operator acp");
 
-    let mut stdin = child.stdin.take().expect("take stdin");
-    let stdout = child.stdout.take().expect("take stdout");
-    let mut reader = BufReader::new(stdout).lines();
-
-    stdin.write_all(INITIALIZE_REQUEST).await.unwrap();
-    stdin.write_all(b"\n").await.unwrap();
-    stdin.flush().await.unwrap();
-
-    let response: serde_json::Value =
-        serde_json::from_str(&read_line(&mut reader).await).expect("response should be valid JSON");
-    assert_eq!(
-        response["result"]["agentInfo"]["name"], "operator",
-        "acp must still serve when the registry is unwritable: {response}"
-    );
-
-    drop(stdin);
-    let _ = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
+    for protocol in ["acp", "mcp"] {
+        let output = tokio::time::timeout(
+            PER_LINE_TIMEOUT,
+            operator_command(&registry, Some(&config_path), protocol)
+                .kill_on_drop(true)
+                .output(),
+        )
+        .await
+        .expect("timeout waiting for startup failure")
+        .expect("run protocol command");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success(), "{protocol} accepted the registry");
+        assert!(output.stdout.is_empty(), "{protocol} wrote to stdout");
+        assert!(stderr.contains(registry_dir), "{protocol}: {stderr}");
+    }
 }
 
 #[cfg(unix)]
@@ -158,7 +155,7 @@ async fn test_unwritable_registry_still_fails_non_protocol_commands() {
 
     assert!(
         !output.status.success(),
-        "only stdio protocol servers may run unregistered; queue exited {}",
+        "queue must reject an unwritable registry, exited {}",
         output.status
     );
 }

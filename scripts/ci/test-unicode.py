@@ -13,6 +13,7 @@ PRESENTATION_CASES = {
     "webcomponents/stories/NewPanel.stories.tsx": "\u25c6",
     "vscode-extension/webview-ui/components/NewPanel.tsx": "\u2715",
     "vscode-extension/src/sections/new-section.ts": "\u00b7",
+    "vscode-extension/test/suite/mcp-connect.test.ts": "\u00b7",
     "src/docs_gen/new_generator.rs": "\u2192",
     "docs/new-page.md": "\u00a7",
     "README.md": "\u2500",

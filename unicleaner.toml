@@ -362,7 +362,8 @@ pattern = """\
   vscode-extension/src/campaign-provider.ts,./vscode-extension/src/campaign-provider.ts,\
   vscode-extension/src/extension.ts,./vscode-extension/src/extension.ts,\
   vscode-extension/src/launch-dialog.ts,./vscode-extension/src/launch-dialog.ts,\
-  vscode-extension/test/suite/campaign-provider.test.ts,./vscode-extension/test/suite/campaign-provider.test.ts}\
+  vscode-extension/test/suite/campaign-provider.test.ts,./vscode-extension/test/suite/campaign-provider.test.ts,\
+  vscode-extension/test/suite/mcp-connect.test.ts,./vscode-extension/test/suite/mcp-connect.test.ts}\
   """
 allowed_ranges = [
   [0x0009, 0x000D],

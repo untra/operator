@@ -264,10 +264,7 @@ export function App() {
           delegatorPrefill={delegatorPrefill}
         />
       ) : (
-        <div
-          className="op-col op-gap-2"
-          style={LOADING_CONTAINER_STYLE}
-        >
+        <div className="op-col op-gap-2" style={LOADING_CONTAINER_STYLE}>
           <Spinner />
           <p className="op-body2 op-text-secondary">Loading configuration...</p>
         </div>

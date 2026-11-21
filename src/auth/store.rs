@@ -1902,7 +1902,9 @@ mod tests {
         let (id, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
         let now = Utc::now();
 
-        assert!(s.update_endpoint(&id, Some("gaming-pc"), Some(true)).unwrap());
+        assert!(s
+            .update_endpoint(&id, Some("gaming-pc"), Some(true))
+            .unwrap());
         s.record_endpoint_capabilities(&id, r#"{"os":"windows"}"#, "h1", now)
             .unwrap();
         let later = now + Duration::seconds(30);
@@ -1913,7 +1915,10 @@ mod tests {
         assert!(ep.launch_enabled);
         assert_eq!(ep.capabilities_json.as_deref(), Some(r#"{"os":"windows"}"#));
         assert_eq!(ep.capabilities_hash.as_deref(), Some("h1"));
-        assert_eq!(ep.last_seen_at.map(|t| t.timestamp()), Some(later.timestamp()));
+        assert_eq!(
+            ep.last_seen_at.map(|t| t.timestamp()),
+            Some(later.timestamp())
+        );
 
         assert!(s.update_endpoint(&id, None, Some(false)).unwrap());
         let ep = s.get_endpoint(&id).unwrap().unwrap();
@@ -1947,7 +1952,12 @@ mod tests {
         let (a, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
         let (b, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
         s.revoke_endpoint(&a, "x").unwrap();
-        let ids: Vec<String> = s.list_endpoints().unwrap().into_iter().map(|e| e.id).collect();
+        let ids: Vec<String> = s
+            .list_endpoints()
+            .unwrap()
+            .into_iter()
+            .map(|e| e.id)
+            .collect();
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&a) && ids.contains(&b));
     }

@@ -153,7 +153,10 @@ mod tests {
 
         let report = outdated(dir.path());
         assert!(report.iter().any(|r| r.contains(CSHARP_FILE)), "{report:?}");
-        assert!(report.iter().any(|r| r.contains("uplink-gone.json")), "{report:?}");
+        assert!(
+            report.iter().any(|r| r.contains("uplink-gone.json")),
+            "{report:?}"
+        );
 
         write(dir.path()).unwrap();
         assert!(!stale.exists());

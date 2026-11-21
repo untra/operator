@@ -307,11 +307,17 @@ mod tests {
     async fn detail_prefers_live_capabilities_and_falls_back_to_stored() {
         let (_dir, state) = fresh();
         let id = pair(&state);
-        let detail = get_one(State(state.clone()), Path(id.clone())).await.unwrap().0;
+        let detail = get_one(State(state.clone()), Path(id.clone()))
+            .await
+            .unwrap()
+            .0;
         assert!(detail.capabilities.is_none());
 
         let rx = connect_live(&state, &id);
-        let detail = get_one(State(state.clone()), Path(id.clone())).await.unwrap().0;
+        let detail = get_one(State(state.clone()), Path(id.clone()))
+            .await
+            .unwrap()
+            .0;
         assert_eq!(detail.capabilities, Some(caps()));
         assert!(!detail.capabilities_stale);
         drop(rx);
@@ -325,7 +331,11 @@ mod tests {
         let mut restarted = state.clone();
         restarted.endpoints = std::sync::Arc::default();
         let detail = get_one(State(restarted), Path(id)).await.unwrap().0;
-        assert_eq!(detail.capabilities, Some(caps()), "from the store after restart");
+        assert_eq!(
+            detail.capabilities,
+            Some(caps()),
+            "from the store after restart"
+        );
         assert_eq!(detail.summary.liveness, Liveness::Offline);
     }
 
@@ -393,7 +403,9 @@ mod tests {
         let id = pair(&state);
         let mut rx = connect_live(&state, &id);
 
-        revoke(State(state.clone()), Path(id.clone())).await.unwrap();
+        revoke(State(state.clone()), Path(id.clone()))
+            .await
+            .unwrap();
         assert_eq!(rx.try_recv().unwrap(), Outbound::Close(REVOKED));
         assert!(state.auth.store.endpoint_authority(&id).unwrap().is_none());
         assert!(matches!(
@@ -407,7 +419,10 @@ mod tests {
         let mut admin = crate::auth::scope::Principal::local("admin");
         assert!(uplink_endpoint_id(&admin).is_err());
         admin.endpoint_id = Some("ep".into());
-        assert!(uplink_endpoint_id(&admin).is_err(), "kind must be endpoint too");
+        assert!(
+            uplink_endpoint_id(&admin).is_err(),
+            "kind must be endpoint too"
+        );
         admin.kind = crate::rest::dto::auth::PrincipalKind::Endpoint;
         assert_eq!(uplink_endpoint_id(&admin).unwrap(), "ep");
     }

@@ -267,7 +267,6 @@ mod git_cli_readonly_tests {
     }
 }
 
-
 mod git_cli_remote_tests {
     use super::*;
 

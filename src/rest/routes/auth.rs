@@ -1687,8 +1687,13 @@ mod tests {
     }
 
     async fn assert_invalid_scope(state: &ApiState, client_id: &str, scopes: Vec<Scope>) {
-        let (status, _, value) = body_json(device(state, client_id, None, scopes.clone()).await).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{client_id} {scopes:?}: {value}");
+        let (status, _, value) =
+            body_json(device(state, client_id, None, scopes.clone()).await).await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "{client_id} {scopes:?}: {value}"
+        );
         assert_eq!(
             parse::<OAuthErrorResponse>(value).error,
             OAuthErrorCode::InvalidScope,
@@ -1802,8 +1807,11 @@ mod tests {
     #[tokio::test]
     async fn test_human_device_tokens_carry_no_endpoint_binding() {
         let (dir, state) = fresh();
-        let issued: DeviceAuthorizationResponse =
-            parse(body_json(device(&state, "vscode", None, vec![]).await).await.2);
+        let issued: DeviceAuthorizationResponse = parse(
+            body_json(device(&state, "vscode", None, vec![]).await)
+                .await
+                .2,
+        );
         let _approved = device_approve(
             State(state.clone()),
             Json(DeviceApprovalRequest {

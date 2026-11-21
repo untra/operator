@@ -127,7 +127,11 @@ fn field_type(schema: &Value) -> Result<FieldType, EmitError> {
 }
 
 fn emit_enum(out: &mut String, name: &str, variants: &[Value]) -> Result<(), EmitError> {
-    writeln!(out, "[JsonConverter(typeof(JsonStringEnumConverter<{name}>))]").ok();
+    writeln!(
+        out,
+        "[JsonConverter(typeof(JsonStringEnumConverter<{name}>))]"
+    )
+    .ok();
     writeln!(out, "public enum {name}\n{{").ok();
     for v in variants {
         let wire = v
@@ -240,7 +244,11 @@ pub fn emit(namespace: &str, roots: &[(&str, Value)]) -> Result<String, EmitErro
     writeln!(out, "using System.Text.Json.Serialization;\n").ok();
     writeln!(out, "namespace {namespace};\n").ok();
     writeln!(out, "public static class ProtocolInfo\n{{").ok();
-    writeln!(out, "{INDENT}public const uint Version = {PROTOCOL_VERSION};").ok();
+    writeln!(
+        out,
+        "{INDENT}public const uint Version = {PROTOCOL_VERSION};"
+    )
+    .ok();
     writeln!(out, "}}\n").ok();
 
     for (frame, variants) in &frames {
@@ -274,7 +282,10 @@ pub fn endpoint_protocol_csharp() -> String {
         NAMESPACE,
         &[
             ("UplinkFrame", schema(schemars::schema_for!(UplinkFrame))),
-            ("DownlinkFrame", schema(schemars::schema_for!(DownlinkFrame))),
+            (
+                "DownlinkFrame",
+                schema(schemars::schema_for!(DownlinkFrame)),
+            ),
         ],
     )
     .expect("endpoint protocol must stay within the C# emitter's supported shapes")
@@ -294,7 +305,10 @@ mod tests {
     fn every_frame_tag_is_a_derived_type() {
         let cs = endpoint_protocol_csharp();
         for tag in UplinkFrame::TAGS.iter().chain(DownlinkFrame::TAGS) {
-            assert!(cs.contains(&format!("\"{tag}\")]")), "missing derived type for {tag}");
+            assert!(
+                cs.contains(&format!("\"{tag}\")]")),
+                "missing derived type for {tag}"
+            );
         }
         assert!(cs.contains("public abstract record UplinkFrame"));
         assert!(cs.contains("public abstract record DownlinkFrame"));

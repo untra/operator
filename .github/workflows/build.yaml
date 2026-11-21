@@ -10,8 +10,6 @@ on:
       - main
     paths-ignore:
       - 'VERSION'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
       - 'docs/**'
       - '.github/workflows/docs.yml'
       - 'vscode-extension/package.json'

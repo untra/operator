@@ -389,7 +389,9 @@ pub fn fixtures() -> Fixtures {
             ),
             (
                 "tunnel_end",
-                UplinkFrame::TunnelEnd(TunnelEnd { req_id: "r1".into() }),
+                UplinkFrame::TunnelEnd(TunnelEnd {
+                    req_id: "r1".into(),
+                }),
             ),
             (
                 "tunnel_error",
@@ -441,7 +443,9 @@ pub fn fixtures() -> Fixtures {
             ),
             (
                 "tunnel_cancel",
-                DownlinkFrame::TunnelCancel(TunnelCancel { req_id: "r1".into() }),
+                DownlinkFrame::TunnelCancel(TunnelCancel {
+                    req_id: "r1".into(),
+                }),
             ),
             (
                 "launch",
@@ -485,8 +489,14 @@ mod tests {
     fn every_fixture_round_trips() {
         let fixtures = fixtures();
         assert!(!fixtures.uplink.is_empty() && !fixtures.downlink.is_empty());
-        fixtures.uplink.iter().for_each(|(_, f)| round_trip_uplink(f));
-        fixtures.downlink.iter().for_each(|(_, f)| round_trip_downlink(f));
+        fixtures
+            .uplink
+            .iter()
+            .for_each(|(_, f)| round_trip_uplink(f));
+        fixtures
+            .downlink
+            .iter()
+            .for_each(|(_, f)| round_trip_downlink(f));
     }
 
     #[test]
@@ -532,7 +542,12 @@ mod tests {
             .downlink
             .iter()
             .map(|(_, f)| serde_json::to_string(f).unwrap())
-            .chain(fixtures().uplink.iter().map(|(_, f)| serde_json::to_string(f).unwrap()))
+            .chain(
+                fixtures()
+                    .uplink
+                    .iter()
+                    .map(|(_, f)| serde_json::to_string(f).unwrap()),
+            )
             .collect();
         for needle in ["+", "<", ">", "&", "'", "\u{e9}", "\u{2192}"] {
             assert!(json.contains(needle), "no fixture carries {needle:?} raw");

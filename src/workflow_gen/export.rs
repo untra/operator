@@ -821,6 +821,7 @@ mod tests {
     fn test_pipeline_items_expr_projects_empty_falls_back_to_placeholder() {
         let (preamble, expr) =
             pipeline_items_expr(&ItemSource::Projects, "r_x", &PipelineEnv::default());
+        assert_eq!(expr, "r_x_items");
         assert!(
             preamble.contains(GAP_MARKER) && preamble.contains("const r_x_items = [];"),
             "zero-iteration placeholder missing:\n{preamble}"

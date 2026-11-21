@@ -324,7 +324,6 @@ mod tests {
         assert!(back.endpoint_id.is_none());
     }
 
-
     #[test]
     fn test_scope_claim_uses_space_separated_oauth_form() {
         let claims = api_claims(

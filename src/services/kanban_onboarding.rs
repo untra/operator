@@ -49,7 +49,6 @@ fn provider_error_message(err: &crate::api::error::ApiError) -> String {
     }
 }
 
-
 /// Validate credentials against the live provider API without persisting anything.
 pub async fn validate_credentials(
     req: ValidateKanbanCredentialsRequest,

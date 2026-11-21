@@ -36,7 +36,11 @@ impl Server {
     async fn start() -> Self {
         let directory = tempfile::tempdir().unwrap();
         let mut config = Config::default();
-        config.paths.state = directory.path().join("state").to_string_lossy().into_owned();
+        config.paths.state = directory
+            .path()
+            .join("state")
+            .to_string_lossy()
+            .into_owned();
         config.paths.tickets = directory
             .path()
             .join("tickets")
@@ -126,7 +130,9 @@ impl Server {
             "authorization",
             format!("Bearer {access_token}").parse().unwrap(),
         );
-        tokio_tungstenite::connect_async(request).await.map(|(s, _)| s)
+        tokio_tungstenite::connect_async(request)
+            .await
+            .map(|(s, _)| s)
     }
 
     async fn endpoints(&self) -> EndpointsResponse {

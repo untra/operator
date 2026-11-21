@@ -40,8 +40,7 @@ ARG OPERATOR_PURCHASE_URL=""
 
 RUN cargo build --release --locked --bin operator
 
-# opr8r is a separate cargo project with its own Cargo.lock,  so it needs its own invocation.
-RUN cd opr8r && cargo build --release --locked
+RUN cargo build --profile opr8r-release --locked -p opr8r
 
 # Mirrors Dockerfile; only the operator/opr8r binary source differs.
 # glibc 2.41 >= the ubuntu-24.04 build runners' 2.39, so the GNU binary runs.
@@ -66,7 +65,7 @@ RUN apt-get update \
 # Both halves ship: agent sessions launched by the operator server call the
 # opr8r client to report step completion for multi-step ticket workflows.
 COPY --from=build --chown=0:0 --chmod=0755 /src/target/release/operator /usr/local/bin/operator
-COPY --from=build --chown=0:0 --chmod=0755 /src/opr8r/target/release/opr8r /usr/local/bin/opr8r
+COPY --from=build --chown=0:0 --chmod=0755 /src/target/opr8r-release/opr8r /usr/local/bin/opr8r
 
 # Fail the build before use if a binary can't execute on this base.
 # --version short-circuits in clap before any config or tmux load.

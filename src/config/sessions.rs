@@ -35,7 +35,7 @@ impl SessionWrapperType {
     /// truth mirrored by the vertical catalog (`crate::integrations::catalog`);
     /// `vscode` is advertised under the Editor vertical.
     ///
-    /// Consumed by `tests/vertical_parity.rs` to enforce catalog coverage; reads
+    /// Consumed by `tests/it/suites/vertical_parity.rs` to enforce catalog coverage; reads
     /// as unused in the bin crate, which has no blanket dead-code allowance here.
     #[allow(dead_code)]
     pub const ALL: [SessionWrapperType; 4] = [

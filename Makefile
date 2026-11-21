@@ -28,20 +28,12 @@ fmt: fmt-rust fmt-ts fmt-tf
 
 fmt-check: fmt-check-rust fmt-check-ts fmt-check-tf
 
-# crates/relay, crates/telemetry, opr8r and zed-extension have their own Cargo.lock and are not
-# workspace members, so `--all` never reaches them.
 fmt-rust:
 	cargo fmt --all
-	cd crates/relay && cargo fmt
-	cd crates/telemetry && cargo fmt
-	cd opr8r && cargo fmt
 	cd zed-extension && cargo fmt
 
 fmt-check-rust:
 	cargo fmt --all -- --check
-	cd crates/relay && cargo fmt -- --check
-	cd crates/telemetry && cargo fmt -- --check
-	cd opr8r && cargo fmt -- --check
 	cd zed-extension && cargo fmt -- --check
 
 # oxfmt is installed once at the repo root and covers every hand-written JS/TS
@@ -108,10 +100,7 @@ test-shell:
 	bash scripts/ci/test-signing.sh
 
 test-rust:
-	cargo test --locked --all-features
-	cd crates/relay && cargo test --locked --all-features
-	cd crates/telemetry && cargo test --locked --all-features
-	cd opr8r && cargo test --locked --all-features
+	cargo test --workspace --locked --all-features
 
 # Display-bound suites (vscode-extension, storybook) stay on their own targets.
 test-ts:

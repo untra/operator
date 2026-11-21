@@ -3031,6 +3031,7 @@ dependencies = [
  "notify 7.0.0",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "uuid",
@@ -3048,7 +3049,24 @@ dependencies = [
  "serde-saphyr",
  "serde_json",
  "sha2 0.10.9",
+ "tempfile",
  "ts-rs",
+]
+
+[[package]]
+name = "opr8r"
+version = "0.2.16"
+dependencies = [
+ "clap",
+ "operator-relay",
+ "operator-telemetry",
+ "reqwest 0.13.5",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

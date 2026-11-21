@@ -329,9 +329,6 @@ else
 fi
 
 # --- 5. crates/relay ---
-#
-# relay is a standalone crate (its own Cargo.lock), not a workspace member, so
-# the root cargo fmt/clippy never reach it despite its strict [lints.clippy].
 
 if needs_relay; then
   section "crates/relay"

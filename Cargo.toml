@@ -1,3 +1,25 @@
+[workspace]
+members = ["crates/*", "opr8r"]
+default-members = ["."]
+exclude = ["zed-extension"]
+resolver = "2"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1
+
+[profile.opr8r-release]
+inherits = "release"
+lto = true
+panic = "abort"
+
 [package]
 name = "operator"
 version = "0.2.16"

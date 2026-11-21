@@ -347,7 +347,7 @@ async fn decide(state: ApiState, request: Request, next: Next) -> Result<Respons
         .or_else(|| unmatched_access(&path));
 
     let Some(access) = access else {
-        // Unknown or unclassified: deny. `tests/route_scope_parity.rs` makes
+        // Unknown or unclassified: deny. `tests/it/suites/route_scope_parity.rs` makes
         // this unreachable for mounted routes.
         return Err(
             ApiError::Unauthorized("this endpoint requires authentication".to_string()).into(),

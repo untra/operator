@@ -4,7 +4,7 @@
 //! [`ROUTE_RULES`] rather than by per-handler extractors. The tradeoff is
 //! deliberate: an extractor that someone forgets to add leaves a route
 //! **unprotected**, and nothing fails. A missing table entry is caught by
-//! `tests/route_scope_parity.rs`, which walks the generated OpenAPI spec and
+//! `tests/it/suites/route_scope_parity.rs`, which walks the generated OpenAPI spec and
 //! fails the build. The failure mode of a mistake should be a red test, not a
 //! silent hole.
 //!

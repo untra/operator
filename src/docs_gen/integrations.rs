@@ -2,7 +2,7 @@
 //!
 //! Emits `docs/maturity/index.md` from the vertical catalog
 //! ([`crate::integrations::catalog::all_integrations`]) - a human-facing
-//! companion to the machine-checked `tests/vertical_parity.rs`. Because it is
+//! companion to the machine-checked `tests/it/suites/vertical_parity.rs`. Because it is
 //! derived from the same source of truth as the REST `/api/v1/integrations`
 //! endpoint and the README badges, the page can never drift from reality.
 

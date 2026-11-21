@@ -36,8 +36,8 @@ curated embedded set lives in `src/collections/`.
 5. Do **not** set checksums - the docs generator computes them at publish time. Run the CI gates locally before opening a PR to ensure the collection is correctly structured:
 
    ```bash
-   cargo test --test community_collections
-   cargo test --test svg_icon_standard
+   cargo test --test it suites::community_collections::
+   cargo test --test it suites::svg_icon_standard::
    ```
 
 See `community/example_chores/` for a minimal working example.

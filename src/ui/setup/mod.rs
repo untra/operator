@@ -845,7 +845,7 @@ impl SetupScreen {
     }
 
     /// Model providers the wizard offers, from the integration catalog. Each
-    /// resolves to a `ModelServerKind` (guaranteed by `tests/vertical_parity.rs`).
+    /// resolves to a `ModelServerKind` (guaranteed by `tests/it/suites/vertical_parity.rs`).
     pub(crate) fn model_providers() -> Vec<(CatalogEntry, ModelServerKind)> {
         onboardable(Vertical::Model)
             .into_iter()

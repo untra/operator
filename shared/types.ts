@@ -1626,7 +1626,7 @@ project_collection_prefs: { [key in string]: string },
  */
 multi_agent_groups: Array<MultiAgentGroup>, 
 /**
- * Campaign id → runner bookkeeping
+ * Campaign id to runner bookkeeping
  */
 campaign_runs: { [key in string]: CampaignRun }, };
 
@@ -1776,7 +1776,7 @@ shutdown_recovery?: ShutdownRecovery | null, };
 
 export type CampaignRun = { 
 /**
- * Ticket id → launches made by the runner
+ * Ticket id to launches made by the runner
  */
 launches: { [key in string]: number }, started_at?: string | null, last_error?: string | null, 
 /**
@@ -2513,6 +2513,44 @@ id: string,
  * The investigation ticket filename written to the queue.
  */
 filename: string, };
+
+export type GpuVendor = "nvidia" | "amd" | "intel" | "apple" | "other";
+
+export type GpuInfo = { name: string, vendor: GpuVendor, vram_total_mb: bigint, vram_used_mb: bigint | null, driver: string | null, };
+
+export type LlmToolInfo = { name: string, version: string | null, };
+
+export type ModelServerInfo = { name: string, kind: string, port: number, models: Array<string>, exposed: boolean, };
+
+export type ProjectInfo = { name: string, path: string, };
+
+export type Capabilities = { hash: string, hostname: string, os: string, arch: string, gpus: Array<GpuInfo>, llm_tools: Array<LlmToolInfo>, model_servers: Array<ModelServerInfo>, projects: Array<ProjectInfo>, launch_enabled: boolean, };
+
+export type Liveness = "live" | "stale" | "offline";
+
+export type EndpointSummary = { id: string, name: string, liveness: Liveness, created_at: string, last_seen_at: string | null, gpu_count: number, 
+/**
+ * Admin switch; launches also need the endpoint's own opt-in.
+ */
+launch_enabled: boolean, };
+
+export type EndpointDetail = { 
+/**
+ * Live while connected, otherwise the last reported.
+ */
+capabilities: Capabilities | null, 
+/**
+ * The endpoint's heartbeats announce capabilities it has not sent.
+ */
+capabilities_stale: boolean, id: string, name: string, liveness: Liveness, created_at: string, last_seen_at: string | null, gpu_count: number, 
+/**
+ * Admin switch; launches also need the endpoint's own opt-in.
+ */
+launch_enabled: boolean, };
+
+export type EndpointsResponse = { endpoints: Array<EndpointSummary>, total: number, };
+
+export type UpdateEndpointRequest = { name: string | null, launch_enabled: boolean | null, };
 
 export type SkillEntry = { 
 /**

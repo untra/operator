@@ -98,7 +98,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 async-trait = "0.1"
 
 # REST API
-axum = { version = "0.8", features = ["macros", "tokio", "tracing"] }
+axum = { version = "0.8", features = ["macros", "tokio", "tracing", "ws"] }
 tokio-stream = "0.1"
 futures-util = "0.3"
 tower = "0.5"
@@ -140,6 +140,7 @@ embed-ui = ["dep:rust-embed", "dep:mime_guess"]
 operator-relay = { path = "crates/relay" }
 tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
+tokio-tungstenite = "0.29"
 
 [lints.rust]
 unsafe_code = "deny"

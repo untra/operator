@@ -19,10 +19,11 @@ pub enum AuditAction {
     UserPermissionsChanged,
     OidcLogin,
     AccessKeyRotated,
+    EndpointRevoked,
 }
 impl AuditAction {
     #[cfg(test)]
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 18] = [
         Self::Bootstrap,
         Self::Login,
         Self::Logout,
@@ -40,6 +41,7 @@ impl AuditAction {
         Self::UserPermissionsChanged,
         Self::OidcLogin,
         Self::AccessKeyRotated,
+        Self::EndpointRevoked,
     ];
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -60,6 +62,7 @@ impl AuditAction {
             Self::UserPermissionsChanged => "user permissions changed",
             Self::OidcLogin => "oidc login",
             Self::AccessKeyRotated => "access key rotated",
+            Self::EndpointRevoked => "endpoint revoked",
         }
     }
     pub const fn event(self) -> EventName {
@@ -81,6 +84,7 @@ impl AuditAction {
             Self::UserPermissionsChanged => EventName::OperatorAuthUserPermissionsChanged,
             Self::OidcLogin => EventName::OperatorAuthOidcLogin,
             Self::AccessKeyRotated => EventName::OperatorAuthAccessKeyRotated,
+            Self::EndpointRevoked => EventName::OperatorAuthEndpointRevoked,
         }
     }
 }

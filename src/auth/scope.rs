@@ -23,6 +23,8 @@ pub enum Access {
     Scoped(Scope),
     /// OTLP ingest: an agent's scopeless ingest token, or an admin credential.
     TelemetryIngest,
+    /// A store-checked paired endpoint. It holds no scopes, and no scope admits it.
+    Endpoint,
 }
 
 /// One route's authorization requirement.
@@ -62,6 +64,10 @@ const fn execute(method: &'static str, path: &'static str) -> RouteRule {
 
 const fn admin(method: &'static str, path: &'static str) -> RouteRule {
     rule(method, path, Access::Scoped(Scope::Admin))
+}
+
+const fn endpoint(method: &'static str, path: &'static str) -> RouteRule {
+    rule(method, path, Access::Endpoint)
 }
 
 const fn otlp_ingest(method: &'static str, path: &'static str) -> RouteRule {
@@ -233,6 +239,11 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/model-servers/{name}"),
     admin("PUT", "/api/v1/model-servers/{name}"),
     admin("DELETE", "/api/v1/model-servers/{name}"),
+    endpoint("GET", "/api/v1/endpoints/uplink"),
+    read("GET", "/api/v1/endpoints"),
+    read("GET", "/api/v1/endpoints/{id}"),
+    admin("PATCH", "/api/v1/endpoints/{id}"),
+    admin("DELETE", "/api/v1/endpoints/{id}"),
     // Probing makes an outbound request carrying the provider API key.
     execute("GET", "/api/v1/model-servers/{name}/models"),
     // --- Configuration ------------------------------------------------------
@@ -283,6 +294,8 @@ pub struct Principal {
     pub step: Option<String>,
     /// For an agent token: the agent session it is pinned to.
     pub agent_session_id: Option<String>,
+    /// For an endpoint token: the paired endpoint it acts as.
+    pub endpoint_id: Option<String>,
 }
 
 impl Principal {
@@ -292,6 +305,11 @@ impl Principal {
     /// not satisfy a `Read` requirement unless it was also granted.
     pub fn has_scope(&self, scope: Scope) -> bool {
         self.scopes.contains(&scope)
+    }
+
+    /// Whether this principal is a store-checked paired endpoint machine.
+    pub fn is_paired_endpoint(&self) -> bool {
+        self.kind == PrincipalKind::Endpoint && self.endpoint_id.is_some()
     }
 
     /// Whether this principal may post OTLP to `/otlp/v1/*`.
@@ -305,6 +323,7 @@ impl Principal {
                 self.has_scope(Scope::Admin)
             }
             PrincipalKind::Session
+            | PrincipalKind::Endpoint
             | PrincipalKind::AgentCallback
             | PrincipalKind::ApiKey
             | PrincipalKind::OidcToken => false,
@@ -322,6 +341,7 @@ impl Principal {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            endpoint_id: None,
             authority: None,
         }
     }
@@ -455,6 +475,7 @@ mod tests {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            endpoint_id: None,
             authority: None,
         };
         assert!(p.has_scope(Scope::Admin));
@@ -488,6 +509,48 @@ mod tests {
             "a cookie is ambient and ingest has no CSRF check"
         );
         assert!(!with(PrincipalKind::AgentCallback, vec![Scope::Execute]).may_ingest_telemetry());
+    }
+
+    #[test]
+    fn test_endpoint_principal_cannot_ingest_telemetry() {
+        let endpoint = Principal {
+            kind: PrincipalKind::Endpoint,
+            scopes: vec![],
+            endpoint_id: Some("ep".into()),
+            ..Principal::local("admin")
+        };
+        assert!(!endpoint.may_ingest_telemetry());
+        for scope in Scope::ALL {
+            assert!(!endpoint.has_scope(scope));
+        }
+    }
+
+    #[test]
+    fn test_only_a_bound_endpoint_principal_is_a_paired_endpoint() {
+        let admin = Principal {
+            scopes: Scope::ALL.to_vec(),
+            ..Principal::local("admin")
+        };
+        assert!(!admin.is_paired_endpoint());
+        let unbound = Principal {
+            kind: PrincipalKind::Endpoint,
+            ..Principal::local("admin")
+        };
+        assert!(!unbound.is_paired_endpoint());
+        let bound = Principal {
+            endpoint_id: Some("ep".into()),
+            ..unbound
+        };
+        assert!(bound.is_paired_endpoint());
+    }
+
+    #[test]
+    fn test_the_uplink_is_gated_on_endpoint_access() {
+        let uplink = ROUTE_RULES
+            .iter()
+            .find(|r| r.path == "/api/v1/endpoints/uplink")
+            .expect("uplink rule");
+        assert_eq!(uplink.access, Access::Endpoint);
     }
 
     #[test]

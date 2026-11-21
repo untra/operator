@@ -140,3 +140,12 @@ groups:
     attributes:
       - ref: operator.auth.succeeded
       - ref: operator.auth.detail
+
+  - id: event.operator.auth.endpoint_revoked
+    type: "event"
+    name: "operator.auth.endpoint_revoked"
+    brief: "Operator auth endpoint revoked."
+    stability: "development"
+    attributes:
+      - ref: operator.auth.succeeded
+      - ref: operator.auth.detail

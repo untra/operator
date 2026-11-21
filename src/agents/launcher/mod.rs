@@ -139,7 +139,9 @@ impl Launcher {
     /// Uses custom tmux config if it has been generated and exists.
     /// Also creates a cmux client if the wrapper type is Cmux.
     pub fn new(config: &Config) -> Result<Self> {
-        crate::git::runtime::reconcile_local(config);
+        let mut config = config.clone();
+        config.acquire_ownership()?;
+        crate::git::runtime::reconcile_local(&config);
         // Use custom tmux config if it exists
         let tmux: Arc<dyn TmuxClient> = if config.tmux.config_generated {
             let config_path = config.tmux_config_path();

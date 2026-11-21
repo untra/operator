@@ -16,6 +16,7 @@ pub mod editors;
 pub mod git;
 pub mod http_client;
 pub mod licensing;
+pub mod ownership;
 pub mod profiles;
 pub mod queue;
 pub mod rest;
@@ -59,3 +60,6 @@ pub mod relay;
 // Declared here (in addition to the bin) so the REST layer, which compiles in
 // both the lib and bin crates, can reach it.
 pub mod workflow_gen;
+
+// Endpoint client uplink protocol (Windows/macOS tray clients)
+pub mod endpoint;

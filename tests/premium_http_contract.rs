@@ -40,7 +40,7 @@ impl Server {
         config.profile_registry = Some(directory.path().join("profiles.sqlite"));
         let tickets = config.tickets_path();
         Self {
-            state: ApiState::new(config, tickets),
+            state: ApiState::try_new(config, tickets).unwrap(),
             _directory: directory,
         }
     }
@@ -67,6 +67,7 @@ impl Server {
 
     async fn send(&self, request: Request<Body>) -> axum::response::Response {
         build_router(self.state.clone())
+            .unwrap()
             .oneshot(request)
             .await
             .unwrap()

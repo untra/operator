@@ -20,16 +20,10 @@ use utoipa::ToSchema;
 pub const MAX_ACCESS_KEY_EXPIRY_DAYS: u64 = 365;
 pub const MAX_IDENTIFIER_LENGTH: usize = 128;
 
-// =============================================================================
-// Scopes
-// =============================================================================
-
 /// A typed authorization scope.
 ///
-/// Scopes are **not hierarchical**: `Write` does not imply `Read`. A credential
-/// is granted each scope it needs explicitly, so an integration's authority is
-/// legible from its scope list alone rather than requiring the reader to reason
-/// about implication.
+/// Scopes are **not hierarchical**: `Write` does not imply `Read`.
+/// A credential is granted each scope it needs explicitly, so an integration's authority is legible from its scope list.
 #[derive(
     Debug,
     Clone,
@@ -61,11 +55,6 @@ pub enum Scope {
 impl Scope {
     /// Every scope, in privilege-suggesting order. The single source of truth
     /// for "all scopes" across the API, the CLI, and the clients.
-    ///
-    /// Unused in the binary until Phase 3 wires route authorization; the DTO
-    /// contract ships a phase ahead of its consumers so generated clients and
-    /// the OpenAPI spec are settled before any handler depends on them.
-    #[allow(dead_code)]
     pub const ALL: [Scope; 4] = [Scope::Read, Scope::Write, Scope::Execute, Scope::Admin];
 
     /// Wire representation, matching the `serde` rename.
@@ -270,6 +259,8 @@ pub enum PrincipalKind {
     AgentCallback,
     /// An agent session's scopeless OTLP ingest token.
     TelemetryIngest,
+    /// A paired endpoint machine's access token.
+    Endpoint,
 }
 
 /// A freshly minted CSRF token for the current session.
@@ -607,6 +598,25 @@ mod tests {
         }
         assert_eq!("".parse::<Scope>(), Err(()));
         assert_eq!("superuser".parse::<Scope>(), Err(()));
+    }
+
+    #[test]
+    fn test_scope_is_exactly_read_write_execute_admin() {
+        assert_eq!(
+            Scope::ALL,
+            [Scope::Read, Scope::Write, Scope::Execute, Scope::Admin]
+        );
+        for scope in Scope::ALL {
+            match scope {
+                Scope::Read | Scope::Write | Scope::Execute | Scope::Admin => {}
+            }
+            assert_eq!(
+                serde_json::to_value(scope).unwrap(),
+                serde_json::json!(scope.as_str())
+            );
+        }
+        assert_eq!("endpoint".parse::<Scope>(), Err(()));
+        assert!(serde_json::from_value::<Scope>(serde_json::json!("endpoint")).is_err());
     }
 
     #[test]

@@ -137,6 +137,7 @@ pub async fn sse_handler(
     // Clean up session after 1 hour or when stream ends
     tokio::spawn(async move {
         tokio::select! {
+            () = state.endpoints.stopped() => {},
             _ = disconnect_rx => {},
             () = tokio::time::sleep(SESSION_TTL) => {},
             () = async {
@@ -342,6 +343,7 @@ mod tests {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            endpoint_id: None,
             authority: None,
             scopes: vec![Scope::Read, Scope::Execute],
         }

@@ -17,6 +17,9 @@ pub enum CredentialTable {
 
 #[derive(Default)]
 pub struct Usage {
+    stop: tokio::sync::Notify,
+    stopping: AtomicBool,
+    worker: Mutex<Option<tokio::task::JoinHandle<()>>>,
     pending: Mutex<HashMap<(CredentialTable, String), DateTime<Utc>>>,
     started: AtomicBool,
     dropped: AtomicU64,
@@ -98,27 +101,64 @@ impl Usage {
         result
     }
 
-    pub fn start(usage: &Arc<Self>, conn: &Arc<Mutex<Connection>>) {
+    pub fn start(
+        usage: &Arc<Self>,
+        conn: &Arc<Mutex<Connection>>,
+        ownership: Option<Arc<crate::ownership::ResourceGuard>>,
+        runtime_ownership: Option<Arc<crate::ownership::Ownership>>,
+    ) {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
         if usage.started.swap(true, Ordering::AcqRel) {
             return;
         }
+        usage.stopping.store(false, Ordering::Release);
         let weak_usage = Arc::downgrade(usage);
         let weak_conn = Arc::downgrade(conn);
-        runtime.spawn(async move {
+        let worker_usage = Arc::clone(usage);
+        let handle = runtime.spawn(async move {
             loop {
-                tokio::time::sleep(FLUSH_INTERVAL).await;
+                tokio::select! {
+                    () = worker_usage.stop.notified() => break,
+                    () = tokio::time::sleep(FLUSH_INTERVAL) => {}
+                }
+                if worker_usage.stopping.load(Ordering::Acquire) {
+                    break;
+                }
                 let (Some(usage), Some(conn)) = (weak_usage.upgrade(), weak_conn.upgrade()) else {
                     break;
                 };
-                let result = tokio::task::spawn_blocking(move || usage.flush(&conn)).await;
+                let ownership = ownership.clone();
+                let runtime_ownership = runtime_ownership.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    let _ownership = ownership;
+                    let _runtime_ownership = runtime_ownership;
+                    let result = usage.flush(&conn);
+                    drop(conn);
+                    result
+                })
+                .await;
                 if !matches!(result, Ok(Ok(()))) {
                     tracing::warn!("credential usage flush failed");
                 }
             }
         });
+        *usage.worker.lock().expect("usage worker poisoned") = Some(handle);
+    }
+
+    pub async fn stop(&self) {
+        self.request_stop();
+        let worker = self.worker.lock().expect("usage worker poisoned").take();
+        if let Some(worker) = worker {
+            let _ = worker.await;
+        }
+        self.started.store(false, Ordering::Release);
+    }
+
+    pub fn request_stop(&self) {
+        self.stopping.store(true, Ordering::Release);
+        self.stop.notify_one();
     }
 }
 

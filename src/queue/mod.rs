@@ -59,6 +59,8 @@ pub struct Queue {
 
 impl Queue {
     pub fn new(config: &Config) -> Result<Self> {
+        let mut config = config.clone();
+        config.acquire_ownership()?;
         let tickets_path = config.tickets_path();
 
         Ok(Self {

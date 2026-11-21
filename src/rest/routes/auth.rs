@@ -15,7 +15,7 @@ use crate::auth::store::{
     AuthStore, DevicePollOutcome, RefreshOutcome, ADMIN_SUBJECT, DEVICE_CODE_TTL_SECS,
     DEVICE_POLL_INTERVAL_SECS,
 };
-use crate::auth::tokens::{api_claims, ACCESS_TOKEN_TTL};
+use crate::auth::tokens::{api_claims, endpoint_claims, ACCESS_TOKEN_TTL, ENDPOINT_CLIENT_ID};
 use crate::rest::dto::auth::{
     BootstrapState, BootstrapStatusResponse, BootstrapSubmitRequest, BootstrapSubmitResponse,
     CsrfTokenResponse, CurrentSessionResponse, DeviceApprovalRequest, DeviceApprovalResponse,
@@ -596,11 +596,22 @@ pub async fn device_code(
     }
 
     // An IDE client acts as the human admin, so it receives every scope. A
-    // client asking for less is honored; asking for more than exists is not.
-    let scopes = if req.scopes.is_empty() {
-        Scope::ALL.to_vec()
-    } else {
+    // client asking for less is honored. The endpoint client is the inverse:
+    // its authority is the endpoint binding, so it holds no scope at all.
+    let is_endpoint_client = req.client_id == ENDPOINT_CLIENT_ID;
+    if is_endpoint_client && !req.scopes.is_empty() {
+        record_bucket_failure(&state, BUCKET_DEVICE_CODE).await;
+        return Err(oauth_error(
+            StatusCode::BAD_REQUEST,
+            OAuthErrorCode::InvalidScope,
+            "the endpoint client is granted no scopes",
+        )
+        .into());
+    }
+    let scopes = if is_endpoint_client || !req.scopes.is_empty() {
         req.scopes.clone()
+    } else {
+        Scope::ALL.to_vec()
     };
 
     let client_id = req.client_id.clone();
@@ -699,7 +710,7 @@ pub async fn token(
         return Err(limited.into());
     }
 
-    let (scopes, refresh_token) = match req {
+    let (scopes, refresh_token, endpoint_id) = match req {
         TokenRequest::DeviceCode {
             device_code: code,
             client_id,
@@ -719,10 +730,16 @@ pub async fn token(
             match outcome {
                 DevicePollOutcome::Approved { client_id, scopes } => {
                     let s = store(&state);
-                    let owned = scopes.clone();
-                    let refresh =
-                        blocking(move || s.create_refresh_family(&client_id, &owned)).await?;
-                    (scopes, Some(refresh))
+                    if client_id == ENDPOINT_CLIENT_ID {
+                        let (endpoint_id, refresh) =
+                            blocking(move || s.create_endpoint_family(&client_id)).await?;
+                        (scopes, Some(refresh), Some(endpoint_id))
+                    } else {
+                        let owned = scopes.clone();
+                        let refresh =
+                            blocking(move || s.create_refresh_family(&client_id, &owned)).await?;
+                        (scopes, Some(refresh), None)
+                    }
                 }
                 DevicePollOutcome::Pending => {
                     return Err(oauth_error(
@@ -775,13 +792,32 @@ pub async fn token(
                 .into());
             }
             let s = store(&state);
+            let is_endpoint_client = client_id == ENDPOINT_CLIENT_ID;
             let outcome = blocking(move || s.redeem_refresh_token(&token, &client_id)).await?;
 
             match outcome {
                 RefreshOutcome::Rotated {
                     refresh_token,
                     scopes,
-                } => (scopes, Some(refresh_token)),
+                    family_id,
+                } => {
+                    if is_endpoint_client {
+                        let s = store(&state);
+                        let id = family_id.clone();
+                        if blocking(move || s.endpoint_authority(&id)).await?.is_none() {
+                            return Err(reject_token(
+                                &state,
+                                OAuthErrorCode::InvalidGrant,
+                                "the endpoint has been revoked",
+                            )
+                            .await
+                            .into());
+                        }
+                        (scopes, Some(refresh_token), Some(family_id))
+                    } else {
+                        (scopes, Some(refresh_token), None)
+                    }
+                }
                 RefreshOutcome::Reused => {
                     let s = store(&state);
                     let _ = blocking(move || {
@@ -827,12 +863,11 @@ pub async fn token(
         }
     };
 
-    let claims = api_claims(
-        ADMIN_SUBJECT,
-        &scopes,
-        Utc::now(),
-        uuid::Uuid::new_v4().to_string(),
-    );
+    let jti = uuid::Uuid::new_v4().to_string();
+    let claims = match &endpoint_id {
+        Some(id) => endpoint_claims(id, Utc::now(), jti),
+        None => api_claims(ADMIN_SUBJECT, &scopes, Utc::now(), jti),
+    };
     let access_token = state
         .auth
         .signing_key
@@ -969,7 +1004,7 @@ mod tests {
     use crate::auth::store::{
         ADMIN_SUBJECT, AUTH_DB_FILENAME, DEVICE_CODE_TTL_SECS, DEVICE_POLL_INTERVAL_SECS,
     };
-    use crate::auth::tokens::ACCESS_TOKEN_TTL;
+    use crate::auth::tokens::{ACCESS_TOKEN_TTL, AUDIENCE_API, ENDPOINT_CLIENT_ID};
     use crate::config::Config;
     use crate::rest::dto::auth::*;
     use crate::rest::error::{ApiError, Rejection};
@@ -1649,6 +1684,156 @@ mod tests {
             let body: OAuthErrorResponse = parse(value);
             assert_eq!(body.error, OAuthErrorCode::InvalidClient);
         }
+    }
+
+    async fn assert_invalid_scope(state: &ApiState, client_id: &str, scopes: Vec<Scope>) {
+        let (status, _, value) = body_json(device(state, client_id, None, scopes.clone()).await).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{client_id} {scopes:?}: {value}");
+        assert_eq!(
+            parse::<OAuthErrorResponse>(value).error,
+            OAuthErrorCode::InvalidScope,
+            "{client_id} {scopes:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_the_endpoint_client_requests_no_scopes() {
+        let (_dir, state) = fresh();
+        assert_invalid_scope(&state, ENDPOINT_CLIENT_ID, vec![Scope::Read]).await;
+        assert_invalid_scope(&state, ENDPOINT_CLIENT_ID, Scope::ALL.to_vec()).await;
+
+        let (_dir, state) = fresh();
+        let (status, _, value) =
+            body_json(device(&state, ENDPOINT_CLIENT_ID, None, vec![]).await).await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+    }
+
+    #[tokio::test]
+    async fn test_endpoint_pairing_issues_endpoint_bound_tokens_until_revoked() {
+        let (dir, state) = fresh();
+        let issued: DeviceAuthorizationResponse = parse(
+            body_json(device(&state, ENDPOINT_CLIENT_ID, None, vec![]).await)
+                .await
+                .2,
+        );
+        let approved = device_approve(
+            State(state.clone()),
+            Json(DeviceApprovalRequest {
+                user_code: issued.user_code.clone(),
+            }),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert!(approved.scopes.is_empty());
+        rewind_device_poll(dir.path());
+
+        let (status, _, value) = body_json(
+            exchange(
+                &state,
+                TokenRequest::DeviceCode {
+                    device_code: issued.device_code.clone(),
+                    client_id: ENDPOINT_CLIENT_ID.into(),
+                },
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+        let first: TokenResponse = parse(value);
+        assert!(first.scopes.is_empty());
+        let claims = state
+            .auth
+            .signing_key
+            .verify(&first.access_token, AUDIENCE_API)
+            .unwrap();
+        assert_eq!(claims.scope, "");
+        let endpoint_id = claims.endpoint_id.expect("endpoint-bound token");
+        assert!(state
+            .auth
+            .store
+            .endpoint_authority(&endpoint_id)
+            .unwrap()
+            .is_some());
+
+        let (status, _, value) = body_json(
+            exchange(
+                &state,
+                TokenRequest::RefreshToken {
+                    refresh_token: first.refresh_token.clone().unwrap(),
+                    client_id: ENDPOINT_CLIENT_ID.into(),
+                },
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+        let second: TokenResponse = parse(value);
+        let refreshed = state
+            .auth
+            .signing_key
+            .verify(&second.access_token, AUDIENCE_API)
+            .unwrap();
+        assert_eq!(refreshed.endpoint_id.as_deref(), Some(endpoint_id.as_str()));
+
+        assert!(state
+            .auth
+            .store
+            .revoke_endpoint(&endpoint_id, "test")
+            .unwrap());
+        let (status, _, value) = body_json(
+            exchange(
+                &state,
+                TokenRequest::RefreshToken {
+                    refresh_token: second.refresh_token.unwrap(),
+                    client_id: ENDPOINT_CLIENT_ID.into(),
+                },
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{value}");
+        assert_eq!(
+            parse::<OAuthErrorResponse>(value).error,
+            OAuthErrorCode::InvalidGrant
+        );
+    }
+
+    #[tokio::test]
+    async fn test_human_device_tokens_carry_no_endpoint_binding() {
+        let (dir, state) = fresh();
+        let issued: DeviceAuthorizationResponse =
+            parse(body_json(device(&state, "vscode", None, vec![]).await).await.2);
+        let _approved = device_approve(
+            State(state.clone()),
+            Json(DeviceApprovalRequest {
+                user_code: issued.user_code.clone(),
+            }),
+        )
+        .await
+        .unwrap();
+        rewind_device_poll(dir.path());
+        let token_response: TokenResponse = parse(
+            body_json(
+                exchange(
+                    &state,
+                    TokenRequest::DeviceCode {
+                        device_code: issued.device_code,
+                        client_id: "vscode".into(),
+                    },
+                )
+                .await,
+            )
+            .await
+            .2,
+        );
+        assert_eq!(token_response.scopes, Scope::ALL.to_vec());
+        let claims = state
+            .auth
+            .signing_key
+            .verify(&token_response.access_token, AUDIENCE_API)
+            .unwrap();
+        assert!(claims.endpoint_id.is_none());
     }
 
     #[tokio::test]

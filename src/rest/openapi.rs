@@ -123,6 +123,12 @@ use crate::rest::error::ErrorResponse;
             ModelEntry,
             ModelServerModelsResponse,
             crate::api::providers::model_server::ProbeStatus,
+            // Endpoint types
+            crate::rest::dto::EndpointSummary,
+            crate::rest::dto::EndpointDetail,
+            crate::rest::dto::EndpointsResponse,
+            crate::rest::dto::UpdateEndpointRequest,
+            crate::endpoint::registry::Liveness,
             // LLM tools types
             SetDefaultLlmRequest,
             DefaultLlmResponse,
@@ -256,6 +262,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Skills", description = "Skill discovery across LLM tools"),
         (name = "Delegators", description = "Agent delegator CRUD operations"),
         (name = "ModelServers", description = "Model server (ollama, openai-compat, etc.) CRUD operations"),
+        (name = "Endpoints", description = "Paired endpoint machines and their uplink"),
         (name = "MCP", description = "Model Context Protocol integration"),
         (name = "Queue", description = "Ticket queue board, status, and control"),
         (name = "Agents", description = "Active agent tracking and review actions"),
@@ -481,6 +488,14 @@ fn csrf_parameter() -> RefOr<Parameter> {
     RefOr::T(parameter)
 }
 
+/// The `x-operator-scope` value for a route gated on a credential kind rather than a scope.
+fn bearer_only_marker(access: Access) -> &'static str {
+    match access {
+        Access::Endpoint => crate::auth::tokens::ENDPOINT_CLIENT_ID,
+        _ => crate::auth::tokens::AUDIENCE_TELEMETRY,
+    }
+}
+
 fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>) {
     let Some(operation) = operation else {
         return;
@@ -490,7 +505,7 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
 
     match access {
         Access::Public => operation.security = Some(Vec::new()),
-        Access::TelemetryIngest => {
+        Access::TelemetryIngest | Access::Endpoint => {
             operation.security = Some(vec![SecurityRequirement::new(
                 "bearerAuth",
                 Vec::<String>::new(),
@@ -500,7 +515,7 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
                 .get_or_insert_with(Extensions::default)
                 .insert(
                     "x-operator-scope".to_string(),
-                    serde_json::json!(crate::auth::tokens::AUDIENCE_TELEMETRY),
+                    serde_json::json!(bearer_only_marker(access)),
                 );
             operation
                 .responses
@@ -676,14 +691,14 @@ mod tests {
             );
             match rule.access {
                 Access::Public => assert_eq!(operation["security"], serde_json::json!([])),
-                Access::TelemetryIngest => {
+                Access::TelemetryIngest | Access::Endpoint => {
                     assert_eq!(
                         operation["security"],
                         serde_json::json!([{ "bearerAuth": [] }])
                     );
                     assert_eq!(
                         operation["x-operator-scope"],
-                        crate::auth::tokens::AUDIENCE_TELEMETRY
+                        bearer_only_marker(rule.access)
                     );
                 }
                 Access::Scoped(scope) => {
@@ -705,7 +720,10 @@ mod tests {
     fn test_protected_mutations_document_csrf_header() {
         let spec = parsed_spec();
         for rule in crate::auth::scope::ROUTE_RULES {
-            if matches!(rule.access, Access::Public | Access::TelemetryIngest)
+            if matches!(
+                rule.access,
+                Access::Public | Access::TelemetryIngest | Access::Endpoint
+            )
                 || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
             {
                 continue;

@@ -31,7 +31,7 @@ impl Workspace {
         config.profile.id = uuid::Uuid::new_v4();
         config.mcp.expose_ticket_write_tools = write_tools;
         Self {
-            state: ApiState::new(config.clone(), tickets),
+            state: ApiState::try_new(config.clone(), tickets).unwrap(),
             config,
             _dir: dir,
         }

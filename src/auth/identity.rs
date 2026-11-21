@@ -703,6 +703,7 @@ impl UserAuthority {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            endpoint_id: None,
             authority: Some(self.clone()),
         }
     }

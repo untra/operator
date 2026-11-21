@@ -122,6 +122,7 @@ fn blank_for_test(config: Config) -> App {
         pr_event_rx,
         pr_tracked: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         pr_shutdown_tx: None,
+        pr_task: None,
         notification_service: crate::notifications::NotificationService::from_config(&config)
             .expect("disabled notifications still build a service"),
         update_available_version: None,

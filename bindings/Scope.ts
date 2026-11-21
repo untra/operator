@@ -8,4 +8,4 @@
  * legible from its scope list alone rather than requiring the reader to reason
  * about implication.
  */
-export type Scope = "read" | "write" | "execute" | "admin";
+export type Scope = "read" | "write" | "execute" | "admin" | "endpoint";

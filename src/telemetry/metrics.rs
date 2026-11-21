@@ -41,10 +41,11 @@ fn attributes(signal: TelemetrySignal, reason: &'static str) -> [KeyValue; 2] {
 
 pub fn register(
     meter: &Meter,
-    config: Config,
+    mut config: Config,
     forward: Arc<ForwardStats>,
     own: Arc<TelemetryStats>,
 ) {
+    config.ownership = None;
     for counter in crate::auth::metrics::Counter::ALL {
         let spec = SIGNALS
             .iter()

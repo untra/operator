@@ -1783,7 +1783,7 @@ mod tests {
         let fixture = make_chain_fixture();
         let mut config = (*fixture.state.config()).clone();
         config.telemetry.enabled = true;
-        fixture.state.replace_config(config);
+        fixture.state.replace_config(config).unwrap();
         let ticket = write_sync_ticket(&fixture.state, "SYNC-9198", "scan");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "opus", "session-current");
         let mut principal = crate::auth::scope::Principal::local("admin");
@@ -1827,7 +1827,7 @@ mod tests {
         let fixture = make_chain_fixture();
         let mut config = (*fixture.state.config()).clone();
         config.telemetry.enabled = true;
-        fixture.state.replace_config(config);
+        fixture.state.replace_config(config).unwrap();
         let ticket = write_sync_ticket(&fixture.state, "SYNC-9199", "scan");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "opus", "session-current");
         let mut principal = Principal::local("admin");

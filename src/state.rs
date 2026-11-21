@@ -47,6 +47,9 @@ fn write_lock() -> WriteLock {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct State {
+    #[serde(skip)]
+    #[ts(skip)]
+    ownership: Option<std::sync::Arc<crate::ownership::ResourceGuard>>,
     pub paused: bool,
     pub agents: Vec<AgentState>,
     pub completed: Vec<CompletedTicket>,
@@ -345,6 +348,7 @@ impl State {
 
     fn load_unlocked(config: &Config) -> Result<Self> {
         let state_path = config.state_path();
+        let ownership = Some(crate::ownership::state_guard(&state_path)?);
         fs::create_dir_all(&state_path).context("Failed to create state directory")?;
 
         let state_file = state_path.join(STATE_FILE);
@@ -354,9 +358,11 @@ impl State {
             let mut state: State =
                 serde_json::from_str(&contents).context("Failed to parse state file")?;
             state.state_path = state_path;
+            state.ownership = ownership;
             Ok(state)
         } else {
             Ok(Self {
+                ownership,
                 paused: false,
                 agents: Vec::new(),
                 completed: Vec::new(),
@@ -388,6 +394,7 @@ impl State {
 
     /// Write via a sibling temp file and rename
     fn write_unlocked(&self) -> Result<()> {
+        let _ownership = crate::ownership::state_guard(&self.state_path)?;
         let state_file = self.state_path.join(STATE_FILE);
         let temp_file = self.state_path.join(STATE_TEMP_FILE);
         let contents = serde_json::to_string_pretty(self)?;

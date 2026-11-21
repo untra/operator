@@ -21,7 +21,9 @@ Favor falsey defaults ; lets aim not to enforce `default=true` or some other jav
 
 ### Comments
 
-Code comments are terse, short and punctual. Comments should not refer to implementation or current wip status.
+Avoid using comments in function body code.
+Code comments are terse, short and punctual.
+Comments should not refer to implementation or current wip status.
 
 ## Plans & Specs Location
 

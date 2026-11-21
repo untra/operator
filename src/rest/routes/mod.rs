@@ -7,6 +7,7 @@ pub mod collections;
 pub mod configuration;
 pub mod connections;
 pub mod delegators;
+pub mod endpoints;
 pub mod git_onboarding;
 pub mod health;
 pub mod identity;

@@ -43,7 +43,6 @@ pub mod env_vars;
 mod mcp;
 mod notifications;
 mod queue;
-mod relay;
 mod rest;
 mod setup;
 mod startup;
@@ -54,6 +53,7 @@ mod workflow_gen;
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
 use app::App;
 use config::Config;
+use operator::relay;
 use templates::glyph_for_key;
 
 /// Detect installed LLM tools from the loaded tool configs

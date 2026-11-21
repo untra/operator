@@ -4,7 +4,7 @@
 //! Phase A: `initialize` roundtrip. Phase B adds `session/new` and
 //! `session/prompt` with `/bin/cat` as a stand-in delegator.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -45,7 +45,7 @@ impl ReadOnlyDir {
         Self(dir)
     }
 
-    fn registry(&self) -> PathBuf {
+    fn registry(&self) -> std::path::PathBuf {
         self.0.path().join("operator").join(REGISTRY_FILE)
     }
 }

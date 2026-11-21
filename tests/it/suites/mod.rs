@@ -27,6 +27,7 @@ mod no_handrolled_encoding;
 mod opr8r_integration;
 mod premium_enforcement;
 mod premium_http_contract;
+#[cfg(unix)]
 mod relay_integration;
 mod release_workflow;
 mod rest_api_integration;

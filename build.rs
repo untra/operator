@@ -81,7 +81,7 @@ fn check_license_keys() {
     );
 }
 
-/// `https://<host>/checkout?…sku=<non-empty>…`, the storefront shape the Buy link needs.
+/// The Buy link needs an HTTPS storefront checkout URL with a nonempty `sku` parameter.
 fn is_checkout_link(url: &str) -> bool {
     let Some((path, query)) = url.split_once('?') else {
         return false;

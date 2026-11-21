@@ -18,6 +18,8 @@ const WEB_STEPS_TSX: &str = include_str!("../../../ui/src/routes/onboarding/step
 const API_DEFINITIONS_TS: &str = include_str!("../../../ui/src/api/definitions.ts");
 const ONBOARDING_PAGE_TSX: &str =
     include_str!("../../../ui/src/routes/onboarding/OnboardingPage.tsx");
+const ONBOARDING_VALIDATION_TS: &str =
+    include_str!("../../../ui/src/routes/onboarding/validation.ts");
 
 /// The assertions below scrape TSX source, so collapse what the formatter is
 /// free to rewrite: quote style and line wrapping. Prose keeps single spaces.
@@ -222,30 +224,24 @@ fn test_web_parity_scope_cuts_are_explicit() {
 }
 
 /// Coder template parameters are held in `draft.coderParameters` (stable row ids)
-/// and only folded into the request payload at submit. Editing the target
-/// name or template must not clear them - the earlier version of these handlers
-/// wrote `parameters: {}` back into the target on every keystroke.
+/// and only folded into the request payload at submit.
 #[test]
 fn test_coder_parameter_rows_survive_target_name_and_template_edits() {
     assert!(
         tsx_contains_code("coderParameters: current.coderParameters.map("),
         "parameter rows must be edited in place by id, not rebuilt from the target"
     );
-    let carried = WEB_STEPS_TSX
-        .matches("? current.executionTarget.parameters")
-        .count();
-    assert_eq!(
-        carried, 2,
-        "both the target-name and the template handler must carry existing parameters \
-         through an edit instead of resetting them to an empty map"
-    );
-
-    // The only legitimate empty initialisation is selecting the coder kind for
-    // the first time; every other site would silently drop entered parameters.
-    let reset = WEB_STEPS_TSX.matches("parameters: {},").count();
-    assert_eq!(
-        reset, 1,
-        "only the coder-kind selection may initialise parameters to an empty map"
+    for field in ["name", "template"] {
+        assert!(
+            tsx_contains_code(&format!("onChange={{setCoderField(\"{field}\")}}")),
+            "the {field} input must use the shared Coder field handler"
+        );
+    }
+    assert!(
+        tsx_contains_code(
+            "{ ...current, executionTarget: { ...current.executionTarget, [field]: value } }"
+        ),
+        "editing a Coder field must preserve the draft rows and existing target parameters"
     );
 }
 
@@ -275,16 +271,19 @@ fn test_confirm_step_reports_parameter_count_without_values() {
     );
 }
 
-/// Empty and duplicate names are rejected before submit; values are sent verbatim
+/// The wizard uses the execution-target field rules and trims only names in the payload.
 #[test]
 fn test_web_wizard_validates_coder_parameter_names() {
     assert!(
-        ONBOARDING_PAGE_TSX.contains("Coder parameter names cannot be empty."),
-        "the wizard must reject an empty parameter name"
+        ONBOARDING_PAGE_TSX.contains("!stepValid(current.slug, draft)"),
+        "the wizard must enforce step validation before advancing"
     );
     assert!(
-        ONBOARDING_PAGE_TSX.contains("Coder parameter names must be unique."),
-        "the wizard must reject duplicate parameter names"
+        ONBOARDING_VALIDATION_TS.contains("return executionTargetValid(draft)")
+            && ONBOARDING_VALIDATION_TS
+                .contains("isValid(name, coderParameterNameRules(names, index))")
+            && tsx_contains_code("rules={coderParameterNameRules(parameterNames, index)}"),
+        "the execution-target step and parameter inputs must share the parameter name rules"
     );
     assert!(
         ONBOARDING_PAGE_TSX.contains("[name.trim(), value]"),

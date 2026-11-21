@@ -7,7 +7,7 @@ import { ApiProvider } from "../../api/store";
 import { mockFetch, requestPath, restoreFetch } from "../../test-fetch";
 import * as webcomponentMocks from "../../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { ProfilesProvider } = await import("../../profiles-context");
 const { OnboardingPage } = await import("./OnboardingPage");

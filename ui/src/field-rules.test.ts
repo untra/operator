@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import * as webcomponentMocks from "./test-webcomponents";
 import type { TargetDef } from "@operator/bindings/TargetDef";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { envVarRules, gitDraftValid, targetDraftValid } = await import("./field-rules");
 const { validate } = webcomponentMocks;

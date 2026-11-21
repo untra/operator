@@ -1644,7 +1644,7 @@ mod tests {
             mcp_row
                 .actions
                 .iter()
-                .any(|a| a.url.contains("/getting-started/integrations/")),
+                .any(|a| a.url.contains("/getting-started/connections/mcp/")),
             "MCP row should carry a docs link"
         );
     }

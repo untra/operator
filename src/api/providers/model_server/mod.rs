@@ -359,7 +359,7 @@ impl ModelServerKind {
             ModelServerKind::OpenRouter => {
                 "Hosted gateway to 300+ models (one OpenAI-compatible key)"
             }
-            ModelServerKind::OpenAiCompat => "Any OpenAI-compatible server (vllm, groq, …)",
+            ModelServerKind::OpenAiCompat => "Any OpenAI-compatible server (vllm, groq, etc)",
             ModelServerKind::LmStudio => "LM Studio's local server",
         }
     }

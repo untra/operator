@@ -24,7 +24,7 @@ export function SectionPage({ conceptKey }: { conceptKey: string }) {
       {section ? (
         <SectionCard section={section} />
       ) : (
-        <div className={styles.loading}>Loading section…</div>
+        <div className={styles.loading}>Loading section...</div>
       )}
     </div>
   );

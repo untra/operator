@@ -51,7 +51,7 @@ export function useTicketLaunch(ticketId: string): {
   const error = config.error?.message ?? delegators.error?.message ?? targets.error?.message;
 
   const controls = loading ? (
-    <div className={styles.loading}>Loading launch configuration…</div>
+    <div className={styles.loading}>Loading launch configuration...</div>
   ) : error ? (
     <div className={styles.error}>Launch options unavailable: {error}</div>
   ) : (

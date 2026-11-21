@@ -49,7 +49,7 @@ export function LicenseReturnPage() {
           <LicensePanel />
         </>
       )}
-      {install.isPending && <output>Activating your license…</output>}
+      {install.isPending && <output>Activating your license...</output>}
       {install.error && (
         <>
           <p role="alert">Your license could not be applied: {install.error.message}</p>

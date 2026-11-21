@@ -705,7 +705,7 @@ const KANBAN_PROJECT_LEVEL_KEYS = new Set([
  * in {@link KANBAN_PROVIDERS} - no new branch here or in the message handler.
  *
  * @param kanban the `[kanban]` table from the parsed config
- * @param slug   provider slug (`jira`, `linear`, `github`, …)
+ * @param slug   provider slug (`jira`, `linear`, `github`, etc)
  * @param instanceKey provider map key identifying the instance to update
  * @param key    field key emitted by the webview (`enabled`, `api_key_env`,
  *               the instance-key field, `project_key`, a project-level key, or

@@ -256,7 +256,7 @@ impl KanbanOnboardingDialog {
             KanbanOnboardingState::JiraDomain => "Jira domain (e.g. acme.atlassian.net)",
             KanbanOnboardingState::JiraEmail => "Jira email",
             KanbanOnboardingState::JiraToken => "Jira API token",
-            KanbanOnboardingState::LinearApiKey => "Linear API key (lin_api_…)",
+            KanbanOnboardingState::LinearApiKey => "Linear API key (lin_api_...)",
             _ => "",
         }
     }

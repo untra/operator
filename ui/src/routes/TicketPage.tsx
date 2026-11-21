@@ -195,7 +195,7 @@ function Move({ ticketId }: { ticketId: string }) {
   return (
     <>
       <select aria-label="Move to" value="" onChange={onChange} disabled={move.isPending}>
-        <option value="">Move to…</option>
+        <option value="">Move to...</option>
         {MOVE_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -239,7 +239,7 @@ function Dependencies({ ticket }: { ticket: TicketDetailResponse }) {
           <ul className={styles.list}>
             {ticket.dependencies.map((dep) => (
               <li key={dep.reference}>
-                <span aria-hidden="true">{dep.satisfied ? "✓ " : "⏳ "}</span>
+                <span>{dep.satisfied ? "Satisfied: " : "Pending: "}</span>
                 {dep.ticket_id ? (
                   <Link to={`/tickets/${encodeURIComponent(dep.ticket_id)}`}>{dep.ticket_id}</Link>
                 ) : (
@@ -407,7 +407,7 @@ export function TicketPage() {
   } else if (query.data) {
     content = <TicketView ticket={query.data} />;
   } else {
-    content = <p className={styles.status}>Loading ticket…</p>;
+    content = <p className={styles.status}>Loading ticket...</p>;
   }
   return <main className={styles.page}>{content}</main>;
 }

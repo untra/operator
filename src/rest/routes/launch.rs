@@ -1480,7 +1480,7 @@ mod tests {
         let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req).unwrap();
         assert!(
             response.is_none(),
-            "no group → fall through to single-agent path"
+            "no group -> fall through to single-agent path"
         );
     }
 
@@ -1535,7 +1535,7 @@ mod tests {
         let req = make_complete_request(&session_name);
         let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req)
             .unwrap()
-            .expect("group member → returns Some");
+            .expect("group member -> returns Some");
 
         assert_eq!(response.status, "group_partial");
         assert!(!response.auto_proceed);
@@ -1620,7 +1620,7 @@ mod tests {
         let req = make_complete_request(&session_name);
         let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req)
             .unwrap()
-            .expect("group member → returns Some");
+            .expect("group member -> returns Some");
 
         assert_eq!(
             response.status, "group_complete",

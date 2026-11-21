@@ -160,7 +160,7 @@ function CampaignDetail({ id }: { id: string }) {
     return <output className={styles.status}>{detail.error.message}</output>;
   }
   if (!detail.data) {
-    return <p className={styles.status}>Loading campaign…</p>;
+    return <p className={styles.status}>Loading campaign...</p>;
   }
 
   const { campaign, members, plan_error } = detail.data;

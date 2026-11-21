@@ -132,7 +132,7 @@ export function LicensePanel({ initialKey = "" }: { initialKey?: string } = {}) 
             ))}
         </>
       ) : (
-        <p>Loading license…</p>
+        <p>Loading license...</p>
       )}
       <form className={styles.form} onSubmit={onSubmit}>
         <label>

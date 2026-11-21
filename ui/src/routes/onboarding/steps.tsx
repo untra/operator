@@ -543,7 +543,7 @@ function KanbanInfo({ addExport }: StepProps) {
                   disabled={listStatuses.isPending}
                   onChange={(event) => chooseProject(event.target.value)}
                 >
-                  <option value="">Choose…</option>
+                  <option value="">Choose...</option>
                   {projects.map((item) => (
                     <option key={item.id} value={item.key}>
                       {item.name}

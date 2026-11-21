@@ -522,9 +522,9 @@ fn render_pipeline(
 
 /// Resolve a pipeline `ItemSource` to `(preamble lines, items expression)`.
 ///
-/// `Static`, `Projects`, and `Glob` emit a literal array (static ×N in the
+/// `Static`, `Projects`, and `Glob` emit a literal array (static xN in the
 /// compiled graph); `FromStep` emits the prior step's result identifier
-/// (symbolic ×N). Sources the export environment cannot resolve fall back to
+/// (symbolic xN). Sources the export environment cannot resolve fall back to
 /// an empty, GAP-marked placeholder binding - runtime-safe (zero iterations)
 /// and rendered symbolic.
 fn pipeline_items_expr(source: &ItemSource, var: &str, env: &PipelineEnv) -> (String, String) {

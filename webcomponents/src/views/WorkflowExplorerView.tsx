@@ -36,7 +36,7 @@ export function WorkflowExplorerView({
     return <div className="workflow-explorer-error">Could not load this collection: {error}</div>;
   }
   if (!entries) {
-    return <div className="workflow-explorer-loading">Loading collection…</div>;
+    return <div className="workflow-explorer-loading">Loading collection...</div>;
   }
   if (entries.length === 0) {
     return <div className="workflow-explorer-loading">This collection defines no issue types.</div>;
@@ -66,7 +66,7 @@ export function WorkflowExplorerView({
             <WorkflowGraph issueType={document} vertical />
           </>
         ) : (
-          <div className="workflow-explorer-loading">Loading workflow…</div>
+          <div className="workflow-explorer-loading">Loading workflow...</div>
         )}
       </div>
     </div>

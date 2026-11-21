@@ -2500,7 +2500,7 @@
           "type": "string"
         },
         "id": {
-          "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id).",
+          "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_` id).",
           "type": "string"
         }
       },

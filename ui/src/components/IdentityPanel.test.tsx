@@ -7,7 +7,7 @@ import * as webcomponentMocks from "../test-webcomponents";
 import { HostContext, type Host } from "../host";
 import type { PermissionGrant } from "@operator/bindings/PermissionGrant";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 const { IdentityPanel } = await import("./IdentityPanel");
 
 const GRANTS: PermissionGrant = {

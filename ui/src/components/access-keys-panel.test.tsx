@@ -6,7 +6,7 @@ import { HostContext, type Host } from "../host";
 import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 const { AccessKeysPanel } = await import("./AccessKeysPanel");
 
 const NOW = Date.parse("2026-10-14T12:00:00Z");

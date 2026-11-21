@@ -1,3 +1,4 @@
+import { rejects } from "node:assert/strict";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { ApiError, OperatorApi, getCsrfToken, setCsrfToken } from "./api-client";
 import type { Host } from "./host";
@@ -127,7 +128,7 @@ describe("CSRF on mutations", () => {
     });
 
     const api = new OperatorApi(host);
-    await expect(api.removeLicense()).rejects.toBeInstanceOf(ApiError);
+    await rejects(api.removeLicense(), ApiError);
     await api.removeLicense();
 
     expect(csrfFetches()).toHaveLength(2);

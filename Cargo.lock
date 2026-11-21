@@ -2944,7 +2944,7 @@ dependencies = [
 
 [[package]]
 name = "operator"
-version = "0.2.16"
+version = "0.2.17"
 dependencies = [
  "agent-client-protocol",
  "anyhow",
@@ -3055,7 +3055,7 @@ dependencies = [
 
 [[package]]
 name = "opr8r"
-version = "0.2.16"
+version = "0.2.17"
 dependencies = [
  "clap",
  "operator-relay",

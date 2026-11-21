@@ -210,7 +210,12 @@ pub struct PathsConfig {
     pub state: String,
     /// Base directory for per-ticket worktrees (default: ~/.operator/worktrees)
     #[serde(default = "default_worktrees_dir")]
+    #[schemars(transform = omit_worktrees_schema_default)]
     pub worktrees: String,
+}
+
+fn omit_worktrees_schema_default(schema: &mut schemars::Schema) {
+    schema.remove("default");
 }
 
 fn default_worktrees_dir() -> String {
@@ -1222,6 +1227,19 @@ mod tests {
     fn test_default_worktrees_dir_contains_worktrees() {
         let dir = default_worktrees_dir();
         assert!(dir.contains("worktrees"));
+    }
+
+    #[test]
+    fn test_worktrees_schema_is_optional_without_a_literal_default() {
+        let schema = serde_json::to_value(schemars::schema_for!(PathsConfig)).unwrap();
+        let worktrees = &schema["properties"]["worktrees"];
+        assert_eq!(worktrees["type"], "string");
+        assert!(worktrees.get("default").is_none());
+        assert!(!schema["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|field| field == "worktrees"));
     }
 
     // --- Environment override mapping ---

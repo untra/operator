@@ -1,6 +1,8 @@
 use operator_telemetry::{EventName, RedactionClass};
 use ts_rs::TS;
 
+use operator::endpoint::bindings::{generated_files, BINDINGS_DIR};
+
 #[test]
 fn export_bindings_redaction_class() {
     RedactionClass::export(&ts_rs::Config::default()).unwrap();
@@ -37,14 +39,22 @@ fn test_catalog_covers_existing_notification_and_audit_names() {
 fn test_generate_types_check_rejects_stale_catalog_without_writing() {
     let temp = tempfile::tempdir().unwrap();
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    for path in [
+    let paths = [
         "shared/types.ts",
         "docs/schemas/config.json",
         "docs/schemas/state.json",
         "docs/schemas/jira-api.json",
         "docs/telemetry/catalog.md",
-    ] {
-        let dest = temp.path().join(path);
+    ]
+    .into_iter()
+    .map(std::path::PathBuf::from)
+    .chain(
+        generated_files()
+            .into_keys()
+            .map(|path| std::path::Path::new(BINDINGS_DIR).join(path)),
+    );
+    for path in paths {
+        let dest = temp.path().join(&path);
         std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
         std::fs::copy(root.join(path), dest).unwrap();
     }

@@ -557,8 +557,7 @@
         },
         "worktrees": {
           "description": "Base directory for per-ticket worktrees (default: ~/.operator/worktrees)",
-          "type": "string",
-          "default": "/Users/samuelvolin/.operator/worktrees"
+          "type": "string"
         }
       },
       "required": [

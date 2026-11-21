@@ -596,7 +596,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "keycloak",
             "Keycloak",
             Some("getting-started/integrations/keycloak"),
-            None,
+            Some("keycloak"),
             false,
             Alpha,
         )
@@ -606,7 +606,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "authentik",
             "Authentik",
             Some("getting-started/integrations/authentik"),
-            None,
+            Some("authentik"),
             false,
             Alpha,
         )

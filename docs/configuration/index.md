@@ -212,7 +212,7 @@ poll_interval_ms = 1000
 tickets = ".tickets"
 projects = "."
 state = ".tickets/operator"
-worktrees = "/Users/samuelvolin/.operator/worktrees"
+worktrees = "/Users/myself/.operator/worktrees"
 
 [ui]
 refresh_rate_ms = 250

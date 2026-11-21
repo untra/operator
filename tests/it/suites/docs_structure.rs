@@ -22,6 +22,8 @@ use operator::integrations::{all_integrations, SupportStatus, Vertical};
 /// Deleting a pair from this list forces the corresponding nav addition.
 const NAV_DEFERRED: &[(&str, &str)] = &[("workflows", "claude"), ("workflows", "agnt")];
 
+const NAV_PREVIEWS: &[(Vertical, &str)] = &[(Vertical::Model, "lmstudio")];
+
 /// Leaf URLs under a vertical section that are supporting pages rather than catalog integrations.
 const NAV_EXTRA_PAGES: &[&str] = &[
     "/getting-started/git/provider-support/",
@@ -275,7 +277,7 @@ fn test_nav_vertical_leaves_map_to_catalog() {
         .collect();
     let catalog_urls: BTreeSet<String> = all_integrations()
         .iter()
-        .filter(|e| e.is_public())
+        .filter(|e| e.is_public() || NAV_PREVIEWS.contains(&(e.vertical, e.slug)))
         .filter_map(|e| e.docs_path.map(|p| format!("/{p}/")))
         .collect();
     for (item_url, leaves) in &by_item {

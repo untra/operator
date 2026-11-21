@@ -1,4 +1,6 @@
-import type { CreateAccessKeyRequest } from "@operator/bindings/CreateAccessKeyRequest";
+import type { CreateOidcConnection } from "@operator/bindings/CreateOidcConnection";
+import type { UpdateOperatorUser } from "@operator/bindings/UpdateOperatorUser";
+import type { CreateUserKey } from "@operator/bindings/CreateUserKey";
 import type { CreateDelegatorRequest } from "@operator/bindings/CreateDelegatorRequest";
 import type { CreateIssueTypeRequest } from "@operator/bindings/CreateIssueTypeRequest";
 import type { CreateModelServerRequest } from "@operator/bindings/CreateModelServerRequest";
@@ -19,7 +21,7 @@ import type { WriteGitConfigRequest } from "@operator/bindings/WriteGitConfigReq
 import type { WriteKanbanConfigRequest } from "@operator/bindings/WriteKanbanConfigRequest";
 import type { BootstrapSubmitRequest } from "@operator/bindings/BootstrapSubmitRequest";
 import type { OperatorApi } from "../api-client";
-import type { MutationDefinition, QueryDefinition } from "./adapter";
+import { getSessionVersion, type MutationDefinition, type QueryDefinition } from "./adapter";
 import {
   CAMPAIGN_QUERY_KEYS,
   ISSUE_TYPE_QUERY_KEYS,
@@ -152,7 +154,9 @@ export const campaignStatusQuery = memoizeDefinition((id: string) =>
 
 export const sessionsQuery = staticRead(QUERY_KEYS.sessions, (api) => api.listSessions());
 
-export const accessKeysQuery = staticRead(QUERY_KEYS.accessKeys, (api) => api.listAccessKeys());
+export const accessKeysQuery = memoizeDefinition((offset: number) =>
+  readWith(QUERY_KEYS.accessKeys, { offset }, (api, params) => api.listAccessKeys(params.offset)),
+);
 
 export const providerKindsQuery = staticRead(QUERY_KEYS.providerKinds, (api) =>
   api.listProviderKinds(),
@@ -229,12 +233,22 @@ export const approveDeviceMutation: MutationDefinition<
 };
 
 export const createAccessKeyMutation: MutationDefinition<
-  ApiResult<"createAccessKey">,
-  CreateAccessKeyRequest
+  ApiResult<"createAccessKey">["key"],
+  { request: CreateUserKey; id?: string; onIssued: (secret: string) => void }
 > = {
   key: "create-access-key",
+  sensitive: true,
   affected: [QUERY_KEYS.accessKeys],
-  run: (api, variables) => api.createAccessKey(variables),
+  run: async (api, variables) => {
+    const sessionVersion = getSessionVersion();
+    const result = variables.id
+      ? await api.rotateAccessKey(variables.id, variables.request)
+      : await api.createAccessKey(variables.request);
+    if (getSessionVersion() === sessionVersion) {
+      variables.onIssued(result.secret);
+    }
+    return result.key;
+  },
 };
 
 export const revokeAccessKeyMutation: MutationDefinition<
@@ -572,4 +586,57 @@ export const setKanbanSessionEnvMutation: MutationDefinition<
   affected: [...PROFILE_QUERY_KEYS],
   sensitive: true,
   run: (api, variables) => api.setKanbanSessionEnv(variables),
+};
+
+export const connectionsQuery = staticRead(QUERY_KEYS.connections, (api) => api.connections());
+export const mcpClientsQuery = staticRead(QUERY_KEYS.mcpClients, (api) => api.mcpClients());
+export const checkConnectionMutation: MutationDefinition<
+  ApiResult<"checkConnection">,
+  { signal: AbortSignal }
+> = {
+  key: "check-connection",
+  affected: [],
+  sensitive: true,
+  run: (api, variables) => api.checkConnection(variables.signal),
+};
+export const checkMcpMutation: MutationDefinition<
+  ApiResult<"checkMcp">,
+  { accessKey: string; signal: AbortSignal }
+> = {
+  key: "check-mcp",
+  sensitive: true,
+  affected: [QUERY_KEYS.mcpClients, QUERY_KEYS.connections],
+  run: (api, variables) => api.checkMcp(variables.accessKey, variables.signal),
+};
+
+export const identityCapabilitiesQuery = staticRead(QUERY_KEYS.identityCapabilities, (api) =>
+  api.identityCapabilities(),
+);
+export const oidcProvidersQuery = staticRead(QUERY_KEYS.oidcProviders, (api) =>
+  api.oidcProviders(),
+);
+
+export const oidcConnectionsQuery = staticRead(QUERY_KEYS.oidcConnections, (api) =>
+  api.oidcConnections(),
+);
+export const operatorUsersQuery = memoizeDefinition((offset: number) =>
+  readWith(QUERY_KEYS.operatorUsers, { offset }, (api, params) => api.operatorUsers(params.offset)),
+);
+export const createOidcConnectionMutation: MutationDefinition<string, CreateOidcConnection> = {
+  key: "create-oidc-connection",
+  affected: [QUERY_KEYS.oidcConnections, QUERY_KEYS.oidcProviders],
+  run: (api, body) => api.createOidcConnection(body),
+};
+export const disableOidcConnectionMutation: MutationDefinition<null, { id: string }> = {
+  key: "disable-oidc-connection",
+  affected: [QUERY_KEYS.oidcConnections, QUERY_KEYS.oidcProviders, QUERY_KEYS.identityCapabilities],
+  run: (api, variables) => api.disableOidcConnection(variables.id),
+};
+export const updateOperatorUserMutation: MutationDefinition<
+  null,
+  { id: string; body: UpdateOperatorUser }
+> = {
+  key: "update-operator-user",
+  affected: [QUERY_KEYS.operatorUsers, QUERY_KEYS.identityCapabilities],
+  run: (api, variables) => api.updateOperatorUser(variables.id, variables.body),
 };

@@ -34,9 +34,7 @@ pub struct StepAttempt {
     /// Project name this attempt belongs to
     pub project: String,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Git isolation (from vibe-kanban TaskAttempt)
-    // ─────────────────────────────────────────────────────────────────────
     /// Git branch for this attempt (e.g., "feat/abc123-add-login")
     pub branch: String,
 
@@ -52,9 +50,7 @@ pub struct StepAttempt {
     #[serde(default)]
     pub worktree_deleted: bool,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Execution configuration
-    // ─────────────────────────────────────────────────────────────────────
     /// Which LLM tool is executing (e.g., "claude", "gemini", "codex")
     pub executor: String,
 
@@ -70,9 +66,7 @@ pub struct StepAttempt {
     #[serde(default)]
     pub launch_mode: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Status tracking
-    // ─────────────────────────────────────────────────────────────────────
     /// Current status of this attempt
     pub status: AttemptStatus,
 
@@ -92,9 +86,7 @@ pub struct StepAttempt {
     #[serde(default)]
     pub content_hash: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // PR tracking
-    // ─────────────────────────────────────────────────────────────────────
     /// Pull request URL if created
     #[serde(default)]
     pub pr_url: Option<String>,
@@ -111,9 +103,7 @@ pub struct StepAttempt {
     #[serde(default)]
     pub pr_status: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Timestamps
-    // ─────────────────────────────────────────────────────────────────────
     /// When setup completed (worktree created, scripts run)
     #[serde(default)]
     #[ts(type = "string | null")]
@@ -197,9 +187,7 @@ pub struct ExecutionProcess {
     #[serde(default)]
     pub executor_action: Option<serde_json::Value>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Git state tracking
-    // ─────────────────────────────────────────────────────────────────────
     /// Git HEAD before execution started
     #[serde(default)]
     pub before_head_commit: Option<String>,
@@ -208,9 +196,7 @@ pub struct ExecutionProcess {
     #[serde(default)]
     pub after_head_commit: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Process state
-    // ─────────────────────────────────────────────────────────────────────
     /// Current process status
     pub status: ProcessStatus,
 
@@ -222,9 +208,7 @@ pub struct ExecutionProcess {
     #[serde(default)]
     pub dropped: bool,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Timestamps
-    // ─────────────────────────────────────────────────────────────────────
     #[ts(type = "string")]
     pub started_at: DateTime<Utc>,
 
@@ -277,9 +261,7 @@ pub struct Session {
     /// Parent attempt ID
     pub attempt_id: Uuid,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Operator's terminal tracking
-    // ─────────────────────────────────────────────────────────────────────
     /// Terminal session name for terminal-based execution
     #[serde(default, alias = "tmux_session_name")]
     pub terminal_session_name: Option<String>,
@@ -292,9 +274,7 @@ pub struct Session {
     #[serde(default)]
     pub content_hash: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // vibe-kanban's agent session tracking
-    // ─────────────────────────────────────────────────────────────────────
     /// Agent's internal session ID (e.g., Claude's conversation ID)
     #[serde(default)]
     pub agent_session_id: Option<String>,
@@ -303,9 +283,7 @@ pub struct Session {
     #[serde(default)]
     pub summary: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Timestamps
-    // ─────────────────────────────────────────────────────────────────────
     #[ts(type = "string")]
     pub created_at: DateTime<Utc>,
 

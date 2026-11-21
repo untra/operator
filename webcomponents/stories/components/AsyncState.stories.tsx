@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AsyncState, type AsyncValue } from "../../src/components/AsyncState";
 
@@ -52,4 +53,22 @@ export const DefaultMessages: Story = {
       ))}
     </div>
   ),
+};
+
+export const Transitions: Story = {
+  render: function Transitions() {
+    const [value, setValue] = useState<AsyncValue<string>>({ status: "initial" });
+    return (
+      <>
+        <button onClick={() => setValue({ status: "loading" })}>Load</button>
+        <button onClick={() => setValue({ status: "error", message: "Request failed" })}>
+          Fail
+        </button>
+        <button onClick={() => setValue({ status: "ready", data: "Loaded content" })}>
+          Recover
+        </button>
+        <TextState value={value} />
+      </>
+    );
+  },
 };

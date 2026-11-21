@@ -29,15 +29,13 @@ pub enum ResolutionError {
     UnknownProvider(String),
     #[error("Unknown model_server '{0}'")]
     UnknownModelServer(String),
+    #[error("Invalid model server: {0}")]
+    InvalidModelServer(String),
     #[error(
         "Unknown llm_tool '{0}' (no implicit model server; set model_server on the delegator or use a shipped tool)"
     )]
     UnknownLlmTool(String),
-    /// The delegator declaratively references a remote, named agent on another
-    /// platform (AGNT, `OpenAI`, ...). Operator has no runtime client for those
-    /// platforms, so such a delegator is export-only and cannot be resolved into a
-    /// launchable provider.
-    #[error("Delegator '{name}' references {platform} agent '{agent_id}' and is export-only; it cannot be launched locally (Operator has no {platform} runtime client)")]
+    #[error("Delegator '{name}' references {platform} agent '{agent_id}' and is export-only; it cannot launch locally (Operator has no {platform} runtime client)")]
     RemoteOnlyDelegator {
         name: String,
         platform: String,
@@ -112,11 +110,14 @@ pub(crate) fn delegator_to_provider(
         });
     }
     let server = resolve_model_server_for_delegator(config, d)?;
-    let env = crate::api::providers::model_server::env_for_server(&server);
+    let settings =
+        crate::api::providers::model_server::launch_settings_for_server(&server, &d.llm_tool)
+            .map_err(|error| ResolutionError::InvalidModelServer(error.to_string()))?;
     Ok(LlmProvider {
         tool: d.llm_tool.clone(),
         model: d.model.clone(),
-        env,
+        env: settings.env,
+        flags: settings.flags,
         ..Default::default()
     })
 }
@@ -126,34 +127,32 @@ pub(crate) fn delegator_to_provider(
 /// A named `model_server` is looked up among declared servers and the implicit
 /// builtins; absent a name, the tool's implicit vendor default is used (which
 /// contributes no env). Mirrors [`delegator_to_provider`] for the non-delegator path.
-fn adhoc_model_server_env(
+fn adhoc_model_server_settings(
     config: &Config,
     tool: &str,
     model_server: Option<&str>,
-) -> Result<std::collections::HashMap<String, String>, ResolutionError> {
+) -> Result<crate::api::providers::model_server::ModelServerLaunchSettings, ResolutionError> {
     let server = match model_server {
         Some(name) => resolve_model_server_by_name(config, name)?,
         None => implicit_model_server_for_tool(tool)
             .ok_or_else(|| ResolutionError::UnknownLlmTool(tool.to_string()))?,
     };
-    Ok(crate::api::providers::model_server::env_for_server(&server))
+    crate::api::providers::model_server::launch_settings_for_server(&server, tool)
+        .map_err(|error| ResolutionError::InvalidModelServer(error.to_string()))
 }
 
 /// Resolve the execution target for a launch.
 ///
 /// Precedence:
-/// 1. `target` name set → look up (explicit `[[targets]]`, builtin
+/// 1. `target` name set -> look up (explicit `[[targets]]`, builtin
 ///    `local`/`docker`, or a `[[hosts]]` name); unknown = hard error
-/// 2. `host` name set (deprecated) → ssh target of that name
-/// 3. `docker: Some(true)` (deprecated) → synthesized docker target
-/// 4. `docker: Some(false)` → local
-/// 5. `launch.target` → named global default
-/// 6. `launch.docker.enabled` → synthesized docker target
-/// 7. → local
+/// 2. `host` name set (deprecated) -> ssh target of that name
+/// 3. `docker: Some(true)` (deprecated) -> synthesized docker target
+/// 4. `docker: Some(false)` -> local
+/// 5. `launch.target` -> named global default
+/// 6. `launch.docker.enabled` -> synthesized docker target
+/// 7. -> local
 ///
-/// Deprecated combinations resolve deterministically (`target` wins over
-/// `host`/`docker`; `host` wins over `docker: true`) with one deprecation
-/// warning per process instead of the former hard error.
 pub fn resolve_target(
     launch_config: Option<&DelegatorLaunchConfig>,
     config: &Config,
@@ -236,9 +235,20 @@ pub(crate) fn apply_delegator_launch_config(
     launch_config: &Option<DelegatorLaunchConfig>,
     config: &Config,
 ) -> Result<(), ResolutionError> {
+    options.extra_flags = options
+        .provider
+        .as_ref()
+        .map(|provider| {
+            provider
+                .flags
+                .iter()
+                .map(|flag| super::launcher::prompt::shell_escape(flag))
+                .collect()
+        })
+        .unwrap_or_default();
     if let Some(ref lc) = launch_config {
         options.yolo_mode = options.yolo_mode || lc.yolo;
-        options.extra_flags.clone_from(&lc.flags);
+        options.extra_flags.extend(lc.flags.clone());
         options.use_worktrees_override = lc.use_worktrees;
         options.create_branch_override = lc.create_branch;
         options.prompt_prefix.clone_from(&lc.prompt_prefix);
@@ -375,11 +385,20 @@ pub fn resolve_launch_options(
             let model = explicit_model
                 .map(std::string::ToString::to_string)
                 .unwrap_or(p.model.clone());
-            let env = adhoc_model_server_env(config, &p.tool, explicit_model_server)?;
+            let settings = adhoc_model_server_settings(config, &p.tool, explicit_model_server)?;
+            let mut flags = settings.flags;
+            flags.extend(p.flags.clone());
+            options.extra_flags = flags
+                .iter()
+                .map(|flag| super::launcher::prompt::shell_escape(flag))
+                .collect();
+            let mut env = settings.env;
+            env.extend(p.env.clone());
             options.provider = Some(LlmProvider {
                 tool: p.tool,
                 model,
                 env,
+                flags,
                 ..Default::default()
             });
         } else {
@@ -391,11 +410,20 @@ pub fn resolve_launch_options(
 
     if let Some(model) = explicit_model {
         if let Some(p) = config.llm_tools.providers.first().cloned() {
-            let env = adhoc_model_server_env(config, &p.tool, explicit_model_server)?;
+            let settings = adhoc_model_server_settings(config, &p.tool, explicit_model_server)?;
+            let mut flags = settings.flags;
+            flags.extend(p.flags.clone());
+            options.extra_flags = flags
+                .iter()
+                .map(|flag| super::launcher::prompt::shell_escape(flag))
+                .collect();
+            let mut env = settings.env;
+            env.extend(p.env.clone());
             options.provider = Some(LlmProvider {
                 tool: p.tool,
                 model: model.to_string(),
                 env,
+                flags,
                 ..Default::default()
             });
         }
@@ -513,6 +541,44 @@ mod tests {
             x_openai: None,
             unmapped_core: None,
         }
+    }
+
+    #[test]
+    fn test_lmstudio_named_and_adhoc_launches_keep_provider_flags() {
+        let mut config = Config::default();
+        config.model_servers.push(crate::config::ModelServer {
+            name: "pc".into(),
+            kind: "lmstudio".into(),
+            base_url: Some("http://pc:1234".into()),
+            api_key_env: Some("LM_TOKEN".into()),
+            extra_env: std::collections::HashMap::new(),
+            display_name: None,
+        });
+        let mut delegator = make_delegator("local-codex", "codex", "local-model");
+        delegator.model_server = Some("pc".into());
+        delegator.launch_config = Some(DelegatorLaunchConfig {
+            flags: vec!["--verbose".into()],
+            ..Default::default()
+        });
+        config.delegators.push(delegator);
+        let named =
+            resolve_launch_options(&config, Some("local-codex"), None, None, None, false, None)
+                .unwrap();
+        assert!(named.extra_flags.join(" ").contains("operator_lmstudio"));
+        assert_eq!(named.extra_flags.last().unwrap(), "--verbose");
+        config.llm_tools.providers = vec![LlmProvider {
+            tool: "codex".into(),
+            model: "local-model".into(),
+            ..Default::default()
+        }];
+        let adhoc =
+            resolve_launch_options(&config, None, Some("codex"), None, Some("pc"), false, None)
+                .unwrap();
+        assert!(adhoc.extra_flags.join(" ").contains("operator_lmstudio"));
+        assert_eq!(
+            adhoc.provider.unwrap().env["OPERATOR_LM_STUDIO_TOKEN"],
+            "${LM_TOKEN}"
+        );
     }
 
     #[test]

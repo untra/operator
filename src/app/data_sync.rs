@@ -210,7 +210,7 @@ impl App {
         let mut state = State::load(&self.config)?;
         let queue = Queue::new(&self.config)?;
 
-        // Build artifact context: agent_id → (worktree_path, artifact_patterns)
+        // Build artifact context: agent_id (worktree_path, artifact_patterns)
         let mut artifact_context: HashMap<String, (PathBuf, Vec<String>)> = HashMap::new();
         let in_progress = queue.list_in_progress().unwrap_or_default();
         for ticket in &in_progress {

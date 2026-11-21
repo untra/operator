@@ -1,0 +1,647 @@
+{
+  "uplink": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "UplinkFrame",
+    "description": "Client to server.",
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "hello"
+          }
+        },
+        "$ref": "#/$defs/Hello",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "heartbeat"
+          }
+        },
+        "$ref": "#/$defs/Heartbeat",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "capabilities"
+          }
+        },
+        "$ref": "#/$defs/Capabilities",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tunnel_head"
+          }
+        },
+        "$ref": "#/$defs/TunnelHead",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tunnel_chunk"
+          }
+        },
+        "$ref": "#/$defs/TunnelChunk",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tunnel_end"
+          }
+        },
+        "$ref": "#/$defs/TunnelEnd",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tunnel_error"
+          }
+        },
+        "$ref": "#/$defs/TunnelError",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "launch_ack"
+          }
+        },
+        "$ref": "#/$defs/LaunchAck",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "launch_status"
+          }
+        },
+        "$ref": "#/$defs/LaunchStatus",
+        "required": [
+          "type"
+        ]
+      }
+    ],
+    "$defs": {
+      "Capabilities": {
+        "description": "What the endpoint can do. `hash` is an opaque version tag the client\nchooses (it changes whenever anything else here changes); heartbeats echo\nit so the server notices a change it was not sent, without either side\nhaving to hash JSON identically.",
+        "type": "object",
+        "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "os": {
+            "type": "string"
+          },
+          "arch": {
+            "type": "string"
+          },
+          "gpus": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/GpuInfo"
+            },
+            "default": []
+          },
+          "llm_tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/LlmToolInfo"
+            },
+            "default": []
+          },
+          "model_servers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/ModelServerInfo"
+            },
+            "default": []
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/ProjectInfo"
+            },
+            "default": []
+          },
+          "launch_enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hash",
+          "hostname",
+          "os",
+          "arch",
+          "launch_enabled"
+        ]
+      },
+      "GpuInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "vendor": {
+            "$ref": "#/$defs/GpuVendor"
+          },
+          "vram_total_mb": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          },
+          "vram_used_mb": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0,
+            "default": null
+          },
+          "driver": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "name",
+          "vendor",
+          "vram_total_mb"
+        ]
+      },
+      "GpuVendor": {
+        "type": "string",
+        "enum": [
+          "nvidia",
+          "amd",
+          "intel",
+          "apple",
+          "other"
+        ]
+      },
+      "LlmToolInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ModelServerInfo": {
+        "description": "A local inference server the endpoint found. `kind` is a\n`ModelServerKind` slug; only `exposed` servers accept tunnel requests.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "exposed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "port",
+          "exposed"
+        ]
+      },
+      "ProjectInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path"
+        ]
+      },
+      "Hello": {
+        "type": "object",
+        "properties": {
+          "protocol_version": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "client_version": {
+            "type": "string"
+          },
+          "capabilities": {
+            "$ref": "#/$defs/Capabilities"
+          }
+        },
+        "required": [
+          "protocol_version",
+          "client_version",
+          "capabilities"
+        ]
+      },
+      "Heartbeat": {
+        "description": "`capabilities_hash` echoes [`Capabilities::hash`] as last sent.",
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          },
+          "capabilities_hash": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "capabilities_hash"
+        ]
+      },
+      "TunnelHead": {
+        "type": "object",
+        "properties": {
+          "req_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {}
+          }
+        },
+        "required": [
+          "req_id",
+          "status"
+        ]
+      },
+      "TunnelChunk": {
+        "type": "object",
+        "properties": {
+          "req_id": {
+            "type": "string"
+          },
+          "data_b64": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "req_id",
+          "data_b64"
+        ]
+      },
+      "TunnelEnd": {
+        "type": "object",
+        "properties": {
+          "req_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "req_id"
+        ]
+      },
+      "TunnelError": {
+        "type": "object",
+        "properties": {
+          "req_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "req_id",
+          "reason"
+        ]
+      },
+      "LaunchAck": {
+        "type": "object",
+        "properties": {
+          "launch_id": {
+            "type": "string"
+          },
+          "accepted": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "launch_id",
+          "accepted"
+        ]
+      },
+      "LaunchState": {
+        "type": "string",
+        "enum": [
+          "started",
+          "exited",
+          "failed"
+        ]
+      },
+      "LaunchStatus": {
+        "type": "object",
+        "properties": {
+          "launch_id": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/LaunchState"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "default": null
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "log_tail": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        },
+        "required": [
+          "launch_id",
+          "state"
+        ]
+      }
+    }
+  },
+  "downlink": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "DownlinkFrame",
+    "description": "Server to client.",
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "welcome"
+          }
+        },
+        "$ref": "#/$defs/Welcome",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tunnel_request"
+          }
+        },
+        "$ref": "#/$defs/TunnelRequest",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tunnel_cancel"
+          }
+        },
+        "$ref": "#/$defs/TunnelCancel",
+        "required": [
+          "type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "launch"
+          }
+        },
+        "$ref": "#/$defs/Launch",
+        "required": [
+          "type"
+        ]
+      }
+    ],
+    "$defs": {
+      "Welcome": {
+        "type": "object",
+        "properties": {
+          "endpoint_id": {
+            "type": "string"
+          },
+          "heartbeat_interval_secs": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "endpoint_id",
+          "heartbeat_interval_secs"
+        ]
+      },
+      "TunnelRequest": {
+        "type": "object",
+        "properties": {
+          "req_id": {
+            "type": "string"
+          },
+          "model_server": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {}
+          },
+          "body_b64": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "req_id",
+          "model_server",
+          "method",
+          "path",
+          "body_b64"
+        ]
+      },
+      "TunnelCancel": {
+        "type": "object",
+        "properties": {
+          "req_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "req_id"
+        ]
+      },
+      "Launch": {
+        "description": "A ticket step to run on the endpoint. `env` values are literals or shell\nreferences (`${VAR}`), never resolved secrets; `callback_token` is the only\ncredential and the client must keep it in the child's environment only.",
+        "type": "object",
+        "properties": {
+          "launch_id": {
+            "type": "string"
+          },
+          "ticket_id": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "llm_command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {}
+          },
+          "api_url": {
+            "type": "string"
+          },
+          "callback_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "launch_id",
+          "ticket_id",
+          "step",
+          "project",
+          "branch",
+          "prompt",
+          "llm_command",
+          "api_url",
+          "callback_token"
+        ]
+      }
+    }
+  }
+}

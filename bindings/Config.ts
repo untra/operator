@@ -3,6 +3,7 @@ import type { AcpConfig } from "./AcpConfig";
 import type { AgentsConfig } from "./AgentsConfig";
 import type { ApiConfig } from "./ApiConfig";
 import type { Delegator } from "./Delegator";
+import type { EgressConfig } from "./EgressConfig";
 import type { GitConfig } from "./GitConfig";
 import type { GovernancePolicy } from "./GovernancePolicy";
 import type { KanbanConfig } from "./KanbanConfig";
@@ -21,20 +22,85 @@ import type { RemoteHost } from "./RemoteHost";
 import type { RestApiConfig } from "./RestApiConfig";
 import type { SessionsConfig } from "./SessionsConfig";
 import type { TargetDef } from "./TargetDef";
+import type { TelemetryConfig } from "./TelemetryConfig";
 import type { TemplatesConfig } from "./TemplatesConfig";
 import type { TmuxConfig } from "./TmuxConfig";
 import type { UiConfig } from "./UiConfig";
 import type { VersionCheckConfig } from "./VersionCheckConfig";
 
-export type Config = { profile: ProfileIdentity, 
+export type Config = { 
+/**
+ * Active configuration profile (id and name).
+ */
+profile: ProfileIdentity, 
 /**
  * List of projects operator can assign work to
  */
-projects: Array<string>, agents: AgentsConfig, notifications: NotificationsConfig, queue: QueueConfig, paths: PathsConfig, ui: UiConfig, launch: LaunchConfig, templates: TemplatesConfig, api: ApiConfig, logging: LoggingConfig, tmux: TmuxConfig, 
+projects: Array<string>, 
+/**
+ * Agent lifecycle, parallelism, and health monitoring.
+ */
+agents: AgentsConfig, 
+/**
+ * Notification integrations.
+ */
+notifications: NotificationsConfig, 
+/**
+ * Queue ordering and assignment.
+ */
+queue: QueueConfig, 
+/**
+ * Ticket, project, state, and worktree directories.
+ */
+paths: PathsConfig, 
+/**
+ * Terminal UI appearance and behavior.
+ */
+ui: UiConfig, 
+/**
+ * Launch confirmations and execution defaults.
+ */
+launch: LaunchConfig, 
+/**
+ * Issue type collections and presets.
+ */
+templates: TemplatesConfig, 
+/**
+ * Pull-request and rate-limit polling.
+ */
+api: ApiConfig, 
+/**
+ * Log level and output.
+ */
+logging: LoggingConfig, 
+/**
+ * OTLP ingest, session window, and export.
+ */
+telemetry: TelemetryConfig, 
+/**
+ * Tmux integration configuration.
+ */
+tmux: TmuxConfig, 
 /**
  * Session wrapper configuration (tmux, vscode, or cmux)
  */
-sessions: SessionsConfig, llm_tools: LlmToolsConfig, rest_api: RestApiConfig, git: GitConfig, 
+sessions: SessionsConfig, 
+/**
+ * Detected LLM CLIs and provider preferences.
+ */
+llm_tools: LlmToolsConfig, 
+/**
+ * Embedded REST API server.
+ */
+rest_api: RestApiConfig, 
+/**
+ * Private destinations permitted for guarded outbound model requests.
+ */
+egress: EgressConfig, 
+/**
+ * Git provider, identity, and worktree settings.
+ */
+git: GitConfig, 
 /**
  * Kanban provider configuration for syncing issues from Jira, Linear, etc.
  */

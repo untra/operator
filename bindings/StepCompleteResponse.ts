@@ -6,6 +6,10 @@ import type { NextStepInfo } from "./NextStepInfo";
  */
 export type StepCompleteResponse = { 
 /**
+ * Per-step telemetry credentials and context for the next command.
+ */
+next_env?: { [key in string]: string } | null, 
+/**
  * Status of the step: "completed", "`awaiting_review`", "failed", "iterate"
  */
 status: string, 

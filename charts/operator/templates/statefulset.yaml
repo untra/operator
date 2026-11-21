@@ -69,6 +69,10 @@ spec:
               value: {{ .Values.shutdownDrainSeconds | quote }}
             - name: OPERATOR_REST_API__SHUTDOWN_CLEANUP_SECONDS
               value: {{ .Values.shutdownCleanupSeconds | quote }}
+            {{- with .Values.egress.allowPrivateCidrs }}
+            - name: OPERATOR_EGRESS__ALLOW_PRIVATE_CIDRS
+              value: {{ join "," . | quote }}
+            {{- end }}
             {{- with .Values.publicUrl }}
             - name: OPERATOR_REST_API__PUBLIC_URL
               value: {{ . | quote }}
@@ -77,6 +81,7 @@ spec:
             - name: OPERATOR_BOOTSTRAP_PASSWORD_FILE
               value: /run/secrets/operator-bootstrap/password
             {{- end }}
+            {{- include "operator.telemetryEnv" . | nindent 12 }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

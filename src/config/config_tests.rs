@@ -1,6 +1,15 @@
 use super::*;
 
 #[test]
+fn test_logging_format_defaults_to_text_and_accepts_json() {
+    let cfg: LoggingConfig = toml::from_str("").unwrap();
+    assert_eq!(cfg.format, LogFormat::Text);
+    let cfg: LoggingConfig = toml::from_str(r#"format = "json""#).unwrap();
+    assert_eq!(cfg.format, LogFormat::Json);
+    assert!(toml::from_str::<LoggingConfig>(r#"format = "otlp""#).is_err());
+}
+
+#[test]
 fn test_default_preset_is_dev_kanban() {
     assert_eq!(CollectionPreset::default(), CollectionPreset::DevKanban);
 }

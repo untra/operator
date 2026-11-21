@@ -173,11 +173,6 @@
 /* Health badge for a status section. A cream ring keeps every health color
  * legible against the green nav pill. Maps a semantic role to a token. */
 .navDot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--color-cream);
   box-shadow: 0 0 0 1px var(--color-cream);
 }
 
@@ -189,15 +184,6 @@
  * the healthy dot stays a filled mark, not just the cream ring. */
 .active .navDot[data-health="green"] {
   background: var(--color-green-l1);
-}
-.navDot[data-health="yellow"] {
-  background: var(--warning);
-}
-.navDot[data-health="red"] {
-  background: var(--danger);
-}
-.navDot[data-health="gray"] {
-  background: var(--text-muted);
 }
 
 /* Section whose prerequisites aren't met: shown but not navigable. */
@@ -235,8 +221,24 @@
   box-shadow: 0 0 0 1px var(--surface-alt);
 }
 
+/* Pointed marks drop the ring so the silhouette stays a triangle. */
+.navDot[data-health="yellow"],
+.navDot[data-health="red"] {
+  box-shadow: none;
+}
+
 .main {
   flex: 1;
   padding: 48px;
   overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .layout { flex-direction: column; }
+  .nav { width: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .brandRow { margin-bottom: 16px; }
+  .group { margin-bottom: 12px; }
+  .navList { display: flex; flex-wrap: wrap; gap: 6px; }
+  .navList li { margin-bottom: 0; }
+  .main { padding: 16px; min-width: 0; }
 }

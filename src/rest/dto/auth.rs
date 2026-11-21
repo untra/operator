@@ -20,16 +20,10 @@ use utoipa::ToSchema;
 pub const MAX_ACCESS_KEY_EXPIRY_DAYS: u64 = 365;
 pub const MAX_IDENTIFIER_LENGTH: usize = 128;
 
-// =============================================================================
-// Scopes
-// =============================================================================
-
 /// A typed authorization scope.
 ///
-/// Scopes are **not hierarchical**: `Write` does not imply `Read`. A credential
-/// is granted each scope it needs explicitly, so an integration's authority is
-/// legible from its scope list alone rather than requiring the reader to reason
-/// about implication.
+/// Scopes are **not hierarchical**: `Write` does not imply `Read`.
+/// A credential is granted each scope it needs explicitly, so an integration's authority is legible from its scope list.
 #[derive(
     Debug,
     Clone,
@@ -61,11 +55,6 @@ pub enum Scope {
 impl Scope {
     /// Every scope, in privilege-suggesting order. The single source of truth
     /// for "all scopes" across the API, the CLI, and the clients.
-    ///
-    /// Unused in the binary until Phase 3 wires route authorization; the DTO
-    /// contract ships a phase ahead of its consumers so generated clients and
-    /// the OpenAPI spec are settled before any handler depends on them.
-    #[allow(dead_code)]
     pub const ALL: [Scope; 4] = [Scope::Read, Scope::Write, Scope::Execute, Scope::Admin];
 
     /// Wire representation, matching the `serde` rename.
@@ -240,6 +229,17 @@ pub struct CurrentSessionResponse {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
+/// OAuth protected resource metadata (RFC 9728).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ProtectedResourceMetadata {
+    /// Canonical URL clients request tokens for; the expected token audience.
+    pub resource: String,
+    /// Issuers of the enabled OIDC connections.
+    pub authorization_servers: Vec<String>,
+    pub bearer_methods_supported: Vec<String>,
+    pub resource_name: String,
+}
+
 /// What kind of credential authenticated a request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -249,10 +249,18 @@ pub enum PrincipalKind {
     Session,
     /// A bearer access token from the device flow or a key exchange.
     AccessToken,
+    /// A bearer token derived from a user-owned API key.
+    ApiKey,
+    /// An access token issued by a configured OIDC provider.
+    OidcToken,
     /// The automatically issued loopback credential for a local process.
     LocalProcess,
     /// A single-purpose agent step-completion callback token.
     AgentCallback,
+    /// An agent session's scopeless OTLP ingest token.
+    TelemetryIngest,
+    /// A paired endpoint machine's access token.
+    Endpoint,
 }
 
 /// A freshly minted CSRF token for the current session.
@@ -331,7 +339,7 @@ pub struct DeviceApprovalResponse {
 
 /// Token endpoint request. The discriminator makes unrelated credential
 /// combinations unrepresentable.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[derive(Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 #[serde(tag = "grant_type")]
 pub enum TokenRequest {
@@ -354,13 +362,13 @@ pub enum TokenRequest {
     /// Exchange a service access key.
     #[serde(rename = "operator:access-key")]
     AccessKey {
-        #[schema(write_only, format = Password, min_length = 47, max_length = 47)]
+        #[schema(write_only, format = Password, min_length = 87, max_length = 87)]
         access_key: String,
     },
 }
 
 /// A newly issued access token, and a refresh token when the grant produces one.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[derive(Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct TokenResponse {
     /// Signed, short-lived bearer token.
@@ -379,7 +387,21 @@ pub struct TokenResponse {
     pub scopes: Vec<Scope>,
 }
 
-/// Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can
+impl std::fmt::Debug for TokenRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenRequest").finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for TokenResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponse")
+            .field("expires_in", &self.expires_in)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Standardized OAuth error, shaped per RFC 6749 so stock clients can
 /// interpret it - notably `authorization_pending` and `slow_down`, which a
 /// device-flow client polls against.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
@@ -425,6 +447,7 @@ pub enum OAuthErrorCode {
 // =============================================================================
 
 /// Create a service access key for an integration.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyRequest {
@@ -442,6 +465,7 @@ pub struct CreateAccessKeyRequest {
 
 /// A newly created access key. **The secret appears here and nowhere else,
 /// ever** - only its hash is stored, so it cannot be shown again.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyResponse {
@@ -476,6 +500,7 @@ pub struct AccessKeySummary {
 }
 
 /// All access keys, active and revoked.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct AccessKeyListResponse {
@@ -484,6 +509,7 @@ pub struct AccessKeyListResponse {
 }
 
 /// Result of revoking an access key.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct RevokeAccessKeyResponse {
@@ -576,6 +602,25 @@ mod tests {
         }
         assert_eq!("".parse::<Scope>(), Err(()));
         assert_eq!("superuser".parse::<Scope>(), Err(()));
+    }
+
+    #[test]
+    fn test_scope_is_exactly_read_write_execute_admin() {
+        assert_eq!(
+            Scope::ALL,
+            [Scope::Read, Scope::Write, Scope::Execute, Scope::Admin]
+        );
+        for scope in Scope::ALL {
+            match scope {
+                Scope::Read | Scope::Write | Scope::Execute | Scope::Admin => {}
+            }
+            assert_eq!(
+                serde_json::to_value(scope).unwrap(),
+                serde_json::json!(scope.as_str())
+            );
+        }
+        assert_eq!("endpoint".parse::<Scope>(), Err(()));
+        assert!(serde_json::from_value::<Scope>(serde_json::json!("endpoint")).is_err());
     }
 
     #[test]
@@ -696,6 +741,37 @@ mod tests {
                 format!("\"{expected}\"")
             );
         }
+    }
+
+    #[test]
+    fn test_token_debug_omits_credentials() {
+        let secret = "credential-that-must-not-appear";
+        let request = TokenRequest::AccessKey {
+            access_key: secret.into(),
+        };
+        let response = TokenResponse {
+            access_token: secret.into(),
+            token_type: "Bearer".into(),
+            expires_in: 60,
+            refresh_token: Some(secret.into()),
+            scopes: vec![],
+        };
+        assert!(!format!("{request:?}").contains(secret));
+        assert!(!format!("{response:?}").contains(secret));
+    }
+
+    #[test]
+    fn test_access_key_schema_matches_issued_key_length() {
+        let schema =
+            serde_json::to_value(<TokenRequest as utoipa::PartialSchema>::schema()).unwrap();
+        let field = schema["oneOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find_map(|variant| variant["properties"].get("access_key"))
+            .unwrap();
+        assert_eq!(field["minLength"], crate::auth::identity::KEY_LENGTH);
+        assert_eq!(field["maxLength"], crate::auth::identity::KEY_LENGTH);
     }
 
     #[test]

@@ -100,9 +100,9 @@ const CLI_SPECS: &[CliSpec] = &[
         command: "tea",
         auth_args: &[],
         install_url: "https://about.gitea.com/products/tea/",
-        pat_url: "",
+        pat_url: "https://codeberg.org/user/settings/applications",
         display_name: "Forgejo",
-        placeholder: "",
+        placeholder: "Personal access token",
     },
     CliSpec {
         provider: Some(GitProvider::Gitea),

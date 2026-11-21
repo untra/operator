@@ -56,6 +56,12 @@ jobs:
           key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-docs-
 
+      - name: Install Unicleaner
+        run: make install-unicleaner
+
+      - name: Lint Unicode
+        run: make lint-unicode
+
       # The components are typed against these; generate before they compile.
       - name: Generate TypeScript bindings
         run: cargo test --locked export_bindings_
@@ -101,9 +107,15 @@ jobs:
         run: bundle exec jekyll build
         working-directory: docs
 
-      # The hosted collection bundle is excluded from Jekyll processing (see
-      # docs/_config.yml) and copied in verbatim, so every file operator fetches
-      # matches the SHA-256 recorded in its manifest.
+      # docs/_plugins/markdown_twins.rb serves each page's Markdown at <url>.md.
+      - name: Verify Markdown twins are served
+        run: |
+          test -f _site/index.md
+          test -f _site/getting-started/tickets.md
+          ! grep -q '<html' _site/getting-started/tickets.md
+        working-directory: docs
+
+      # The hosted collection bundle is excluded from Jekyll processing (see docs/_config.yml)
       - name: Stage the collection bundle verbatim
         run: cp -R docs/collections docs/_site/
 

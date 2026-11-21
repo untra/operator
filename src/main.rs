@@ -9,10 +9,12 @@ mod campaigns;
 mod collections;
 mod config;
 mod editors;
+mod endpoint;
 mod git;
 mod http_client;
 mod issuetypes;
 mod licensing;
+mod ownership;
 mod profiles;
 #[allow(dead_code)] // generated; the bin reaches it through licensing
 mod trust_verify;
@@ -30,6 +32,7 @@ mod state;
 mod steps;
 #[allow(dead_code)]
 mod taxonomy;
+mod telemetry;
 mod templates;
 mod types;
 
@@ -239,15 +242,31 @@ enum Commands {
         campaign: bool,
     },
 
-    /// Create a new ticket from template
+    /// Create a new ticket (through the local API when it is running)
     Create {
-        /// Template type (feature, fix, spike, investigation)
-        #[arg(short, long)]
-        template: Option<String>,
+        /// Issue type key from the active collection (e.g. FEAT, FIX, TASK)
+        #[arg(short = 't', long = "issue-type", alias = "template")]
+        issue_type: Option<String>,
 
         /// Target project
         #[arg(short, long)]
         project: Option<String>,
+
+        /// One-line summary
+        #[arg(short, long)]
+        summary: Option<String>,
+
+        /// Issue type field value, as `name=value` (repeatable)
+        #[arg(long = "set", value_name = "NAME=VALUE")]
+        values: Vec<String>,
+
+        /// Do not push the ticket to the project's kanban board
+        #[arg(long)]
+        no_sync: bool,
+
+        /// Do not open the created ticket in $EDITOR
+        #[arg(long)]
+        no_edit: bool,
     },
 
     /// Generate documentation from source-of-truth files
@@ -351,14 +370,6 @@ enum CampaignAction {
     },
 }
 
-impl Commands {
-    /// Stdio protocol servers are spawned by editors, often sandboxed away from
-    /// the user config directory. They serve unregistered rather than not at all.
-    fn tolerates_unregistered(&self) -> bool {
-        matches!(self, Commands::Acp | Commands::Mcp)
-    }
-}
-
 #[derive(Subcommand)]
 enum AuthAction {
     /// Reset the admin password, revoking every issued credential.
@@ -422,23 +433,27 @@ async fn main() -> Result<()> {
     } else {
         Config::load(cli.config.as_deref())?
     };
-    let mut registration_error = None;
-    if !matches!(cli.command, Some(Commands::Docs { .. })) && cli.profile.is_none() {
+    let client_only = matches!(
+        cli.command,
+        Some(
+            Commands::Docs { .. }
+                | Commands::Auth {
+                    action: AuthAction::Bootstrap { .. }
+                }
+        )
+    );
+    if !client_only {
+        if config.profile_registry.is_none() {
+            config.profile_registry = Some(profiles::registry_path()?);
+        }
+        config.acquire_ownership()?;
+    }
+    if !client_only && cli.profile.is_none() {
         // Registration mutates as it goes; adopt it only whole, so a failure
         // midway never leaves a half-registered config behind.
         let mut registered = config.clone();
-        match profiles::register_legacy(&mut registered) {
-            Ok(()) => config = registered,
-            Err(error)
-                if cli
-                    .command
-                    .as_ref()
-                    .is_some_and(Commands::tolerates_unregistered) =>
-            {
-                registration_error = Some(error);
-            }
-            Err(error) => return Err(error),
-        }
+        profiles::register_legacy(&mut registered)?;
+        config = registered;
     }
 
     // Determine if we're running in TUI mode (no subcommand)
@@ -446,12 +461,6 @@ async fn main() -> Result<()> {
 
     // Initialize logging (file-based for TUI, stderr for CLI)
     let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
-    if let Some(error) = registration_error {
-        tracing::warn!(
-            error = format!("{error:#}"),
-            "Profile registry unavailable; continuing as an unregistered configuration"
-        );
-    }
 
     // Inject the status-section provider into the REST layer. The section logic
     // lives in `ui` (which `rest` can't depend on - see rest::dto::sections), so
@@ -527,8 +536,26 @@ async fn main() -> Result<()> {
         }) => {
             cmd_import(&config, provider, reference, campaign).await?;
         }
-        Some(Commands::Create { template, project }) => {
-            cmd_create(&config, template, project).await?;
+        Some(Commands::Create {
+            issue_type,
+            project,
+            summary,
+            values,
+            no_sync,
+            no_edit,
+        }) => {
+            cmd_create(
+                &config,
+                CreateArgs {
+                    issue_type,
+                    project,
+                    summary,
+                    values,
+                    no_sync,
+                    no_edit,
+                },
+            )
+            .await?;
         }
         Some(Commands::Docs { output, only }) => {
             cmd_docs(&config, output, only)?;
@@ -574,7 +601,13 @@ async fn main() -> Result<()> {
         None => {
             // No subcommand = launch TUI dashboard
             #[allow(clippy::large_futures)] // TUI state is inherently large
-            run_tui(config, logging_handle.log_file_path, cli.web, cli.ui).await?;
+            run_tui(
+                config,
+                logging_handle.log_file_path.clone(),
+                cli.web,
+                cli.ui,
+            )
+            .await?;
         }
     }
 
@@ -595,6 +628,7 @@ async fn run_tui(
     // when the user selects tmux as their session wrapper
     let mut app = Box::pin(App::new(config, start_web, open_ui)).await?;
     let result = app.run().await;
+    app.shutdown().await;
 
     // Print log file path on exit if logs were written
     if let Some(log_path) = log_file_path {
@@ -681,7 +715,7 @@ async fn cmd_launch(
 
     // Resolve launch options from the CLI overrides (a named delegator, or the
     // ad-hoc --llm-tool/--model/--model-server trio). The chosen model server's
-    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, …) are threaded into
+    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, etc) are threaded into
     // LaunchOptions.provider.env and exported before the agent CLI spawns.
     let launch_options = crate::agents::delegator_resolution::resolve_launch_options(
         config,
@@ -947,40 +981,111 @@ fn print_sync_details(result: &services::kanban_sync::SyncResult) {
     }
 }
 
-async fn cmd_create(
-    config: &Config,
-    template: Option<String>,
+struct CreateArgs {
+    issue_type: Option<String>,
     project: Option<String>,
-) -> Result<()> {
-    use crate::queue::TicketCreator;
-    use crate::templates::TemplateType;
+    summary: Option<String>,
+    values: Vec<String>,
+    no_sync: bool,
+    no_edit: bool,
+}
 
-    // Parse template type
-    let template_type = match template.as_deref() {
-        Some("feature" | "feat") => TemplateType::Feature,
-        Some("fix") => TemplateType::Fix,
-        Some("spike") => TemplateType::Spike,
-        Some("inv" | "investigation") => TemplateType::Investigation,
-        Some(other) => {
-            println!("Unknown template type: {other}. Use: feature, fix, spike, investigation");
-            return Ok(());
-        }
-        None => {
-            println!("Please specify template type with --template");
-            println!("Options: feature (feat), fix, spike, investigation (inv)");
-            return Ok(());
-        }
+async fn cmd_create(config: &Config, args: CreateArgs) -> Result<()> {
+    use crate::rest::dto::{CreateTicketRequest, KanbanPushOutcome};
+    use crate::rest::local_client::{LocalApiClient, LocalApiError};
+
+    let Some(issue_type) = args.issue_type else {
+        let registry = crate::startup::templates::load_active_registry(
+            &config.tickets_path(),
+            config.templates.active_collection.as_deref(),
+        );
+        let mut keys: Vec<_> = registry
+            .active_types()
+            .iter()
+            .map(|t| t.key.clone())
+            .collect();
+        keys.sort();
+        anyhow::bail!(
+            "Specify an issue type with --issue-type. Available: {}",
+            keys.join(", ")
+        );
+    };
+    let values = args
+        .values
+        .iter()
+        .map(|pair| {
+            pair.split_once('=')
+                .map(|(k, v)| (k.trim().to_string(), v.to_string()))
+                .ok_or_else(|| anyhow::anyhow!("--set expects NAME=VALUE, got '{pair}'"))
+        })
+        .collect::<Result<_>>()?;
+    let request = CreateTicketRequest {
+        issue_type,
+        project: args.project,
+        summary: args.summary,
+        values,
+        sync_to_kanban: args.no_sync.then_some(false),
     };
 
-    let project = project.unwrap_or_else(|| "global".to_string());
+    let client = LocalApiClient::for_config(config)?;
+    let created = match client.create_ticket(&request).await {
+        Ok(created) => created,
+        Err(LocalApiError::Unreachable { .. }) => create_in_process(config, request).await?,
+        Err(e) => return Err(e.into()),
+    };
 
-    let editor_config = editors::EditorConfig::detect(config.sessions.wrapper);
-    let creator = TicketCreator::new(config);
-    let filepath = creator.create_ticket(template_type, &project, editor_config.file_editor())?;
+    println!("Created ticket {}: {}", created.id, created.path);
+    match &created.kanban {
+        KanbanPushOutcome::Pushed {
+            provider,
+            external_id,
+            external_url,
+            ..
+        } => println!(
+            "Pushed to {provider} as {external_id}{}",
+            external_url
+                .as_deref()
+                .map(|url| format!(" ({url})"))
+                .unwrap_or_default()
+        ),
+        KanbanPushOutcome::Failed { provider, message } => {
+            eprintln!("Warning: push to {provider} failed: {message}");
+        }
+        KanbanPushOutcome::Skipped { .. } | KanbanPushOutcome::NotConfigured => {}
+    }
 
-    println!("Created ticket: {}", filepath.display());
-
+    if !args.no_edit {
+        let editor_config = editors::EditorConfig::detect(config.sessions.wrapper);
+        let (prog, editor_args) = editors::EditorConfig::split_command(editor_config.file_editor());
+        std::process::Command::new(prog)
+            .args(&editor_args)
+            .arg(&created.path)
+            .status()
+            .map_err(|e| anyhow::anyhow!("Failed to open editor: {e}"))?;
+    }
     Ok(())
+}
+
+/// Create through the shared service when no API server is running. The
+/// creation file lock keeps this safe against a server starting meanwhile.
+async fn create_in_process(
+    config: &Config,
+    request: crate::rest::dto::CreateTicketRequest,
+) -> Result<crate::rest::dto::CreateTicketResponse> {
+    use crate::services::ticket_creation;
+
+    let registry = crate::startup::templates::load_active_registry(
+        &config.tickets_path(),
+        config.templates.active_collection.as_deref(),
+    );
+    let draft = ticket_creation::prepare(config, &registry, request)
+        .map_err(|e| anyhow::anyhow!(crate::rest::error::ApiError::from(e).parts().2))?;
+    let kanban =
+        crate::api::kanban_sync::KanbanBidirectionalSync::new(std::sync::Arc::new(config.clone()));
+    let kanban = kanban.has_any_bidirectional().then_some(&kanban);
+    ticket_creation::create_draft(config.clone(), draft, kanban)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.parts().2))
 }
 
 /// Read a password from stdin without echoing it.
@@ -1014,7 +1119,11 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
             // Everything issued under the old password is now suspect: the
             // reason for a reset is usually that something leaked.
             store.revoke_all_credentials("admin password reset")?;
-            store.audit("password reset", Some("via local CLI"), true)?;
+            store.audit(
+                crate::auth::audit::AuditAction::PasswordReset,
+                Some("via local CLI"),
+                true,
+            )?;
 
             println!("Admin password reset.");
             println!(
@@ -1230,7 +1339,7 @@ fn cmd_docs(_config: &Config, output: Option<String>, only: Option<String>) -> R
 
     for generator in generators {
         generator.write(&docs_dir)?;
-        println!("  ✓ {} → {}", generator.name(), generator.output_path());
+        println!("  ✓ {} -> {}", generator.name(), generator.output_path());
     }
 
     println!("\nDocumentation generation complete.");
@@ -1254,46 +1363,21 @@ async fn cmd_api(config: &Config, port: Option<u16>, open: bool) -> Result<()> {
     println!("    GET  /api/v1/collections      List collections");
     println!();
 
-    if open {
-        let url = format!("http://localhost:{port}/");
-        tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            let opener = if cfg!(target_os = "macos") {
-                "open"
-            } else if cfg!(target_os = "windows") {
-                "cmd"
-            } else {
-                "xdg-open"
-            };
-            if cfg!(target_os = "windows") {
-                let _ = std::process::Command::new(opener)
-                    .args(["/C", "start", &url])
-                    .spawn();
-            } else {
-                let _ = std::process::Command::new(opener).arg(&url).spawn();
-            }
-        });
-    }
-
-    // Settle what the last shutdown left behind before the API can admit work
-    match startup::recovery::reconcile(&config) {
-        Ok(0) => {}
-        Ok(count) => println!("Reconciled {count} agent(s) interrupted by a previous shutdown"),
-        Err(error) => eprintln!("Warning: shutdown recovery reconciliation failed: {error}"),
-    }
-
-    let state = rest::ApiState::new(config.clone(), config.tickets_path());
-    let runner_state = state.clone();
-    services::campaign_runner::spawn_campaign_runner(move || runner_state.config());
-    rest::serve(state, port).await?;
+    let state = rest::ApiState::try_new(config.clone(), config.tickets_path())?;
+    rest::serve(state, port, open).await?;
 
     Ok(())
 }
 
 async fn cmd_mcp(config: &Config) -> Result<()> {
-    let state = rest::ApiState::new(config.clone(), config.tickets_path());
+    let state = rest::ApiState::try_new(config.clone(), config.tickets_path())?;
     tracing::info!("Starting MCP stdio server");
-    mcp::stdio::run(state, tokio::io::stdin(), tokio::io::stdout()).await?;
+    Box::pin(mcp::stdio::run(
+        state,
+        tokio::io::stdin(),
+        tokio::io::stdout(),
+    ))
+    .await?;
     tracing::info!("MCP stdio server stopped (stdin closed)");
     Ok(())
 }

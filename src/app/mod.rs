@@ -100,6 +100,7 @@ pub struct App {
     pub(crate) pr_tracked: Arc<RwLock<HashMap<String, TrackedPr>>>,
     /// Shutdown signal sender for PR monitor
     pub(crate) pr_shutdown_tx: Option<mpsc::Sender<()>>,
+    pub(crate) pr_task: Option<tokio::task::JoinHandle<()>>,
     /// Notification service for dispatching events to integrations
     pub(crate) notification_service: NotificationService,
     /// Shared tmux client for agent operations (switching, etc.)
@@ -117,6 +118,8 @@ pub struct App {
 
 impl App {
     pub async fn new(mut config: Config, start_web: bool, open_ui: bool) -> Result<Self> {
+        config.acquire_ownership()?;
+        let initial_state = crate::rest::ApiState::try_new(config.clone(), config.tickets_path())?;
         crate::llm::refresh_config_detection(&mut config);
 
         let dashboard = Dashboard::new(&config);
@@ -156,15 +159,8 @@ impl App {
                 } else {
                     config.profile.name.clone()
                 };
-            // Set after construction so `SetupScreen::new`'s signature stays
-            // stable for its other callers and tests. A store that cannot be
-            // opened is treated as "not configured".
-            setup.admin_password_configured =
-                crate::auth::store::AuthStore::open(&config.auth_state_path())
-                    .and_then(|store| store.bootstrap_state())
-                    .is_ok_and(|state| {
-                        state != crate::rest::dto::auth::BootstrapState::Uninitialized
-                    });
+            setup.admin_password_configured = initial_state.auth.store.bootstrap_state()?
+                != crate::rest::dto::auth::BootstrapState::Uninitialized;
 
             setup.license = Some(crate::licensing::status(&config));
 
@@ -201,19 +197,15 @@ impl App {
         let ticket_sync = TicketSessionSync::new(&config, Arc::clone(&tmux_client));
 
         // Initialize REST API server lifecycle manager
-        let rest_api_server = RestApiServer::new(config.clone(), config.rest_api.port);
+        let rest_api_server = RestApiServer::new(config.clone(), config.rest_api.port)
+            .with_auth(Arc::clone(&initial_state.auth));
 
         // Initialize issue type registry via the canonical loader shared with
         // the REST API and CLI (collection-scoped .tickets/templates/ store).
-        let mut issue_type_registry =
-            crate::startup::templates::load_registry(&config.tickets_path());
-
-        // Activate configured collection if specified
-        if let Some(ref active) = config.templates.active_collection {
-            if let Err(e) = issue_type_registry.activate_collection(active) {
-                tracing::warn!("Failed to activate collection '{}': {}", active, e);
-            }
-        }
+        let issue_type_registry = crate::startup::templates::load_active_registry(
+            &config.tickets_path(),
+            config.templates.active_collection.as_deref(),
+        );
 
         // Initialize notification service
         let notification_service = NotificationService::from_config(&config)?;
@@ -237,7 +229,9 @@ impl App {
         let pr_tracked = pr_monitor.tracked_prs();
 
         // Spawn PR monitor as background task
-        tokio::spawn(async move {
+        let ownership = config.ownership.clone();
+        let pr_task = tokio::spawn(async move {
+            let _ownership = ownership;
             if let Err(e) = pr_monitor.run().await {
                 tracing::error!("PR monitor error: {}", e);
             }
@@ -304,6 +298,7 @@ impl App {
             pr_event_rx,
             pr_tracked,
             pr_shutdown_tx: Some(pr_shutdown_tx),
+            pr_task: Some(pr_task),
             notification_service,
             update_available_version: None,
             update_notification_shown_at: None,
@@ -312,6 +307,16 @@ impl App {
             relay_hub,
             tmux_client,
         })
+    }
+
+    pub async fn shutdown(&mut self) {
+        self.rest_api_server.shutdown().await;
+        if let Some(tx) = self.pr_shutdown_tx.take() {
+            let _ = tx.send(()).await;
+        }
+        if let Some(task) = self.pr_task.take() {
+            let _ = task.await;
+        }
     }
 
     #[allow(clippy::cognitive_complexity)]
@@ -340,12 +345,9 @@ impl App {
                 let port = self.config.rest_api.port;
                 match self.rest_api_server.probe_external().await {
                     ExternalApiProbe::AdoptableSameProject { version, .. } => {
-                        tracing::info!(
-                            port,
-                            %version,
-                            "Adopting existing operator API on this port (same version, same project)"
-                        );
-                        self.rest_api_server.mark_external();
+                        self.rest_api_server.mark_conflict(format!(
+                            "Port {port} already serves operator v{version}; configure a different rest_api.port"
+                        ));
                     }
                     ExternalApiProbe::VersionMismatch { found } => {
                         let reason = format!(

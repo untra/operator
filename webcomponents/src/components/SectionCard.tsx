@@ -1,3 +1,4 @@
+import { HealthIndicator } from "./HealthIndicator";
 import { useMemo, type ReactNode } from "react";
 import type { SectionDto } from "../generated/SectionDto";
 import { BrandIcon } from "./BrandIcon";
@@ -18,7 +19,7 @@ export function SectionCard({ section, renderPrerequisite, brandIconSrc }: Secti
     >
       <details open={section.met}>
         <summary className={styles.header}>
-          <span className={styles.dot} data-health={section.health} />
+          <HealthIndicator health={section.health} />
           <span className={styles.label}>{section.label}</span>
           <span className={styles.description}>{section.description}</span>
           {!section.met && (
@@ -67,7 +68,7 @@ function SectionRow({
   );
   return (
     <li className={styles.row} style={style}>
-      <span className={styles.dot} data-health={row.health} />
+      <HealthIndicator health={row.health} />
       {row.brand_icon && brandIconSrc && <BrandIcon src={brandIconSrc(row.brand_icon)} />}
       <span className={styles.rowLabel}>{row.label}</span>
       {row.description && <span className={styles.rowDesc}>{row.description}</span>}

@@ -15,12 +15,12 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `q` | Quit Operator | Dashboard |
 | `?` | Toggle help | Dashboard |
 | `Tab` | Switch between panels | Dashboard |
-| `j/↓` | Move down | Dashboard |
-| `k/↑` | Move up | Dashboard |
+| `j/Down` | Move down | Dashboard |
+| `k/Up` | Move up | Dashboard |
 | `Q` | Focus Queue panel | Dashboard |
 | `A/a` | Focus Agents panel | Dashboard |
-| `h/←` | Previous panel | Dashboard |
-| `l/→` | Next panel | Dashboard |
+| `h/Left` | Previous panel | Dashboard |
+| `l/Right` | Next panel | Dashboard |
 | `Enter` | Select / Confirm | Dashboard |
 | `Shift+Enter` | Auto-launch (delegator chain) | Dashboard |
 | `Esc` | Cancel / Close | Dashboard |
@@ -40,7 +40,7 @@ Operator uses vim-style keybindings for navigation and actions. This reference d
 | `Enter` | Activate (A) | Status Panel |
 | `Esc/Backspace` | Go back (B) | Status Panel |
 | `Shift+Enter` | Special action (X) * | Status Panel |
-| `Ctrl+Enter` | Refresh (Y) ⟳ | Status Panel |
+| `Ctrl+Enter` | Refresh (Y) | Status Panel |
 | `g` | Scroll to top | Session Preview |
 | `G` | Scroll to bottom | Session Preview |
 | `PgUp` | Page up | Session Preview |
@@ -70,12 +70,12 @@ These shortcuts are available in the main dashboard view.
 | Key | Action |
 | --- | --- |
 | `Tab` | Switch between panels |
-| `j/↓` | Move down |
-| `k/↑` | Move up |
+| `j/Down` | Move down |
+| `k/Up` | Move up |
 | `Q` | Focus Queue panel |
 | `A/a` | Focus Agents panel |
-| `h/←` | Previous panel |
-| `l/→` | Next panel |
+| `h/Left` | Previous panel |
+| `l/Right` | Next panel |
 
 ### Actions
 
@@ -119,7 +119,7 @@ These shortcuts are available when the status panel is focused. Actions use an A
 | --- | --- |
 | `Enter` | Activate (A) |
 | `Shift+Enter` | Special action (X) * |
-| `Ctrl+Enter` | Refresh (Y) ⟳ |
+| `Ctrl+Enter` | Refresh (Y) |
 
 ## Session Preview
 

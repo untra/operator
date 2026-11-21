@@ -75,8 +75,8 @@ impl SupportStatus {
     }
 
     /// Hex color (no `#`) for the shields.io status badge on the maturity page.
-    /// Chosen to read as a maturity ramp: neutral gray → cornflower → amber →
-    /// green, consistent with the brand tokens in `docs/assets/css/tokens.css`.
+    /// Chosen to read as a maturity ramp: neutral gray -> cornflower -> amber -> green
+    /// consistent with the brand tokens in `docs/assets/css/tokens.css`.
     pub fn badge_color(&self) -> &'static str {
         match self {
             SupportStatus::Proto => "6B7280", // neutral gray

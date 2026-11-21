@@ -47,6 +47,9 @@ fn write_lock() -> WriteLock {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct State {
+    #[serde(skip)]
+    #[ts(skip)]
+    ownership: Option<std::sync::Arc<crate::ownership::ResourceGuard>>,
     pub paused: bool,
     pub agents: Vec<AgentState>,
     pub completed: Vec<CompletedTicket>,
@@ -63,7 +66,7 @@ pub struct State {
     #[serde(default)]
     pub multi_agent_groups: Vec<MultiAgentGroup>,
 
-    /// Campaign id → runner bookkeeping
+    /// Campaign id to runner bookkeeping
     #[serde(default)]
     pub campaign_runs: HashMap<String, CampaignRun>,
 
@@ -76,7 +79,7 @@ pub struct State {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct CampaignRun {
-    /// Ticket id → launches made by the runner
+    /// Ticket id to launches made by the runner
     #[serde(default)]
     pub launches: BTreeMap<String, u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -345,6 +348,7 @@ impl State {
 
     fn load_unlocked(config: &Config) -> Result<Self> {
         let state_path = config.state_path();
+        let ownership = Some(crate::ownership::state_guard(&state_path)?);
         fs::create_dir_all(&state_path).context("Failed to create state directory")?;
 
         let state_file = state_path.join(STATE_FILE);
@@ -354,9 +358,11 @@ impl State {
             let mut state: State =
                 serde_json::from_str(&contents).context("Failed to parse state file")?;
             state.state_path = state_path;
+            state.ownership = ownership;
             Ok(state)
         } else {
             Ok(Self {
+                ownership,
                 paused: false,
                 agents: Vec::new(),
                 completed: Vec::new(),
@@ -388,6 +394,7 @@ impl State {
 
     /// Write via a sibling temp file and rename
     fn write_unlocked(&self) -> Result<()> {
+        let _ownership = crate::ownership::state_guard(&self.state_path)?;
         let state_file = self.state_path.join(STATE_FILE);
         let temp_file = self.state_path.join(STATE_TEMP_FILE);
         let contents = serde_json::to_string_pretty(self)?;
@@ -1091,8 +1098,6 @@ impl State {
             .collect()
     }
 
-    // ─── Collection Preferences Methods ──────────────────────────────────────────
-
     /// Get the preferred collection for a project
     pub fn get_project_collection(&self, project: &str) -> Option<&str> {
         self.project_collection_prefs
@@ -1120,8 +1125,6 @@ impl State {
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect()
     }
-
-    // ── Multi-agent group management ────────────────────────────────
 
     /// Create a new multi-agent group with all sub-agents still pending.
     ///
@@ -1301,8 +1304,6 @@ mod tests {
         config
     }
 
-    // ─── Persistence Concurrency Tests ───────────────────────────────────────────
-
     /// The defect `mutate` exists to prevent: a writer holding a handle loaded
     /// before someone else's commit writes its whole snapshot back and silently
     /// discards that commit. Shutdown bookkeeping racing a completion write hit
@@ -1427,8 +1428,6 @@ mod tests {
             reloaded.project_collection_prefs
         );
     }
-
-    // ─── Load/Save Tests ─────────────────────────────────────────────────────────
 
     #[test]
     fn test_agent_remote_host_roundtrip_and_legacy_default() {
@@ -1559,8 +1558,6 @@ mod tests {
         assert_eq!(state2.agents[0].ticket_id, "FEAT-001");
     }
 
-    // ─── Agent Add/Remove Tests ──────────────────────────────────────────────────
-
     #[test]
     fn test_add_agent_generates_uuid() {
         let temp_dir = TempDir::new().unwrap();
@@ -1656,8 +1653,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // ─── Agent Status Tests ──────────────────────────────────────────────────────
-
     #[test]
     fn test_update_agent_status() {
         let temp_dir = TempDir::new().unwrap();
@@ -1741,8 +1736,6 @@ mod tests {
         assert_eq!(awaiting.len(), 1);
         assert_eq!(awaiting[0].id, proof_id);
     }
-
-    // ─── Agent Query Tests ───────────────────────────────────────────────────────
 
     #[test]
     fn test_agent_by_ticket_found() {
@@ -1871,8 +1864,6 @@ mod tests {
         assert_eq!(state.project_agent_count("test-project"), 0);
     }
 
-    // ─── Step Completion Tests ───────────────────────────────────────────────────
-
     #[test]
     fn test_complete_step_adds_to_list() {
         let temp_dir = TempDir::new().unwrap();
@@ -1914,8 +1905,6 @@ mod tests {
         // Should only have one entry
         assert_eq!(state.agents[0].completed_steps.len(), 1);
     }
-
-    // ─── Agent Completion Tests ──────────────────────────────────────────────────
 
     #[test]
     fn test_complete_agent_moves_to_completed() {
@@ -1980,8 +1969,6 @@ mod tests {
         // Last ticket should be present
         assert_eq!(state.completed[99].ticket_id, "FEAT-100");
     }
-
-    // ─── Agent Tool and Model Tests ─────────────────────────────────────────────
 
     #[test]
     fn test_update_agent_tool_and_model() {
@@ -2135,8 +2122,6 @@ mod tests {
         let result = state.update_agent_tool_and_model("nonexistent-id", "gemini", "pro");
         assert!(result.is_ok());
     }
-
-    // ─── Multi-agent group tests ────────────────────────────────────────
 
     fn pending(variant: &str, delegator: &str) -> PendingSubAgent {
         PendingSubAgent {
@@ -2390,8 +2375,6 @@ mod tests {
         assert_eq!(agent.llm_model, Some("sonnet".to_string()));
         assert_eq!(agent.status, "running");
     }
-
-    // ─── Step Launch Context Tests ───────────────────────────────────────────
 
     #[test]
     fn test_step_launch_context_roundtrip() {

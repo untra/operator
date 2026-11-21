@@ -21,7 +21,9 @@ Favor falsey defaults ; lets aim not to enforce `default=true` or some other jav
 
 ### Comments
 
-Code comments are terse, short and punctual. Comments should not refer to implementation or current wip status.
+Avoid using comments in function body code.
+Code comments are terse, short and punctual.
+Comments should not refer to implementation or current wip status.
 
 ## Plans & Specs Location
 
@@ -57,25 +59,15 @@ make test-rust         # cargo test --locked --all-features, all 3 crates
 make test-ts           # webcomponents + coder-module suites
 ```
 
-`make fmt` is the same striping in rewrite mode (`cargo fmt`, `bun run fmt`,
-`terraform fmt`); only `fmt-check` gates. `make relay` / `make opr8r` /
-`make vscode-extension` run every gate for one module when only it changed.
-Display-bound suites stay off `make test`: `make vscode-extension` (Electron)
-and `make storybook` (browser + axe) are run on their own.
+`make fmt` is the same striping in rewrite mode (`cargo fmt`, `bun run fmt`); only `fmt-check` gates. `make relay` / `make opr8r` / `make vscode-extension` run every gate for one module when only it changed.
+Display-bound suites stay off `make test`: `make vscode-extension`  and `make storybook` (browser + axe) are run on their own.
 
-Formatting and linting are enforced for every subproject, not just the main
-crate. Rust uses `cargo fmt`/`clippy` (root, `crates/relay`, `opr8r`,
-`zed-extension`), JS/TS uses root-installed `oxfmt` + `oxlint` (`ui`,
-`webcomponents`, `vscode-extension`, `agnt-plugin`, the `coder-module` test
-harness), Terraform uses `terraform fmt`, charts use `helm lint`, and shell
-scripts use `shellcheck`. `bun run fmt` rewrites; `bun run fmt:check` reports.
-Generated output (`bindings/`, `shared/types.ts`, each `*/generated/`) is
-excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
+Formatting and linting are enforced for every subproject, not just the main crate.
+Rust uses `cargo fmt`/`clippy` (root, `crates/relay`, `opr8r`, `zed-extension`), JS/TS uses root-installed `oxfmt` + `oxlint` (`ui`, `webcomponents`, `vscode-extension`, `agnt-plugin`, the `coder-module` test harness), Terraform uses `terraform fmt`, charts use `helm lint`, and shell scripts use `shellcheck`. `bun run fmt` rewrites; `bun run fmt:check` reports.
+Generated output (`bindings/`, `shared/types.ts`, each `*/generated/`) is excluded by `.oxfmtrc.json` / `.oxlintrc.jsonc` and must never be reformatted.
 
 > The `--locked --all-targets --all-features` flags matter: plain
-> `cargo clippy` misses test-target and feature-gated lints (e.g. a dependency
-> deprecation that only surfaces under `--all-targets`), which is how a clippy
-> failure can pass locally yet break CI. Always use the full command above.
+> `cargo clippy` misses test-target and feature-gated lints (e.g. a dependency deprecation that only surfaces under `--all-targets`), which is how a clippy failure can pass locally yet break CI. Always use the full command above.
 
 If any of these fail, fix the issues before proceeding. Do NOT use `#[allow(...)]` attributes to silence warnings unless there's a documented reason (e.g., code used only in tests).
 
@@ -184,10 +176,6 @@ site), `collections/community/`.
 
 ## Key Concepts
 
-### Ticket Priority
-Queue order is `queue.priority_order` (default INV > FIX > TASK > FEAT > SPIKE), then FIFO.
-Issue types are schema-driven (collections + customm templates), not a fixed set.
-
 ### Agent Modes
 Execution mode is declared per issue type (`mode` in the issuetype schema):
 - **Autonomous** (e.g. FEAT, FIX, TASK): launch and monitor progress
@@ -229,8 +217,7 @@ Per-ticket git worktrees are prepared by `launcher/worktree_setup.rs`.
 ## Notifications
 
 Dispatched through `src/notifications/service.rs` to the enabled integrations:
-OS notifications (mac-notification-sys on macOS, notify-rust on Linux) and
-webhooks.
+OS notifications (mac-notification-sys on macOS, notify-rust on Linux) and webhooks.
 
 ## Project Discovery
 
@@ -315,9 +302,9 @@ Operator presents one brand (terracotta + cornflower + cream over a green scale)
 | Docs site (Jekyll) | `docs/assets/css/main.css` | Links `tokens.css` (via `_includes/head.html`); style components with `var(--...)`, never raw hex. |
 | Embedded SPA (Vite/React) | `ui/src/index.css` + `*.module.css` | Imports `tokens.css`; layers app-only semantic tokens (`--surface`, `--border`, `--danger`, …) on top. Components reference semantic tokens, not raw hex. |
 | Ratatui TUI | `src/ui/*.rs` | Terminal can't render hex - match a **semantic role to ANSI** (danger=Red, success=Green, warning=Yellow, focus=Cyan). Reuse `color_for_key`/`glyph_for_key` from `src/templates/mod.rs`; don't re-hardcode issuetype/priority colors. |
-| VS Code webview | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme**: style with raw `var(--vscode-*)` custom properties (`styles/webview.css` + `components/primitives/`). Apply brand only as accents via the `--op-*` variables; never override the user's editor theme wholesale. No MUI/CSS-in-JS - enforced by `tests/ui_packaging.rs`. |
+| VS Code webview | `vscode-extension/webview-ui/` | **Defer to the VS Code host theme**: style with raw `var(--vscode-*)` custom properties (`styles/webview.css` + `components/primitives/`). Apply brand only as accents via the `--op-*` variables; never override the user's editor theme wholesale. No MUI/CSS-in-JS - enforced by `tests/it/suites/ui_packaging.rs`. |
 
 When adding or changing UI: change a brand color in `tokens.css` (web surfaces follow automatically); reference semantic tokens in new web CSS; map a role to ANSI in the TUI; and leave the webview deferring to the editor theme.
 
 **Icons.** Every SVG icon follows the Operator icon standard - a single monochrome `<path>` on a 24×24 canvas with no `fill`/`stroke`/`width`/`height`, so it tints from `currentColor` and sizes to its container on all four surfaces. Governed directories: `icons/`, `docs/assets/icons/`, `ui/public/icons/`, and each collection's `icon.svg`.
-Enforced by `cargo test --test svg_icon_standard`; the rules and rationale are in `docs/design-system/`.
+Enforced by `cargo test --test it suites::svg_icon_standard::`; the rules and rationale are in `docs/design-system/`.

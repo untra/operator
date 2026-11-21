@@ -82,6 +82,12 @@ suite("Integration Test Suite", () => {
       "http://localhost:7008",
       "Default API URL should be http://localhost:7008",
     );
+
+    assert.strictEqual(
+      config.get<string>("connectionMode"),
+      "local",
+      "Default connection mode should be local",
+    );
   });
 
   test("Views are registered in sidebar", () => {

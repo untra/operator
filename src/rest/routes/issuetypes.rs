@@ -4,8 +4,9 @@
 //! collection, an optional `?collection=` scopes lookups, and writes land in
 //! the collection-scoped store (`.tickets/templates/<collection>/`).
 
+use crate::rest::state::RequestState as State;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, Query},
     Json,
 };
 use serde::Deserialize;

@@ -21,27 +21,45 @@
     "tool_name": {
       "type": "string",
       "description": "The binary/command name used to invoke this tool. Must match the executable name in PATH (unless detection.mode is \"always\", where it is used verbatim as the invocation path).",
-      "examples": ["claude", "gemini", "codex"]
+      "examples": [
+        "claude",
+        "gemini",
+        "codex"
+      ]
     },
     "display_name": {
       "type": "string",
       "description": "Human-readable name shown in the UI. If omitted, tool_name is used.",
-      "examples": ["Claude Code", "Google Gemini", "OpenAI Codex"]
+      "examples": [
+        "Claude Code",
+        "Google Gemini",
+        "OpenAI Codex"
+      ]
     },
     "version_command": {
       "type": "string",
       "description": "Shell command to retrieve the tool's version. Used during detection to verify the tool is installed and working.",
-      "examples": ["claude --version", "gemini --version", "codex --version"]
+      "examples": [
+        "claude --version",
+        "gemini --version",
+        "codex --version"
+      ]
     },
     "min_version": {
       "type": "string",
       "description": "Minimum required version for Operator compatibility. Operator will warn if installed version is below this. Uses semver comparison.",
-      "examples": ["1.0.34", "0.1.0", "2.0.0"]
+      "examples": [
+        "1.0.34",
+        "0.1.0",
+        "2.0.0"
+      ]
     },
     "capabilities": {
       "type": "object",
       "description": "Declares what features this tool supports. Operator uses these to determine available functionality.",
-      "required": ["supports_sessions"],
+      "required": [
+        "supports_sessions"
+      ],
       "additionalProperties": true,
       "properties": {
         "supports_sessions": {
@@ -78,46 +96,76 @@
       },
       "minItems": 1,
       "examples": [
-        ["opus", "sonnet", "haiku"],
-        ["pro", "flash", "ultra"],
-        ["gpt-4o", "o1", "o3"]
+        [
+          "opus",
+          "sonnet",
+          "haiku"
+        ],
+        [
+          "pro",
+          "flash",
+          "ultra"
+        ],
+        [
+          "gpt-4o",
+          "o1",
+          "o3"
+        ]
       ]
     },
     "arg_mapping": {
       "type": "object",
       "description": "Maps logical argument names to the tool's actual CLI flags. Used when building commands.",
-      "required": ["model"],
+      "required": [
+        "model"
+      ],
       "additionalProperties": true,
       "properties": {
         "prompt": {
           "type": "string",
           "description": "Flag for passing the prompt/instruction text.",
-          "examples": ["-p", "--prompt"]
+          "examples": [
+            "-p",
+            "--prompt"
+          ]
         },
         "model": {
           "type": "string",
           "description": "Flag for selecting the model to use.",
-          "examples": ["--model", "-m"]
+          "examples": [
+            "--model",
+            "-m"
+          ]
         },
         "session_id": {
           "type": "string",
           "description": "Flag for specifying session ID for continuity.",
-          "examples": ["--session-id", "--resume"]
+          "examples": [
+            "--session-id",
+            "--resume"
+          ]
         },
         "quiet": {
           "type": "string",
           "description": "Flag for quiet/non-interactive output mode.",
-          "examples": ["-q", "--output-format json"]
+          "examples": [
+            "-q",
+            "--output-format json"
+          ]
         },
         "permission_mode": {
           "type": "string",
           "description": "Flag for setting permission mode. Claude-specific.",
-          "examples": ["--permission-mode"]
+          "examples": [
+            "--permission-mode"
+          ]
         },
         "json_schema": {
           "type": "string",
           "description": "Flag for providing JSON schema for structured output.",
-          "examples": ["--json-schema"]
+          "examples": [
+            "--json-schema"
+          ]
         }
       }
     },
@@ -127,7 +175,7 @@
       "examples": [
         "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
         "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
-        "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\""
+        "codex exec {{config_flags}}{{model_flag}} \"$(cat {{prompt_file}})\""
       ]
     },
     "permission_modes": {
@@ -135,9 +183,21 @@
       "description": "List of supported permission modes. Only relevant if capabilities.supports_permission_mode is true.",
       "items": {
         "type": "string",
-        "enum": ["default", "plan", "acceptEdits", "delegate"]
+        "enum": [
+          "default",
+          "plan",
+          "acceptEdits",
+          "delegate"
+        ]
       },
-      "examples": [["default", "plan", "acceptEdits", "delegate"]]
+      "examples": [
+        [
+          "default",
+          "plan",
+          "acceptEdits",
+          "delegate"
+        ]
+      ]
     },
     "yolo_flags": {
       "type": "array",
@@ -147,9 +207,16 @@
       },
       "default": [],
       "examples": [
-        ["--dangerously-skip-permissions"],
-        ["--auto-approve", "-y"],
-        ["--full-auto"]
+        [
+          "--dangerously-skip-permissions"
+        ],
+        [
+          "--auto-approve",
+          "-y"
+        ],
+        [
+          "--full-auto"
+        ]
       ]
     },
     "detection": {
@@ -159,14 +226,20 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["which", "always"],
+          "enum": [
+            "which",
+            "always"
+          ],
           "default": "which",
           "description": "\"which\" gates detection on the binary being found in PATH, and that verified presence earns the tool its health. \"always\" skips the PATH lookup and uses tool_name verbatim as the invocation path - for tools not installed locally (e.g. invoked over SSH) or binaries without a stable PATH entry; because nothing is locally verifiable, an always-mode tool is unhealthy until a health_command passes."
         },
         "health_command": {
           "type": "string",
           "description": "Health check run at every startup. Health is earned, never assumed: which-mode tools must still be on PATH and pass this command if set; always-mode tools require this command to be set and pass. An unhealthy tool stays listed but cannot be launched locally.",
-          "examples": ["agy ping", "ssh gpu-vm command -v agy"]
+          "examples": [
+            "agy ping",
+            "ssh gpu-vm command -v agy"
+          ]
         }
       }
     },
@@ -178,35 +251,50 @@
         "idle_patterns": {
           "type": "array",
           "description": "Regex patterns that indicate the tool is idle/waiting for input (e.g. prompt characters).",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": []
         },
         "activity_patterns": {
           "type": "array",
           "description": "Regex patterns that indicate the tool is actively working (spinners, status messages).",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": []
         },
         "hook_config": {
           "type": "object",
           "description": "Hook configuration for tools that support completion hooks.",
-          "required": ["event_name", "script_path", "settings_path"],
+          "required": [
+            "event_name",
+            "script_path",
+            "settings_path"
+          ],
           "additionalProperties": false,
           "properties": {
             "event_name": {
               "type": "string",
               "description": "Hook event name.",
-              "examples": ["Stop", "AfterAgent"]
+              "examples": [
+                "Stop",
+                "AfterAgent"
+              ]
             },
             "script_path": {
               "type": "string",
               "description": "Path to the hook script.",
-              "examples": ["~/.claude/hooks/operator-stop.sh"]
+              "examples": [
+                "~/.claude/hooks/operator-stop.sh"
+              ]
             },
             "settings_path": {
               "type": "string",
               "description": "Settings file path for this tool.",
-              "examples": ["~/.claude/settings.json"]
+              "examples": [
+                "~/.claude/settings.json"
+              ]
             }
           }
         }
@@ -219,17 +307,27 @@
         "global": {
           "type": "array",
           "description": "Global skill directories (absolute paths, ~ expanded to home). Shared across all projects.",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": []
         },
         "project": {
           "type": "array",
           "description": "Project-relative skill directories. Resolved relative to working directory.",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": []
         }
       },
       "additionalProperties": false
+    },
+    "telemetry_env": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
     }
   },
   "examples": [
@@ -244,7 +342,11 @@
         "supports_permission_mode": true,
         "supports_json_schema": true
       },
-      "model_aliases": ["opus", "sonnet", "haiku"],
+      "model_aliases": [
+        "opus",
+        "sonnet",
+        "haiku"
+      ],
       "arg_mapping": {
         "prompt": "-p",
         "model": "--model",
@@ -252,9 +354,16 @@
         "permission_mode": "--permission-mode",
         "json_schema": "--json-schema"
       },
-      "permission_modes": ["default", "plan", "acceptEdits", "delegate"],
+      "permission_modes": [
+        "default",
+        "plan",
+        "acceptEdits",
+        "delegate"
+      ],
       "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
-      "yolo_flags": ["--dangerously-skip-permissions"]
+      "yolo_flags": [
+        "--dangerously-skip-permissions"
+      ]
     }
   ]
 }

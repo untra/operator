@@ -51,6 +51,20 @@ export { PageHeader } from "./components/PageHeader";
 export type { PageHeaderProps } from "./components/PageHeader";
 export { RightPanel } from "./components/RightPanel";
 export type { RightPanelProps } from "./components/RightPanel";
+export { HealthDot } from "./components/HealthDot";
+export {
+  ModelProviderCard,
+  ModelProviderChoices,
+  probeStatusLabel,
+} from "./components/ModelProviderChoices";
+export type {
+  ModelProviderCardProps,
+  ModelProviderChoice,
+  ModelProviderChoicesProps,
+  ProbeLabel,
+  ProbeState,
+} from "./components/ModelProviderChoices";
+export type { HealthDotProps } from "./components/HealthDot";
 export { SectionCard } from "./components/SectionCard";
 export type { SectionCardProps } from "./components/SectionCard";
 export { TicketDetailView } from "./components/TicketDetailView";
@@ -96,3 +110,4 @@ export {
   type SessionAgent,
   type SessionTarget,
 } from "./shared/ticket-links";
+export { PermissionSelector, type PermissionSelectorProps } from "./components/PermissionSelector";

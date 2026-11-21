@@ -1,0 +1,136 @@
+groups:
+  - id: registry.operator.claude_code
+    type: "attribute_group"
+    brief: "Reviewed telemetry attributes."
+    attributes:
+      - id: session.id
+        type: "string"
+        brief: "Session id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: organization.id
+        type: "string"
+        brief: "Organization id."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "internal"}}
+      - id: terminal.type
+        type: "string"
+        brief: "Terminal type."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: model
+        type: "string"
+        brief: "Model."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: tool_name
+        type: "string"
+        brief: "Tool name."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: prompt
+        type: "string"
+        brief: "Prompt."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: tool_parameters
+        type: "string"
+        brief: "Tool parameters."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: tool_result
+        type: "string"
+        brief: "Tool result."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: error
+        type: "string"
+        brief: "Error."
+        stability: "development"
+        examples: ["example"]
+        annotations: {"operator": {"redaction_class": "content"}}
+      - id: duration_ms
+        type: "int"
+        brief: "Duration ms."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: input_tokens
+        type: "int"
+        brief: "Input tokens."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: output_tokens
+        type: "int"
+        brief: "Output tokens."
+        stability: "development"
+        examples: [1]
+        annotations: {"operator": {"redaction_class": "public"}}
+      - id: cost_usd
+        type: "double"
+        brief: "Cost usd."
+        stability: "development"
+        examples: [0.5]
+        annotations: {"operator": {"redaction_class": "public"}}
+  - id: event.claude_code.user_prompt
+    type: "event"
+    name: "claude_code.user_prompt"
+    brief: "Claude code user prompt."
+    stability: "development"
+    attributes:
+      - ref: session.id
+      - ref: user.email
+      - ref: prompt
+  - id: event.claude_code.tool_result
+    type: "event"
+    name: "claude_code.tool_result"
+    brief: "Claude code tool result."
+    stability: "development"
+    attributes:
+      - ref: session.id
+      - ref: user.email
+      - ref: tool_name
+      - ref: tool_parameters
+      - ref: tool_result
+      - ref: duration_ms
+  - id: event.claude_code.api_request
+    type: "event"
+    name: "claude_code.api_request"
+    brief: "Claude code api request."
+    stability: "development"
+    attributes:
+      - ref: session.id
+      - ref: user.email
+      - ref: model
+      - ref: input_tokens
+      - ref: output_tokens
+      - ref: cost_usd
+      - ref: duration_ms
+  - id: event.claude_code.api_error
+    type: "event"
+    name: "claude_code.api_error"
+    brief: "Claude code api error."
+    stability: "development"
+    attributes:
+      - ref: session.id
+      - ref: user.email
+      - ref: model
+      - ref: error
+  - id: event.claude_code.tool_decision
+    type: "event"
+    name: "claude_code.tool_decision"
+    brief: "Claude code tool decision."
+    stability: "development"
+    attributes:
+      - ref: session.id
+      - ref: user.email
+      - ref: tool_name

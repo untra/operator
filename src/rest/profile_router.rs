@@ -51,7 +51,14 @@ async fn dispatch(
         return ApiError::BadRequest("Invalid configuration route".into()).into_response();
     };
     parts.uri = uri;
+    let peer = parts
+        .extensions
+        .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+        .copied();
     parts.extensions.clear();
+    if let Some(peer) = peer {
+        parts.extensions.insert(peer);
+    }
     let request = Request::from_parts(parts, body);
     let router = super::build_profile_router(state);
     match router.oneshot(request).await {

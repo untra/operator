@@ -48,7 +48,7 @@ export function DashboardView({
         <span className={styles.statusLink}>{statusLink}</span>
       </div>
       {error && <div className={styles.error}>API: {error}</div>}
-      {loading && <div className={styles.loading}>Loading dashboard…</div>}
+      {loading && <div className={styles.loading}>Loading dashboard...</div>}
       <div className={styles.cards}>
         {metrics.map(([label, value]) => (
           <div className={styles.card} key={label}>

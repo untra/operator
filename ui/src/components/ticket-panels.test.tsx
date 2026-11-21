@@ -10,7 +10,7 @@ import { RightPanelProvider } from "../right-panel";
 import { mockFetch, requestBody, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { TicketCreatePanel } = await import("./TicketCreatePanel");
 const { TicketDetailPanel } = await import("./TicketDetailPanel");
@@ -81,7 +81,8 @@ describe("ticket panels", () => {
     const request = requests.find((item) => item.path.endsWith("/tickets"));
     expect(request?.method).toBe("POST");
     expect(JSON.parse(request?.body ?? "{}")).toEqual({
-      template: "TASK",
+      issue_type: "TASK",
+      sync_to_kanban: null,
       project: "operator",
       summary: "Test",
       values: {},

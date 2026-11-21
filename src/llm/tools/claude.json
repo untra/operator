@@ -11,7 +11,11 @@
     "supports_permission_mode": true,
     "supports_json_schema": true
   },
-  "model_aliases": ["opus", "sonnet", "haiku"],
+  "model_aliases": [
+    "opus",
+    "sonnet",
+    "haiku"
+  ],
   "arg_mapping": {
     "prompt": "-p",
     "model": "--model",
@@ -19,11 +23,29 @@
     "permission_mode": "--permission-mode",
     "json_schema": "--json-schema"
   },
-  "permission_modes": ["default", "plan", "acceptEdits", "delegate"],
+  "permission_modes": [
+    "default",
+    "plan",
+    "acceptEdits",
+    "delegate"
+  ],
   "command_template": "claude {{config_flags}}{{model_flag}}--session-id {{session_id}} \"$(cat {{prompt_file}})\"",
-  "yolo_flags": ["--dangerously-skip-permissions"],
+  "yolo_flags": [
+    "--dangerously-skip-permissions"
+  ],
   "skill_directories": {
-    "global": ["~/.claude/commands/"],
-    "project": [".claude/commands/"]
+    "global": [
+      "~/.claude/commands/"
+    ],
+    "project": [
+      ".claude/commands/"
+    ]
+  },
+  "telemetry_env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_TRACES_EXPORTER": "otlp",
+    "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1"
   }
 }

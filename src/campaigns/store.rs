@@ -116,13 +116,13 @@ fn read_campaign(path: &Path) -> Result<Campaign> {
     let end = after_open
         .find("\n---")
         .context("campaign frontmatter is not closed")?;
-    let mut campaign: Campaign = serde_yaml::from_str(&after_open[..end])?;
+    let mut campaign: Campaign = serde_saphyr::from_str(&after_open[..end])?;
     campaign.body = after_open[end + 4..].trim_start_matches('\n').to_string();
     Ok(campaign)
 }
 
 fn write_campaign(path: &Path, campaign: &Campaign) -> Result<()> {
-    let yaml = serde_yaml::to_string(campaign).context("Failed to serialize campaign")?;
+    let yaml = serde_saphyr::to_string(campaign).context("Failed to serialize campaign")?;
     fs::write(path, format!("---\n{yaml}---\n\n{}", campaign.body))
         .context("Failed to write campaign file")
 }

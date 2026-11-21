@@ -11,6 +11,7 @@ import { ConfigPage } from "./routes/ConfigPage";
 import { IssueTypesPage } from "./routes/IssueTypesPage";
 import { QueuePage } from "./routes/QueuePage";
 import { StatusPage } from "./routes/StatusPage";
+import { ConnectionsPage } from "./routes/ConnectionsPage";
 import { SectionPage } from "./routes/SectionPage";
 import { AgentDetailPage } from "./routes/AgentDetailPage";
 import { ModelProvidersPage } from "./routes/ModelProvidersPage";
@@ -28,8 +29,11 @@ import { RemoteTargetsPage } from "./routes/RemoteTargetsPage";
 import { CampaignsPage } from "./routes/CampaignsPage";
 import { CampaignDetailPage } from "./routes/CampaignDetailPage";
 import { TicketPage } from "./routes/TicketPage";
+import { LicenseReturnPage } from "./routes/LicenseReturnPage";
+import { rewriteLicenseFragment } from "./license-return";
 
 const host = createBrowserHost();
+rewriteLicenseFragment();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -45,6 +49,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="setup" element={<SetupPage />} />
             <Route element={<ProfilesProvider />}>
               <Route path="onboarding" element={<OnboardingPage />} />
+              <Route path="license/return" element={<LicenseReturnPage />} />
               <Route element={<WorkspaceGate />}>
                 <Route element={<Layout />}>
                   <Route path="device" element={<DevicePage />} />
@@ -55,7 +60,7 @@ createRoot(document.getElementById("root")!).render(
                   <Route path="campaigns/:id" element={<CampaignDetailPage />} />
                   <Route index element={<DashboardPage />} />
                   <Route path="config" element={<ConfigPage />} />
-                  <Route path="connections" element={<SectionPage conceptKey="connections" />} />
+                  <Route path="connections" element={<ConnectionsPage />} />
                   <Route path="kanban" element={<SectionPage conceptKey="kanban" />} />
                   <Route path="llm" element={<SectionPage conceptKey="llm" />} />
                   <Route path="model-providers" element={<ModelProvidersPage />} />

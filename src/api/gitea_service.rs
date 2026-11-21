@@ -17,6 +17,7 @@ const MAX_PAGES: usize = 1000;
 
 pub struct GiteaService {
     cli: TeaCli,
+    provider: crate::types::pr::GitProvider,
     wip_prefix: String,
 }
 
@@ -57,6 +58,20 @@ impl GiteaService {
         Self {
             wip_prefix: config.wip_prefix.clone(),
             cli: TeaCli::new(config),
+            provider: crate::types::pr::GitProvider::Gitea,
+        }
+    }
+
+    pub fn forgejo(config: crate::config::ForgejoConfig) -> Self {
+        Self {
+            wip_prefix: config.wip_prefix.clone(),
+            cli: TeaCli::new(GiteaConfig {
+                enabled: config.enabled,
+                host: Some(config.host.unwrap_or_else(|| "https://codeberg.org".into())),
+                token_env: config.token_env,
+                wip_prefix: config.wip_prefix,
+            }),
+            provider: crate::types::pr::GitProvider::Forgejo,
         }
     }
 
@@ -120,7 +135,7 @@ impl GiteaService {
 #[async_trait]
 impl PrService for GiteaService {
     fn provider_name(&self) -> &'static str {
-        "gitea"
+        self.provider.slug()
     }
     async fn check_available(&self) -> Result<bool> {
         if !self.cli.available().await {
@@ -376,8 +391,12 @@ mod tests {
         const CHILD: &str = "OPERATOR_GITEA_CONTRACT_CHILD";
         if std::env::var_os(CHILD).is_some() {
             tokio::runtime::Runtime::new().unwrap().block_on(async {
-                let service = GiteaService::new(GiteaConfig::default());
-                let repo = RepoInfo::new(crate::types::pr::GitProvider::Gitea, "team", "repo");
+                let service = if std::env::var(CHILD).unwrap() == "forgejo" {
+                    GiteaService::forgejo(crate::config::ForgejoConfig::default())
+                } else {
+                    GiteaService::new(GiteaConfig::default())
+                };
+                let repo = RepoInfo::new(service.provider, "team", "repo");
                 assert!(service.check_available().await.unwrap());
                 assert_eq!(service.get_authenticated_user().await.unwrap(), "agent");
                 assert_eq!(service.get_pr(&repo, 1).await.unwrap().number, 1);
@@ -444,30 +463,33 @@ esac
 "#;
         crate::git::runtime::private_file(&root.path().join("tea"), script.as_bytes(), true)
             .unwrap();
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "api::gitea_service::tests::cli_contract",
-                "--nocapture",
-            ])
-            .env(CHILD, "1")
-            .env("GITEA_TOKEN", "contract-secret")
-            .env(
-                "PATH",
-                format!(
-                    "{}:{}",
-                    root.path().display(),
-                    std::env::var("PATH").unwrap_or_default()
-                ),
-            )
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert!(!String::from_utf8_lossy(&output.stdout).contains("contract-secret"));
+        for provider in ["gitea", "forgejo"] {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "api::gitea_service::tests::cli_contract",
+                    "--nocapture",
+                ])
+                .env(CHILD, provider)
+                .env("FORGEJO_TOKEN", "contract-secret")
+                .env("GITEA_TOKEN", "contract-secret")
+                .env(
+                    "PATH",
+                    format!(
+                        "{}:{}",
+                        root.path().display(),
+                        std::env::var("PATH").unwrap_or_default()
+                    ),
+                )
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(!String::from_utf8_lossy(&output.stdout).contains("contract-secret"));
+        }
     }
 }

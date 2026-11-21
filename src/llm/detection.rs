@@ -305,6 +305,7 @@ mod tests {
         health_command: Option<&str>,
     ) -> ToolConfig {
         ToolConfig {
+            telemetry_env: std::collections::BTreeMap::new(),
             tool_name: tool_name.to_string(),
             display_name: None,
             version_command: format!("{tool_name} --version"),

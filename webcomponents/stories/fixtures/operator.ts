@@ -1,3 +1,4 @@
+import type { ProjectSummary } from "../../src/generated/ProjectSummary";
 import type { DelegatorResponse } from "../../src/generated/DelegatorResponse";
 import type { HealthResponse } from "../../src/generated/HealthResponse";
 import type { IssueType } from "../../src/generated/IssueType";
@@ -405,3 +406,23 @@ export const manifestEntries = [
   { key: "NOTE", schema_path: "issuetypes/NOTE.json" },
   { key: "RELEASE", schema_path: "issuetypes/RELEASE.json" },
 ];
+
+export const projectSummary: ProjectSummary = {
+  project_name: "operator",
+  project_path: "/projects/operator",
+  exists: true,
+  has_catalog_info: false,
+  has_project_context: false,
+  kind: null,
+  kind_confidence: null,
+  kind_tier: null,
+  languages: [],
+  frameworks: [],
+  databases: [],
+  has_docker: null,
+  has_tests: null,
+  ports: [],
+  env_var_count: 0,
+  entry_point_count: 0,
+  commands: [],
+};

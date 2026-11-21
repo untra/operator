@@ -41,7 +41,7 @@ impl App {
     /// concurrent writers are not clobbered). Pick the result back up, or the
     /// next `self.config.save()` would write the section away again.
     fn reload_config_after_kanban_write(&mut self) {
-        match crate::config::Config::load(None) {
+        match self.config.reload_owned() {
             Ok(fresh) => self.config = fresh,
             Err(e) => tracing::warn!(error = %e, "Failed to reload config after kanban write"),
         }
@@ -80,6 +80,7 @@ impl App {
 
                 // Validate
                 let req = ValidateKanbanCredentialsRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(JiraCredentials {
                         domain: domain.clone(),
@@ -115,6 +116,7 @@ impl App {
 
                 // Now list projects
                 let list_req = ListKanbanProjectsRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(JiraCredentials {
                         domain,
@@ -155,6 +157,7 @@ impl App {
                 });
 
                 let req = ValidateKanbanCredentialsRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Linear,
                     jira: None,
                     linear: Some(LinearCredentials {
@@ -254,6 +257,7 @@ impl App {
 
                 // Write config
                 let write_req = WriteKanbanConfigRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(WriteJiraConfigBody {
                         domain: creds.domain.clone(),
@@ -274,6 +278,7 @@ impl App {
 
                 // Set session env
                 let env_req = SetKanbanSessionEnvRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Jira,
                     jira: Some(JiraSessionEnv {
                         domain: creds.domain,
@@ -284,7 +289,8 @@ impl App {
                     linear: None,
                     github: None,
                 };
-                let env_resp = kanban_onboarding::set_session_env(env_req);
+                let env_resp = kanban_onboarding::set_session_env(env_req)
+                    .map_err(|error| anyhow::anyhow!("{error:?}"))?;
 
                 // Sync issue types (best effort - non-fatal)
                 self.try_sync_kanban_issue_types("jira", &project_key).await;
@@ -307,6 +313,7 @@ impl App {
                 let workspace_key = project_key.clone();
 
                 let write_req = WriteKanbanConfigRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Linear,
                     jira: None,
                     linear: Some(WriteLinearConfigBody {
@@ -324,6 +331,7 @@ impl App {
                 self.reload_config_after_kanban_write();
 
                 let env_req = SetKanbanSessionEnvRequest {
+                    gitea: None,
                     provider: KanbanProviderKind::Linear,
                     jira: None,
                     linear: Some(LinearSessionEnv {
@@ -332,7 +340,8 @@ impl App {
                     }),
                     github: None,
                 };
-                let env_resp = kanban_onboarding::set_session_env(env_req);
+                let env_resp = kanban_onboarding::set_session_env(env_req)
+                    .map_err(|error| anyhow::anyhow!("{error:?}"))?;
 
                 self.try_sync_kanban_issue_types("linear", &project_key)
                     .await;
@@ -350,11 +359,10 @@ impl App {
     /// Non-fatal - onboarding succeeds even if the sync fails.
     async fn try_sync_kanban_issue_types(&mut self, provider: &str, project_key: &str) {
         use crate::api::providers::kanban::get_provider_from_config;
-        use crate::config::Config;
         use crate::services::kanban_issuetype_service::KanbanIssueTypeService;
 
         // Reload fresh config from disk so the just-written provider is found.
-        let fresh_config = match Config::load(None) {
+        let fresh_config = match self.config.reload_owned() {
             Ok(c) => c,
             Err(e) => {
                 tracing::warn!("Could not reload config for issue type sync: {}", e);

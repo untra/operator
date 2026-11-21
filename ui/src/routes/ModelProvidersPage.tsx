@@ -103,7 +103,7 @@ export function ModelProvidersPage() {
   const gateways = useMemo(() => kinds.filter((k) => k.category === "gateway"), [kinds]);
 
   if (loading) {
-    return <div className={styles.loading}>Loading model providers…</div>;
+    return <div className={styles.loading}>Loading model providers...</div>;
   }
 
   return (
@@ -220,7 +220,13 @@ function ProviderRow({
 }) {
   const query = useApiQuery(providerModelsQuery(kind.slug));
   const probe = query.error
-    ? { server: kind.slug, reachable: false, models: [], error: "probe failed" }
+    ? {
+        server: kind.slug,
+        reachable: false,
+        status: "error" as const,
+        models: [],
+        error: "probe failed",
+      }
     : (query.data ?? undefined);
   const conn = connectionLabel(probe);
   return (
@@ -339,7 +345,7 @@ function CreateDelegatorForm({
             }}
             className={styles.select}
           >
-            <option value="">Select…</option>
+            <option value="">Select...</option>
             {kinds.map((k) => (
               <option key={k.slug} value={k.slug}>
                 {k.display_name}
@@ -356,7 +362,7 @@ function CreateDelegatorForm({
               onChange={(e) => setModel(e.target.value)}
               className={styles.select}
             >
-              <option value="">Select…</option>
+              <option value="">Select...</option>
               {liveModels.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.display_name ?? m.id}

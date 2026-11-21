@@ -31,6 +31,22 @@ const MIGRATION_MARKER: &str = "MIGRATED.md";
 /// 3. Load from `.tickets/templates/` (collection-scoped structure), falling
 ///    back to embedded builtins if that fails or yields nothing.
 /// 4. Load kanban-provider imports and honor a legacy `collections.toml`.
+///
+/// Load the registry from `tickets_path` and activate the configured
+/// collection - the registry every surface resolves issue types against.
+pub fn load_active_registry(
+    tickets_path: &Path,
+    active_collection: Option<&str>,
+) -> IssueTypeRegistry {
+    let mut registry = load_registry(tickets_path);
+    if let Some(active) = active_collection {
+        if let Err(e) = registry.activate_collection(active) {
+            tracing::warn!("Failed to activate collection '{}': {}", active, e);
+        }
+    }
+    registry
+}
+
 pub fn load_registry(tickets_path: &Path) -> IssueTypeRegistry {
     let mut registry = IssueTypeRegistry::new();
     let templates_path = tickets_path.join("templates");
@@ -262,20 +278,6 @@ fn migrate_legacy_user_types(tickets_path: &Path, templates_path: &Path) -> Resu
 }
 
 /// Initialize the templates directory with default collections
-///
-/// Creates the directory structure:
-/// ```text
-/// .tickets/templates/
-/// ├── dev_kanban/
-/// │   ├── collection.toml
-/// │   ├── TASK.json
-/// │   ├── TASK.md
-/// │   ├── FEAT.json
-/// │   ├── FEAT.md
-/// │   ├── FIX.json
-/// │   └── FIX.md
-/// └── ...
-/// ```
 pub fn init_default_templates(templates_path: &Path) -> Result<()> {
     let has_entries = templates_path.exists()
         && fs::read_dir(templates_path).is_ok_and(|mut d| d.next().is_some());

@@ -2,7 +2,7 @@
 
 use super::markdown::{heading, table};
 use super::{format_header, DocGenerator};
-use crate::ui::keybindings::{all_shortcuts_grouped, ShortcutContext, SHORTCUTS};
+use crate::ui::keybindings::{all_shortcuts_grouped, Shortcut, ShortcutContext, SHORTCUTS};
 use anyhow::Result;
 
 /// Generates keyboard shortcuts documentation from the keybindings registry
@@ -44,7 +44,7 @@ impl DocGenerator for ShortcutsDocGenerator {
                 let headers = &["Key", "Action"];
                 let rows: Vec<Vec<String>> = shortcuts
                     .iter()
-                    .map(|s| vec![format!("`{}`", s.key_display()), s.description.to_string()])
+                    .map(|s| vec![documented_key(s), s.description.to_string()])
                     .collect();
 
                 output.push_str(&table(headers, &rows));
@@ -62,7 +62,7 @@ impl ShortcutsDocGenerator {
             .iter()
             .map(|s| {
                 vec![
-                    format!("`{}`", s.key_display()),
+                    documented_key(s),
                     s.description.to_string(),
                     s.context.display_name().to_string(),
                 ]
@@ -86,6 +86,16 @@ impl ShortcutsDocGenerator {
             }
         }
     }
+}
+
+fn documented_key(shortcut: &Shortcut) -> String {
+    let key = shortcut
+        .key_display()
+        .replace('↑', "Up")
+        .replace('↓', "Down")
+        .replace('←', "Left")
+        .replace('→', "Right");
+    format!("`{key}`")
 }
 
 #[cfg(test)]
@@ -122,9 +132,18 @@ mod tests {
         // Check that key shortcuts appear in the documentation
         assert!(result.contains("`q`"));
         assert!(result.contains("`Tab`"));
-        assert!(result.contains("`j/↓`"));
         assert!(result.contains("`Enter`"));
         assert!(result.contains("`L`"));
+    }
+
+    #[test]
+    fn test_generate_uses_ascii_key_names() {
+        let result = ShortcutsDocGenerator.generate().unwrap();
+
+        assert!(result.is_ascii());
+        for key in ["`j/Down`", "`k/Up`", "`h/Left`", "`l/Right`"] {
+            assert!(result.contains(key));
+        }
     }
 
     #[test]

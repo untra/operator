@@ -11,6 +11,7 @@
 }
 
 .header {
+  flex-wrap: wrap;
   display: flex;
   gap: 0.6rem;
   align-items: center;
@@ -23,33 +24,14 @@
   display: none;
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-  background: var(--text-muted);
-  border-radius: 50%;
-}
-
-.dot[data-health="green"] {
-  background: var(--color-green-l1);
-}
-.dot[data-health="yellow"] {
-  background: var(--warning);
-}
-.dot[data-health="red"] {
-  background: var(--danger);
-}
-.dot[data-health="gray"] {
-  background: var(--text-muted);
-}
-
 .label {
   font-size: 0.95rem;
   font-weight: 600;
 }
 
 .description {
+  overflow-wrap: anywhere;
+  min-width: 0;
   color: var(--text-muted);
   font-size: 0.825rem;
 }
@@ -79,6 +61,8 @@
 }
 
 .row {
+  flex-wrap: wrap;
+  min-width: 0;
   display: flex;
   gap: 0.5rem;
   align-items: center;
@@ -86,13 +70,19 @@
 }
 
 .rowLabel {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 500;
 }
 .rowDesc {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--text-muted);
 }
 
 .rowActions {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
@@ -103,7 +93,13 @@
   padding: 0.1rem 0.5rem;
   color: var(--accent-text);
   font-size: 0.8rem;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: inline-flex;
+  align-items: center;
+  min-width: 24px;
+  min-height: 24px;
+  box-sizing: border-box;
   text-decoration: none;
   border: 1px solid var(--border);
   border-radius: var(--radius);

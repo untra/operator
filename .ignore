@@ -1,0 +1,15 @@
+# Uniclear ignore file
+# Binary assets
+*.png
+*.ttf
+*.woff
+
+# Generated Rust bindings and protocol fixtures
+/bindings/
+/shared/types.ts
+
+# JSON schemas, generated specifications, and other JSON files.
+*.json
+
+# Agent instructions are excluded from directory Unicode audits.
+/AGENTS.md

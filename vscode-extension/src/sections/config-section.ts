@@ -4,11 +4,20 @@ import { StatusItem } from "../status-item";
 import type { SectionContext, StatusSection, ConfigState } from "./types";
 import type { SectionId, SectionHealth } from "../generated";
 import { resolveWorkingDirectory, configFileExists, getResolvedConfigPath } from "../config-paths";
+import {
+  CHOOSE_CONNECTION_COMMAND,
+  DOWNLOADS_PAGE,
+  readConnectionSettings,
+  usingRemoteServer,
+} from "../connection";
+import { headerCommand } from "../command-policy";
 import { getOperatorPath, getOperatorVersion } from "../operator-binary";
 
 export class ConfigSection implements StatusSection {
   readonly sectionId: SectionId = "config";
   readonly prerequisites: SectionId[] = [];
+
+  private remote = false;
 
   private state: ConfigState = {
     workingDirSet: false,
@@ -21,10 +30,16 @@ export class ConfigSection implements StatusSection {
   };
 
   isReady(): boolean {
+    if (this.state.remoteReady) {
+      return true;
+    }
     return this.state.workingDirSet && this.state.configExists;
   }
 
   health(): SectionHealth {
+    if (this.state.remoteReady) {
+      return "Green";
+    }
     if (!this.state.configExists) {
       return "Red";
     }
@@ -35,6 +50,9 @@ export class ConfigSection implements StatusSection {
   }
 
   async check(ctx: SectionContext): Promise<void> {
+    const settings = readConnectionSettings(vscode.workspace.getConfiguration("operator"));
+    this.remote = usingRemoteServer(settings);
+    const remoteReady = this.remote && !!settings.explicitApiUrl;
     const workingDir =
       ctx.extensionContext.globalState.get<string>("operator.workingDirectory") ||
       resolveWorkingDirectory();
@@ -72,18 +90,41 @@ export class ConfigSection implements StatusSection {
       configPath: configPath || "",
       wrapperType,
       operatorVersion,
+      remoteReady,
+      remoteUrl: settings.explicitApiUrl,
       editorVar: process.env.EDITOR || "vim",
       visualVar: process.env.VISUAL || "code --wait",
     };
   }
 
   getTopLevelItem(_ctx: SectionContext): StatusItem {
+    if (this.state.remoteReady && this.state.remoteUrl) {
+      return new StatusItem({
+        label: "Configuration",
+        description: this.state.remoteUrl,
+        icon: "cloud",
+        collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+        sectionId: this.sectionId,
+        health: this.health(),
+      });
+    }
+
+    if (this.remote) {
+      return new StatusItem({
+        label: "Configuration",
+        description: "Choose a server",
+        icon: "cloud",
+        collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+        sectionId: this.sectionId,
+        command: headerCommand(true, false),
+        health: this.health(),
+      });
+    }
+
     const configuredBoth = this.state.workingDirSet && this.state.configExists;
 
     const configCommand = !configuredBoth
-      ? this.state.workingDirSet
-        ? { command: "operator.runSetup", title: "Run Operator Setup" }
-        : { command: "operator.selectWorkingDirectory", title: "Select Working Directory" }
+      ? headerCommand(false, this.state.workingDirSet)
       : undefined;
 
     return new StatusItem({
@@ -100,6 +141,48 @@ export class ConfigSection implements StatusSection {
   }
 
   getChildren(ctx: SectionContext, _element?: StatusItem): StatusItem[] {
+    if (this.remote && !(this.state.remoteReady && this.state.remoteUrl)) {
+      return [
+        new StatusItem({
+          label: "Server",
+          description: "Not configured",
+          icon: "cloud",
+          command: {
+            command: CHOOSE_CONNECTION_COMMAND,
+            title: "Choose Connection",
+          },
+          sectionId: this.sectionId,
+        }),
+      ];
+    }
+
+    if (this.state.remoteReady && this.state.remoteUrl) {
+      return [
+        new StatusItem({
+          label: "Server",
+          description: this.state.remoteUrl,
+          icon: "cloud",
+          tooltip: "Saved Operator server. Credentials stay in the editor secret store.",
+          command: {
+            command: CHOOSE_CONNECTION_COMMAND,
+            title: "Choose Connection",
+          },
+          sectionId: this.sectionId,
+        }),
+        new StatusItem({
+          label: "Version",
+          description: "Remote server",
+          icon: "cloud",
+          tooltip: "Download and update apply to a local Operator.",
+          command: {
+            command: CHOOSE_CONNECTION_COMMAND,
+            title: "Choose Connection",
+          },
+          sectionId: this.sectionId,
+        }),
+      ];
+    }
+
     const items: StatusItem[] = [];
 
     if (this.state.workingDirSet) {
@@ -203,10 +286,11 @@ export class ConfigSection implements StatusSection {
         label: "Version",
         description: versionDesc,
         icon: this.state.updateAvailable ? "warning" : "versions",
+        tooltip: "Open the Operator downloads page",
         command: {
           command: "vscode.open",
           title: "Open Downloads",
-          arguments: [vscode.Uri.parse("https://operator.untra.io/downloads/")],
+          arguments: [vscode.Uri.parse(DOWNLOADS_PAGE)],
         },
         sectionId: this.sectionId,
       }),

@@ -102,7 +102,9 @@ export function LaunchForm({
         />
         <span>YOLO mode (auto-accept prompts)</span>
       </label>
-      {error && <div className={styles.error}>{error}</div>}
+      <div role="alert" aria-atomic="true">
+        {error && <div className={styles.error}>{error}</div>}
+      </div>
       <button type="submit" className={styles.launchBtn} disabled={busy || disabled}>
         {busy ? "Launching…" : "Launch ▸"}
       </button>

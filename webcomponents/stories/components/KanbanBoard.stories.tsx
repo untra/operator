@@ -1,7 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { KanbanBoard } from "../../src/components/KanbanBoard";
 import { DEFAULT_FILTER_STATE, filterBoard } from "../../src/shared/kanban-filters";
-import { board, busyBoard, emptyBoard, unnamedStepTicket } from "../fixtures/operator";
+import {
+  board,
+  busyBoard,
+  emptyBoard,
+  unnamedStepTicket,
+  runningTicket,
+} from "../fixtures/operator";
 
 const meta = {
   title: "Components/KanbanBoard",
@@ -40,5 +46,17 @@ export const Narrow: Story = {
 export const Filtered: Story = {
   args: {
     board: filterBoard(busyBoard, { ...DEFAULT_FILTER_STATE, projects: ["gamesvc"] }),
+  },
+};
+
+export const Attention: Story = {
+  args: {
+    board: {
+      ...emptyBoard,
+      running: (["awaiting_input", "review", "orphaned", "idle"] as const).map((attention) =>
+        Object.assign({}, runningTicket, { id: `attention-${attention}`, attention }),
+      ),
+      total_count: 4,
+    },
   },
 };

@@ -255,8 +255,7 @@ pub struct UnsupportedProviderError {
 /// Takes the config rather than defaulting: a defaulted `GiteaConfig` has no
 /// host, which silently pointed self-hosted instances at gitea.com.
 ///
-/// GitHub, GitLab, and Gitea are operational; Bitbucket, Azure DevOps, and
-/// Forgejo return `UnsupportedProviderError` until their CLI stacks exist.
+/// Bitbucket and Azure DevOps remain detect-only.
 pub fn pr_service_for(
     provider: GitProvider,
     git: &crate::config::GitConfig,
@@ -267,7 +266,10 @@ pub fn pr_service_for(
         GitProvider::Gitea => Ok(Arc::new(crate::api::gitea_service::GiteaService::new(
             git.gitea.clone(),
         ))),
-        GitProvider::Bitbucket | GitProvider::AzureDevOps | GitProvider::Forgejo => {
+        GitProvider::Forgejo => Ok(Arc::new(crate::api::gitea_service::GiteaService::forgejo(
+            git.forgejo.clone(),
+        ))),
+        GitProvider::Bitbucket | GitProvider::AzureDevOps => {
             Err(UnsupportedProviderError { provider })
         }
     }
@@ -662,11 +664,7 @@ mod tests {
 
     #[test]
     fn test_pr_service_for_all_unsupported_providers() {
-        for provider in [
-            GitProvider::Bitbucket,
-            GitProvider::AzureDevOps,
-            GitProvider::Forgejo,
-        ] {
+        for provider in [GitProvider::Bitbucket, GitProvider::AzureDevOps] {
             assert!(pr_service_for(provider, &git()).is_err());
         }
     }

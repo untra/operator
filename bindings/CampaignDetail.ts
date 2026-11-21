@@ -7,10 +7,10 @@ import type { CampaignMember } from "./CampaignMember";
  */
 export type CampaignDetail = { campaign: Campaign, members: Array<CampaignMember>, waves: Array<Array<string>>, 
 /**
- * Member id → local tickets outside the campaign it waits on.
+ * Member id - local tickets outside the campaign it waits on.
  */
 gates: { [key in string]: Array<string> }, 
 /**
- * Member id → unsynced upstream refs it waits on.
+ * Member id - unsynced upstream refs it waits on.
  */
 unsynced: { [key in string]: Array<string> }, plan_error?: string | null, };

@@ -1,10 +1,10 @@
-//! The route → required-scope table, and the authenticated principal.
+//! The route required-scope table, and the authenticated principal.
 //!
 //! Authorization is decided by matching a request's [`MatchedPath`] against
 //! [`ROUTE_RULES`] rather than by per-handler extractors. The tradeoff is
 //! deliberate: an extractor that someone forgets to add leaves a route
 //! **unprotected**, and nothing fails. A missing table entry is caught by
-//! `tests/route_scope_parity.rs`, which walks the generated OpenAPI spec and
+//! `tests/it/suites/route_scope_parity.rs`, which walks the generated OpenAPI spec and
 //! fails the build. The failure mode of a mistake should be a red test, not a
 //! silent hole.
 //!
@@ -21,6 +21,10 @@ pub enum Access {
     Public,
     /// Requires an authenticated principal holding this scope.
     Scoped(Scope),
+    /// OTLP ingest: an agent's scopeless ingest token, or an admin credential.
+    TelemetryIngest,
+    /// A store-checked paired endpoint. It holds no scopes, and no scope admits it.
+    Endpoint,
 }
 
 /// One route's authorization requirement.
@@ -62,6 +66,14 @@ const fn admin(method: &'static str, path: &'static str) -> RouteRule {
     rule(method, path, Access::Scoped(Scope::Admin))
 }
 
+const fn endpoint(method: &'static str, path: &'static str) -> RouteRule {
+    rule(method, path, Access::Endpoint)
+}
+
+const fn otlp_ingest(method: &'static str, path: &'static str) -> RouteRule {
+    rule(method, path, Access::TelemetryIngest)
+}
+
 /// Every mounted route and what it requires.
 ///
 /// * **Configuration is `Admin` in both directions.** Even the narrowed public
@@ -101,6 +113,7 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     public("POST", "/api/v1/auth/reset-password"),
     public("POST", "/api/v1/auth/device/code"),
     public("POST", "/api/v1/auth/token"),
+    public("GET", "/.well-known/oauth-protected-resource"),
     // --- Auth: authenticated session management -----------------------------
     read("GET", "/api/v1/auth/session"),
     read("GET", "/api/v1/auth/csrf"),
@@ -109,6 +122,16 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     admin("POST", "/api/v1/auth/device/approve"),
     admin("GET", "/api/v1/auth/sessions"),
     admin("DELETE", "/api/v1/auth/sessions/{id}"),
+    public("GET", "/api/v1/auth/oidc/providers"),
+    public("GET", "/api/v1/auth/oidc/login/{id}"),
+    public("GET", "/api/v1/auth/oidc/callback"),
+    admin("GET", "/api/v1/auth/oidc/connections"),
+    admin("POST", "/api/v1/auth/oidc/connections"),
+    admin("DELETE", "/api/v1/auth/oidc/connections/{id}"),
+    admin("GET", "/api/v1/auth/users"),
+    admin("PUT", "/api/v1/auth/users/{id}"),
+    read("GET", "/api/v1/auth/capabilities"),
+    admin("POST", "/api/v1/auth/keys/{id}/rotate"),
     admin("GET", "/api/v1/auth/keys"),
     admin("POST", "/api/v1/auth/keys"),
     admin("DELETE", "/api/v1/auth/keys/{id}"),
@@ -116,6 +139,8 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/health"),
     read("GET", "/api/v1/status"),
     read("GET", "/api/v1/sections"),
+    read("GET", "/api/v1/connections"),
+    admin("GET", "/api/v1/connections/mcp/clients"),
     read("GET", "/api/v1/integrations"),
     // --- Setup --------------------------------------------------------------
     read("GET", "/api/v1/setup/status"),
@@ -161,6 +186,7 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     // --- Tickets ------------------------------------------------------------
     read("GET", "/api/v1/tickets/{id}"),
     write("POST", "/api/v1/tickets"),
+    read("POST", "/api/v1/tickets/preview"),
     read("POST", "/api/v1/tickets/batch/preview"),
     write("POST", "/api/v1/tickets/batch"),
     write("PUT", "/api/v1/tickets/{id}/status"),
@@ -213,6 +239,11 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/model-servers/{name}"),
     admin("PUT", "/api/v1/model-servers/{name}"),
     admin("DELETE", "/api/v1/model-servers/{name}"),
+    endpoint("GET", "/api/v1/endpoints/uplink"),
+    read("GET", "/api/v1/endpoints"),
+    read("GET", "/api/v1/endpoints/{id}"),
+    admin("PATCH", "/api/v1/endpoints/{id}"),
+    admin("DELETE", "/api/v1/endpoints/{id}"),
     // Probing makes an outbound request carrying the provider API key.
     execute("GET", "/api/v1/model-servers/{name}/models"),
     // --- Configuration ------------------------------------------------------
@@ -223,6 +254,12 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/mcp/descriptor"),
     execute("GET", "/api/v1/mcp/sse"),
     execute("POST", "/api/v1/mcp/message"),
+    // --- Telemetry ----------------------------------------------------------
+    otlp_ingest("POST", "/otlp/v1/traces"),
+    otlp_ingest("POST", "/otlp/v1/metrics"),
+    otlp_ingest("POST", "/otlp/v1/logs"),
+    // The window holds personal-class values, so reading it is administration.
+    admin("GET", "/api/v1/telemetry/sessions/{session_id}"),
 ];
 
 /// Look up the requirement for a matched route, if the table knows it.
@@ -240,6 +277,7 @@ pub fn required_access(method: &str, matched_path: &str) -> Option<Access> {
 /// An authenticated caller.
 #[derive(Debug, Clone)]
 pub struct Principal {
+    pub authority: Option<super::identity::UserAuthority>,
     /// Account name; always `admin` today.
     pub subject: String,
     /// Scopes this credential carries.
@@ -254,6 +292,10 @@ pub struct Principal {
     pub ticket_id: Option<String>,
     /// For an agent callback token: the step it may report on.
     pub step: Option<String>,
+    /// For an agent token: the agent session it is pinned to.
+    pub agent_session_id: Option<String>,
+    /// For an endpoint token: the paired endpoint it acts as.
+    pub endpoint_id: Option<String>,
 }
 
 impl Principal {
@@ -263,6 +305,29 @@ impl Principal {
     /// not satisfy a `Read` requirement unless it was also granted.
     pub fn has_scope(&self, scope: Scope) -> bool {
         self.scopes.contains(&scope)
+    }
+
+    /// Whether this principal is a store-checked paired endpoint machine.
+    pub fn is_paired_endpoint(&self) -> bool {
+        self.kind == PrincipalKind::Endpoint && self.endpoint_id.is_some()
+    }
+
+    /// Whether this principal may post OTLP to `/otlp/v1/*`.
+    ///
+    /// Bearer credentials only: a browser session cookie is sent ambiently, and
+    /// ingest has no CSRF check, so a cookie must never authorize it.
+    pub fn may_ingest_telemetry(&self) -> bool {
+        match self.kind {
+            PrincipalKind::TelemetryIngest => true,
+            PrincipalKind::AccessToken | PrincipalKind::LocalProcess => {
+                self.has_scope(Scope::Admin)
+            }
+            PrincipalKind::Session
+            | PrincipalKind::Endpoint
+            | PrincipalKind::AgentCallback
+            | PrincipalKind::ApiKey
+            | PrincipalKind::OidcToken => false,
+        }
     }
 
     /// A local loopback process, or the TUI in-process: full authority.
@@ -275,6 +340,9 @@ impl Principal {
             session_id: None,
             ticket_id: None,
             step: None,
+            agent_session_id: None,
+            endpoint_id: None,
+            authority: None,
         }
     }
 }
@@ -310,6 +378,9 @@ mod tests {
             .collect();
 
         let expected: HashSet<(&str, &str)> = [
+            ("GET", "/api/v1/auth/oidc/providers"),
+            ("GET", "/api/v1/auth/oidc/login/{id}"),
+            ("GET", "/api/v1/auth/oidc/callback"),
             ("GET", "/livez"),
             ("GET", "/readyz"),
             ("GET", "/api/v1/auth/bootstrap"),
@@ -319,6 +390,7 @@ mod tests {
             ("POST", "/api/v1/auth/reset-password"),
             ("POST", "/api/v1/auth/device/code"),
             ("POST", "/api/v1/auth/token"),
+            ("GET", "/.well-known/oauth-protected-resource"),
         ]
         .into_iter()
         .collect();
@@ -341,6 +413,18 @@ mod tests {
                 "{path} must require a credential"
             );
         }
+    }
+
+    #[test]
+    fn test_connections_require_read_and_client_details_require_admin() {
+        assert_eq!(
+            required_access("GET", "/api/v1/connections"),
+            Some(Access::Scoped(Scope::Read))
+        );
+        assert_eq!(
+            required_access("GET", "/api/v1/connections/mcp/clients"),
+            Some(Access::Scoped(Scope::Admin))
+        );
     }
 
     #[test]
@@ -390,6 +474,9 @@ mod tests {
             session_id: None,
             ticket_id: None,
             step: None,
+            agent_session_id: None,
+            endpoint_id: None,
+            authority: None,
         };
         assert!(p.has_scope(Scope::Admin));
         assert!(
@@ -405,5 +492,76 @@ mod tests {
             assert!(p.has_scope(scope));
         }
         assert_eq!(p.kind, PrincipalKind::LocalProcess);
+    }
+
+    #[test]
+    fn test_telemetry_ingest_is_bearer_only() {
+        let with = |kind, scopes: Vec<Scope>| Principal {
+            scopes,
+            kind,
+            ..Principal::local("admin")
+        };
+        assert!(with(PrincipalKind::TelemetryIngest, vec![]).may_ingest_telemetry());
+        assert!(with(PrincipalKind::AccessToken, vec![Scope::Admin]).may_ingest_telemetry());
+        assert!(!with(PrincipalKind::AccessToken, vec![Scope::Read]).may_ingest_telemetry());
+        assert!(
+            !with(PrincipalKind::Session, Scope::ALL.to_vec()).may_ingest_telemetry(),
+            "a cookie is ambient and ingest has no CSRF check"
+        );
+        assert!(!with(PrincipalKind::AgentCallback, vec![Scope::Execute]).may_ingest_telemetry());
+    }
+
+    #[test]
+    fn test_endpoint_principal_cannot_ingest_telemetry() {
+        let endpoint = Principal {
+            kind: PrincipalKind::Endpoint,
+            scopes: vec![],
+            endpoint_id: Some("ep".into()),
+            ..Principal::local("admin")
+        };
+        assert!(!endpoint.may_ingest_telemetry());
+        for scope in Scope::ALL {
+            assert!(!endpoint.has_scope(scope));
+        }
+    }
+
+    #[test]
+    fn test_only_a_bound_endpoint_principal_is_a_paired_endpoint() {
+        let admin = Principal {
+            scopes: Scope::ALL.to_vec(),
+            ..Principal::local("admin")
+        };
+        assert!(!admin.is_paired_endpoint());
+        let unbound = Principal {
+            kind: PrincipalKind::Endpoint,
+            ..Principal::local("admin")
+        };
+        assert!(!unbound.is_paired_endpoint());
+        let bound = Principal {
+            endpoint_id: Some("ep".into()),
+            ..unbound
+        };
+        assert!(bound.is_paired_endpoint());
+    }
+
+    #[test]
+    fn test_the_uplink_is_gated_on_endpoint_access() {
+        let uplink = ROUTE_RULES
+            .iter()
+            .find(|r| r.path == "/api/v1/endpoints/uplink")
+            .expect("uplink rule");
+        assert_eq!(uplink.access, Access::Endpoint);
+    }
+
+    #[test]
+    fn test_ingest_principal_satisfies_no_scoped_route() {
+        let ingest = Principal {
+            kind: PrincipalKind::TelemetryIngest,
+            scopes: Vec::new(),
+            ..Principal::local("admin")
+        };
+        for scope in Scope::ALL {
+            assert!(!ingest.has_scope(scope));
+        }
     }
 }

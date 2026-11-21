@@ -10,6 +10,7 @@ import * as sinon from "sinon";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
+import * as vscode from "vscode";
 import type {
   QueueControlResponse,
   KanbanSyncResponse,
@@ -260,6 +261,35 @@ suite("API Client Test Suite", () => {
     test("falls back to configured URL when ticketsDir is undefined", async () => {
       const url = await discoverApiUrl(undefined);
       assert.strictEqual(url, "http://localhost:7008");
+    });
+
+    test("remote mode ignores api-session.json and returns the saved origin", async () => {
+      const operatorDir = path.join(tempDir, "operator");
+      await fs.mkdir(operatorDir, { recursive: true });
+      await fs.writeFile(
+        path.join(operatorDir, "api-session.json"),
+        JSON.stringify({
+          port: 9999,
+          pid: 1,
+          started_at: "2024-01-01T00:00:00Z",
+          version: "0.0.1",
+        }),
+      );
+      sinon.stub(vscode.workspace, "getConfiguration").returns({
+        inspect: (key: string) => {
+          if (key === "connectionMode") {
+            return { globalValue: "remote" };
+          }
+          if (key === "apiUrl") {
+            return { globalValue: "https://operator.kube.untra.casa/" };
+          }
+          return {};
+        },
+        get: () => undefined,
+      } as unknown as vscode.WorkspaceConfiguration);
+
+      const url = await discoverApiUrl(tempDir);
+      assert.strictEqual(url, "https://operator.kube.untra.casa");
     });
   });
 

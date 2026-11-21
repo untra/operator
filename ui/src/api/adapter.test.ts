@@ -1,7 +1,9 @@
+import { rejects } from "node:assert/strict";
+import { createAccessKeyMutation } from "./definitions";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { asyncableEmoji } from "@untra/naiveasync";
 import type { Host } from "../host";
-import type { OperatorApi } from "../api-client";
+import { OperatorApi } from "../api-client";
 import {
   createApiStore,
   lifecycleId,
@@ -182,7 +184,7 @@ describe("queryController", () => {
     };
     const query = queryController(store, host(), def);
     await query.start();
-    await expect(query.refetch()).rejects.toBeInstanceOf(Error);
+    await rejects(query.refetch(), Error);
     const snap = query.snapshot();
     expect(snap.data).toBe("cached");
     expect(snap.error?.message).toBe("upstream");
@@ -329,7 +331,7 @@ describe("mutationController", () => {
       throw new Error("expected cached query data");
     }
     expect(query.snapshot().data).toBe(loaded + 1);
-    await expect(write.mutateAsync({ fail: true })).rejects.toBeInstanceOf(Error);
+    await rejects(write.mutateAsync({ fail: true }), Error);
     await flushAsync();
     expect(query.snapshot().data).toBe(loaded + 2);
   });
@@ -365,9 +367,7 @@ describe("mutationController", () => {
       throw new Error("expected cached query data");
     }
     expect(query.snapshot().data).toBe(loaded + 1);
-    await expect(mutationController(store, host(), second).mutateAsync({})).rejects.toBeInstanceOf(
-      Error,
-    );
+    await rejects(mutationController(store, host(), second).mutateAsync({}), Error);
     await flushAsync();
     expect(query.snapshot().data).toBe(loaded + 2);
   });
@@ -405,7 +405,7 @@ describe("mutationController", () => {
       run: () => Promise.reject(new Error("denied")),
     };
     const mutation = mutationController(store, host(), def);
-    await expect(mutation.mutateAsync({ password: PASSWORD })).rejects.toBeInstanceOf(Error);
+    await rejects(mutation.mutateAsync({ password: PASSWORD }), Error);
     expect(snapshotSecrets()).toEqual([]);
     expect(JSON.stringify(store.getState())).not.toContain(PASSWORD);
   });
@@ -477,7 +477,7 @@ describe("mutationController", () => {
       affected: [QUERY_KEYS.health],
       run: () => Promise.resolve("saved"),
     });
-    await expect(mutation.mutateAsync({})).resolves.toBe("saved");
+    expect(await mutation.mutateAsync({})).toBe("saved");
     expect(query.snapshot().isFetching).toBe(true);
     release("refreshed");
     await flushAsync();
@@ -495,9 +495,9 @@ describe("mutationController", () => {
         }),
     });
     const first = mutation.mutateAsync({});
-    await expect(mutation.mutateAsync({})).rejects.toThrow("already pending");
+    await rejects(mutation.mutateAsync({}), /already pending/);
     release("done");
-    await expect(first).resolves.toBe("done");
+    expect(await first).toBe("done");
   });
 
   test("callback-style failures are consumed after onError", async () => {
@@ -509,7 +509,7 @@ describe("mutationController", () => {
       run: () => Promise.reject(new Error("expected")),
     });
     mutation.mutate({}, { onError: (error) => errors.push(error.message) });
-    await expect(mutation.wait()).resolves.toBeUndefined();
+    expect(await mutation.wait()).toBeUndefined();
     expect(errors).toEqual(["expected"]);
   });
 
@@ -532,4 +532,51 @@ describe("mutationController", () => {
     await flushAsync();
     expect(reads).toBe(1);
   });
+});
+
+test("issued API key secrets never enter Redux lifecycle state", async () => {
+  const store = createApiStore();
+  const grants = {
+    profile_id: "00000000-0000-0000-0000-000000000001",
+    capabilities: ["tickets:read"],
+    projects: ["operator"],
+    instance_wide: false,
+  };
+  const key = {
+    id: "key",
+    name: "CI",
+    scopes: [],
+    created_at: "2026-01-01T00:00:00Z",
+    expires_at: "2026-04-01T00:00:00Z",
+    last_used_at: null,
+    revoked_at: null,
+    owner_id: "owner",
+    profile_id: grants.profile_id,
+    display_prefix: "opk_v1_key_",
+    grants,
+    replaces_id: null,
+  };
+  const api = jest
+    .spyOn(OperatorApi.prototype, "createAccessKey")
+    .mockResolvedValue({ key, secret: TOKEN });
+  try {
+    const onIssued = jest.fn();
+    const mutation = mutationController(store, host(), createAccessKeyMutation);
+    await mutation.mutateAsync({ request: { name: "CI", expires_in_days: 90, grants }, onIssued });
+    expect(onIssued).toHaveBeenCalledWith(TOKEN);
+    expect(JSON.stringify(store.getState())).not.toContain(TOKEN);
+    expect(snapshotSecrets()).toEqual([]);
+    const lateIssued = jest.fn();
+    api.mockImplementation(() => {
+      resetSessionState();
+      return Promise.resolve({ key, secret: TOKEN });
+    });
+    await createAccessKeyMutation.run(new OperatorApi(host()), {
+      request: { name: "CI", expires_in_days: 90, grants },
+      onIssued: lateIssued,
+    });
+    expect(lateIssued).not.toHaveBeenCalled();
+  } finally {
+    api.mockRestore();
+  }
 });

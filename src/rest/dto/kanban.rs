@@ -96,7 +96,7 @@ pub struct KanbanProviderCatalogEntry {
 // =============================================================================
 
 /// Which external kanban provider an onboarding request targets.
-/// Deliberately one variant smaller than [`KanbanProviderType`]
+/// Excludes the built-in board and providers without an operational adapter.
 ///
 /// [`KanbanProviderType`]: crate::api::providers::kanban::KanbanProviderType
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS, PartialEq, Eq)]
@@ -107,6 +107,7 @@ pub enum KanbanProviderKind {
     Linear,
     Github,
     Openspec,
+    Gitea,
 }
 
 impl KanbanProviderKind {
@@ -115,11 +116,12 @@ impl KanbanProviderKind {
     /// Exists for the parity guard below; the runtime surfaces are driven by
     /// `KanbanProviderType::ALL` and the serde tags on this enum.
     #[cfg(test)]
-    pub const ALL: [KanbanProviderKind; 4] = [
+    pub const ALL: [KanbanProviderKind; 5] = [
         KanbanProviderKind::Jira,
         KanbanProviderKind::Linear,
         KanbanProviderKind::Github,
         KanbanProviderKind::Openspec,
+        KanbanProviderKind::Gitea,
     ];
 }
 
@@ -175,6 +177,9 @@ pub struct OpenspecSourceDto {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct ValidateKanbanCredentialsRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gitea: Option<GiteaCredentials>,
     pub provider: KanbanProviderKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jira: Option<JiraCredentials>,
@@ -255,6 +260,9 @@ pub struct GithubValidationDetailsDto {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct ValidateKanbanCredentialsResponse {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gitea: Option<GiteaValidationDetailsDto>,
     pub valid: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -270,6 +278,9 @@ pub struct ValidateKanbanCredentialsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct ListKanbanProjectsRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gitea: Option<GiteaCredentials>,
     pub provider: KanbanProviderKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jira: Option<JiraCredentials>,
@@ -361,6 +372,9 @@ pub struct WriteOpenspecConfigBody {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct ListKanbanStatusesRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gitea: Option<GiteaCredentials>,
     pub provider: KanbanProviderKind,
     /// Project/team key to list statuses for
     pub project_key: String,
@@ -389,6 +403,9 @@ pub struct ListKanbanStatusesResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct WriteKanbanConfigRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gitea: Option<WriteGiteaConfigBody>,
     pub provider: KanbanProviderKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jira: Option<WriteJiraConfigBody>,
@@ -445,6 +462,9 @@ pub struct GithubSessionEnv {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct SetKanbanSessionEnvRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gitea: Option<GiteaSessionEnv>,
     pub provider: KanbanProviderKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jira: Option<JiraSessionEnv>,
@@ -513,6 +533,7 @@ mod tests {
         // provider-tagged request: only the matching sub-body should appear; the
         // other two (None) are skipped via skip_serializing_if.
         let req = ValidateKanbanCredentialsRequest {
+            gitea: None,
             provider: KanbanProviderKind::Jira,
             jira: Some(JiraCredentials {
                 domain: "acme.atlassian.net".to_string(),
@@ -544,6 +565,7 @@ mod tests {
     #[test]
     fn test_validate_response_skips_none_detail_blocks() {
         let resp = ValidateKanbanCredentialsResponse {
+            gitea: None,
             valid: false,
             error: Some("invalid token".to_string()),
             jira: None,
@@ -566,7 +588,7 @@ mod tests {
 
         let connectable: Vec<&str> = KanbanProviderType::ALL
             .into_iter()
-            .filter(|p| !p.is_builtin())
+            .filter(|p| !p.is_builtin() && p.is_operational())
             .map(|p| p.slug())
             .collect();
         let kinds: Vec<String> = KanbanProviderKind::ALL
@@ -583,7 +605,7 @@ mod tests {
         assert_eq!(connectable, kinds);
         assert_eq!(
             KanbanProviderType::ALL.len(),
-            KanbanProviderKind::ALL.len() + 1
+            KanbanProviderKind::ALL.len() + 2
         );
     }
 
@@ -720,6 +742,7 @@ mod tests {
     #[test]
     fn test_write_kanban_config_request_targets_single_provider() {
         let req = WriteKanbanConfigRequest {
+            gitea: None,
             provider: KanbanProviderKind::Github,
             jira: None,
             linear: None,
@@ -738,4 +761,51 @@ mod tests {
         assert!(!json.contains("\"jira\":"));
         assert!(!json.contains("\"linear\":"));
     }
+}
+
+/// Ephemeral Gitea credentials for repository board discovery.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct GiteaCredentials {
+    pub base_url: String,
+    pub repositories: Vec<String>,
+    #[schema(write_only, format = Password)]
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct GiteaUserDto {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct GiteaValidationDetailsDto {
+    pub user_id: String,
+    pub user_name: String,
+    pub users: Vec<GiteaUserDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct WriteGiteaConfigBody {
+    pub instance: String,
+    pub base_url: String,
+    pub repositories: Vec<String>,
+    pub api_key_env: String,
+    pub project_key: String,
+    pub sync_user_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_mapping: Option<KanbanStatusMapping>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[ts(export)]
+pub struct GiteaSessionEnv {
+    pub base_url: String,
+    pub api_key_env: String,
+    #[schema(write_only, format = Password)]
+    pub token: String,
 }

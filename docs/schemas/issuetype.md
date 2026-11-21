@@ -30,7 +30,7 @@ Schema definition for an issuetype template
 | `key` | `string` | Yes | Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK) |
 | `name` | `string` | Yes | Display name of the template type |
 | `description` | `string` | Yes | Brief description of when to use this template |
-| `mode` | → `ExecutionMode` | Yes | Whether this issuetype runs autonomously or requires human pairing |
+| `mode` | `ExecutionMode` | Yes | Whether this issuetype runs autonomously or requires human pairing |
 | `glyph` | `string` | Yes | Glyph character displayed in UI for this issuetype |
 | `color` | `string` \| `null` | No | Optional color for glyph display in TUI |
 | `project_required` | `boolean` | No | Whether a project must be specified for this issuetype |

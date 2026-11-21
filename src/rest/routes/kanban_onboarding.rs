@@ -4,7 +4,7 @@
 //! deserializes its DTO, delegates to the service, and serializes the
 //! response. Business logic lives in the service module.
 
-use axum::extract::State;
+use crate::rest::state::RequestState as State;
 use axum::Json;
 
 use crate::rest::dto::{
@@ -134,6 +134,6 @@ pub async fn set_session_env(
     State(_state): State<ApiState>,
     Json(req): Json<SetKanbanSessionEnvRequest>,
 ) -> Result<Json<SetKanbanSessionEnvResponse>, ApiError> {
-    let resp = kanban_onboarding::set_session_env(req);
+    let resp = kanban_onboarding::set_session_env(req)?;
     Ok(Json(resp))
 }

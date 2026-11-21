@@ -34,8 +34,6 @@ fn openspec_error(status: u16, message: String) -> ApiError {
     }
 }
 
-// ─── Markdown parsing ────────────────────────────────────────────────────────
-
 /// A single checklist item within a task group
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskItem {
@@ -178,8 +176,6 @@ pub fn parse_proposal(content: &str) -> ProposalMeta {
     }
     meta
 }
-
-// ─── Provider ────────────────────────────────────────────────────────────────
 
 /// Kanban provider over a local `OpenSpec` root directory
 pub struct OpenspecProvider {
@@ -534,8 +530,6 @@ Some prose without checkboxes.
         assert_eq!(meta.why_excerpt.as_deref(), Some("because"));
         assert_eq!(parse_proposal("no headings"), ProposalMeta::default());
     }
-
-    // ── Provider tests over a fixture tree ──────────────────────────────────
 
     fn fixture_root() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();

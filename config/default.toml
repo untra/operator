@@ -142,8 +142,8 @@ connect_timeout_ms = 5000
 # api_key_env = "ANTHROPIC_API_KEY"
 
 # Agent delegator configurations
-# Delegators are named {tool, model, model_server} triples for autonomous
-# ticket launching. `model_server` is optional.  omit it to use the llm_tool's implicit vendor default (claude → anthropic-api, codex → openai-api, etc.).
+# Delegators are named {tool, model, model_server} triples for autonomous ticket launching.
+# `model_server` is optional. omit it to use the llm_tool's implicit vendor default (claude : anthropic-api, codex : openai-api, etc.).
 # [[delegators]]
 # name = "claude-opus-auto"
 # llm_tool = "claude"
@@ -166,8 +166,7 @@ connect_timeout_ms = 5000
 # machine Operator launches the agent CLI on, via `ssh <ssh_alias>` resolved
 # through the ~/.ssh/config. Reference a host by name from a delegator's
 # launch_config to run that delegator's agents remotely. The remote host needs
-# tmux, the agent CLI on PATH, credentials in its own environment, and the
-# project checked out at `workdir`.
+# tmux, the agent CLI on PATH, credentials in its own environment, and the project checked out at `workdir`.
 #
 # Named execution targets: where launched agents run. Referenced from
 # [delegators.launch_config] target = "<name>".

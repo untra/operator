@@ -184,7 +184,7 @@ mod tests {
         let mut detector = ArtifactDetector::new();
         let tmp = TempDir::new().unwrap();
 
-        // First call: file missing → Pending
+        // First call: file missing > Pending
         let patterns = vec!["plan.md".to_string()];
         let status1 = detector.check_artifacts(tmp.path(), &patterns);
         assert_eq!(status1, ArtifactStatus::Pending);
@@ -205,7 +205,7 @@ mod tests {
 
         let tmp = TempDir::new().unwrap();
 
-        // First call: file missing → Pending
+        // First call: file missing > Pending
         let patterns = vec!["plan.md".to_string()];
         let status1 = detector.check_artifacts(tmp.path(), &patterns);
         assert_eq!(status1, ArtifactStatus::Pending);
@@ -216,7 +216,7 @@ mod tests {
         // Wait for cache to expire
         std::thread::sleep(Duration::from_millis(20));
 
-        // Third call: cache expired, should re-check → Ready
+        // Third call: cache expired, should re-check
         let status3 = detector.check_artifacts(tmp.path(), &patterns);
         assert_eq!(status3, ArtifactStatus::Ready);
     }

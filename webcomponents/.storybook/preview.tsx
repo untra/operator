@@ -25,15 +25,31 @@ const preview: Preview = {
   initialGlobals: { theme: "light" },
   decorators: [
     (Story, context) => {
-      document.documentElement.dataset.theme = context.globals.theme === "dark" ? "dark" : "light";
+      document.documentElement.dataset.theme =
+        (context.globals.auditTheme ?? context.globals.theme) === "dark" ? "dark" : "light";
       return <Story />;
     },
   ],
+  beforeEach: async (context) => {
+    if (import.meta.env.MODE === "test" && context.globals.auditWidth) {
+      const { page } = await import("vitest/browser");
+      await page.viewport(context.globals.auditWidth, 1000);
+    }
+  },
   parameters: {
-    a11y: { test: "error" },
+    a11y: {
+      test: "error",
+      options: {
+        runOnly: {
+          type: "tag",
+          values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"],
+        },
+      },
+    },
     controls: { expanded: true },
     viewport: {
       options: {
+        mobile: { name: "Mobile 320px", styles: { width: "320px", height: "1000px" } },
         desktop: { name: "Desktop", styles: { width: "1440px", height: "1000px" } },
         narrow: { name: "Narrow", styles: { width: "768px", height: "1024px" } },
       },

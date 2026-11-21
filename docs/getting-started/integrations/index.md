@@ -45,3 +45,30 @@ Operator already ships:
 
 > Write/launch tools mutate your repositories. Only connect platforms you trust,
 > and gate Operator's MCP write tools with `[mcp].expose_ticket_write_tools`.
+
+## Connect from the web interface
+
+Open **Connections** in Operator's web interface to copy API addresses, open
+Swagger, configure remote MCP clients, and manage service access keys.
+Swagger and OpenAPI links use the active API host, including HTTPS and any
+configured path prefix. They require an authenticated browser.
+
+The MCP card exposes the existing SSE transport. Choose the Claude Code CLI
+recipe for user-scope registration, or merge the JSON recipe into your Claude
+user configuration. Install `curl` and `jq` and provide `OPERATOR_ACCESS_KEY` in
+the client's environment. The generated header helper exchanges that key at
+`/api/v1/auth/token` for a short-lived bearer token on each connection. The raw
+key is never itself a bearer token. Project-scoped helpers may filter credential
+environment variables; use the displayed user-scope recipe.
+
+Administrators can create a key on this page with `read` and `execute` scopes.
+Additional scopes require explicit selection. Copy the secret when it is created;
+it cannot be retrieved later. To rotate it, create a replacement, update the
+client, verify the connection, and revoke the old key. Already issued bearer
+tokens remain valid until their expiry.
+
+**Test MCP connection** checks the active browser API route by opening SSE, initializing MCP, and listing tools. Leave the optional key field blank to use the browser session, or supply an access key to test its token exchange and permissions. Results show their timestamp and authentication method. Availability, a successful handshake, and an initialized client session are separate observations; creating a key does not establish a connection.
+
+For a reverse proxy, set `rest_api.public_url` to the externally reachable base URL when advertising an absolute endpoint. Otherwise MCP advertises relative paths. Preserve SSE streaming through the proxy. The page reports route, authentication, protocol, and timeout failures independently.
+
+The ACP card generates local editor configuration for Zed, JetBrains, Emacs, or Kiro. Install Operator on the editor's machine and choose its local executable and profile.

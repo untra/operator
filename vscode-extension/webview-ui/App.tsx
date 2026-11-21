@@ -28,6 +28,12 @@ interface NavigationRequest {
 }
 
 const CREATE_DELEGATOR_ACTION = "createDelegator";
+const ERROR_ALERT_STYLE: React.CSSProperties = { margin: 16 };
+const LOADING_CONTAINER_STYLE: React.CSSProperties = {
+  alignItems: "center",
+  justifyContent: "center",
+  height: "100vh",
+};
 
 function browseFolder(field: string): void {
   postMessage({ type: "browseFolder", field });
@@ -229,7 +235,7 @@ export function App() {
   return (
     <>
       {error && (
-        <Alert severity="error" style={{ margin: 16 }}>
+        <Alert severity="error" style={ERROR_ALERT_STYLE}>
           {error.message}
         </Alert>
       )}
@@ -258,10 +264,7 @@ export function App() {
           delegatorPrefill={delegatorPrefill}
         />
       ) : (
-        <div
-          className="op-col op-gap-2"
-          style={{ alignItems: "center", justifyContent: "center", height: "100vh" }}
-        >
+        <div className="op-col op-gap-2" style={LOADING_CONTAINER_STYLE}>
           <Spinner />
           <p className="op-body2 op-text-secondary">Loading configuration...</p>
         </div>

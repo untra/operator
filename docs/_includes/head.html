@@ -5,6 +5,7 @@
   <meta name="description" content="{{ page.description | default: site.description }}">
 
   <link rel="icon" type="image/png" href="{{ '/assets/img/patricia_512.png' | relative_url }}">
+  {% if page.markdown_url %}<link rel="alternate" type="text/markdown" href="{{ page.markdown_url | relative_url }}">{% endif %}
   <link rel="apple-touch-icon" href="{{ '/assets/img/patricia_512.png' | relative_url }}">
 
   <script>

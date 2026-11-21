@@ -44,7 +44,7 @@ export function PremiumPaywall({
         </button>
         {safePurchaseUrl && (
           <a href={safePurchaseUrl} target="_blank" rel="noopener noreferrer">
-            View Premium
+            Buy Premium
           </a>
         )}
       </div>

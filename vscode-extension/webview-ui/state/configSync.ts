@@ -7,7 +7,7 @@ export function isStaleSnapshot(snapshotRev: number | undefined, lastSentRev: nu
   return snapshotRev !== undefined && snapshotRev < lastSentRev;
 }
 
-/** Webview→host messages are JSON-serialized, which cannot encode bigint. */
+/** Webview-to-host messages are JSON-serialized, which cannot encode bigint. */
 export function toWireValue(value: unknown): unknown {
   return typeof value === "bigint" ? Number(value) : value;
 }

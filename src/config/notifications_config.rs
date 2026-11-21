@@ -21,28 +21,34 @@ pub struct NotificationsConfig {
     #[serde(default)]
     pub webhooks: Vec<WebhookConfig>,
 
-    // Legacy fields for backwards compatibility
-    // These are deprecated but still supported for existing configs
+    // Legacy fields for backwards compatibility.
+    // These are deprecated but still supported for existing configs.
+    /// Notify when an agent starts. Deprecated in favor of `[notifications.os].events`.
     #[serde(default = "default_true")]
     #[schemars(skip)]
     #[ts(skip)]
     pub on_agent_start: bool,
+    /// Notify when an agent completes. Deprecated in favor of `[notifications.os].events`.
     #[serde(default = "default_true")]
     #[schemars(skip)]
     #[ts(skip)]
     pub on_agent_complete: bool,
+    /// Notify when an agent needs input. Deprecated in favor of `[notifications.os].events`.
     #[serde(default = "default_true")]
     #[schemars(skip)]
     #[ts(skip)]
     pub on_agent_needs_input: bool,
+    /// Notify when a pull request is created. Deprecated in favor of `[notifications.os].events`.
     #[serde(default = "default_true")]
     #[schemars(skip)]
     #[ts(skip)]
     pub on_pr_created: bool,
+    /// Notify when an investigation is created. Deprecated in favor of `[notifications.os].events`.
     #[serde(default = "default_true")]
     #[schemars(skip)]
     #[ts(skip)]
     pub on_investigation_created: bool,
+    /// Play a sound with legacy notifications. Deprecated in favor of `[notifications.os].sound`.
     #[serde(default)]
     #[schemars(skip)]
     #[ts(skip)]

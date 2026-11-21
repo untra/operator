@@ -37,18 +37,20 @@ This file tracks the current state of agents, completed tickets, and system stat
 
 ### AgentState
 
+One agent working a ticket, persisted in the state file.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `git_context` | object | No | Non-secret Git configuration captured at launch. |
-| `id` | `string` | Yes |  |
-| `ticket_id` | `string` | Yes |  |
-| `ticket_type` | `string` | Yes |  |
-| `project` | `string` | Yes |  |
-| `status` | `string` | Yes |  |
-| `started_at` | `string` | Yes |  |
-| `last_activity` | `string` | Yes |  |
-| `last_message` | `string` \| `null` | No |  |
-| `paired` | `boolean` | Yes |  |
+| `id` | `string` | Yes | Agent ID |
+| `ticket_id` | `string` | Yes | Ticket the agent works (e.g. "FEAT-7598") |
+| `ticket_type` | `string` | Yes | Ticket type: FEAT, FIX, INV, SPIKE |
+| `project` | `string` | Yes | Project the ticket belongs to |
+| `status` | `string` | Yes | "running", "`awaiting_input`", "completing", "orphaned", or "failed" after an interrupted local shutdown |
+| `started_at` | `string` | Yes | When the agent launched |
+| `last_activity` | `string` | Yes | Last time the agent showed activity |
+| `last_message` | `string` \| `null` | No | Latest status message from the agent |
+| `paired` | `boolean` | Yes | Whether the operator works alongside the agent (true for SPIKE and INV) |
 | `session_name` | `string` \| `null` | No | The terminal session name for this agent (for recovery) |
 | `session_wrapper` | `string` \| `null` | No | Which session wrapper manages this agent: "tmux", "vscode", or "cmux" (None = legacy tmux) |
 | `session_window_ref` | `string` \| `null` | No | Session window reference ID (top-level grouping: cmux window, tmux session, etc.) |
@@ -72,6 +74,7 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `remote_host` | `string` \| `null` | No | Name of the `RemoteHost` this agent's CLI runs on over SSH (None = local) |
 | `step_launch_context` | object | No | Launch context fixed at launch time; `complete_step` reads it back to build subsequent step commands with the same delegator/tool/model. |
 | `target_name` | `string` \| `null` | No | Name of the resolved execution target this agent launched on. |
+| `workspace_url` | `string` \| `null` | No | Coder dashboard URL of the workspace this agent runs in |
 | `shutdown_recovery` | object | No | Shutdown recovery strategy. |
 
 ### GitExecutionConfig
@@ -80,9 +83,9 @@ Git settings owned by a named delegator.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `identity` | object | No |  |
-| `credentials` | object | No |  |
-| `settings` | `array` | No |  |
+| `identity` | object | No | Commit identity; falls back to the global `git.identity` |
+| `credentials` | object | No | HTTPS credential for the ticket's repository |
+| `settings` | `array` | No | Extra `git config` entries; `credential.*`, `url.*`, `http.*`, `include*`, `user.name`, `user.email`, `core.askpass` and `core.sshCommand` are rejected |
 
 ### GitIdentityConfig
 
@@ -90,8 +93,8 @@ Commit identity template for delegated work.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | `string` | Yes |  |
-| `email` | `string` | Yes |  |
+| `name` | `string` | Yes | Author and committer name; may use `{ticket_id}`, `{project}` and `{ticket_type}` |
+| `email` | `string` | Yes | Author and committer email; may use `{ticket_id}`, `{project}` and `{ticket_type}` |
 
 ### GitCredentialConfig
 
@@ -99,16 +102,18 @@ Supplied HTTPS credential, bound to a repository; contains no secret value.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `repository_url` | `string` | Yes |  |
-| `username` | `string` | Yes |  |
-| `token_env` | `string` | Yes |  |
+| `repository_url` | `string` | Yes | HTTPS repository URL the credential is bound to, with no embedded credentials, query or fragment |
+| `username` | `string` | Yes | HTTPS username sent with the token |
+| `token_env` | `string` | Yes | Environment variable holding the token, read at launch |
 
 ### GitConfigEntry
 
+One `git config` entry applied to delegated work.
+
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `key` | `string` | Yes |  |
-| `value` | `string` | Yes |  |
+| `key` | `string` | Yes | Dotted config key (e.g. "commit.gpgsign"); identity and authentication keys are rejected |
+| `value` | `string` | Yes | Config value |
 
 ### StepLaunchContext
 
@@ -130,6 +135,8 @@ The persisted context is the baseline for a ticket's whole chain; per-step
 | `extra_flags` | `array` | No | Extra CLI flags from the delegator launch config |
 
 ### ShutdownRecovery
+
+How startup reconciles an agent that was active when operator shut down.
 
 ### CompletedTicket
 

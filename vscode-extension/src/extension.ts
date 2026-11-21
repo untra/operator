@@ -20,7 +20,24 @@ import { StatusTreeProvider, StatusItem } from "./status-provider";
 import { LaunchManager } from "./launch-manager";
 import { IssueTypeService } from "./issuetype-service";
 import type { TicketInfo } from "./types";
-import { OperatorApiClient, discoverApiUrl } from "./api-client";
+import { OperatorApiClient, discoverApiUrl, discoverLocalApiUrl } from "./api-client";
+import { AuthRequiredError } from "./auth/errors";
+import {
+  CONNECTION_CHOSEN_STATE,
+  CONNECTION_MODE_LOCAL,
+  DOWNLOADS_PAGE,
+  readConnectionSettings,
+  shouldStartWebhook,
+  startupAction,
+  usingRemoteServer,
+} from "./connection";
+import {
+  focusMissAction,
+  guardRemoteCommand,
+  launchWrapper,
+  ticketOpenAction,
+} from "./command-policy";
+import { runConnectionPicker } from "./connection-picker";
 import {
   handleConnect,
   openAgentTerminal,
@@ -30,6 +47,7 @@ import {
 import {
   OperatorCredentials,
   clearCredentialProvider,
+  isLoopbackUrl,
   setCredentialProvider,
 } from "./auth/credentials";
 import { TokenStore } from "./auth/token-store";
@@ -195,7 +213,7 @@ async function launchTicketFromEditorCommand(ctx: CommandContext): Promise<void>
     return;
   }
 
-  const apiClient = new OperatorApiClient();
+  const apiClient = new OperatorApiClient(await discoverApiUrl(ctx.getCurrentTicketsDir()));
 
   try {
     await apiClient.health();
@@ -208,7 +226,7 @@ async function launchTicketFromEditorCommand(ctx: CommandContext): Promise<void>
     const response = await apiClient.launchTicket(metadata.id, {
       delegator: null,
       provider: null,
-      wrapper: "vscode",
+      wrapper: launchWrapper(usingRemoteServer(connectionSettings())),
       model: "sonnet",
       model_server: null,
       yolo_mode: false,
@@ -217,18 +235,7 @@ async function launchTicketFromEditorCommand(ctx: CommandContext): Promise<void>
       target: null,
     });
 
-    ctx.terminalManager.create({
-      name: response.terminal_name,
-      workingDir: response.working_directory,
-    });
-    ctx.terminalManager.send(response.terminal_name, response.command);
-    ctx.terminalManager.focus(response.terminal_name);
-
-    const worktreeMsg = response.worktree_created ? " (worktree created)" : "";
-    void vscode.window.showInformationMessage(
-      `Launched agent for ${response.ticket_id}${worktreeMsg}`,
-    );
-
+    await ctx.launchManager.presentLaunchResponse(response);
     await ctx.refreshAllProviders();
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
@@ -274,7 +281,7 @@ async function launchTicketFromEditorWithOptionsCommand(ctx: CommandContext): Pr
     return;
   }
 
-  const apiClient = new OperatorApiClient();
+  const apiClient = new OperatorApiClient(await discoverApiUrl(ctx.getCurrentTicketsDir()));
 
   try {
     await apiClient.health();
@@ -287,27 +294,16 @@ async function launchTicketFromEditorWithOptionsCommand(ctx: CommandContext): Pr
     const response = await apiClient.launchTicket(metadata.id, {
       delegator: options.delegator ?? null,
       provider: null,
-      wrapper: "vscode",
+      wrapper: launchWrapper(usingRemoteServer(connectionSettings())),
       model: options.model,
       model_server: null,
       yolo_mode: options.yoloMode,
       retry_reason: null,
       resume_session_id: null,
-      target: null,
+      target: options.target ?? null,
     });
 
-    ctx.terminalManager.create({
-      name: response.terminal_name,
-      workingDir: response.working_directory,
-    });
-    ctx.terminalManager.send(response.terminal_name, response.command);
-    ctx.terminalManager.focus(response.terminal_name);
-
-    const worktreeMsg = response.worktree_created ? " (worktree created)" : "";
-    void vscode.window.showInformationMessage(
-      `Launched agent for ${response.ticket_id}${worktreeMsg}`,
-    );
-
+    await ctx.launchManager.presentLaunchResponse(response);
     await ctx.refreshAllProviders();
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
@@ -322,14 +318,29 @@ async function focusTicketTerminal(
 ): Promise<void> {
   if (ctx.terminalManager.exists(terminalName)) {
     ctx.terminalManager.focus(terminalName);
-  } else if (ticket) {
-    await ctx.launchManager.offerRelaunch(ticket);
-  } else {
-    void vscode.window.showWarningMessage(`Terminal '${terminalName}' not found`);
+    return;
   }
+  if (focusMissAction(usingRemoteServer(connectionSettings())) === "open-queue") {
+    await openOperatorUi(ctx.getCurrentTicketsDir(), "queue");
+    return;
+  }
+  if (ticket) {
+    await ctx.launchManager.offerRelaunch(ticket);
+    return;
+  }
+  void vscode.window.showWarningMessage(`Terminal '${terminalName}' not found`);
 }
 
-function openTicketFile(filePath: string): void {
+function openTicketFile(filePath: string, ticketId?: string): void {
+  const action = ticketOpenAction(usingRemoteServer(connectionSettings()), ticketId);
+  if (action === "ui" && ticketId) {
+    void openOperatorUi(currentTicketsDir, "tickets", ticketId);
+    return;
+  }
+  if (action === "unavailable") {
+    void vscode.window.showInformationMessage("This ticket lives on the Operator server.");
+    return;
+  }
   void vscode.workspace.openTextDocument(filePath).then((doc) => {
     return vscode.window.showTextDocument(doc);
   });
@@ -337,6 +348,10 @@ function openTicketFile(filePath: string): void {
 
 /** Open a ticket by id, asking the Operator server where its file lives. */
 async function openTicketById(ticketId: string): Promise<void> {
+  if (ticketOpenAction(usingRemoteServer(connectionSettings()), ticketId) === "ui") {
+    await openOperatorUi(currentTicketsDir, "tickets", ticketId);
+    return;
+  }
   try {
     const client = new OperatorApiClient(await discoverApiUrl(currentTicketsDir));
     openTicketFile((await client.getTicket(ticketId)).filepath);
@@ -351,6 +366,10 @@ async function openTicketById(ticketId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function startWebhookServer(ctx: CommandContext): Promise<void> {
+  if (await guardRemoteCommand("operator.startWebhookServer", ctx.getCurrentTicketsDir())) {
+    return;
+  }
+
   const hasConfig = await configFileExists();
   if (!hasConfig) {
     showConfigMissingNotification();
@@ -696,6 +715,10 @@ async function updateOperatorContext(ctx: CommandContext): Promise<void> {
 }
 
 async function runSetupCommand(ctx: CommandContext): Promise<void> {
+  if (await guardRemoteCommand("operator.runSetup", ctx.getCurrentTicketsDir())) {
+    return;
+  }
+
   const workingDir = ctx.extensionContext.globalState.get<string>("operator.workingDirectory");
   if (!workingDir) {
     await vscode.commands.executeCommand("operator.selectWorkingDirectory");
@@ -741,7 +764,66 @@ async function runSetupCommand(ctx: CommandContext): Promise<void> {
   }
 }
 
+function connectionSettings() {
+  return readConnectionSettings(vscode.workspace.getConfiguration("operator"));
+}
+
+async function chooseConnection(
+  ctx: CommandContext,
+  credentials: OperatorCredentials,
+  tokenStore: TokenStore,
+): Promise<void> {
+  const config = vscode.workspace.getConfiguration("operator");
+  await runConnectionPicker({
+    currentRemoteUrl: () => connectionSettings().explicitApiUrl ?? "",
+    discoverLocal: () => discoverLocalApiUrl(ctx.getCurrentTicketsDir()),
+    probe: async (url) => {
+      const client = new OperatorApiClient(url);
+      if (!(await client.isReachable())) {
+        return "down";
+      }
+      try {
+        await client.health();
+        return "ok";
+      } catch (err) {
+        return err instanceof AuthRequiredError ? "auth" : "down";
+      }
+    },
+    saveLocal: async () => {
+      const current = connectionSettings().explicitApiUrl;
+      await config.update(
+        "connectionMode",
+        CONNECTION_MODE_LOCAL,
+        vscode.ConfigurationTarget.Global,
+      );
+      if (current && !isLoopbackUrl(current)) {
+        await config.update("apiUrl", undefined, vscode.ConfigurationTarget.Global);
+      }
+    },
+    saveRemote: async (origin) => {
+      await config.update("connectionMode", "remote", vscode.ConfigurationTarget.Global);
+      await config.update("apiUrl", origin, vscode.ConfigurationTarget.Global);
+    },
+    markChosen: async () => {
+      await ctx.extensionContext.globalState.update(CONNECTION_CHOSEN_STATE, true);
+      await updateWalkthroughContext(ctx.extensionContext);
+      await ctx.refreshAllProviders();
+    },
+    signIn: async (url) => {
+      const outcome = await signIn(url, credentials, tokenStore);
+      if (outcome?.status === "approved") {
+        await ctx.refreshAllProviders();
+      }
+    },
+    runLocal: () => startOperatorServerCommand(ctx),
+  });
+}
+
 async function downloadOperatorCommand(ctx: CommandContext): Promise<void> {
+  if (await guardRemoteCommand("operator.downloadOperator", ctx.getCurrentTicketsDir())) {
+    return;
+  }
+
   const existingPath = await getOperatorPath(ctx.extensionContext);
   if (existingPath) {
     const version = await getOperatorVersion(existingPath);
@@ -753,7 +835,7 @@ async function downloadOperatorCommand(ctx: CommandContext): Promise<void> {
     );
 
     if (choice === "Open Downloads Page") {
-      void vscode.env.openExternal(vscode.Uri.parse("https://operator.untra.io/downloads/"));
+      void vscode.env.openExternal(vscode.Uri.parse(DOWNLOADS_PAGE));
       return;
     }
     if (choice !== "Reinstall/Update") {
@@ -781,7 +863,7 @@ async function downloadOperatorCommand(ctx: CommandContext): Promise<void> {
     );
 
     if (choice === "Open Downloads Page") {
-      void vscode.env.openExternal(vscode.Uri.parse("https://operator.untra.io/downloads/"));
+      void vscode.env.openExternal(vscode.Uri.parse(DOWNLOADS_PAGE));
     }
   }
 }
@@ -790,6 +872,10 @@ async function startOperatorServerCommand(
   ctx: CommandContext,
   promptOnMissingBinary = true,
 ): Promise<void> {
+  if (await guardRemoteCommand("operator.startOperatorServer", ctx.getCurrentTicketsDir())) {
+    return;
+  }
+
   const hasConfig = await configFileExists();
   if (!hasConfig) {
     showConfigMissingNotification();
@@ -868,6 +954,10 @@ async function startOperatorServerCommand(
 }
 
 async function revealTicketsDirCommand(ctx: CommandContext): Promise<void> {
+  if (await guardRemoteCommand("operator.revealTicketsDir", ctx.getCurrentTicketsDir())) {
+    return;
+  }
+
   const dir = ctx.getCurrentTicketsDir();
   if (!dir) {
     void vscode.window.showWarningMessage("No .tickets directory found.");
@@ -913,7 +1003,9 @@ async function showCreateMenu(ctx: CommandContext): Promise<void> {
 
   switch (choice.detail) {
     case "delegator":
-      openCreateDelegator(ctx);
+      if (!(await guardRemoteCommand("operator.openCreateDelegator", ctx.getCurrentTicketsDir()))) {
+        void openCreateDelegator(ctx);
+      }
       break;
     case "issuetype":
       // Issue types are managed in the hosted Operator UI.
@@ -926,7 +1018,14 @@ async function showCreateMenu(ctx: CommandContext): Promise<void> {
   }
 }
 
-function openCreateDelegator(ctx: CommandContext, tool?: string, model?: string): void {
+async function openCreateDelegator(
+  ctx: CommandContext,
+  tool?: string,
+  model?: string,
+): Promise<void> {
+  if (await guardRemoteCommand("operator.openCreateDelegator", ctx.getCurrentTicketsDir())) {
+    return;
+  }
   // Delegators bind a model provider to an llm tool, so they live in the Model
   // Providers section (distinct from the Coding Agents / llm-tools section).
   ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
@@ -1116,6 +1215,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("operator.downloadOperator", () =>
       downloadOperatorCommand(ctx),
     ),
+    vscode.commands.registerCommand("operator.chooseConnection", () =>
+      chooseConnection(ctx, credentials, tokenStore),
+    ),
     vscode.commands.registerCommand("operator.pauseQueue", () => pauseQueueCommand(ctx)),
     vscode.commands.registerCommand("operator.resumeQueue", () => resumeQueueCommand(ctx)),
     vscode.commands.registerCommand("operator.syncKanban", () => syncKanbanCommand(ctx)),
@@ -1157,7 +1259,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("operator.showCreateMenu", () => showCreateMenu(ctx)),
     vscode.commands.registerCommand(
       "operator.openCreateDelegator",
-      (tool?: string, model?: string) => openCreateDelegator(ctx, tool, model),
+      (tool?: string, model?: string) => {
+        void openCreateDelegator(ctx, tool, model);
+      },
     ),
     vscode.commands.registerCommand("operator.detectLlmTools", () =>
       detectLlmTools(ctx.extensionContext, getOperatorPath),
@@ -1192,9 +1296,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await ctx.refreshAllProviders();
     }),
     vscode.commands.registerCommand("operator.openWalkthrough", openWalkthrough),
-    vscode.commands.registerCommand("operator.openSettings", () =>
-      ConfigPanel.createOrShow(ctx.extensionContext.extensionUri),
-    ),
+    vscode.commands.registerCommand("operator.openSettings", async () => {
+      if (await guardRemoteCommand("operator.openSettings", ctx.getCurrentTicketsDir())) {
+        return;
+      }
+      ConfigPanel.createOrShow(ctx.extensionContext.extensionUri);
+    }),
     // Link out to the daemon-hosted Operator UI (Simple Browser) for the
     // operational surfaces the extension webview no longer reimplements.
     vscode.commands.registerCommand("operator.openUi", () =>
@@ -1284,48 +1391,77 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       context.subscriptions.push(watcher);
     }
 
-    // Probe-first attachment: the health probe is the ONLY thing deciding
-    // whether an Operator server exists - no binary, config.toml, or .tickets
-    // gating on this path. Filesystem checks gate *starting* a server only.
+    // Probe-first attachment. livez decides that something is listening.
+    // /api/v1/health decides that this editor is signed in. Starting a
+    // binary is a local-mode fallback only.
     const apiUrl = await discoverApiUrl(ctx.getCurrentTicketsDir());
-    try {
-      const health = await new OperatorApiClient(apiUrl).health();
-      ctx.attachedServer = { url: apiUrl, version: health.version };
-      outputChannel.appendLine(`[Operator] Attached to server at ${apiUrl}`);
+    let reachable = false;
+    let authenticated = false;
+    if (apiUrl) {
       const client = new OperatorApiClient(apiUrl);
-      queueProvider.setApiClient(client);
-      inProgressProvider.setApiClient(client);
-      completedProvider.setApiClient(client);
-      campaignProvider.setApiClient(client);
-      void campaignProvider.refresh();
-    } catch {
+      if (await client.isReachable()) {
+        reachable = true;
+        queueProvider.setApiClient(client);
+        inProgressProvider.setApiClient(client);
+        completedProvider.setApiClient(client);
+        campaignProvider.setApiClient(client);
+        try {
+          const health = await client.health();
+          authenticated = true;
+          ctx.attachedServer = { url: apiUrl, version: health.version };
+          outputChannel.appendLine(`[Operator] Attached to server at ${apiUrl}`);
+          void campaignProvider.refresh();
+        } catch (err) {
+          if (!(err instanceof AuthRequiredError)) {
+            reachable = false;
+          }
+        }
+      }
+    }
+    if (!authenticated) {
       ctx.attachedServer = undefined;
     }
 
-    // operator.autoStart: start a local server when none is reachable.
-    // Starting happens only from a named VS Code workspace terminal.
+    const settings = connectionSettings();
     const autoStart = vscode.workspace.getConfiguration("operator").get("autoStart", true);
-    if (!ctx.attachedServer && autoStart) {
-      const hasConfig = await configFileExists();
-      if (hasConfig) {
-        await startOperatorServerCommand(ctx, false);
-      } else {
-        void vscode.window.showInformationMessage("No Operator server. Set operator.apiUrl.");
-      }
+    const hasConfig = await configFileExists();
+    const action = startupAction({
+      mode: settings.mode,
+      apiUrl,
+      reachable,
+      authenticated,
+      autoStart,
+      hasConfig,
+    });
+    if (action === "start-local") {
+      await startOperatorServerCommand(ctx, false);
+    } else if (action === "sign-in") {
+      void vscode.window
+        .showInformationMessage(`Operator at ${apiUrl} requires sign-in.`, "Sign In")
+        .then((choice) => {
+          if (choice === "Sign In") {
+            return signIn(apiUrl, credentials, tokenStore);
+          }
+          return undefined;
+        });
+    } else if (action === "report-unreachable") {
+      void vscode.window.showWarningMessage(`Can't reach Operator at ${apiUrl}.`);
+    } else if (action === "prompt-choose") {
+      void vscode.window.showInformationMessage(
+        "No Operator server. Run Operator: Choose Connection.",
+      );
     }
 
-    // The webhook listener stays in-process (it must hand its port back to
-    // the extension host) and needs the local config to exist.
-    if (await configFileExists()) {
+    // The webhook listener is local. A remote Operator cannot call it.
+    if (shouldStartWebhook(settings.mode, apiUrl, hasConfig)) {
       await startWebhookServer(ctx);
     }
 
     updateStatusBar(ctx);
 
-    // Set initial context for command visibility
-    await updateOperatorContext(ctx);
-
-    // Restore working directory from persistent VS Code settings if globalState is empty
+    // Restore working directory from persistent VS Code settings if globalState is empty.
+    // This happens before the walkthrough context so an existing local install
+    // counts as a connection choice.
     const configWorkingDir = vscode.workspace
       .getConfiguration("operator")
       .get<string>("workingDirectory");
@@ -1333,9 +1469,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await context.globalState.update("operator.workingDirectory", configWorkingDir);
     }
 
-    // Auto-open walkthrough for new users with no working directory
-    const workingDirectory = context.globalState.get<string>("operator.workingDirectory");
-    if (!workingDirectory) {
+    await updateOperatorContext(ctx);
+
+    const connectionChosen = context.globalState.get<boolean>(CONNECTION_CHOSEN_STATE) === true;
+    if (!connectionChosen) {
       void vscode.commands.executeCommand(
         "workbench.action.openWalkthrough",
         "untra.operator-terminals#operator-setup",

@@ -5,13 +5,13 @@
 //! and TUI use in-process (`workflow_gen::export_workflow_for_ticket`), so the
 //! web UI and VS Code extension produce identical output.
 
+use crate::rest::state::RequestState as State;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, Query},
     Json,
 };
 use serde::Deserialize;
 
-use crate::queue::Queue;
 use crate::rest::dto::{
     workflow_formats, WorkflowExportResponse, WorkflowFormatDto, WorkflowPreviewResponse,
 };
@@ -52,7 +52,9 @@ pub async fn export(
     Path(ticket_id): Path<String>,
     Query(query): Query<ExportQuery>,
 ) -> Result<Json<WorkflowExportResponse>, ApiError> {
-    let queue = Queue::new(&state.config()).map_err(|e| ApiError::InternalError(e.to_string()))?;
+    let queue = state
+        .queue()
+        .map_err(|e| ApiError::InternalError(e.to_string()))?;
     let ticket = find_ticket_anywhere(&queue, &ticket_id)?;
 
     let registry = state.registry.read().await;

@@ -19,7 +19,7 @@ Run each step sequentially from the repo root. If any step fails, stop and repor
 
 ## Notes
 
-- Use `make docs`, not a bare `bundle exec jekyll build`. Jekyll alone will not regenerate the collection bundle or build the web components, so `/workflows/` pages render an empty graph canvas.
+- Use `make docs`. Jekyll alone will not regenerate the collection bundle or build the web components, so `/workflows/` pages render an empty graph canvas.
 - `bun` is required for step 2 (the `webcomponents/` build). `docs/assets/js/` is a build artifact and is gitignored.
 - If port 4000 is already in use, report the conflict and suggest killing the existing process or using `--port` to pick a different one.
 - To stop the server later, kill the background Jekyll process.

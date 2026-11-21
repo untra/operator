@@ -250,11 +250,11 @@ fn build_remote_llm_command_from(
 /// Build the local wrapper script content: ship prompt + payload over SSH,
 /// then exec into the remote tmux session through a reverse tunnel.
 ///
-/// Payloads travel as files via `ssh 'cat > …'` (portable on SFTP-only hosts,
+/// Payloads travel as files via `ssh 'cat'` (portable on SFTP-only hosts,
 /// and no payload quoting at all); only the short tmux line is quoted, through
-/// exactly one escaping layer per shell that parses it. `exec` makes the pane
-/// process *be* ssh, so pane-death ⇔ ssh-death and monitor semantics are
-/// unchanged. `-A` makes relaunch idempotent (reattaches a surviving session).
+/// exactly one escaping layer per shell that parses it. `exec` ties the
+/// monitored pane's lifetime to the SSH process. `-A` reattaches a surviving
+/// session on relaunch.
 /// `ExitOnForwardFailure` turns tunnel-port collisions into loud launch
 /// failures instead of silently broken callbacks; `remote_port` moves the
 /// workspace-side bind off a port the target already uses. The remote status

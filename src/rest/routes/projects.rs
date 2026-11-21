@@ -1,16 +1,17 @@
 //! Project listing and assessment endpoints.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use std::collections::HashMap;
 
-use crate::queue::creator::{render_template, TicketCreator};
-use crate::rest::dto::{AssessTicketResponse, ProjectSummary};
+use axum::{extract::Path, Json};
+
+use crate::rest::dto::{AssessTicketResponse, CreateTicketRequest, ProjectSummary};
 use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
+use crate::services::ticket_creation;
 use crate::taxonomy::analyzer::ProjectAnalysis;
-use crate::templates::TemplateType;
+
+const ASSESS_ISSUE_TYPE: &str = "ASSESS";
 
 /// List all configured projects with analysis data
 #[utoipa::path(
@@ -30,6 +31,9 @@ pub async fn list(State(state): State<ApiState>) -> Json<Vec<ProjectSummary>> {
     let mut summaries = Vec::new();
 
     for name in project_names {
+        if !state.may_access_project(name) {
+            continue;
+        }
         let project_dir = projects_path.join(name);
         let exists = project_dir.is_dir();
         let has_catalog_info = project_dir.join("catalog-info.yaml").is_file();
@@ -141,49 +145,25 @@ pub async fn assess(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<AssessTicketResponse>, ApiError> {
-    let config = &state.config();
-
     // Validate project exists in config
-    if !config.projects.contains(&name) {
+    if !state.config().projects.contains(&name) {
         return Err(ApiError::NotFound(format!(
             "Project '{name}' not found in configuration"
         )));
     }
 
-    let creator = TicketCreator::new(config);
-    let template_type = TemplateType::Assess;
-
-    // Generate default values and add summary
-    let mut values = creator.generate_default_values(template_type, &name);
-    values.insert(
-        "summary".to_string(),
-        format!("Assess {name} project structure"),
-    );
-
-    // Render template content
-    let template = template_type.template_content();
-    let content = render_template(template, &values)?;
-
-    // Write ticket file directly (no editor)
-    let ticket_id = values
-        .get("id")
-        .cloned()
-        .unwrap_or_else(|| "ASSESS-0000".to_string());
-    let queue_path = config.tickets_path().join("queue");
-    std::fs::create_dir_all(&queue_path)
-        .map_err(|e| ApiError::InternalError(format!("Failed to create queue directory: {e}")))?;
-
-    let now = chrono::Utc::now();
-    let timestamp = now.format("%Y%m%d-%H%M").to_string();
-    let filename = format!("{timestamp}-ASSESS-{name}-new-ticket.md");
-    let filepath = queue_path.join(&filename);
-
-    std::fs::write(&filepath, &content)
-        .map_err(|e| ApiError::InternalError(format!("Failed to write ticket file: {e}")))?;
+    let request = CreateTicketRequest {
+        issue_type: ASSESS_ISSUE_TYPE.to_string(),
+        project: Some(name.clone()),
+        summary: Some(format!("Assess {name} project structure")),
+        values: HashMap::new(),
+        sync_to_kanban: Some(false),
+    };
+    let created = ticket_creation::create(&state, request).await?;
 
     Ok(Json(AssessTicketResponse {
-        ticket_id,
-        ticket_path: filepath.to_string_lossy().to_string(),
+        ticket_id: created.id,
+        ticket_path: created.path,
         project_name: name,
     }))
 }

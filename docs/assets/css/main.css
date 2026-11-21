@@ -618,7 +618,7 @@ tr:hover {
   }
 }
 
-/* ── Collection catalog (/workflows/) ─────────────────────────────────────────
+/* 
  * Cards and the table are both rendered statically by the collections-pages
  * generator; `data-view` on the container decides which one is shown, and
  * <operator-collection-search> flips it. Without JavaScript the default view

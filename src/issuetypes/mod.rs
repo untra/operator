@@ -163,22 +163,6 @@ impl IssueTypeRegistry {
     }
 
     /// Load issue types and collections from directory structure
-    ///
-    /// Flattened directory structure (no issues/ subfolder):
-    /// ```text
-    /// .tickets/templates/
-    /// ├── dev_kanban/
-    /// │   ├── collection.toml  (optional)
-    /// │   ├── TASK.json
-    /// │   ├── TASK.md
-    /// │   ├── FEAT.json
-    /// │   ├── FEAT.md
-    /// │   ├── FIX.json
-    /// │   └── FIX.md
-    /// ├── devops_kanban/
-    /// │   └── ...
-    /// ```
-    ///
     /// Each collection is self-contained with its own issue types.
     pub fn load_from_templates_dir(&mut self, templates_path: &Path) -> Result<()> {
         let mut loaded: Vec<_> = loader::load_collections_from_dir(templates_path)?
@@ -268,8 +252,8 @@ impl IssueTypeRegistry {
     }
 
     /// Resolve an issue type by key with collection precedence:
-    /// explicit collection → active collection → deterministic search across
-    /// collections in load order → kanban imports. Misses at an earlier level
+    /// explicit collection -> active collection -> deterministic search across
+    /// collections in load order -> kanban imports. Misses at an earlier level
     /// fall through to the next (logged at debug).
     pub fn resolve(&self, collection: Option<&str>, key: &str) -> Option<&IssueType> {
         if let Some(name) = collection {

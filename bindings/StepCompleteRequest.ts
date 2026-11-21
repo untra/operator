@@ -6,6 +6,14 @@ import type { OperatorOutput } from "./OperatorOutput";
  */
 export type StepCompleteRequest = { 
 /**
+ * Finish this session without executing another step.
+ */
+no_auto_proceed: boolean, 
+/**
+ * W3C context of the completed opr8r step.
+ */
+traceparent?: string | null, 
+/**
  * Exit code from the LLM command
  */
 exit_code: number, 

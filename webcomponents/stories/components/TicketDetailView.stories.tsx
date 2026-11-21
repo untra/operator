@@ -55,7 +55,7 @@ export const WorkflowFailed: Story = {
 };
 
 export const WorkflowLoading: Story = {
-  args: { workflow: { status: "loading", message: "Loading workflow…" } },
+  args: { workflow: { status: "loading", message: "Loading workflow..." } },
 };
 
 /** Launched, but the controller supplied no follow-up actions. */

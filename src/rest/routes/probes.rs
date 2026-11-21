@@ -6,7 +6,7 @@
 //! should not disclose. These two carry no metadata at all: the HTTP status is
 //! the entire signal.
 
-use axum::extract::State;
+use crate::rest::state::RequestState as State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 

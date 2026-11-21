@@ -16,14 +16,15 @@ use uuid::Uuid;
 use crate::auth::password::{hash_password, validate_password, verify_password};
 use crate::auth::schema;
 use crate::auth::scope::Principal;
-use crate::auth::secret::{
-    generate_prefixed_secret, generate_secret, generate_user_code, hash_secret,
-};
+#[cfg(test)]
+use crate::auth::secret::generate_prefixed_secret;
+use crate::auth::secret::{generate_secret, generate_user_code, hash_secret};
 use crate::auth::tokens::SigningKey;
 use crate::rest::dto::auth::{
     AccessKeySummary, BootstrapState, DeviceSummary, PrincipalKind, Scope, SessionSummary,
-    MAX_ACCESS_KEY_EXPIRY_DAYS, MAX_IDENTIFIER_LENGTH,
 };
+#[cfg(test)]
+use crate::rest::dto::auth::{MAX_ACCESS_KEY_EXPIRY_DAYS, MAX_IDENTIFIER_LENGTH};
 
 /// Filename of the auth database inside the state directory.
 pub const AUTH_DB_FILENAME: &str = "auth.sqlite3";
@@ -44,6 +45,7 @@ pub const DEVICE_POLL_INTERVAL_SECS: u64 = 5;
 
 /// Prefix marking a service access key, so a leaked one is recognizable to a
 /// secret scanner and in logs.
+#[cfg(test)]
 const ACCESS_KEY_PREFIX: &str = "opk";
 
 /// Outcome of redeeming a refresh token.
@@ -53,6 +55,8 @@ pub enum RefreshOutcome {
     Rotated {
         refresh_token: String,
         scopes: Vec<Scope>,
+        /// The family the token belongs to; an endpoint's id.
+        family_id: String,
     },
     /// The token was valid once but has already been redeemed. The family is
     /// now revoked - see [`AuthStore::redeem_refresh_token`].
@@ -107,6 +111,12 @@ pub enum RateLimitDecision {
 pub struct AuthStore {
     conn: Arc<Mutex<Connection>>,
     path: PathBuf,
+    pub limits: Arc<super::limits::Limits>,
+    pub(super) usage: Arc<super::usage::Usage>,
+    pub(super) logins: Arc<super::oidc::LoginAttempts>,
+    pub(super) jwks: Arc<super::oidc_bearer::JwksCache>,
+    ownership: Option<Arc<crate::ownership::ResourceGuard>>,
+    runtime: Option<Arc<crate::ownership::Ownership>>,
 }
 
 impl std::fmt::Debug for AuthStore {
@@ -116,7 +126,7 @@ impl std::fmt::Debug for AuthStore {
         f.debug_struct("AuthStore")
             .field("path", &self.path)
             .field("conn", &"<sqlite connection>")
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -142,8 +152,29 @@ pub fn restrict_to_owner(_path: &Path) -> Result<()> {
 }
 
 impl AuthStore {
+    pub(crate) fn retain_ownership(&mut self, ownership: Option<Arc<crate::ownership::Ownership>>) {
+        self.runtime = ownership;
+    }
+    pub fn start_usage_tracking(&self) {
+        super::usage::Usage::start(
+            &self.usage,
+            &self.conn,
+            self.ownership.clone(),
+            self.runtime.clone(),
+        );
+    }
+
+    pub async fn stop_usage_tracking(&self) {
+        self.usage.stop().await;
+    }
+
+    pub fn flush_usage(&self) -> Result<()> {
+        self.usage.flush(&self.conn)
+    }
+
     /// Open (creating if needed) the auth database at `state_path`.
     pub fn open(state_path: &Path) -> Result<Self> {
+        let ownership = crate::ownership::state_guard(state_path)?;
         std::fs::create_dir_all(state_path)
             .with_context(|| format!("creating state directory {}", state_path.display()))?;
         let path = state_path.join(AUTH_DB_FILENAME);
@@ -156,7 +187,13 @@ impl AuthStore {
         schema::migrate(&mut conn)?;
 
         Ok(Self {
+            runtime: None,
+            ownership: Some(ownership),
             conn: Arc::new(Mutex::new(conn)),
+            usage: Arc::default(),
+            limits: Arc::default(),
+            logins: Arc::default(),
+            jwks: Arc::default(),
             path,
         })
     }
@@ -168,12 +205,18 @@ impl AuthStore {
         schema::apply_pragmas(&conn)?;
         schema::migrate(&mut conn)?;
         Ok(Self {
+            runtime: None,
+            ownership: None,
             conn: Arc::new(Mutex::new(conn)),
+            usage: Arc::default(),
+            limits: Arc::default(),
+            logins: Arc::default(),
+            jwks: Arc::default(),
             path: PathBuf::from(":memory:"),
         })
     }
 
-    fn with_conn<T>(&self, f: impl FnOnce(&mut Connection) -> Result<T>) -> Result<T> {
+    pub(super) fn with_conn<T>(&self, f: impl FnOnce(&mut Connection) -> Result<T>) -> Result<T> {
         let mut guard = self
             .conn
             .lock()
@@ -399,6 +442,29 @@ impl AuthStore {
         Ok(key)
     }
 
+    /// The telemetry installation key, created on first use.
+    ///
+    /// `INSERT OR IGNORE` on the single pinned row means two processes starting
+    /// at once both read back the same key, so pseudonymous hashes stay stable.
+    pub fn load_or_create_telemetry_key(&self) -> Result<[u8; 32]> {
+        let candidate = crate::auth::secret::random_bytes::<32>()?;
+        let now = Utc::now().to_rfc3339();
+        let stored: Vec<u8> = self.with_conn(|conn| {
+            conn.execute(
+                "INSERT OR IGNORE INTO telemetry_key (id, key, created_at) VALUES (1, ?1, ?2)",
+                rusqlite::params![candidate.as_slice(), now],
+            )?;
+            Ok(
+                conn.query_row("SELECT key FROM telemetry_key WHERE id = 1", [], |r| {
+                    r.get(0)
+                })?,
+            )
+        })?;
+        stored
+            .try_into()
+            .map_err(|_| anyhow!("stored telemetry key is not 32 bytes"))
+    }
+
     // =========================================================================
     // Browser sessions
     // =========================================================================
@@ -434,7 +500,7 @@ impl AuthStore {
         let hash = hash_secret(token);
         let now = Utc::now();
 
-        self.with_conn(|conn| {
+        let principal = self.with_conn(|conn| {
             let row: Option<(String, String)> = conn
                 .query_row(
                     "SELECT id, expires_at FROM session \
@@ -452,11 +518,6 @@ impl AuthStore {
                 return Ok(None);
             }
 
-            conn.execute(
-                "UPDATE session SET last_used_at = ?1 WHERE id = ?2",
-                rusqlite::params![now.to_rfc3339(), id],
-            )?;
-
             Ok(Some(Principal {
                 subject: ADMIN_SUBJECT.to_string(),
                 scopes: Scope::ALL.to_vec(),
@@ -465,8 +526,16 @@ impl AuthStore {
                 session_id: Some(id),
                 ticket_id: None,
                 step: None,
+                agent_session_id: None,
+                endpoint_id: None,
+                authority: None,
             }))
-        })
+        })?;
+        if let Some(id) = principal.as_ref().and_then(|p| p.session_id.as_deref()) {
+            self.usage
+                .record(super::usage::CredentialTable::Session, id, now);
+        }
+        Ok(principal)
     }
 
     /// Whether `csrf` matches the session's current or immediately previous
@@ -563,40 +632,14 @@ impl AuthStore {
 
     /// Start a refresh-token family and issue its first token.
     pub fn create_refresh_family(&self, client_id: &str, scopes: &[Scope]) -> Result<String> {
-        let now = Utc::now();
         let token = generate_secret()?;
-        let family_id = Uuid::new_v4().to_string();
-
         self.with_conn(|conn| {
             let tx = conn.transaction()?;
-            tx.execute(
-                "INSERT INTO refresh_family \
-                 (id, client_id, scopes, created_at, absolute_expires_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                rusqlite::params![
-                    family_id,
-                    client_id,
-                    encode_scopes(scopes),
-                    now.to_rfc3339(),
-                    (now + REFRESH_ABSOLUTE_TTL).to_rfc3339(),
-                ],
-            )?;
-            tx.execute(
-                "INSERT INTO refresh_token (id, family_id, token_hash, created_at, expires_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                rusqlite::params![
-                    Uuid::new_v4().to_string(),
-                    family_id,
-                    hash_secret(&token),
-                    now.to_rfc3339(),
-                    (now + REFRESH_IDLE_TTL).to_rfc3339(),
-                ],
-            )?;
+            insert_refresh_family(&tx, client_id, scopes, &token, Utc::now())?;
             tx.commit()?;
             Ok(())
-        })?;
-
-        Ok(token)
+        })
+        .map(|()| token)
     }
 
     /// Redeem a refresh token, rotating it.
@@ -687,7 +730,170 @@ impl AuthStore {
             Ok(RefreshOutcome::Rotated {
                 refresh_token: replacement,
                 scopes: decode_scopes(&scopes),
+                family_id,
             })
+        })
+    }
+
+    // =========================================================================
+    // Endpoints
+    // =========================================================================
+
+    /// Pair an endpoint: one transaction creates its scopeless refresh family,
+    /// the family's first token, and the endpoint row. The endpoint id *is* the family id, so revoking either ends both.
+    /// Returns `(endpoint_id, refresh_token)`.
+    pub fn create_endpoint_family(&self, client_id: &str) -> Result<(String, String)> {
+        let token = generate_secret()?;
+        let now = Utc::now();
+        let id = self.with_conn(|conn| {
+            let tx = conn.transaction()?;
+            let id = insert_refresh_family(&tx, client_id, &[], &token, now)?;
+            let name: String = format!("{ENDPOINT_NAME_PREFIX}{}", &id[..ENDPOINT_NAME_ID_CHARS]);
+            tx.execute(
+                "INSERT INTO endpoint (id, name, created_at) VALUES (?1, ?2, ?3)",
+                rusqlite::params![id, name, now.to_rfc3339()],
+            )?;
+            tx.commit()?;
+            Ok(id)
+        })?;
+        Ok((id, token))
+    }
+
+    /// The endpoint, if it and its refresh family are both unrevoked and the
+    /// family has not passed its absolute deadline. Consulted on every request
+    /// so revocation takes effect before the access token expires.
+    pub fn endpoint_authority(&self, id: &str) -> Result<Option<EndpointRecord>> {
+        let Some(record) = self.get_endpoint(id)? else {
+            return Ok(None);
+        };
+        if record.revoked_at.is_some() {
+            return Ok(None);
+        }
+        let family: Option<(String, Option<String>)> = self.with_conn(|conn| {
+            Ok(conn
+                .query_row(
+                    "SELECT absolute_expires_at, revoked_at FROM refresh_family WHERE id = ?1",
+                    [id],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?)
+        })?;
+        match family {
+            Some((expires, None)) if parse_time(&expires)? > Utc::now() => Ok(Some(record)),
+            _ => Ok(None),
+        }
+    }
+
+    pub fn get_endpoint(&self, id: &str) -> Result<Option<EndpointRecord>> {
+        self.with_conn(|conn| {
+            conn.query_row(
+                &format!("SELECT {ENDPOINT_COLUMNS} FROM endpoint WHERE id = ?1"),
+                [id],
+                endpoint_row,
+            )
+            .optional()?
+            .map(EndpointRow::into_record)
+            .transpose()
+        })
+    }
+
+    /// Every endpoint ever paired, revoked ones included, newest first.
+    pub fn list_endpoints(&self) -> Result<Vec<EndpointRecord>> {
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(&format!(
+                "SELECT {ENDPOINT_COLUMNS} FROM endpoint ORDER BY created_at DESC"
+            ))?;
+            let rows = stmt
+                .query_map([], endpoint_row)?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            rows.into_iter().map(EndpointRow::into_record).collect()
+        })
+    }
+
+    /// Rename and/or toggle launching. `None` leaves a field unchanged.
+    /// Returns false for an unknown or revoked endpoint.
+    pub fn update_endpoint(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        launch_enabled: Option<bool>,
+    ) -> Result<bool> {
+        self.with_conn(|conn| {
+            let changed = conn.execute(
+                "UPDATE endpoint SET name = COALESCE(?2, name), \
+                 named_by_admin = named_by_admin OR ?2 IS NOT NULL, \
+                 launch_enabled = COALESCE(?3, launch_enabled) \
+                 WHERE id = ?1 AND revoked_at IS NULL",
+                rusqlite::params![id, name, launch_enabled],
+            )?;
+            Ok(changed == 1)
+        })
+    }
+
+    /// Name the endpoint after the hostname it reports, unless an admin has
+    /// named it. Returns whether the name changed.
+    pub fn adopt_endpoint_hostname(&self, id: &str, hostname: &str) -> Result<bool> {
+        let hostname = hostname.trim();
+        if hostname.is_empty() {
+            return Ok(false);
+        }
+        let hostname: String = hostname.chars().take(ENDPOINT_NAME_MAX_CHARS).collect();
+        self.with_conn(|conn| {
+            let changed = conn.execute(
+                "UPDATE endpoint SET name = ?2 \
+                 WHERE id = ?1 AND revoked_at IS NULL AND named_by_admin = 0 AND name <> ?2",
+                rusqlite::params![id, hostname],
+            )?;
+            Ok(changed == 1)
+        })
+    }
+
+    /// Revoke an endpoint and its refresh family together. Returns false when
+    /// it is unknown or already revoked.
+    pub fn revoke_endpoint(&self, id: &str, reason: &str) -> Result<bool> {
+        let now = Utc::now().to_rfc3339();
+        self.with_conn(|conn| {
+            let tx = conn.transaction()?;
+            let changed = tx.execute(
+                "UPDATE endpoint SET revoked_at = ?2 WHERE id = ?1 AND revoked_at IS NULL",
+                rusqlite::params![id, now],
+            )?;
+            if changed == 1 {
+                tx.execute(
+                    "UPDATE refresh_family SET revoked_at = ?2, revoked_reason = ?3 \
+                     WHERE id = ?1 AND revoked_at IS NULL",
+                    rusqlite::params![id, now, reason],
+                )?;
+            }
+            tx.commit()?;
+            Ok(changed == 1)
+        })
+    }
+
+    pub fn record_endpoint_capabilities(
+        &self,
+        id: &str,
+        capabilities_json: &str,
+        capabilities_hash: &str,
+        now: DateTime<Utc>,
+    ) -> Result<()> {
+        self.with_conn(|conn| {
+            conn.execute(
+                "UPDATE endpoint SET capabilities_json = ?2, capabilities_hash = ?3, \
+                 last_seen_at = ?4 WHERE id = ?1",
+                rusqlite::params![id, capabilities_json, capabilities_hash, now.to_rfc3339()],
+            )?;
+            Ok(())
+        })
+    }
+
+    pub fn touch_endpoint(&self, id: &str, now: DateTime<Utc>) -> Result<()> {
+        self.with_conn(|conn| {
+            conn.execute(
+                "UPDATE endpoint SET last_seen_at = ?2 WHERE id = ?1",
+                rusqlite::params![id, now.to_rfc3339()],
+            )?;
+            Ok(())
         })
     }
 
@@ -889,6 +1095,7 @@ impl AuthStore {
 
     /// Create an access key, returning `(summary, secret)`. The secret is
     /// returned once and is unrecoverable afterward.
+    #[cfg(test)]
     pub fn create_access_key(
         &self,
         name: &str,
@@ -948,6 +1155,7 @@ impl AuthStore {
     }
 
     /// Exchange an access key for its scopes, recording the use.
+    #[cfg(test)]
     pub fn redeem_access_key(&self, secret: &str) -> Result<Option<Vec<Scope>>> {
         let hash = hash_secret(secret);
         let now = Utc::now();
@@ -978,6 +1186,7 @@ impl AuthStore {
     }
 
     /// Revoke an access key.
+    #[cfg(test)]
     pub fn revoke_access_key(&self, id: &str) -> Result<Option<DateTime<Utc>>> {
         let now = Utc::now();
         self.with_conn(|conn| {
@@ -1106,21 +1315,28 @@ impl AuthStore {
     // =========================================================================
 
     /// Append an audit record. Callers must never pass secret material.
-    pub fn audit(&self, event: &str, detail: Option<&str>, succeeded: bool) -> Result<()> {
+    pub fn audit(
+        &self,
+        action: crate::auth::audit::AuditAction,
+        detail: Option<&str>,
+        succeeded: bool,
+    ) -> Result<()> {
         self.with_conn(|conn| {
             conn.execute(
                 "INSERT INTO audit_log (at, event, subject, detail, succeeded) \
                  VALUES (?1, ?2, ?3, ?4, ?5)",
                 rusqlite::params![
                     Utc::now().to_rfc3339(),
-                    event,
+                    action.as_str(),
                     ADMIN_SUBJECT,
                     detail,
                     i64::from(succeeded),
                 ],
             )?;
             Ok(())
-        })
+        })?;
+        crate::telemetry::events::audit_event(action, succeeded, detail);
+        Ok(())
     }
 
     /// Recent audit records, newest first, as `(at, event, detail, succeeded)`.
@@ -1167,6 +1383,113 @@ fn parse_time(raw: &str) -> Result<DateTime<Utc>> {
 
 fn parse_opt_time(raw: Option<&str>) -> Result<Option<DateTime<Utc>>> {
     raw.map(parse_time).transpose()
+}
+
+impl Drop for AuthStore {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.logins) == 1 {
+            self.usage.request_stop();
+            if self.flush_usage().is_err() {
+                tracing::warn!("final credential usage flush failed");
+            }
+        }
+    }
+}
+
+/// Default name prefix for a newly paired endpoint, until an admin renames it.
+pub const ENDPOINT_NAME_PREFIX: &str = "endpoint-";
+const ENDPOINT_NAME_ID_CHARS: usize = 8;
+/// Longest endpoint name kept, whether reported or set by an admin.
+pub const ENDPOINT_NAME_MAX_CHARS: usize = 128;
+const ENDPOINT_COLUMNS: &str = "id, name, created_at, revoked_at, launch_enabled, \
+     capabilities_json, capabilities_hash, last_seen_at";
+
+/// A paired endpoint as stored. Capabilities stay raw JSON here so the auth
+/// store does not depend on the endpoint wire protocol.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EndpointRecord {
+    pub id: String,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub revoked_at: Option<DateTime<Utc>>,
+    pub launch_enabled: bool,
+    pub capabilities_json: Option<String>,
+    pub capabilities_hash: Option<String>,
+    pub last_seen_at: Option<DateTime<Utc>>,
+}
+
+struct EndpointRow {
+    id: String,
+    name: String,
+    created_at: String,
+    revoked_at: Option<String>,
+    launch_enabled: bool,
+    capabilities_json: Option<String>,
+    capabilities_hash: Option<String>,
+    last_seen_at: Option<String>,
+}
+
+impl EndpointRow {
+    fn into_record(self) -> Result<EndpointRecord> {
+        Ok(EndpointRecord {
+            id: self.id,
+            name: self.name,
+            created_at: parse_time(&self.created_at)?,
+            revoked_at: parse_opt_time(self.revoked_at.as_deref())?,
+            launch_enabled: self.launch_enabled,
+            capabilities_json: self.capabilities_json,
+            capabilities_hash: self.capabilities_hash,
+            last_seen_at: parse_opt_time(self.last_seen_at.as_deref())?,
+        })
+    }
+}
+
+fn endpoint_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<EndpointRow> {
+    Ok(EndpointRow {
+        id: r.get(0)?,
+        name: r.get(1)?,
+        created_at: r.get(2)?,
+        revoked_at: r.get(3)?,
+        launch_enabled: r.get(4)?,
+        capabilities_json: r.get(5)?,
+        capabilities_hash: r.get(6)?,
+        last_seen_at: r.get(7)?,
+    })
+}
+
+/// Insert a refresh family and its first token inside `tx`; returns the family id.
+fn insert_refresh_family(
+    tx: &rusqlite::Transaction<'_>,
+    client_id: &str,
+    scopes: &[Scope],
+    token: &str,
+    now: DateTime<Utc>,
+) -> Result<String> {
+    let family_id = Uuid::new_v4().to_string();
+    tx.execute(
+        "INSERT INTO refresh_family \
+         (id, client_id, scopes, created_at, absolute_expires_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        rusqlite::params![
+            family_id,
+            client_id,
+            encode_scopes(scopes),
+            now.to_rfc3339(),
+            (now + REFRESH_ABSOLUTE_TTL).to_rfc3339(),
+        ],
+    )?;
+    tx.execute(
+        "INSERT INTO refresh_token (id, family_id, token_hash, created_at, expires_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        rusqlite::params![
+            Uuid::new_v4().to_string(),
+            family_id,
+            hash_secret(token),
+            now.to_rfc3339(),
+            (now + REFRESH_IDLE_TTL).to_rfc3339(),
+        ],
+    )?;
+    Ok(family_id)
 }
 
 #[cfg(test)]
@@ -1301,6 +1624,40 @@ mod tests {
         let second = s.load_or_create_signing_key().unwrap();
         assert_eq!(first.kid, second.kid);
         assert_eq!(first.public_raw(), second.public_raw());
+    }
+
+    #[test]
+    fn test_telemetry_key_is_generated_once_and_then_reused() {
+        // A new key per start would change every personal-class hash.
+        let s = store();
+        let first = s.load_or_create_telemetry_key().unwrap();
+        let second = s.load_or_create_telemetry_key().unwrap();
+        assert_eq!(first, second);
+        assert_ne!(first, [0u8; 32]);
+    }
+
+    #[test]
+    fn test_telemetry_key_and_personal_hash_survive_store_reopen() {
+        use operator_telemetry::{RedactionPolicy, Redactor};
+        let directory = tempfile::tempdir().unwrap();
+        let first = AuthStore::open(directory.path()).unwrap();
+        let key = first.load_or_create_telemetry_key().unwrap();
+        let policy = RedactionPolicy {
+            enable_redaction: true,
+        };
+        let value = serde_json::json!("alice");
+        let before = Redactor::new(&key)
+            .unwrap()
+            .redact_attribute("user.name", &value, policy);
+        drop(first);
+        let second = AuthStore::open(directory.path()).unwrap();
+        let restored = second.load_or_create_telemetry_key().unwrap();
+        assert_eq!(key, restored);
+        let after = Redactor::new(&restored)
+            .unwrap()
+            .redact_attribute("user.name", &value, policy);
+        assert_eq!(before, after);
+        assert_eq!(after.stats.hashed, 1);
     }
 
     // --- sessions -----------------------------------------------------------
@@ -1449,6 +1806,162 @@ mod tests {
         assert_eq!(listed.iter().filter(|x| x.current).count(), 1);
     }
 
+    // --- endpoints ----------------------------------------------------------
+
+    const ENDPOINT_CLIENT: &str = "opr8r-endpoint";
+
+    #[test]
+    fn test_endpoint_family_creates_a_live_endpoint_and_a_device() {
+        let s = store();
+        let (id, refresh) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        assert!(!refresh.is_empty());
+
+        let ep = s.endpoint_authority(&id).unwrap().expect("live endpoint");
+        assert_eq!(ep.id, id);
+        assert!(ep.name.starts_with(ENDPOINT_NAME_PREFIX));
+        assert!(!ep.launch_enabled);
+        assert!(ep.capabilities_json.is_none());
+
+        let device = s
+            .list_devices()
+            .unwrap()
+            .into_iter()
+            .find(|d| d.id == id)
+            .expect("the endpoint's family is a device");
+        assert_eq!(device.client_id, ENDPOINT_CLIENT);
+        assert!(device.scopes.is_empty());
+    }
+
+    #[test]
+    fn test_refresh_rotation_reports_the_family_id() {
+        let s = store();
+        let (id, refresh) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        let RefreshOutcome::Rotated { family_id, .. } =
+            s.redeem_refresh_token(&refresh, ENDPOINT_CLIENT).unwrap()
+        else {
+            panic!("expected rotation");
+        };
+        assert_eq!(family_id, id);
+    }
+
+    #[test]
+    fn test_revoking_an_endpoint_kills_its_family() {
+        let s = store();
+        let (id, refresh) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+
+        assert!(s.revoke_endpoint(&id, "admin revoke").unwrap());
+        assert!(s.endpoint_authority(&id).unwrap().is_none());
+        assert!(matches!(
+            s.redeem_refresh_token(&refresh, ENDPOINT_CLIENT).unwrap(),
+            RefreshOutcome::Invalid
+        ));
+        assert!(!s.revoke_endpoint(&id, "again").unwrap());
+        assert!(!s.revoke_endpoint("no-such-endpoint", "x").unwrap());
+        assert!(s.get_endpoint(&id).unwrap().unwrap().revoked_at.is_some());
+    }
+
+    #[test]
+    fn test_a_revoked_family_kills_the_endpoint() {
+        let s = store();
+        let (a, refresh) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        let RefreshOutcome::Rotated { .. } =
+            s.redeem_refresh_token(&refresh, ENDPOINT_CLIENT).unwrap()
+        else {
+            panic!("expected rotation");
+        };
+        assert!(matches!(
+            s.redeem_refresh_token(&refresh, ENDPOINT_CLIENT).unwrap(),
+            RefreshOutcome::Reused
+        ));
+        assert!(s.endpoint_authority(&a).unwrap().is_none(), "token reuse");
+
+        let (b, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        s.revoke_all_credentials("password reset").unwrap();
+        assert!(s.endpoint_authority(&b).unwrap().is_none(), "revoke all");
+    }
+
+    #[test]
+    fn test_an_expired_family_kills_the_endpoint() {
+        let s = store();
+        let (id, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        let past = (Utc::now() - Duration::seconds(1)).to_rfc3339();
+        s.with_conn(|conn| {
+            conn.execute(
+                "UPDATE refresh_family SET absolute_expires_at = ?1 WHERE id = ?2",
+                rusqlite::params![past, id],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        assert!(s.endpoint_authority(&id).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_endpoint_updates_and_capabilities_persist() {
+        let s = store();
+        let (id, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        let now = Utc::now();
+
+        assert!(s
+            .update_endpoint(&id, Some("gaming-pc"), Some(true))
+            .unwrap());
+        s.record_endpoint_capabilities(&id, r#"{"os":"windows"}"#, "h1", now)
+            .unwrap();
+        let later = now + Duration::seconds(30);
+        s.touch_endpoint(&id, later).unwrap();
+
+        let ep = s.get_endpoint(&id).unwrap().unwrap();
+        assert_eq!(ep.name, "gaming-pc");
+        assert!(ep.launch_enabled);
+        assert_eq!(ep.capabilities_json.as_deref(), Some(r#"{"os":"windows"}"#));
+        assert_eq!(ep.capabilities_hash.as_deref(), Some("h1"));
+        assert_eq!(
+            ep.last_seen_at.map(|t| t.timestamp()),
+            Some(later.timestamp())
+        );
+
+        assert!(s.update_endpoint(&id, None, Some(false)).unwrap());
+        let ep = s.get_endpoint(&id).unwrap().unwrap();
+        assert_eq!(ep.name, "gaming-pc", "None leaves the name alone");
+        assert!(!ep.launch_enabled);
+
+        s.revoke_endpoint(&id, "x").unwrap();
+        assert!(!s.update_endpoint(&id, Some("n"), None).unwrap());
+        assert!(!s.update_endpoint("missing", Some("n"), None).unwrap());
+    }
+
+    #[test]
+    fn test_hostname_names_an_endpoint_until_an_admin_renames_it() {
+        let s = store();
+        let (id, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+
+        assert!(s.adopt_endpoint_hostname(&id, "  GAMING-PC  ").unwrap());
+        assert_eq!(s.get_endpoint(&id).unwrap().unwrap().name, "GAMING-PC");
+        assert!(s.adopt_endpoint_hostname(&id, "RENAMED-PC").unwrap());
+        assert_eq!(s.get_endpoint(&id).unwrap().unwrap().name, "RENAMED-PC");
+        assert!(!s.adopt_endpoint_hostname(&id, "   ").unwrap());
+
+        s.update_endpoint(&id, Some("rig"), None).unwrap();
+        assert!(!s.adopt_endpoint_hostname(&id, "OTHER").unwrap());
+        assert_eq!(s.get_endpoint(&id).unwrap().unwrap().name, "rig");
+    }
+
+    #[test]
+    fn test_list_endpoints_includes_revoked() {
+        let s = store();
+        let (a, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        let (b, _) = s.create_endpoint_family(ENDPOINT_CLIENT).unwrap();
+        s.revoke_endpoint(&a, "x").unwrap();
+        let ids: Vec<String> = s
+            .list_endpoints()
+            .unwrap()
+            .into_iter()
+            .map(|e| e.id)
+            .collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&a) && ids.contains(&b));
+    }
+
     // --- refresh tokens -----------------------------------------------------
 
     #[test]
@@ -1461,6 +1974,7 @@ mod tests {
         let RefreshOutcome::Rotated {
             refresh_token: second,
             scopes,
+            ..
         } = s.redeem_refresh_token(&first, "vscode").unwrap()
         else {
             panic!("first redemption should rotate");
@@ -1802,8 +2316,14 @@ mod tests {
     #[test]
     fn test_audit_records_are_appended_newest_first() {
         let s = store();
-        s.audit("login", Some("failure"), false).unwrap();
-        s.audit("login", None, true).unwrap();
+        s.audit(
+            crate::auth::audit::AuditAction::Login,
+            Some("failure"),
+            false,
+        )
+        .unwrap();
+        s.audit(crate::auth::audit::AuditAction::Login, None, true)
+            .unwrap();
 
         let recent = s.recent_audit(10).unwrap();
         assert_eq!(recent.len(), 2);

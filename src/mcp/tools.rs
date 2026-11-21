@@ -4,14 +4,14 @@
 //! Each tool calls the handler directly (no internal HTTP round-trip).
 //! Write tools are gated behind `[mcp].expose_ticket_write_tools`.
 
-use axum::extract::{Path, Query, State};
-use axum::Json;
+use std::future::Future;
+use std::pin::Pin;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use super::{campaigns, catalog, control, tickets};
 use crate::rest::dto::auth::Scope;
-use crate::rest::dto::{LaunchTicketRequest, RejectReviewRequest};
-use crate::rest::routes;
 use crate::rest::state::ApiState;
 
 /// Definition of a single MCP tool
@@ -150,21 +150,11 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
         },
         McpToolDefinition {
             name: "operator_create_ticket".to_string(),
-            description: "Create a new ticket from a template (feature, fix, spike, investigation, task) and write it to the queue. Returns the filename. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "template": {
-                        "type": "string",
-                        "description": "Template type key (feature, fix, spike, investigation, task)"
-                    },
-                    "values": {
-                        "type": "object",
-                        "description": "Handlebars values for the template (project, summary, id, etc.)"
-                    }
-                },
-                "required": ["template"]
-            }),
+            description: "Create a new ticket and write it to the queue - the same path as POST /api/v1/tickets. `issue_type` is a registry key (see operator_list_issue_types); `values` holds that issue type's user-editable fields. When the project maps to a bidirectional kanban project the ticket is also pushed there unless sync_to_kanban is false. Disabled unless [mcp].expose_ticket_write_tools = true.".to_string(),
+            input_schema: serde_json::to_value(schemars::schema_for!(
+                crate::rest::dto::CreateTicketRequest
+            ))
+            .unwrap_or_else(|_| json!({ "type": "object" })),
         },
         McpToolDefinition {
             name: "operator_launch_ticket".to_string(),
@@ -256,7 +246,7 @@ pub fn all_tool_definitions() -> Vec<McpToolDefinition> {
 
 /// Gate the ticket-mutating tools.
 fn require_write_tools(state: &ApiState, scopes: &[Scope]) -> Result<(), String> {
-    if !scopes.contains(&Scope::Write) {
+    if state.authorization.is_none() && !scopes.contains(&Scope::Write) {
         return Err("This tool requires the `write` scope".to_string());
     }
     if !state.config().mcp.expose_ticket_write_tools {
@@ -267,10 +257,45 @@ fn require_write_tools(state: &ApiState, scopes: &[Scope]) -> Result<(), String>
     }
     Ok(())
 }
-/// Render an `ApiError` as a stable `code: message` string.
-fn mcp_error(error: crate::rest::error::ApiError) -> String {
-    let (_, code, message) = error.parts();
-    format!("{code}: {message}")
+type ToolFuture<'a> = Pin<Box<dyn Future<Output = Result<Value, String>> + Send + 'a>>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Access {
+    Read,
+    Write,
+}
+
+/// Map a tool name to its access level and boxed future. Every tool is boxed
+/// here exactly once, so `execute_tool` stays small however large a tool grows.
+fn dispatch<'a>(name: &str, args: Value, state: &'a ApiState) -> Option<(Access, ToolFuture<'a>)> {
+    use Access::{Read, Write};
+    Some(match name {
+        "operator_health" => (Read, Box::pin(catalog::health(args, state))),
+        "operator_status" => (Read, Box::pin(catalog::status(args, state))),
+        "operator_list_issue_types" => (Read, Box::pin(catalog::list_issue_types(args, state))),
+        "operator_get_issue_type" => (Read, Box::pin(catalog::get_issue_type(args, state))),
+        "operator_list_collections" => (Read, Box::pin(catalog::list_collections(args, state))),
+        "operator_get_collection" => (Read, Box::pin(catalog::get_collection(args, state))),
+        "operator_list_skills" => (Read, Box::pin(catalog::list_skills(args, state))),
+        "operator_list_tickets" => (Read, Box::pin(tickets::list_tickets(args, state))),
+        "operator_claim_ticket" => (Write, Box::pin(tickets::claim_ticket(args, state))),
+        "operator_complete_ticket" => (Write, Box::pin(tickets::complete_ticket(args, state))),
+        "operator_return_to_queue" => (Write, Box::pin(tickets::return_to_queue(args, state))),
+        "operator_create_ticket" => (Write, Box::pin(tickets::create_ticket(args, state))),
+        "operator_preview_ticket_batch" => (Read, Box::pin(campaigns::preview(args, state))),
+        "operator_create_tickets_bulk" => (Write, Box::pin(campaigns::create_bulk(args, state))),
+        "operator_create_campaign" => (Write, Box::pin(campaigns::create_campaign(args, state))),
+        "operator_assign_ticket_campaign" => (Write, Box::pin(campaigns::assign(args, state))),
+        "operator_launch_campaign" => (Write, Box::pin(campaigns::launch(args, state))),
+        "operator_campaign_status" => (Read, Box::pin(campaigns::status(args, state))),
+        "operator_launch_ticket" => (Write, Box::pin(control::launch_ticket(args, state))),
+        "operator_pause_queue" => (Write, Box::pin(control::pause_queue(args, state))),
+        "operator_resume_queue" => (Write, Box::pin(control::resume_queue(args, state))),
+        "operator_sync_kanban" => (Write, Box::pin(control::sync_kanban(args, state))),
+        "operator_approve_agent" => (Write, Box::pin(control::approve_agent(args, state))),
+        "operator_reject_agent" => (Write, Box::pin(control::reject_agent(args, state))),
+        _ => return None,
+    })
 }
 
 /// Execute an MCP tool by name with the given arguments
@@ -280,232 +305,47 @@ pub async fn execute_tool(
     state: &ApiState,
     scopes: &[Scope],
 ) -> Result<Value, String> {
-    match name {
-        "operator_health" => {
-            let resp = routes::health::health(State(state.clone())).await;
-            serde_json::to_value(&*resp).map_err(|e| e.to_string())
-        }
-        "operator_status" => {
-            let resp = routes::health::status(State(state.clone())).await;
-            serde_json::to_value(&*resp).map_err(|e| e.to_string())
-        }
-        "operator_list_issue_types" => {
-            let collection = args
-                .get("collection")
-                .and_then(|v| v.as_str())
-                .map(std::string::ToString::to_string);
-            let result = routes::issuetypes::list(
-                State(state.clone()),
-                Query(routes::issuetypes::CollectionQuery { collection }),
-            )
-            .await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(_e) => Err("Unknown collection".to_string()),
-            }
-        }
-        "operator_get_issue_type" => {
-            let key = args
-                .get("key")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| "Missing required parameter: key".to_string())?;
-            let collection = args
-                .get("collection")
-                .and_then(|v| v.as_str())
-                .map(std::string::ToString::to_string);
-            let result = routes::issuetypes::get_one(
-                State(state.clone()),
-                Path(key.to_string()),
-                Query(routes::issuetypes::CollectionQuery { collection }),
-            )
-            .await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(_e) => Err(format!("Issue type '{key}' not found")),
-            }
-        }
-        "operator_list_collections" => {
-            let resp = routes::collections::list(State(state.clone())).await;
-            serde_json::to_value(&*resp).map_err(|e| e.to_string())
-        }
-        "operator_get_collection" => {
-            let name_param = args
-                .get("name")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| "Missing required parameter: name".to_string())?;
-            let result =
-                routes::collections::get_one(State(state.clone()), Path(name_param.to_string()))
-                    .await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(_e) => Err(format!("Collection '{name_param}' not found")),
-            }
-        }
-        "operator_list_skills" => {
-            let resp = routes::skills::list(State(state.clone())).await;
-            serde_json::to_value(&*resp).map_err(|e| e.to_string())
-        }
-        "operator_list_tickets" => crate::mcp::tickets::list_tickets(args, state).await,
-        "operator_claim_ticket" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::tickets::claim_ticket(args, state).await
-        }
-        "operator_complete_ticket" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::tickets::complete_ticket(args, state).await
-        }
-        "operator_return_to_queue" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::tickets::return_to_queue(args, state).await
-        }
-        "operator_create_ticket" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::tickets::create_ticket(args, state).await
-        }
-        "operator_preview_ticket_batch" => crate::mcp::campaigns::preview(args, state).await,
-        "operator_create_tickets_bulk" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::campaigns::create_bulk(args, state).await
-        }
-        "operator_create_campaign" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::campaigns::create_campaign(args, state).await
-        }
-        "operator_assign_ticket_campaign" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::campaigns::assign(args, state).await
-        }
-        "operator_launch_campaign" => {
-            require_write_tools(state, scopes)?;
-            crate::mcp::campaigns::launch(args, state).await
-        }
-        "operator_campaign_status" => crate::mcp::campaigns::status(args, state).await,
-        "operator_launch_ticket" => {
-            require_write_tools(state, scopes)?;
-            let id = args
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| "Missing required parameter: id".to_string())?;
-            let model = args
-                .get("model")
-                .and_then(|v| v.as_str())
-                .unwrap_or("sonnet");
-            let wrapper = args
-                .get("wrapper")
-                .and_then(|v| v.as_str())
-                .unwrap_or("terminal");
-            let request = LaunchTicketRequest {
-                target: None,
-                delegator: None,
-                provider: None,
-                model: Some(model.to_string()),
-                model_server: None,
-                yolo_mode: false,
-                wrapper: Some(wrapper.to_string()),
-                retry_reason: None,
-                resume_session_id: None,
-            };
-            let result = routes::launch::launch_ticket(
-                State(state.clone()),
-                Path(id.to_string()),
-                Json(request),
-            )
-            .await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(mcp_error(e)),
-            }
-        }
-        "operator_pause_queue" => {
-            require_write_tools(state, scopes)?;
-            let result = routes::queue::pause(State(state.clone())).await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(mcp_error(e)),
-            }
-        }
-        "operator_resume_queue" => {
-            require_write_tools(state, scopes)?;
-            let result = routes::queue::resume(State(state.clone())).await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(mcp_error(e)),
-            }
-        }
-        "operator_sync_kanban" => {
-            require_write_tools(state, scopes)?;
-            let result = routes::queue::sync(State(state.clone())).await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(mcp_error(e)),
-            }
-        }
-        "operator_approve_agent" => {
-            require_write_tools(state, scopes)?;
-            let id = args
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| "Missing required parameter: id".to_string())?;
-            let result =
-                routes::agents::approve_review(State(state.clone()), Path(id.to_string())).await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(mcp_error(e)),
-            }
-        }
-        "operator_reject_agent" => {
-            require_write_tools(state, scopes)?;
-            let id = args
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| "Missing required parameter: id".to_string())?;
-            let reason = args
-                .get("reason")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| "Missing required parameter: reason".to_string())?;
-            let request = RejectReviewRequest {
-                reason: reason.to_string(),
-            };
-            let result = routes::agents::reject_review(
-                State(state.clone()),
-                Path(id.to_string()),
-                Json(request),
-            )
-            .await;
-            match result {
-                Ok(resp) => serde_json::to_value(&*resp).map_err(|e| e.to_string()),
-                Err(e) => Err(mcp_error(e)),
-            }
-        }
-        _ => Err(format!("Unknown tool: {name}")),
+    if !crate::auth::policy::tool_allowed(state.authorization.as_deref(), name) {
+        return Err("Tool not authorized".into());
     }
+    let (access, run) =
+        dispatch(name, args, state).ok_or_else(|| format!("Unknown tool: {name}"))?;
+    if access == Access::Write {
+        require_write_tools(state, scopes)?;
+    }
+    run.await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// A drain rejection must be machine-readable and carry the same code the
-    /// HTTP surface uses, not a debug-formatted Rust variant.
-    #[test]
-    fn test_mcp_error_uses_the_shared_stable_code_table() {
-        use crate::rest::error::ApiError;
-
-        assert_eq!(
-            mcp_error(ApiError::Unavailable("draining".to_string())),
-            "unavailable: draining"
-        );
-        assert_eq!(
-            mcp_error(ApiError::Conflict("already running".to_string())),
-            "conflict: already running"
-        );
-        assert!(
-            !mcp_error(ApiError::NotFound("x".to_string())).contains("NotFound("),
-            "the MCP error must not leak Rust debug syntax"
-        );
-    }
     use crate::config::Config;
     use std::path::PathBuf;
+
+    const DISPATCH_FUTURE_BUDGET_BYTES: usize = 512;
+
+    #[test]
+    fn test_execute_tool_future_stays_within_budget() {
+        let state = ApiState::new(Config::default(), PathBuf::from("/tmp/test"));
+        let fut = execute_tool("operator_health", json!({}), &state, &Scope::ALL);
+        let size = std::mem::size_of_val(&fut);
+        assert!(
+            size <= DISPATCH_FUTURE_BUDGET_BYTES,
+            "execute_tool future is {size} bytes; box tool futures in `dispatch`, not inline"
+        );
+    }
+
+    #[test]
+    fn test_every_defined_tool_dispatches() {
+        let state = ApiState::new(Config::default(), PathBuf::from("/tmp/test"));
+        for tool in all_tool_definitions() {
+            assert!(
+                dispatch(&tool.name, json!({}), &state).is_some(),
+                "{} is defined but not dispatched",
+                tool.name
+            );
+        }
+    }
 
     #[test]
     fn test_all_tool_definitions_count() {

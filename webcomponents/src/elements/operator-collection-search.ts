@@ -11,8 +11,8 @@
  * Usage:
  *   <operator-collection-search for="collection-catalog"></operator-collection-search>
  *   <div id="collection-catalog" data-view="cards">
- *     <div class="collection-grid">     <article data-search="ralph loop …">…</article> </div>
- *     <table class="collection-table">  <tr data-search="ralph loop …">…</tr>        </table>
+ *     <div class="collection-grid">     <article data-search="ralph loop ...">...</article> </div>
+ *     <table class="collection-table">  <tr data-search="ralph loop ...">...</tr>        </table>
  *   </div>
  */
 
@@ -41,7 +41,7 @@ export class OperatorCollectionSearch extends HTMLElement {
     const input = document.createElement("input");
     input.type = "search";
     input.placeholder =
-      this.getAttribute("placeholder") ?? "Filter by name, author, tag, loop shape, issue type…";
+      this.getAttribute("placeholder") ?? "Filter by name, author, tag, loop shape, issue type...";
     input.setAttribute("aria-label", "Filter collections");
     input.addEventListener("input", () => this.applyFilter(input.value));
     this.input = input;

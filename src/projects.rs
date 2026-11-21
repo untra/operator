@@ -190,7 +190,7 @@ fn detect_default_branch(path: &Path) -> String {
 
 /// Discover projects by tool, scanning for tool-specific marker files
 ///
-/// Returns a map of `tool_name` → list of project names.
+/// Returns a map of `tool_name` -> list of project names.
 /// A project can appear under multiple tools if it has multiple marker files.
 pub fn discover_projects_by_tool(projects_path: &Path) -> HashMap<String, Vec<String>> {
     let mut projects_by_tool: HashMap<String, Vec<String>> = HashMap::new();

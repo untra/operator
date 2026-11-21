@@ -7,7 +7,7 @@ import { HostContext, type Host } from "../host";
 import { mockFetch, requestBody, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { ModelProvidersPage } = await import("./ModelProvidersPage");
 
@@ -96,6 +96,7 @@ describe("ModelProvidersPage", () => {
           json({
             server: "openai",
             reachable: true,
+            status: "connected",
             models: [{ id: "gpt-test", display_name: "GPT Test" }],
             error: null,
           }),

@@ -8,6 +8,17 @@ use uuid::Uuid;
 use crate::profiles::{ProfileSummary, ServerProfiles};
 use crate::rest::error::ApiError;
 
+fn visible(principal: Option<&crate::auth::scope::Principal>, id: Uuid) -> bool {
+    principal
+        .and_then(|p| p.authority.as_ref())
+        .is_none_or(|a| {
+            if a.key_id.is_some() {
+                return a.grants.profile_id == id;
+            }
+            a.user.administrator || a.user.grants.iter().any(|grant| grant.profile_id == id)
+        })
+}
+
 #[derive(Deserialize, Serialize, ToSchema)]
 pub struct ProfileNameRequest {
     pub name: String,
@@ -17,8 +28,15 @@ pub struct ProfileNameRequest {
     operation_id = "profiles_list", tag = "Configuration", responses((status=200, description="Server configurations", body=Vec<ProfileSummary>)))]
 pub async fn list(
     Extension(profiles): Extension<Arc<ServerProfiles>>,
+    principal: Option<Extension<crate::auth::scope::Principal>>,
 ) -> Json<Vec<ProfileSummary>> {
-    Json(profiles.list())
+    Json(
+        profiles
+            .list()
+            .into_iter()
+            .filter(|p| visible(principal.as_ref().map(|p| &p.0), p.id))
+            .collect(),
+    )
 }
 
 #[utoipa::path(post, path = "/api/v1/profiles",
@@ -59,7 +77,11 @@ pub async fn rename(
 pub async fn get_one(
     Extension(profiles): Extension<Arc<ServerProfiles>>,
     Path(id): Path<Uuid>,
+    principal: Option<Extension<crate::auth::scope::Principal>>,
 ) -> Result<Json<ProfileSummary>, ApiError> {
+    if !visible(principal.as_ref().map(|p| &p.0), id) {
+        return Err(ApiError::NotFound("Configuration not found".into()));
+    }
     profiles
         .state(id)
         .map(|state| Json(profiles.summary(&state.config())))
@@ -96,7 +118,7 @@ mod tests {
     #[tokio::test]
     async fn test_profile_list_create_and_get() {
         let (_dir, profiles) = fixture();
-        let listed = list(Extension(Arc::clone(&profiles))).await.0;
+        let listed = list(Extension(Arc::clone(&profiles)), None).await.0;
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].name, LEGACY_PROFILE_NAME);
 
@@ -110,13 +132,13 @@ mod tests {
         .unwrap()
         .0;
         assert_eq!(created.name, "demo_1");
-        assert!(list(Extension(Arc::clone(&profiles)))
+        assert!(list(Extension(Arc::clone(&profiles)), None)
             .await
             .0
             .iter()
             .any(|profile| profile.id == created.id && profile.name == "demo_1"));
 
-        let fetched = get_one(Extension(Arc::clone(&profiles)), Path(created.id))
+        let fetched = get_one(Extension(Arc::clone(&profiles)), Path(created.id), None)
             .await
             .unwrap()
             .0;
@@ -124,7 +146,7 @@ mod tests {
         assert_eq!(fetched.name, "demo_1");
         assert_eq!(
             status_of(
-                get_one(Extension(profiles), Path(Uuid::new_v4()))
+                get_one(Extension(profiles), Path(Uuid::new_v4()), None)
                     .await
                     .unwrap_err()
             ),
@@ -198,7 +220,7 @@ mod tests {
         .unwrap()
         .0;
         assert_eq!(renamed.name, "demo_2");
-        assert!(list(Extension(Arc::clone(&profiles)))
+        assert!(list(Extension(Arc::clone(&profiles)), None)
             .await
             .0
             .iter()

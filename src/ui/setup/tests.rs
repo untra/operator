@@ -84,8 +84,6 @@ fn test_setup_screen_with_multiple_tools() {
     assert_eq!(screen.step, SetupStep::Welcome);
 }
 
-// ─── Session Wrapper Selection Tests ────────────────────────────────────────
-
 #[test]
 fn test_setup_default_wrapper_is_tmux() {
     let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
@@ -113,8 +111,6 @@ fn test_setup_wrapper_navigation_flow() {
     screen.confirm(); // Should go to SessionWrapperChoice
     assert_eq!(screen.step, SetupStep::SessionWrapperChoice);
 }
-
-// ─── Hosted Collection Picker Tests ─────────────────────────────────────────
 
 #[test]
 fn test_collection_source_browse_enters_fetch_step() {
@@ -436,8 +432,6 @@ fn test_collection_source_skips_provider_without_required_env_vars() {
     assert_eq!(screen.source_options, CollectionSourceOption::curated());
 }
 
-// ─── Worktree Preference Tests ────────────────────────────────────────────────
-
 #[test]
 fn test_setup_default_worktrees_is_false() {
     let screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
@@ -736,8 +730,6 @@ fn test_wizard_command_characters_are_typable_in_a_password() {
     assert_eq!(screen.step, SetupStep::AdminPassword, "still on the step");
 }
 
-// ─── Kanban step (defect A: the step used to be unreachable dead code) ──────
-
 /// Move the git step's cursor to its trailing "continue without" row and
 /// confirm, so a walk does not stall on a live connect attempt.
 fn skip_git_provider(screen: &mut SetupScreen) {
@@ -923,8 +915,6 @@ fn test_wizard_walk_visits_every_catalog_step() {
     }
 }
 
-// ─── Model server step (D1a) ───────────────────────────────────────────────
-
 fn at_model_server() -> SetupScreen {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::ModelServer;
@@ -1041,8 +1031,6 @@ fn test_model_server_navigation_wraps_over_every_offered_provider() {
     assert_eq!(screen.model_server_state.selected(), Some(len - 1));
 }
 
-// ─── Git provider step (D1b) ───────────────────────────────────────────────
-
 fn at_git_provider() -> SetupScreen {
     let mut screen = SetupScreen::new(".tickets".to_string(), vec![], HashMap::new());
     screen.step = SetupStep::GitProvider;
@@ -1074,14 +1062,14 @@ fn test_git_provider_offers_the_catalog_onboardable_set() {
         .iter()
         .map(|e| e.slug)
         .collect();
-    assert_eq!(slugs, vec!["github", "gitlab", "gitea"]);
+    assert_eq!(slugs, vec!["github", "gitlab", "forgejo", "gitea"]);
 }
 
 /// Proto entries are unadvertised and undocumented, so onboarding must not
 /// surface them - in either provider vertical.
 #[test]
 fn test_wizard_offers_no_proto_providers() {
-    for slug in ["bitbucket", "azure", "forgejo"] {
+    for slug in ["bitbucket", "azure"] {
         assert!(
             !SetupScreen::git_providers().iter().any(|e| e.slug == slug),
             "{slug} is Proto and must not be offered"

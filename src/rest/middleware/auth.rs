@@ -11,13 +11,15 @@
 //! would make it an exploitable one.
 
 use axum::extract::{Request, State};
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
+use crate::auth::limits::Denial;
+use crate::auth::oidc_bearer::{active_connections, challenge, metadata_url};
 use crate::auth::scope::{required_access, Access, Principal};
 use crate::auth::store::RateLimitDecision;
-use crate::auth::tokens::{AUDIENCE_API, AUDIENCE_CALLBACK};
+use crate::auth::tokens::{Claims, AUDIENCE_API, AUDIENCE_CALLBACK, AUDIENCE_TELEMETRY};
 use crate::rest::dto::auth::{PrincipalKind, Scope};
 use crate::rest::error::{ApiError, Rejection};
 use crate::rest::state::ApiState;
@@ -38,7 +40,10 @@ pub const CSRF_HEADER: &str = "x-operator-csrf";
 /// routing, so `#/login` and `#/config` are indistinguishable to the server.
 /// The bundle carries no workspace data or credentials; everything it displays arrives over authenticated API calls.
 fn is_public_asset(path: &str) -> bool {
-    !(path.starts_with("/api/") || path.starts_with("/swagger-ui") || path.starts_with("/api-docs"))
+    !(path.starts_with("/api/")
+        || path.starts_with("/swagger-ui")
+        || path.starts_with("/api-docs")
+        || path.starts_with(crate::telemetry::OTLP_PATH_PREFIX))
 }
 
 /// Requirement for a path that matched no route.
@@ -88,17 +93,54 @@ fn bearer_token(headers: &HeaderMap) -> Option<String> {
 /// Order matters only in that a bearer token is checked before a cookie: an
 /// explicit `Authorization` header is a deliberate act, while a cookie is sent
 /// ambiently by the browser.
-pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<Principal> {
+pub async fn resolve_principal(
+    state: &ApiState,
+    headers: &HeaderMap,
+) -> Result<Option<Principal>, ApiError> {
     if let Some(token) = bearer_token(headers) {
         // The local-unlock token is a plain opaque string, not a JWT.
         if let Some(local) = state.auth.local_token.as_deref() {
             if crate::auth::local::matches(local, &token) {
-                return Some(Principal::local(crate::auth::store::ADMIN_SUBJECT));
+                return Ok(Some(Principal::local(crate::auth::store::ADMIN_SUBJECT)));
             }
         }
 
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_API) {
-            return Some(Principal {
+            if claims.credential_version != 1 {
+                return Ok(None);
+            }
+            if let Some(id) = claims.endpoint_id.clone() {
+                return endpoint_principal(state, id, &claims).await;
+            }
+            if let Some(id) = claims.key_id.clone() {
+                let store = state.auth.store.clone();
+                let Some((authority, expiry)) =
+                    tokio::task::spawn_blocking(move || store.key_authority(&id))
+                        .await
+                        .map_err(|_| {
+                            ApiError::Unavailable("Credential validation unavailable".into())
+                        })?
+                        .map_err(|_| {
+                            ApiError::Unavailable("Credential storage unavailable".into())
+                        })?
+                else {
+                    return Ok(None);
+                };
+                if authority.user.id != claims.sub
+                    || claims.profile_id != Some(authority.grants.profile_id)
+                    || authority.grants.profile_id != state.config().profile.id
+                {
+                    return Ok(None);
+                }
+                let Some(jwt_expiry) = chrono::DateTime::from_timestamp(claims.exp, 0) else {
+                    return Ok(None);
+                };
+                if let Some(id) = &authority.key_id {
+                    state.auth.store.record_key_use(id);
+                }
+                return Ok(Some(authority.principal(expiry.min(jwt_expiry), None)));
+            }
+            return Ok(Some(Principal {
                 subject: claims.sub.clone(),
                 scopes: claims.scopes(),
                 kind: PrincipalKind::AccessToken,
@@ -106,40 +148,100 @@ pub async fn resolve_principal(state: &ApiState, headers: &HeaderMap) -> Option<
                 session_id: None,
                 ticket_id: None,
                 step: None,
-            });
+                agent_session_id: None,
+                endpoint_id: None,
+                authority: None,
+            }));
         }
 
         // An agent step-completion token. It verifies under a different
         // audience, so it can never satisfy an ordinary API route; the handler
         // additionally matches its ticket/step claims against the request path.
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_CALLBACK) {
-            if claims.profile_id != Some(state.config().profile.id)
-                && !(claims.profile_id.is_none() && state.config().profile.id.is_nil())
-            {
-                return None;
-            }
-            return Some(Principal {
-                subject: claims.sub.clone(),
-                scopes: claims.scopes(),
-                kind: PrincipalKind::AgentCallback,
-                expires_at: chrono::DateTime::from_timestamp(claims.exp, 0),
-                session_id: None,
-                ticket_id: claims.ticket_id,
-                step: claims.step,
-            });
+            return Ok(agent_principal(state, claims, PrincipalKind::AgentCallback));
         }
-        return None;
+
+        // An agent session's OTLP ingest token. It carries no scopes, so it
+        // fails every scoped route and is accepted only by `/otlp/v1/*`.
+        if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_TELEMETRY) {
+            return Ok(agent_principal(
+                state,
+                claims,
+                PrincipalKind::TelemetryIngest,
+            ));
+        }
+        let config = state.config();
+        return crate::auth::oidc_bearer::authenticate(
+            &state.auth.store,
+            config.rest_api.public_base_url(),
+            config.profile.id,
+            &token,
+        )
+        .await
+        .map_err(|_| ApiError::Unavailable("OIDC provider unavailable".into()));
     }
 
     if let Some(cookie) = cookie_value(headers, SESSION_COOKIE) {
         let store = state.auth.store.clone();
-        return tokio::task::spawn_blocking(move || store.authenticate_session(&cookie))
-            .await
-            .ok()?
-            .ok()?;
+        let profile = state.config().profile.id;
+        return tokio::task::spawn_blocking(move || {
+            let Some(principal) = store.authenticate_session(&cookie)? else {
+                return Ok(None);
+            };
+            store.resolve_user_session(principal, profile)
+        })
+        .await
+        .map_err(|_| ApiError::Unavailable("Session validation unavailable".into()))?
+        .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()));
     }
 
-    None
+    Ok(None)
+}
+
+/// A paired endpoint, re-checked against the store so revocation is immediate.
+async fn endpoint_principal(
+    state: &ApiState,
+    endpoint_id: String,
+    claims: &Claims,
+) -> Result<Option<Principal>, ApiError> {
+    let store = state.auth.store.clone();
+    let id = endpoint_id.clone();
+    let live = tokio::task::spawn_blocking(move || store.endpoint_authority(&id))
+        .await
+        .map_err(|_| ApiError::Unavailable("Credential validation unavailable".into()))?
+        .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()))?;
+    Ok(live.map(|_| Principal {
+        subject: claims.sub.clone(),
+        scopes: vec![],
+        kind: PrincipalKind::Endpoint,
+        expires_at: chrono::DateTime::from_timestamp(claims.exp, 0),
+        session_id: None,
+        ticket_id: None,
+        step: None,
+        agent_session_id: None,
+        endpoint_id: Some(endpoint_id),
+        authority: None,
+    }))
+}
+
+/// A principal for a pinned agent token, rejected when minted for another profile.
+fn agent_principal(state: &ApiState, claims: Claims, kind: PrincipalKind) -> Option<Principal> {
+    let profile = state.config().profile.id;
+    if claims.profile_id != Some(profile) && !(claims.profile_id.is_none() && profile.is_nil()) {
+        return None;
+    }
+    Some(Principal {
+        scopes: claims.scopes(),
+        subject: claims.sub,
+        kind,
+        expires_at: chrono::DateTime::from_timestamp(claims.exp, 0),
+        session_id: None,
+        ticket_id: claims.ticket_id,
+        step: claims.step,
+        agent_session_id: claims.session_id,
+        endpoint_id: None,
+        authority: None,
+    })
 }
 
 /// Whether a request method mutates.
@@ -191,11 +293,39 @@ fn origin_is_acceptable(headers: &HeaderMap, allowed: &[String]) -> bool {
 }
 
 /// The authorization layer.
-pub async fn authorize(
-    State(state): State<ApiState>,
-    request: Request,
-    next: Next,
-) -> Result<Response, Rejection> {
+///
+/// A `401` on an API path names the protected-resource metadata when OIDC discovery is active.
+pub async fn authorize(State(state): State<ApiState>, request: Request, next: Next) -> Response {
+    if state.is_stopping() {
+        return (StatusCode::SERVICE_UNAVAILABLE, "Operator is stopping").into_response();
+    }
+    let api = request.uri().path().starts_with("/api/");
+    let mut response = decide(state.clone(), request, next).await.into_response();
+    if api && response.status() == StatusCode::UNAUTHORIZED {
+        if let Some(value) = discovery_url(&state)
+            .await
+            .and_then(|url| HeaderValue::from_str(&challenge(Some(&url))).ok())
+        {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, value);
+        }
+    }
+    response
+}
+
+/// The metadata URL, when a public URL and an enabled OIDC connection exist.
+pub async fn discovery_url(state: &ApiState) -> Option<String> {
+    let public = state.config().rest_api.public_base_url()?;
+    let store = state.auth.store.clone();
+    let conns = tokio::task::spawn_blocking(move || store.oidc_connections())
+        .await
+        .ok()?
+        .ok()?;
+    (!active_connections(Some(&public), conns).is_empty()).then(|| metadata_url(&public))
+}
+
+async fn decide(state: ApiState, request: Request, next: Next) -> Result<Response, Rejection> {
     let method = request.method().clone();
     let path = request.uri().path().to_string();
     let headers = request.headers().clone();
@@ -217,23 +347,115 @@ pub async fn authorize(
         .or_else(|| unmatched_access(&path));
 
     let Some(access) = access else {
-        // Unknown or unclassified: deny. `tests/route_scope_parity.rs` makes
+        // Unknown or unclassified: deny. `tests/it/suites/route_scope_parity.rs` makes
         // this unreachable for mounted routes.
         return Err(
             ApiError::Unauthorized("this endpoint requires authentication".to_string()).into(),
         );
     };
 
+    if path == "/api/v1/auth/token"
+        || (path.starts_with("/api/") && headers.contains_key(header::AUTHORIZATION))
+    {
+        let peer = request
+            .extensions()
+            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+            .map_or_else(|| "unknown".to_string(), |peer| peer.ip().to_string());
+        let (bucket, limit) = if path == "/api/v1/auth/token" {
+            ("exchange", crate::auth::limits::EXCHANGES_PER_MINUTE)
+        } else {
+            ("authentication", crate::auth::limits::REQUESTS_PER_OWNER)
+        };
+        if let Err(retry) = state
+            .auth
+            .store
+            .limits
+            .check(&[(format!("{bucket}:{peer}"), limit)])
+        {
+            return Err(rate_limited(retry).into());
+        }
+    }
+
     let required = match access {
-        Access::Public => return Ok(next.run(request).await),
-        Access::Scoped(scope) => scope,
+        Access::Public => {
+            let mut response = next.run(request).await;
+            if path.starts_with("/api/v1/auth/") {
+                response.headers_mut().insert(
+                    header::CACHE_CONTROL,
+                    axum::http::HeaderValue::from_static("no-store"),
+                );
+            }
+            return Ok(response);
+        }
+        Access::Scoped(scope) => Some(scope),
+        Access::TelemetryIngest | Access::Endpoint => None,
     };
 
-    let Some(principal) = resolve_principal(&state, &headers).await else {
+    let Some(principal) = resolve_principal(&state, &headers).await? else {
+        state
+            .auth
+            .store
+            .limits
+            .record_denial(Denial::Authentication);
         return Err(ApiError::Unauthorized("no valid credential was presented".to_string()).into());
     };
 
-    if !principal.has_scope(required) {
+    if crate::auth::policy::browser_identity_route(&path)
+        && principal.kind != PrincipalKind::Session
+    {
+        state.auth.store.limits.record_denial(Denial::Authorization);
+        return Err(ApiError::Forbidden("Use an authenticated browser session".into()).into());
+    }
+
+    if let Some(authority) = principal.authority.as_ref() {
+        if let Some(id) = authority.key_id.as_ref() {
+            if let Err(retry) = state.auth.store.limits.check(&[
+                (format!("key:{id}"), crate::auth::limits::REQUESTS_PER_KEY),
+                (
+                    format!("owner:{}", authority.user.id),
+                    crate::auth::limits::REQUESTS_PER_OWNER,
+                ),
+            ]) {
+                return Err(rate_limited(retry).into());
+            }
+        }
+    }
+
+    if access == Access::Endpoint {
+        if !principal.is_paired_endpoint() {
+            state.auth.store.limits.record_denial(Denial::Authorization);
+            return Err(ApiError::Forbidden(
+                "this endpoint requires a paired endpoint credential".to_string(),
+            )
+            .into());
+        }
+        let mut request = request;
+        request.extensions_mut().insert(principal);
+        return Ok(next.run(request).await);
+    }
+
+    let Some(required) = required else {
+        if !principal.may_ingest_telemetry() {
+            return Err(ApiError::Forbidden(
+                "OTLP ingest requires an agent ingest token or an admin credential".to_string(),
+            )
+            .into_response()
+            .into());
+        }
+        let mut request = request;
+        request.extensions_mut().insert(principal);
+        return Ok(next.run(request).await);
+    };
+
+    if let Some(authority) = principal.authority.as_ref() {
+        crate::auth::policy::authorize(
+            authority,
+            method.as_str(),
+            matched.as_deref().unwrap_or(&path),
+        )
+        .inspect_err(|_| state.auth.store.limits.record_denial(Denial::Authorization))?;
+    } else if !principal.has_scope(required) {
+        state.auth.store.limits.record_denial(Denial::Authorization);
         return Err(
             ApiError::Forbidden(format!("this endpoint requires the `{required}` scope")).into(),
         );
@@ -274,7 +496,14 @@ pub async fn authorize(
 
     let mut request = request;
     request.extensions_mut().insert(principal);
-    Ok(next.run(request).await)
+    let mut response = next.run(request).await;
+    if path.starts_with("/api/v1/auth/") {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("no-store"),
+        );
+    }
+    Ok(response)
 }
 
 /// Apply persisted backoff to a credential-issuing endpoint.
@@ -334,9 +563,21 @@ where
                     session_id: None,
                     ticket_id: None,
                     step: None,
+                    agent_session_id: None,
+                    endpoint_id: None,
+                    authority: None,
                 }),
         )))
     }
+}
+
+fn rate_limited(seconds: u64) -> Response {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(header::RETRY_AFTER, seconds.to_string())],
+        axum::Json(serde_json::json!({"error": "rate_limited"})),
+    )
+        .into_response()
 }
 
 #[cfg(test)]
@@ -353,6 +594,112 @@ mod tests {
             );
         }
         h
+    }
+
+    mod endpoint_tokens {
+        use super::*;
+        use crate::auth::scope::ROUTE_RULES;
+        use crate::auth::tokens::{api_claims, endpoint_claims, ENDPOINT_CLIENT_ID};
+        use crate::config::Config;
+
+        fn state() -> (tempfile::TempDir, ApiState) {
+            let dir = tempfile::tempdir().unwrap();
+            let mut config = Config::default();
+            config.paths.state = dir.path().to_string_lossy().into_owned();
+            let state = ApiState::new(config, dir.path().join("tickets"));
+            (dir, state)
+        }
+
+        fn bearer(state: &ApiState, claims: &Claims) -> HeaderMap {
+            let token = state.auth.signing_key.sign(claims).unwrap();
+            headers(&[("authorization", &format!("Bearer {token}"))])
+        }
+
+        fn paired(state: &ApiState) -> String {
+            state
+                .auth
+                .store
+                .create_endpoint_family(ENDPOINT_CLIENT_ID)
+                .unwrap()
+                .0
+        }
+
+        #[tokio::test]
+        async fn an_endpoint_token_resolves_to_its_endpoint_only() {
+            let (_dir, state) = state();
+            let id = paired(&state);
+            let h = bearer(
+                &state,
+                &endpoint_claims(&id, chrono::Utc::now(), "j".into()),
+            );
+            let p = resolve_principal(&state, &h)
+                .await
+                .unwrap()
+                .expect("principal");
+            assert_eq!(p.kind, PrincipalKind::Endpoint);
+            assert!(p.scopes.is_empty());
+            assert!(p.is_paired_endpoint());
+            assert_eq!(p.endpoint_id.as_deref(), Some(id.as_str()));
+        }
+
+        #[tokio::test]
+        async fn revocation_takes_effect_before_the_token_expires() {
+            let (_dir, state) = state();
+            let id = paired(&state);
+            let h = bearer(
+                &state,
+                &endpoint_claims(&id, chrono::Utc::now(), "j".into()),
+            );
+            assert!(state.auth.store.revoke_endpoint(&id, "test").unwrap());
+            assert!(resolve_principal(&state, &h).await.unwrap().is_none());
+        }
+
+        #[tokio::test]
+        async fn an_unknown_endpoint_is_rejected() {
+            let (_dir, state) = state();
+            let h = bearer(
+                &state,
+                &endpoint_claims("nope", chrono::Utc::now(), "j".into()),
+            );
+            assert!(resolve_principal(&state, &h).await.unwrap().is_none());
+        }
+
+        #[tokio::test]
+        async fn a_legacy_endpoint_scope_claim_grants_nothing() {
+            let (_dir, state) = state();
+            let mut claims = api_claims("admin", &[Scope::Read], chrono::Utc::now(), "j".into());
+            claims.scope = "read endpoint".into();
+            let p = resolve_principal(&state, &bearer(&state, &claims))
+                .await
+                .unwrap()
+                .expect("principal");
+            assert_eq!(p.scopes, vec![Scope::Read]);
+            assert_eq!(p.kind, PrincipalKind::AccessToken);
+            assert!(!p.is_paired_endpoint());
+        }
+
+        #[tokio::test]
+        async fn an_endpoint_principal_satisfies_no_other_route() {
+            let (_dir, state) = state();
+            let id = paired(&state);
+            let h = bearer(
+                &state,
+                &endpoint_claims(&id, chrono::Utc::now(), "j".into()),
+            );
+            let p = resolve_principal(&state, &h).await.unwrap().unwrap();
+            for rule in ROUTE_RULES {
+                match rule.access {
+                    Access::Endpoint | Access::Public => {}
+                    Access::Scoped(scope) => assert!(
+                        !p.has_scope(scope),
+                        "{} {} must deny an endpoint",
+                        rule.method,
+                        rule.path
+                    ),
+                    Access::TelemetryIngest => assert!(!p.may_ingest_telemetry()),
+                }
+            }
+        }
     }
 
     #[test]

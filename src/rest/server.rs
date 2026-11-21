@@ -77,22 +77,12 @@ pub enum RestApiStatus {
     Running {
         port: u16,
     },
-    /// Another process already serves a compatible (same version, same project)
-    /// operator API on `port`; we adopted it instead of starting our own.
-    RunningExternal {
-        port: u16,
-    },
     Error(String),
 }
 
 impl RestApiStatus {
-    /// Returns true if a usable server is available - whether this process owns
-    /// it (`Running`) or we adopted a compatible external one (`RunningExternal`).
     pub fn is_running(&self) -> bool {
-        matches!(
-            self,
-            RestApiStatus::Running { .. } | RestApiStatus::RunningExternal { .. }
-        )
+        matches!(self, RestApiStatus::Running { .. })
     }
 }
 
@@ -152,6 +142,7 @@ fn classify_probe(
 
 /// REST API server handle for lifecycle management
 pub struct RestApiServer {
+    auth: Option<Arc<crate::rest::state::AuthContext>>,
     config: Config,
     port: u16,
     tickets_path: PathBuf,
@@ -169,6 +160,7 @@ impl RestApiServer {
     pub fn new(config: Config, port: u16) -> Self {
         let tickets_path = config.tickets_path();
         Self {
+            auth: None,
             config,
             port,
             tickets_path,
@@ -177,6 +169,11 @@ impl RestApiServer {
             task_handle: Arc::new(Mutex::new(None)),
             api_state: Arc::new(Mutex::new(None)),
         }
+    }
+
+    pub fn with_auth(mut self, auth: Arc<crate::rest::state::AuthContext>) -> Self {
+        self.auth = Some(auth);
+        self
     }
 
     /// Returns a clone of the live `ApiState` if the server has been started.
@@ -259,75 +256,87 @@ impl RestApiServer {
 
     /// Start the REST API server
     pub fn start(&self) -> Result<(), String> {
-        if self.is_running() {
+        if self.is_running()
+            || self
+                .task_handle
+                .lock()
+                .unwrap()
+                .as_ref()
+                .is_some_and(|task| !task.is_finished())
+        {
             return Err(format!("REST API already running on port {}", self.port));
         }
-
-        let (shutdown_tx, shutdown_rx) = oneshot::channel();
-        *self.shutdown_tx.lock().unwrap() = Some(shutdown_tx);
-
-        let state = ApiState::new(self.config.clone(), self.config.tickets_path());
-        // Expose the live state to the dashboard before handing it to the router.
-        *self.api_state.lock().unwrap() = Some(state.clone());
-        let router = build_router(state);
-        let port = self.port;
-        let host_ip = self.config.rest_api.host_ip();
-        let status = Arc::clone(&self.status);
-        let tickets_path = self.tickets_path.clone();
-        let state_path = self.config.auth_state_path();
-        let profile_id = self.config.profile.id;
-        let api_state_handle = Arc::clone(&self.api_state);
-
-        *status.lock().unwrap() = RestApiStatus::Starting;
-
-        let handle = tokio::spawn(async move {
-            use std::net::SocketAddr;
-            let addr = SocketAddr::new(host_ip, port);
-
-            match tokio::net::TcpListener::bind(addr).await {
-                Ok(listener) => {
-                    *status.lock().unwrap() = RestApiStatus::Running { port };
-                    tracing::info!("REST API listening on http://{}", addr);
-
-                    // Write session file for client discovery
-                    if let Err(e) = write_session_file(&tickets_path, &state_path, port, profile_id)
-                    {
-                        tracing::warn!(error = %e, "Failed to write API session file");
-                    }
-
-                    let _ = axum::serve(listener, router)
-                        .with_graceful_shutdown(async {
-                            let _ = shutdown_rx.await;
-                        })
-                        .await;
-
-                    // Clean up session file on shutdown
-                    remove_session_file(&tickets_path);
-                }
-                Err(e) => {
-                    *status.lock().unwrap() = RestApiStatus::Error(e.to_string());
-                    tracing::error!("Failed to start REST API: {}", e);
-                }
-            }
-
-            *status.lock().unwrap() = RestApiStatus::Stopped;
-            // Drop the api_state once the server task exits so the dashboard
-            // reflects "no server" rather than a stale snapshot.
-            *api_state_handle.lock().unwrap() = None;
-        });
-
-        *self.task_handle.lock().unwrap() = Some(handle);
-
-        // Give the server a moment to start
-        std::thread::sleep(std::time::Duration::from_millis(50));
-
-        Ok(())
+        *self.status.lock().unwrap() = RestApiStatus::Starting;
+        let result = self.start_owned();
+        if let Err(error) = &result {
+            *self.status.lock().unwrap() = RestApiStatus::Error(error.clone());
+        }
+        result
     }
 
-    /// Adopt an external server already listening on our port as the active API.
-    /// Used when a probe found a same-version operator serving this project.
-    pub fn mark_external(&self) {
-        *self.status.lock().unwrap() = RestApiStatus::RunningExternal { port: self.port };
+    fn start_owned(&self) -> Result<(), String> {
+        let state = match &self.auth {
+            Some(auth) => ApiState::try_with_auth(
+                self.config.clone(),
+                self.config.tickets_path(),
+                Arc::clone(auth),
+            ),
+            None => ApiState::try_new(self.config.clone(), self.config.tickets_path()),
+        }
+        .map_err(|error| error.to_string())?;
+        let router = build_router(state.clone()).map_err(|error| error.to_string())?;
+        let addr = std::net::SocketAddr::new(self.config.rest_api.host_ip(), self.port);
+        let listener = std::net::TcpListener::bind(addr).map_err(|error| {
+            *self.status.lock().unwrap() = RestApiStatus::Error(error.to_string());
+            error.to_string()
+        })?;
+        listener
+            .set_nonblocking(true)
+            .map_err(|error| error.to_string())?;
+        let listener =
+            tokio::net::TcpListener::from_std(listener).map_err(|error| error.to_string())?;
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        *self.shutdown_tx.lock().unwrap() = Some(shutdown_tx);
+        *self.api_state.lock().unwrap() = Some(state.clone());
+        let status = Arc::clone(&self.status);
+        let tickets_path = self.tickets_path.clone();
+        let port = self.port;
+        let api_state_handle = Arc::clone(&self.api_state);
+        *status.lock().unwrap() = RestApiStatus::Running { port };
+        let handle = tokio::spawn(async move {
+            if let Err(error) = write_session_file(
+                &tickets_path,
+                &state.config().auth_state_path(),
+                port,
+                state.config().profile.id,
+            ) {
+                tracing::warn!(%error, "Failed to write API session file");
+            }
+            state.auth.store.start_usage_tracking();
+            let shutdown_state = state.clone();
+            let result = axum::serve(
+                listener,
+                router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .with_graceful_shutdown(async move {
+                let _ = shutdown_rx.await;
+                shutdown_state.start_stopping();
+            })
+            .await;
+            state.wait_until_idle().await;
+            state.auth.store.stop_usage_tracking().await;
+            if let Err(error) = state.auth.store.flush_usage() {
+                tracing::warn!(%error, "Final credential usage flush failed");
+            }
+            remove_session_file(&tickets_path);
+            *api_state_handle.lock().unwrap() = None;
+            *status.lock().unwrap() = match result {
+                Ok(()) => RestApiStatus::Stopped,
+                Err(error) => RestApiStatus::Error(error.to_string()),
+            };
+        });
+        *self.task_handle.lock().unwrap() = Some(handle);
+        Ok(())
     }
 
     /// Record that the port is occupied by something we cannot adopt (different
@@ -339,21 +348,23 @@ impl RestApiServer {
 
     /// Stop the REST API server
     pub fn stop(&self) {
-        // Set stopping status first for visual feedback
-        *self.status.lock().unwrap() = RestApiStatus::Stopping;
-
+        let mut status = self.status.lock().unwrap();
+        if matches!(*status, RestApiStatus::Stopped | RestApiStatus::Error(_)) {
+            return;
+        }
+        *status = RestApiStatus::Stopping;
+        drop(status);
         if let Some(tx) = self.shutdown_tx.lock().unwrap().take() {
             let _ = tx.send(());
         }
+    }
 
-        // Clean up session file
-        remove_session_file(&self.tickets_path);
-
-        // Brief delay to allow visual feedback
-        std::thread::sleep(std::time::Duration::from_millis(100));
-
-        *self.status.lock().unwrap() = RestApiStatus::Stopped;
-        tracing::info!("REST API server stopped");
+    pub async fn shutdown(&self) {
+        self.stop();
+        let task = self.task_handle.lock().unwrap().take();
+        if let Some(task) = task {
+            let _ = task.await;
+        }
     }
 
     /// Toggle server state (start if stopped, stop if running)
@@ -386,9 +397,6 @@ mod tests {
         assert!(!RestApiStatus::Starting.is_running());
         assert!(!RestApiStatus::Stopping.is_running());
         assert!(RestApiStatus::Running { port: 7008 }.is_running());
-        // An adopted external server must also count as running so downstream
-        // steps (web UI launch, etc.) proceed.
-        assert!(RestApiStatus::RunningExternal { port: 7008 }.is_running());
         assert!(!RestApiStatus::Error("test".to_string()).is_running());
     }
 
@@ -471,13 +479,12 @@ mod tests {
         let config = Config::default();
         let server = RestApiServer::new(config, 0);
         server.start().expect("start should succeed");
-        // Give the spawned task a brief moment to set status to Running and
-        // populate api_state. (start() already sleeps 50ms internally.)
+        assert!(server.is_running());
         assert!(
             server.api_state().is_some(),
             "api_state should be populated after start()"
         );
-        server.stop();
+        server.shutdown().await;
     }
 
     #[test]
@@ -539,8 +546,8 @@ mod tests {
 
         server.stop();
 
-        // Status should be stopped
-        assert_eq!(server.status(), RestApiStatus::Stopped);
+        // Admission closes before the server finishes draining.
+        assert_eq!(server.status(), RestApiStatus::Stopping);
         // Shutdown tx should be taken (None)
         assert!(server.shutdown_tx.lock().unwrap().is_none());
     }

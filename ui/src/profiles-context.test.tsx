@@ -8,7 +8,7 @@ import { ApiProvider } from "./api/store";
 import { mockFetch, restoreFetch } from "./test-fetch";
 import * as webcomponentMocks from "./test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { ProfileSelector, ProfilesProvider, useProfiles } = await import("./profiles-context");
 

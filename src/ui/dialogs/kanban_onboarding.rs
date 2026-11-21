@@ -1,7 +1,7 @@
 //! Kanban onboarding dialog for the TUI.
 //!
-//! Multi-state wizard: pick provider → collect creds → validate → pick
-//! project → write config + set session env + sync issue types → show
+//! Multi-state wizard: pick provider -> collect creds -> validate -> pick
+//! project -> write config + set session env + sync issue types -> show
 //! shell export nudge. All async work (`validate_credentials` /
 //! `list_projects` / `write_config` / sync) is dispatched by the `App`
 //! event loop calling `services::kanban_onboarding` directly.
@@ -189,8 +189,6 @@ impl KanbanOnboardingDialog {
         self.api_key_buf.clear();
     }
 
-    // ─── Setters called by App after async work ─────────────────────────
-
     pub fn set_validation_jira(&mut self, account_id: String, display_name: String) {
         self.jira_account_id = account_id;
         self.jira_display_name = display_name;
@@ -258,7 +256,7 @@ impl KanbanOnboardingDialog {
             KanbanOnboardingState::JiraDomain => "Jira domain (e.g. acme.atlassian.net)",
             KanbanOnboardingState::JiraEmail => "Jira email",
             KanbanOnboardingState::JiraToken => "Jira API token",
-            KanbanOnboardingState::LinearApiKey => "Linear API key (lin_api_…)",
+            KanbanOnboardingState::LinearApiKey => "Linear API key (lin_api_...)",
             _ => "",
         }
     }
@@ -309,8 +307,6 @@ impl KanbanOnboardingDialog {
             _ => Ok(()),
         }
     }
-
-    // ─── Key handling ────────────────────────────────────────────────────
 
     pub fn handle_key(&mut self, key: KeyCode) -> KanbanOnboardingAction {
         // Block input during async ops
@@ -545,8 +541,6 @@ impl KanbanOnboardingDialog {
             _ => KanbanOnboardingAction::None,
         }
     }
-
-    // ─── Rendering ──────────────────────────────────────────────────────
 
     pub fn render(&mut self, frame: &mut Frame) {
         if !self.visible {

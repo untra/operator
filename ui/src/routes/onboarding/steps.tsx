@@ -1,14 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
+import type { ModelServerKindEntry } from "@operator/bindings/ModelServerKindEntry";
 import type { StepComponent, StepProps, StepRow } from "./types";
-import { Choice, ChoiceGroup, PremiumPaywall } from "@operator/webcomponents";
+import { Choice, ChoiceGroup, ModelProviderCard, PremiumPaywall } from "@operator/webcomponents";
 import { LicensePanel } from "../../components/LicensePanel";
+import { onPurchaseLinkClick, useLicenseQuery, withReturnTo } from "../../license-return";
 import { useApiMutation, useApiQuery } from "../../api";
 import {
   gitProvidersQuery,
   kanbanProvidersQuery,
-  licenseQuery,
   listKanbanProjectsMutation,
   listKanbanStatusesMutation,
   providerKindsQuery,
@@ -24,7 +25,7 @@ import styles from "./OnboardingPage.module.css";
 
 const TASK_FIELDS = ["priority", "points", "user_story"] as const;
 const WRAPPERS = ["tmux", "vscode", "cmux", "zellij"] as const;
-const KANBAN_KINDS = ["jira", "linear", "github", "openspec"] as const;
+const KANBAN_KINDS = ["jira", "linear", "github", "openspec", "gitea"] as const;
 const EMPTY_STATUS_MAPPING = { todo: "", doing: "", done: "" };
 const COLLECTION_SOURCES = [
   ["simple", "Simple"],
@@ -52,7 +53,7 @@ function ExportBlock({ value }: { value: string }) {
 const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
   <Intro>
     <h2>Welcome to Operator</h2>
-    <p>We’ll configure this workspace for both the terminal and browser.</p>
+    <p>We&rsquo;ll configure this workspace for both the terminal and browser.</p>
     <label className={styles.form}>
       Configuration name
       <input
@@ -87,7 +88,7 @@ const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
 const License: StepComponent = () => <LicensePanel />;
 
 const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
-  const licenseQueryResult = useApiQuery(licenseQuery());
+  const licenseQueryResult = useLicenseQuery();
   const [showLicense, setShowLicense] = useState(false);
   const license = licenseQueryResult.data;
 
@@ -132,12 +133,14 @@ const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
         </Choice>
       </ChoiceGroup>
       {!license?.premium && (
-        <PremiumPaywall
-          inline
-          feature="Remote targets"
-          purchaseUrl={license?.purchase_url}
-          onAddLicense={addLicense}
-        />
+        <div onClickCapture={onPurchaseLinkClick}>
+          <PremiumPaywall
+            inline
+            feature="Remote targets"
+            purchaseUrl={withReturnTo(license?.purchase_url)}
+            onAddLicense={addLicense}
+          />
+        </div>
       )}
       {showLicense && <LicensePanel />}
     </Intro>
@@ -153,6 +156,7 @@ function KanbanInfo({ addExport }: StepProps) {
   const setSessionEnv = useApiMutation(setKanbanSessionEnvMutation);
   const [provider, setProvider] = useState<KanbanProviderKind | "">("");
   const [domain, setDomain] = useState("");
+  const [repository, setRepository] = useState("");
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [rootPath, setRootPath] = useState("");
@@ -175,6 +179,13 @@ function KanbanInfo({ addExport }: StepProps) {
 
   const selectProvider = useCallback(
     (slug: string) => {
+      if (busy) {
+        return;
+      }
+      setToken("");
+      setSyncUserId("");
+      setMessage(null);
+      validateCredentials.reset();
       setProvider(KANBAN_KINDS.find((kind) => kind === slug) ?? "");
       setProjectKey("");
       setMapping(EMPTY_STATUS_MAPPING);
@@ -182,7 +193,7 @@ function KanbanInfo({ addExport }: StepProps) {
       listProjects.reset();
       listStatuses.reset();
     },
-    [listProjects, listStatuses],
+    [busy, listProjects, listStatuses, validateCredentials],
   );
 
   // The catalog carries one more provider than `KANBAN_KINDS`: the built-in board
@@ -190,6 +201,8 @@ function KanbanInfo({ addExport }: StepProps) {
   const connectable = providers.filter((item) => KANBAN_KINDS.some((kind) => kind === item.slug));
 
   const credentials = () => ({
+    gitea:
+      provider === "gitea" ? { base_url: domain, repositories: [repository], token } : undefined,
     provider: provider as KanbanProviderKind,
     jira: provider === "jira" ? { domain, email, api_token: token } : null,
     linear: provider === "linear" ? { api_key: token } : null,
@@ -211,6 +224,7 @@ function KanbanInfo({ addExport }: StepProps) {
         validation.jira?.account_id ??
           validation.linear?.user_id ??
           validation.github?.user_id ??
+          validation.gitea?.users.find((user) => user.id === validation.gitea?.user_id)?.id ??
           "",
       );
       setWorkspaceKey(validation.github?.user_login ?? "");
@@ -225,8 +239,12 @@ function KanbanInfo({ addExport }: StepProps) {
         setMessage("OpenSpec connected.");
         return;
       }
-      await listProjects.mutateAsync(credentials());
-      setMessage("Credentials validated. Choose a project.");
+      const discovered = await listProjects.mutateAsync(credentials());
+      setMessage(
+        discovered.projects.length > 0
+          ? "Credentials validated. Choose a project."
+          : "No projects are available for these credentials.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Connection failed");
     }
@@ -267,9 +285,36 @@ function KanbanInfo({ addExport }: StepProps) {
           ? "OPERATOR_JIRA_API_KEY"
           : provider === "linear"
             ? "OPERATOR_LINEAR_API_KEY"
-            : "OPERATOR_GITHUB_TOKEN";
+            : provider === "gitea"
+              ? "OPERATOR_GITEA_TOKEN"
+              : "OPERATOR_GITHUB_TOKEN";
       const status_mapping = mapping;
-      if (provider === "jira") {
+      if (provider === "gitea") {
+        const envResult = await setSessionEnv.mutateAsync({
+          provider,
+          gitea: { base_url: domain, api_key_env: env, token },
+          jira: null,
+          linear: null,
+          github: null,
+        });
+        await writeConfig.mutateAsync({
+          provider,
+          gitea: {
+            instance,
+            base_url: domain,
+            repositories: [repository],
+            api_key_env: env,
+            project_key: projectKey,
+            sync_user_id: syncUserId,
+            status_mapping,
+          },
+          jira: null,
+          linear: null,
+          github: null,
+          openspec: null,
+        });
+        addExport(envResult.shell_export_block);
+      } else if (provider === "jira") {
         const envResult = await setSessionEnv.mutateAsync({
           provider,
           jira: { domain, email, api_token: token, api_key_env: env },
@@ -350,6 +395,8 @@ function KanbanInfo({ addExport }: StepProps) {
       <p>
         Connect an external Kanban provider to sync its issues, or continue and connect one later.
       </p>
+      {providersQuery.isLoading && <p>Loading kanban providers...</p>}
+      {providersQuery.error && <p>{providersQuery.error.message}</p>}
       <ChoiceGroup>
         {builtInBoard && (
           <Choice
@@ -380,6 +427,46 @@ function KanbanInfo({ addExport }: StepProps) {
       </ChoiceGroup>
       {provider && (
         <div className={styles.form}>
+          {provider === "gitea" && (
+            <>
+              <label>
+                Instance name
+                <input
+                  disabled={busy}
+                  value={instance}
+                  onChange={(event) => setInstance(event.target.value)}
+                />
+              </label>
+              <label>
+                Instance URL
+                <input
+                  disabled={busy}
+                  value={domain}
+                  onChange={(event) => {
+                    setDomain(event.target.value);
+                    selectProvider("gitea");
+                  }}
+                  placeholder="https://git.example.com"
+                />
+              </label>
+              <label>
+                Repository
+                <input
+                  disabled={busy}
+                  value={repository}
+                  onChange={(event) => {
+                    setRepository(event.target.value);
+                    selectProvider("gitea");
+                  }}
+                  placeholder="owner/repository"
+                />
+              </label>
+              <p>
+                Alpha imports repository board issues. Use a token with read:repository, read:issue,
+                and read:user access.
+              </p>
+            </>
+          )}
           {provider === "jira" && (
             <>
               <label>
@@ -412,14 +499,41 @@ function KanbanInfo({ addExport }: StepProps) {
               API token
               <input
                 type="password"
+                disabled={busy}
                 value={token}
-                onChange={(event) => setToken(event.target.value)}
+                onChange={(event) => {
+                  if (provider === "gitea") {
+                    selectProvider("gitea");
+                  }
+                  setToken(event.target.value);
+                }}
               />
             </label>
           )}
           <button type="button" onClick={connect} disabled={busy}>
             Validate and connect
           </button>
+          {busy && <output>Connecting or saving provider...</output>}
+          {provider === "gitea" && validateCredentials.data?.gitea?.users.length === 0 && (
+            <p>No assignable users are available for this repository.</p>
+          )}
+          {provider === "gitea" && validateCredentials.data?.gitea && (
+            <label>
+              Sync user
+              <select
+                value={syncUserId}
+                disabled={busy}
+                onChange={(event) => setSyncUserId(event.target.value)}
+              >
+                <option value="">Choose a user</option>
+                {validateCredentials.data.gitea.users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {projects.length > 0 && (
             <>
               <label>
@@ -429,7 +543,7 @@ function KanbanInfo({ addExport }: StepProps) {
                   disabled={listStatuses.isPending}
                   onChange={(event) => chooseProject(event.target.value)}
                 >
-                  <option value="">Choose…</option>
+                  <option value="">Choose...</option>
                   {projects.map((item) => (
                     <option key={item.id} value={item.key}>
                       {item.name}
@@ -437,26 +551,39 @@ function KanbanInfo({ addExport }: StepProps) {
                   ))}
                 </select>
               </label>
+              {projectKey && listStatuses.data && statuses.length === 0 && (
+                <p>This project has no available columns.</p>
+              )}
               {statuses.length > 0 && (
                 <div className={styles.mapping}>
-                  {(["todo", "doing", "done"] as const).map((state) => (
-                    <label key={state}>
-                      {state}
-                      <select
-                        value={mapping[state]}
-                        onChange={(event) =>
-                          setMapping((current) => ({ ...current, [state]: event.target.value }))
-                        }
-                      >
-                        {statuses.map((status) => (
-                          <option key={status}>{status}</option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
+                  {(["todo", "doing", "done"] as const)
+                    .filter((state) => provider !== "gitea" || state === "todo")
+                    .map((state) => (
+                      <label key={state}>
+                        {state}
+                        <select
+                          value={mapping[state]}
+                          onChange={(event) =>
+                            setMapping((current) => ({ ...current, [state]: event.target.value }))
+                          }
+                        >
+                          {statuses.map((status) => (
+                            <option key={status}>{status}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
                 </div>
               )}
-              <button type="button" onClick={save} disabled={busy || !projectKey}>
+              <button
+                type="button"
+                onClick={save}
+                disabled={
+                  busy ||
+                  !projectKey ||
+                  (provider === "gitea" && (!syncUserId || statuses.length === 0))
+                }
+              >
                 Save provider
               </button>
             </>
@@ -470,15 +597,43 @@ function KanbanInfo({ addExport }: StepProps) {
   );
 }
 
-function ProbeLabel({ slug }: { slug: string }) {
-  const { data, error, isLoading } = useApiQuery(providerModelsQuery(slug));
-  if (data?.reachable) {
-    return `${data.models.length} models`;
+function isLocalUrl(url: string | null | undefined): boolean {
+  if (!url) {
+    return false;
   }
-  if (isLoading) {
-    return "checking…";
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
+  } catch {
+    return false;
   }
-  return data?.error ?? (error ? "unreachable" : "checking…");
+}
+
+function ProbedProviderCard({
+  slug,
+  label,
+  kind,
+  selected,
+  onToggle,
+}: {
+  slug: string;
+  label: string;
+  kind: ModelServerKindEntry | undefined;
+  selected: boolean;
+  onToggle: (slug: string) => void;
+}) {
+  const { data, error } = useApiQuery(providerModelsQuery(slug));
+  const provider = useMemo(
+    () => ({
+      slug,
+      label,
+      probe: data ?? undefined,
+      fetchFailed: Boolean(error),
+      keyEnv: kind?.default_api_key_env ?? undefined,
+      local: isLocalUrl(kind?.default_base_url),
+    }),
+    [slug, label, data, error, kind],
+  );
+  return <ModelProviderCard provider={provider} selected={selected} onToggle={onToggle} />;
 }
 
 function ModelServer({ integrations, draft, setDraft }: StepProps) {
@@ -511,17 +666,14 @@ function ModelServer({ integrations, draft, setDraft }: StepProps) {
       </p>
       <ChoiceGroup>
         {entries.map((entry) => (
-          <Choice
+          <ProbedProviderCard
             key={entry.slug}
+            slug={entry.slug}
+            label={entry.label}
+            kind={kinds.find((kind) => kind.slug === entry.slug)}
             selected={draft.modelServers.includes(entry.slug)}
-            value={entry.slug}
-            onSelect={toggleProvider}
-          >
-            <strong>{entry.label}</strong>
-            <span>
-              <ProbeLabel slug={entry.slug} />
-            </span>
-          </Choice>
+            onToggle={toggleProvider}
+          />
         ))}
       </ChoiceGroup>
       {keyExports.length > 0 && <ExportBlock value={keyExports.join("\n")} />}

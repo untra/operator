@@ -205,7 +205,7 @@ jobs:
       - name: Run launch integration tests
         env:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::launch_integration:: -- --nocapture --test-threads=1
+        run: 'cargo test --locked --test it suites::launch_integration:: -- --nocapture --test-threads=1'
 
       - name: Cleanup tmux sessions
         if: always()
@@ -329,7 +329,7 @@ jobs:
       - name: Run cmux integration tests (mock-based)
         env:
           OPERATOR_CMUX_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::launch_integration_cmux:: -- --nocapture --test-threads=1
+        run: 'cargo test --locked --test it suites::launch_integration_cmux:: -- --nocapture --test-threads=1'
 
   # VSCODE WRAPPER LAUNCH TESTS (Rust library-level, all platforms)
 
@@ -364,7 +364,7 @@ jobs:
       - name: Run VS Code wrapper launch tests
         env:
           OPERATOR_VSCODE_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::launch_integration_vscode:: -- --nocapture --test-threads=1
+        run: 'cargo test --locked --test it suites::launch_integration_vscode:: -- --nocapture --test-threads=1'
 
   # REST API INTEGRATION TESTS (All platforms)
 
@@ -399,7 +399,7 @@ jobs:
       - name: Run REST API integration tests
         env:
           OPERATOR_REST_API_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::rest_api_integration:: -- --nocapture --test-threads=1
+        run: 'cargo test --locked --test it suites::rest_api_integration:: -- --nocapture --test-threads=1'
 
   # OPR8R CLI INTEGRATION TESTS (All platforms)
 

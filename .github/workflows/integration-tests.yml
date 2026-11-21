@@ -186,7 +186,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.run_git
         env:
           OPERATOR_GIT_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::git_integration:: -- --nocapture --test-threads=1
+        run: 'cargo test --locked --test it suites::git_integration:: -- --nocapture --test-threads=1'
 
       # NOTE: Git push tests disabled in CI - require authenticated push access
       # Run locally with OPERATOR_GIT_PUSH_ENABLED=true to test push operations
@@ -216,7 +216,7 @@ jobs:
           OPERATOR_GITPROVIDER_TEST_PR_GITLAB: ${{ vars.OPERATOR_GITPROVIDER_TEST_PR_GITLAB || '' }}
           OPERATOR_GITPROVIDER_TEST_REPO_GITEA: ${{ vars.OPERATOR_GITPROVIDER_TEST_REPO_GITEA || '' }}
           OPERATOR_GITPROVIDER_TEST_PR_GITEA: ${{ vars.OPERATOR_GITPROVIDER_TEST_PR_GITEA || '' }}
-        run: cargo test --locked --test it suites::gitprovider_integration:: -- --nocapture
+        run: 'cargo test --locked --test it suites::gitprovider_integration:: -- --nocapture'
 
       - name: Cleanup optest branches
         if: always()

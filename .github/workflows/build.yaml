@@ -504,17 +504,17 @@ jobs:
       - name: Run launch integration tests
         env:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::launch_integration:: -- --test-threads=1 --nocapture
+        run: 'cargo test --locked --test it suites::launch_integration:: -- --test-threads=1 --nocapture'
 
       - name: Run campaign launch integration tests
         env:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::campaign_launch_integration:: -- --test-threads=1 --nocapture
+        run: 'cargo test --locked --test it suites::campaign_launch_integration:: -- --test-threads=1 --nocapture'
 
       - name: Run relay integration tests
         env:
           OPERATOR_RELAY_INTEGRATION_TEST_ENABLED: 'true'
-        run: cargo test --locked --test it suites::relay_integration:: -- --nocapture --test-threads=1
+        run: 'cargo test --locked --test it suites::relay_integration:: -- --nocapture --test-threads=1'
 
       - name: Cleanup sessions
         if: always()

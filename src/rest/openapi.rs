@@ -875,8 +875,9 @@ mod tests {
             "TokenRequest",
             "TokenResponse",
             "OAuthErrorResponse",
-            "CreateAccessKeyResponse",
-            "AccessKeySummary",
+            "UserKeyList",
+            "IssuedUserKey",
+            "CreateUserKey",
             "SessionListResponse",
         ] {
             assert!(

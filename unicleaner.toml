@@ -1,11 +1,73 @@
 # Local audit: unicleaner scan . --config unicleaner.toml
-# Directory scans respect Git ignores and skip hidden paths.
+# Directory scans respect .ignore and Git ignores and skip hidden paths.
 [global]
 deny_by_default = true
 
-# Markdown permits prose; bidi controls remain forbidden.
+# Documentation punctuation, diagrams, and display symbols.
 [[rules]]
-pattern = "**/*.md"
+pattern = "{docs/**,./docs/**,**/operator/docs/**}"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00A7, 0x00A7], # Section sign
+  [0x00A9, 0x00A9], # Copyright sign
+  [0x00B7, 0x00B7], # Middle dot
+  [0x00D7, 0x00D7], # Multiplication sign
+  [0x2019, 0x2019], # Right single quotation mark
+  [0x2026, 0x2026], # Ellipsis
+  [0x2190, 0x2190], # Left arrow
+  [0x2191, 0x2191], # Up arrow
+  [0x2192, 0x2192], # Right arrow
+  [0x2193, 0x2193], # Down arrow
+  [0x2194, 0x2194], # Left-right arrow
+  [0x2260, 0x2260], # Not equal
+  [0x2500, 0x2500], # Horizontal line
+  [0x2502, 0x2502], # Vertical line
+  [0x250C, 0x250C], # Top-left corner
+  [0x2510, 0x2510], # Top-right corner
+  [0x2514, 0x2514], # Bottom-left corner
+  [0x2518, 0x2518], # Bottom-right corner
+  [0x251C, 0x251C], # Branch connector
+  [0x25B2, 0x25B2], # Up triangle
+  [0x25B8, 0x25B8], # Small right triangle
+  [0x25BA, 0x25BA], # Right pointer
+  [0x25C4, 0x25C4], # Left pointer
+  [0x25CF, 0x25CF], # Filled circle
+  [0x26A0, 0x26A0], # Warning sign
+  [0x2705, 0x2705], # Check button
+  [0x2713, 0x2713], # Check mark
+  [0x274C, 0x274C], # Cross mark
+  [0x27F3, 0x27F3], # Refresh arrow
+  [0xFE0F, 0xFE0F], # Emoji presentation selector
+]
+
+# Status-panel indicators and action glyphs.
+[[rules]]
+pattern = "**/src/ui/status_panel.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2442, 0x2442], # Fork symbol
+  [0x25B8, 0x25B8], # Small right triangle
+  [0x25BE, 0x25BE], # Small down triangle
+  [0x26A0, 0x26A0], # Warning sign
+  [0x2713, 0x2713], # Check mark
+  [0x2717, 0x2717], # Ballot X
+  [0x27F3, 0x27F3], # Refresh arrow
+]
+
+# Issue-type description separators.
+[[rules]]
+pattern = "**/src/ui/sections/issuetype_section.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00B7, 0x00B7], # Middle dot
+]
+
+# READMEs permit Unicode prose and diagrams. Bidi controls remain forbidden.
+[[rules]]
+pattern = "**/README.md"
 allowed_ranges = [[0x0009, 0x000D], [0x0020, 0x007E], [0x0080, 0x10FFFF]]
 
 # Ticket-status display glyphs.
@@ -345,4 +407,44 @@ allowed_ranges = [
   [0x24D8, 0x24D8], # Information icon
   [0x26A0, 0x26A0], # Warning sign
   [0x2713, 0x2713], # Check mark
+]
+
+# Model-server descriptions and truncated URLs.
+[[rules]]
+pattern = "**/src/ui/sections/modelserver_section.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00B7, 0x00B7], # Middle dot
+  [0x2026, 0x2026], # Ellipsis
+]
+
+# Session-preview scroll indicators and keyboard hints.
+[[rules]]
+pattern = "**/src/ui/session_preview.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2191, 0x2191], # Up arrow
+  [0x2193, 0x2193], # Down arrow
+]
+
+# Ticket-detail progress text and focus confirmation.
+[[rules]]
+pattern = "**/ui/src/components/TicketDetailPanel.tsx"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2026, 0x2026], # Ellipsis
+  [0x2713, 0x2713], # Check mark
+]
+
+# Onboarding step placeholders and progress text.
+[[rules]]
+pattern = "**/ui/src/routes/onboarding/OnboardingPage.tsx"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00B7, 0x00B7], # Middle dot
+  [0x2026, 0x2026], # Ellipsis
 ]

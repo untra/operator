@@ -1,0 +1,11 @@
+# Uniclear ignore file
+# Binary assets
+*.png
+*.ttf
+*.woff
+
+# Generated Rust bindings and protocol fixtures
+/bindings/
+
+# Agent instructions are excluded from directory Unicode audits.
+/AGENTS.md

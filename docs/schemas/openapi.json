@@ -13328,7 +13328,7 @@
       },
       "OAuthErrorResponse": {
         "type": "object",
-        "description": "Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can\ninterpret it - notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
+        "description": "Standardized OAuth error, shaped per RFC 6749 so stock clients can\ninterpret it - notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
         "required": [
           "error"
         ],

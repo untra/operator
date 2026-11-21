@@ -19,7 +19,7 @@ const REMOTE_TARGET = {
   workdir: "/srv/e2e",
 };
 const PAYMENT_REQUIRED = 402;
-/** Stripe → stripe listen → webhook inbox → license issuance → pickup poll (2 s ticks). */
+/** Stripe -> stripe listen -> webhook inbox -> license issuance -> pickup poll (2 s ticks). */
 const LICENSE_ISSUED_TIMEOUT_MS = 90_000;
 const STRIPE_REDIRECT_TIMEOUT_MS = 60_000;
 const UI_TIMEOUT_MS = 20_000;
@@ -65,7 +65,7 @@ test("first-time setup buys Premium in the sandbox and the key comes back on its
   // The tab that started checkout says what is happening while the buyer is away.
   await expect(panel.getByText(/finish checkout in the new tab/i)).toBeVisible();
 
-  // Storefront → Stripe sandbox → back to the storefront's license pickup.
+  // Storefront -> Stripe sandbox -> back to the storefront's license pickup.
   await payWithTestCard(shop);
   await expect(shop).toHaveURL(
     new RegExp(`^${escape(PLATFORM_APP_ORIGIN)}/license\\?session_id=`),

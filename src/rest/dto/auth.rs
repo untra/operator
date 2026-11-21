@@ -401,7 +401,7 @@ impl std::fmt::Debug for TokenResponse {
     }
 }
 
-/// Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can
+/// Standardized OAuth error, shaped per RFC 6749 so stock clients can
 /// interpret it - notably `authorization_pending` and `slow_down`, which a
 /// device-flow client polls against.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]

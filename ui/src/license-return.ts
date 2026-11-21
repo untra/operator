@@ -34,7 +34,7 @@ export function withReturnTo(
 }
 
 /**
- * `#license_key=X` → `#/license/return?license_key=X`, so the hash router can route it.
+ * `#license_key=X` -> `#/license/return?license_key=X`, so the hash router can route it.
  * Returns the rewritten hash, or null when the hash is not a checkout return.
  */
 export function licenseReturnHash(hash: string): string | null {
@@ -63,7 +63,7 @@ export function rewriteLicenseFragment(win: Window = window): void {
 
 /**
  * Per-tab checkout progress, shared by every component that shows the licence:
- * idle → awaiting (Buy clicked, checkout runs in another tab) → activated (licence turned Premium).
+ * idle -> awaiting (Buy clicked, checkout runs in another tab) -> activated (licence turned Premium).
  */
 export type CheckoutProgress = "idle" | "awaiting" | "activated";
 

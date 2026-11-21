@@ -792,7 +792,7 @@ launch_config: DelegatorLaunchConfig | null,
 /**
  * Name of a declared `ModelServer` (from `Config.model_servers`).
  * `None` means use the `llm_tool`'s implicit vendor default
- * (claude : anthropic-api, codex : openai-api, gemini → google-api).
+ * (claude : anthropic-api, codex : openai-api, gemini : google-api).
  */
 model_server: string | null, 
 /**
@@ -2072,7 +2072,7 @@ export type SectionRowDto = {
 id: string, 
 /**
  * Nesting depth within the section (1 = direct child, 2 = grandchild).
- * Lets clients rebuild the tree (e.g. LLM tools → model aliases).
+ * Lets clients rebuild the tree (e.g. LLM tools to model aliases).
  */
 depth: number, label: string, description: string, 
 /**
@@ -2407,11 +2407,11 @@ launches: number, };
 
 export type CampaignDetail = { campaign: Campaign, members: Array<CampaignMember>, waves: Array<Array<string>>, 
 /**
- * Member id → local tickets outside the campaign it waits on.
+ * Member id - local tickets outside the campaign it waits on.
  */
 gates: { [key in string]: Array<string> }, 
 /**
- * Member id → unsynced upstream refs it waits on.
+ * Member id - unsynced upstream refs it waits on.
  */
 unsynced: { [key in string]: Array<string> }, plan_error?: string | null, };
 

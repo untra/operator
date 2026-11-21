@@ -307,10 +307,11 @@ pub(crate) mod test_support {
 mod tests {
     use super::*;
     #[test]
-    fn endpoint_claims_carry_the_endpoint_and_only_the_endpoint_scope() {
+    fn endpoint_claims_carry_the_endpoint_and_no_scope() {
         let claims = endpoint_claims("ep-1", Utc::now(), "jti".into());
         assert_eq!(claims.endpoint_id.as_deref(), Some("ep-1"));
-        assert_eq!(claims.scope, "endpoint");
+        assert_eq!(claims.scope, "");
+        assert!(claims.scopes().is_empty());
         assert_eq!(claims.aud, AUDIENCE_API);
     }
 

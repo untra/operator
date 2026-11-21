@@ -375,7 +375,7 @@ pub static SHORTCUTS: &[Shortcut] = &[
         key: KeyCode::Enter,
         modifiers: KeyModifiers::CONTROL,
         alt_key: None,
-        description: "Refresh (Y) \u{27F3}",
+        description: "Refresh (Y)",
         category: ShortcutCategory::Actions,
         context: ShortcutContext::StatusPanel,
     },

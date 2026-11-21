@@ -5,7 +5,7 @@
  */
 export type CampaignRun = { 
 /**
- * Ticket id → launches made by the runner
+ * Ticket id to launches made by the runner
  */
 launches: { [key in string]: number }, started_at?: string | null, last_error?: string | null, 
 /**

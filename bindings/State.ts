@@ -19,6 +19,6 @@ project_collection_prefs: { [key in string]: string },
  */
 multi_agent_groups: Array<MultiAgentGroup>, 
 /**
- * Campaign id → runner bookkeeping
+ * Campaign id to runner bookkeeping
  */
 campaign_runs: { [key in string]: CampaignRun }, };

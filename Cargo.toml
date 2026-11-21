@@ -48,10 +48,10 @@ operator-relay = { path = "crates/relay" }
 operator-telemetry = { path = "crates/telemetry", features = ["redact", "schema", "otlp-json"] }
 # OTLP wire types only: prost messages and serde JSON, no tonic server or client
 opentelemetry-proto = { version = "=0.33.0", default-features = false, features = ["gen-tonic-messages", "with-serde", "trace", "logs", "metrics"] }
-opentelemetry = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics"] }
-opentelemetry_sdk = { version = "=0.33.0", default-features = false, features = ["trace", "logs", "metrics", "experimental_metrics_bound_instruments"] }
+opentelemetry = { version = "=0.33.1", default-features = false, features = ["trace", "logs", "metrics"] }
+opentelemetry_sdk = { version = "=0.33.1", default-features = false, features = ["trace", "logs", "metrics", "experimental_metrics_bound_instruments"] }
 tracing-opentelemetry = { version = "=0.34.0", default-features = false }
-opentelemetry-appender-tracing = { version = "=0.33.0", default-features = false }
+opentelemetry-appender-tracing = { version = "=0.33.1", default-features = false }
 percent-encoding = "2"
 prost = "0.14"
 flate2 = "1"
@@ -102,7 +102,7 @@ backon = "1"
 which = "8"
 
 # System info (for core count)
-sysinfo = "0.39"
+sysinfo = "0.40"
 
 # Cryptography (for content hashing)
 sha2 = "0.11"
@@ -132,16 +132,16 @@ utoipa = { version = "6", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "10", features = ["axum"] }
 
 # Agent Client Protocol (ACP) JSON-RPC 2.0 over stdio for editor integration
-agent-client-protocol = "2.0"
+agent-client-protocol = "3.5"
 
 # Authentication: local credential store, password hashing, and token signing.
 rusqlite = { version = "0.43", features = ["bundled"] }
-argon2 = "0.5"
-password-hash = { version = "0.5", features = ["getrandom"] }
-jsonwebtoken = "9"
+argon2 = "0.6"
+password-hash = { version = "0.6", features = ["getrandom"] }
+jsonwebtoken = "11"
 ring = "0.17"
-rand = "0.9"
-base64 = "0.22"
+rand = "0.10"
+base64 = "0.23"
 hex = "0.4"
 fnv = "1"
 subtle = "2"
@@ -162,7 +162,7 @@ embed-ui = ["dep:rust-embed", "dep:mime_guess"]
 operator-relay = { path = "crates/relay" }
 tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
-tokio-tungstenite = "0.29"
+tokio-tungstenite = "0.30"
 
 [lints.rust]
 unsafe_code = "deny"

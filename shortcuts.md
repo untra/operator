@@ -1,0 +1,155 @@
+# Keyboard Shortcuts
+
+<!-- AUTO-GENERATED FROM src/ui/keybindings.rs - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+Operator uses vim-style keybindings for navigation and actions. This reference documents all available keyboard shortcuts.
+
+## Quick Reference
+
+| Key | Action | Context |
+| --- | --- | --- |
+| `q` | Quit Operator | Dashboard |
+| `?` | Toggle help | Dashboard |
+| `Tab` | Switch between panels | Dashboard |
+| `j/Down` | Move down | Dashboard |
+| `k/Up` | Move up | Dashboard |
+| `Q` | Focus Queue panel | Dashboard |
+| `A/a` | Focus Agents panel | Dashboard |
+| `h/Left` | Previous panel | Dashboard |
+| `l/Right` | Next panel | Dashboard |
+| `Enter` | Select / Confirm | Dashboard |
+| `Shift+Enter` | Auto-launch (delegator chain) | Dashboard |
+| `Esc` | Cancel / Close | Dashboard |
+| `L` | Launch selected ticket | Dashboard |
+| `P/p` | Pause queue processing | Dashboard |
+| `R/r` | Resume queue processing | Dashboard |
+| `S` | Sync kanban collections | Dashboard |
+| `Y/y` | Approve review (agents panel) | Dashboard |
+| `X/x` | Reject review (agents panel) | Dashboard |
+| `W/w` | Open web UI in browser | Dashboard |
+| `V/v` | Show session preview | Dashboard |
+| `F` | Focus cmux window | Dashboard |
+| `C` | Create new ticket | Dashboard |
+| `J` | Open Projects menu | Dashboard |
+| `T/t` | Switch issue type collection | Dashboard |
+| `K` | Open Kanban providers view | Dashboard |
+| `Enter` | Activate (A) | Status Panel |
+| `Esc/Backspace` | Go back (B) | Status Panel |
+| `Shift+Enter` | Special action (X) * | Status Panel |
+| `Ctrl+Enter` | Refresh (Y) | Status Panel |
+| `g` | Scroll to top | Session Preview |
+| `G` | Scroll to bottom | Session Preview |
+| `PgUp` | Page up | Session Preview |
+| `PgDn` | Page down | Session Preview |
+| `Esc/q` | Close preview | Session Preview |
+| `L/l` | Launch agent | Launch Dialog |
+| `V/v` | View ticket ($VISUAL or open) | Launch Dialog |
+| `E/e` | Edit ticket ($EDITOR) | Launch Dialog |
+| `N/n` | Cancel | Launch Dialog |
+| `M/m` | Cycle provider/model | Launch Dialog |
+| `D/d` | Cycle execution target | Launch Dialog |
+| `Y/y` | Toggle Auto-accept (YOLO) | Launch Dialog |
+
+## Dashboard
+
+These shortcuts are available in the main dashboard view.
+
+### General
+
+| Key | Action |
+| --- | --- |
+| `q` | Quit Operator |
+| `?` | Toggle help |
+
+### Navigation
+
+| Key | Action |
+| --- | --- |
+| `Tab` | Switch between panels |
+| `j/Down` | Move down |
+| `k/Up` | Move up |
+| `Q` | Focus Queue panel |
+| `A/a` | Focus Agents panel |
+| `h/Left` | Previous panel |
+| `l/Right` | Next panel |
+
+### Actions
+
+| Key | Action |
+| --- | --- |
+| `Enter` | Select / Confirm |
+| `Shift+Enter` | Auto-launch (delegator chain) |
+| `Esc` | Cancel / Close |
+| `L` | Launch selected ticket |
+| `P/p` | Pause queue processing |
+| `R/r` | Resume queue processing |
+| `S` | Sync kanban collections |
+| `Y/y` | Approve review (agents panel) |
+| `X/x` | Reject review (agents panel) |
+| `W/w` | Open web UI in browser |
+| `V/v` | Show session preview |
+| `F` | Focus cmux window |
+
+### Dialogs
+
+| Key | Action |
+| --- | --- |
+| `C` | Create new ticket |
+| `J` | Open Projects menu |
+| `T/t` | Switch issue type collection |
+| `K` | Open Kanban providers view |
+
+## Status Panel
+
+These shortcuts are available when the status panel is focused. Actions use an ABXY gamepad-style mapping.
+
+### Navigation
+
+| Key | Action |
+| --- | --- |
+| `Esc/Backspace` | Go back (B) |
+
+### Actions
+
+| Key | Action |
+| --- | --- |
+| `Enter` | Activate (A) |
+| `Shift+Enter` | Special action (X) * |
+| `Ctrl+Enter` | Refresh (Y) |
+
+## Session Preview
+
+These shortcuts are available when viewing a session preview.
+
+### Navigation
+
+| Key | Action |
+| --- | --- |
+| `g` | Scroll to top |
+| `G` | Scroll to bottom |
+| `PgUp` | Page up |
+| `PgDn` | Page down |
+
+### Actions
+
+| Key | Action |
+| --- | --- |
+| `Esc/q` | Close preview |
+
+## Launch Dialog
+
+These shortcuts are available in the ticket launch confirmation dialog.
+
+### Actions
+
+| Key | Action |
+| --- | --- |
+| `L/l` | Launch agent |
+| `V/v` | View ticket ($VISUAL or open) |
+| `E/e` | Edit ticket ($EDITOR) |
+| `N/n` | Cancel |
+| `M/m` | Cycle provider/model |
+| `D/d` | Cycle execution target |
+| `Y/y` | Toggle Auto-accept (YOLO) |
+

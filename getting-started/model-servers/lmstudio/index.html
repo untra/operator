@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LM Studio | Operator! Documentation</title>
+  <meta name="description" content="Use a Windows or Macos personal computer for local inference from Operator with LM Studio">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="alternate" type="text/markdown" href="/getting-started/model-servers/lmstudio.md">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.1 -->
+<title>LM Studio | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="LM Studio" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Use a Windows or Macos personal computer for local inference from Operator with LM Studio" />
+<meta name="twitter:description" property="og:description" content="Use a Windows or Macos personal computer for local inference from Operator with LM Studio" />
+<link rel="canonical" href="https://operator.untra.io/getting-started/model-servers/lmstudio/" />
+<meta property="og:url" content="https://operator.untra.io/getting-started/model-servers/lmstudio/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="LM Studio" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Use a Windows or Macos personal computer for local inference from Operator with LM Studio","headline":"LM Studio","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/getting-started/model-servers/lmstudio/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/campaigns/" >Campaigns</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/governance/" >Governance</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode-terminals/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Terminals</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/ides/" class="nav-parent-link ">IDEs</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/ides/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/ides/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/connections/" class="nav-parent-link ">Connections</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/connections/api/" >Operator API</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/mcp/" >MCP</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/acp/" >ACP</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/access-keys/" >Access Keys & Identities</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/transports/" class="nav-parent-link ">Execution Transports</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/transports/local/" >Local</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/transports/ssh/" >SSH</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agent-relays/" class="nav-parent-link ">Agent Relays</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agent-relays/claude-relay/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude Relay</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/premium/" >Operator Premium</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/remote-targets/" class="nav-parent-link ">Remote Targets</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/remote-targets/ssh/" >SSH Hosts</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/remote-targets/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/operator/" ><span class="nav-icon"><img src="/assets/icons/operator.svg" alt="" width="16" height="16"></span>Operator</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/grok/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>Grok</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/xai/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>xAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/lmstudio/" class="active"
+                    ><span class="nav-icon"><img src="/assets/icons/lmstudio.svg" alt="" width="16" height="16"></span>LM Studio</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/forgejo/" ><span class="nav-icon"><img src="/assets/icons/forgejo.svg" alt="" width="16" height="16"></span>Forgejo</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/integrations/keycloak/" ><span class="nav-icon"><img src="/assets/icons/keycloak.svg" alt="" width="16" height="16"></span>Keycloak</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/integrations/authentik/" ><span class="nav-icon"><img src="/assets/icons/authentik.svg" alt="" width="16" height="16"></span>Authentik</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/telemetry/" class="nav-parent-link "><i class="codicon codicon-pulse nav-codicon"></i>Telemetry</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/telemetry/catalog/" >OTLP Event Catalog</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/getting-started/model-servers/lmstudio.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.17</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-11-21</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">LM Studio</h1>
+  
+
+  <p><span class="badge proto">Proto</span></p>
+
+<p>Run your model on a Windows x64 personal computer or gaming machine.
+Or run your model from a macos arm laptop with LM Studio.
+Model listing alone does not verify agent compatibility; running models locally carries its own risks.</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>VS Code on your workstation -- HTTPS --&gt; Operator Server
+                                            |
+                                      opr8r + agent CLI
+                                            |
+                                      LAN HTTP inference
+                                            v
+                                Personal Computer + LM Studio
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">opr8r</code> is a step wrapper: it runs the CLI, tracks its exit, and reports progress to Operator.</p>
+
+<h2 id="prepare-the-personal">Prepare the personal</h2>
+
+<ol>
+  <li>Install <a href="https://lmstudio.ai/">LM Studio</a> and download a tool-capable model that fits your GPU memory.
+Use the exact model ID returned by <code class="language-plaintext highlighter-rouge">/v1/models</code>.
+Context size also consumes memory; LM Studio recommends more than roughly 25k context for its coding-agent integrations.
+Start with one ticket at a time.</li>
+  <li>Start the API server on port <code class="language-plaintext highlighter-rouge">1234</code>. Enable <strong>Serve on Local Network</strong> and <strong>Require Authentication</strong>, then create an LM Studio API token.
+See <a href="https://lmstudio.ai/docs/developer/core/server/settings">server settings</a>. CORS and LM Studio’s own MCP integrations are unnecessary here.</li>
+  <li>Reserve a stable LAN IP for the PC in your router, for example <code class="language-plaintext highlighter-rouge">192.168.1.50</code>.</li>
+  <li>
+    <p>In <strong>Windows Defender Firewall</strong>, allow inbound TCP <code class="language-plaintext highlighter-rouge">1234</code> on the Private profile only from the cluster’s actual source addresses. Depending on your CNI, the PC may see node addresses rather than pod addresses. An administrator can use:</p>
+
+    <div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">New-NetFirewallRule</span><span class="w"> </span><span class="nt">-DisplayName</span><span class="w"> </span><span class="s2">"LM Studio from Operator"</span><span class="w"> </span><span class="nt">-Direction</span><span class="w"> </span><span class="nx">Inbound</span><span class="w"> </span><span class="nt">-Action</span><span class="w"> </span><span class="nx">Allow</span><span class="w"> </span><span class="nt">-Protocol</span><span class="w"> </span><span class="nx">TCP</span><span class="w"> </span><span class="nt">-LocalPort</span><span class="w"> </span><span class="nx">1234</span><span class="w"> </span><span class="nt">-Profile</span><span class="w"> </span><span class="nx">Private</span><span class="w"> </span><span class="nt">-RemoteAddress</span><span class="w"> </span><span class="err">&lt;</span><span class="nx">cluster-source-CIDR</span><span class="err">&gt;</span><span class="w">
+</span></code></pre></div>    </div>
+  </li>
+  <li>Keep the PC awake during jobs and confirm the server and model are available after a Windows restart. Do not forward port <code class="language-plaintext highlighter-rouge">1234</code> from the Internet. Use a trusted LAN for HTTP; the token is not encrypted in transit. For an untrusted network, provide a trusted HTTPS endpoint or encrypted tunnel.</li>
+</ol>
+
+<h2 id="prepare-operators-pod">Prepare Operator’s pod</h2>
+
+<p>The stock image contains <code class="language-plaintext highlighter-rouge">opr8r</code>, <code class="language-plaintext highlighter-rouge">tmux</code>, and Git, but neither agent CLI. Build an arm64 derived image with a supported Node.js runtime and both CLIs. Pin the three build arguments to the versions you will record in the acceptance run:</p>
+
+<div class="language-dockerfile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">ARG</span><span class="s"> NODE_VERSION</span>
+<span class="k">ARG</span><span class="s"> OPERATOR_VERSION</span>
+<span class="k">FROM</span><span class="w"> </span><span class="s">node:${NODE_VERSION}-bookworm-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">node</span>
+<span class="k">FROM</span><span class="s"> untra/operator:${OPERATOR_VERSION}</span>
+<span class="k">USER</span><span class="s"> root</span>
+<span class="k">COPY</span><span class="s"> --from=node /usr/local/ /usr/local/</span>
+<span class="k">ARG</span><span class="s"> CODEX_VERSION</span>
+<span class="k">ARG</span><span class="s"> CLAUDE_VERSION</span>
+<span class="k">RUN </span>npm <span class="nb">install</span> <span class="nt">-g</span> @openai/codex@<span class="k">${</span><span class="nv">CODEX_VERSION</span><span class="k">}</span> @anthropic-ai/claude-code@<span class="k">${</span><span class="nv">CLAUDE_VERSION</span><span class="k">}</span>
+<span class="k">USER</span><span class="s"> 10001</span>
+</code></pre></div></div>
+
+<p>Build
+with <code class="language-plaintext highlighter-rouge">--platform linux/arm64</code>, publish to your registry, and select that image with the chart’s <code class="language-plaintext highlighter-rouge">image.repository</code> and <code class="language-plaintext highlighter-rouge">image.tag</code> values. Verify both CLI versions from the running pod before configuring delegators.</p>
+
+<p>Store the LM Studio token in a Kubernetes Secret as <code class="language-plaintext highlighter-rouge">LM_STUDIO_API_TOKEN</code> and reference that Secret with <code class="language-plaintext highlighter-rouge">extraEnvFrom</code>. Do not put the token in values files, Operator configuration, or checked-in command examples.</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">publicUrl</span><span class="pi">:</span> <span class="s">https://operator.example.com</span>
+<span class="na">extraEnvFrom</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">secretRef</span><span class="pi">:</span>
+      <span class="na">name</span><span class="pi">:</span> <span class="s">operator-lmstudio</span>
+<span class="na">egress</span><span class="pi">:</span>
+  <span class="na">allowPrivateCidrs</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="s">192.168.1.50/32</span>
+<span class="na">networkPolicy</span><span class="pi">:</span>
+  <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">egress</span><span class="pi">:</span>
+    <span class="na">allowDNS</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">additionalRules</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">to</span><span class="pi">:</span>
+          <span class="pi">-</span> <span class="na">ipBlock</span><span class="pi">:</span>
+              <span class="na">cidr</span><span class="pi">:</span> <span class="s">192.168.1.50/32</span>
+        <span class="na">ports</span><span class="pi">:</span>
+          <span class="pi">-</span> <span class="na">protocol</span><span class="pi">:</span> <span class="s">TCP</span>
+            <span class="na">port</span><span class="pi">:</span> <span class="m">1234</span>
+</code></pre></div></div>
+
+<p>Merge this with the egress rules needed for your Git and other services. The application allowlist does not create a route or open a firewall. NetworkPolicy also requires a CNI that enforces it.</p>
+
+<p>Verify connectivity <strong>from the pod</strong>, not only from your workstation:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> operator <span class="nb">exec </span>statefulset/operator <span class="nt">--</span> sh <span class="nt">-c</span> <span class="se">\</span>
+  <span class="s1">'curl --fail --silent --show-error -H "Authorization: Bearer $LM_STUDIO_API_TOKEN" http://192.168.1.50:1234/v1/models'</span>
+</code></pre></div></div>
+
+<p>A successful curl verifies the network path and token; Operator’s own model probe separately verifies its application egress policy.</p>
+
+<h2 id="configure-one-server-and-two-delegators">Configure one server and two delegators</h2>
+
+<p>Edit <code class="language-plaintext highlighter-rouge">/op/.tickets/operator/config.toml</code> in the persistent workspace, or use Operator’s model-server and delegator interfaces. Replace <code class="language-plaintext highlighter-rouge">MODEL_ID</code> below with an exact ID from the server. Both delegators share one endpoint and token:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[[</span><span class="n">model_servers</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"gaming-pc"</span>
+<span class="n">kind</span> <span class="o">=</span><span class="w"> </span><span class="s">"lmstudio"</span>
+<span class="n">base_url</span> <span class="o">=</span><span class="w"> </span><span class="s">"http://192.168.1.50:1234"</span>
+<span class="n">api_key_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"LM_STUDIO_API_TOKEN"</span>
+<span class="n">display_name</span> <span class="o">=</span><span class="w"> </span><span class="s">"Gaming PC"</span>
+
+<span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"gaming-codex"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"codex"</span>
+<span class="n">model</span> <span class="o">=</span><span class="w"> </span><span class="s">"MODEL_ID"</span>
+<span class="n">model_server</span> <span class="o">=</span><span class="w"> </span><span class="s">"gaming-pc"</span>
+
+<span class="k">[[</span><span class="n">delegators</span><span class="k">]]</span>
+<span class="n">name</span> <span class="o">=</span><span class="w"> </span><span class="s">"gaming-claude"</span>
+<span class="n">llm_tool</span> <span class="o">=</span><span class="w"> </span><span class="s">"claude"</span>
+<span class="n">model</span> <span class="o">=</span><span class="w"> </span><span class="s">"MODEL_ID"</span>
+<span class="n">model_server</span> <span class="o">=</span><span class="w"> </span><span class="s">"gaming-pc"</span>
+</code></pre></div></div>
+
+<p>Outside Helm, configure the equivalent application policy with:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">egress</span><span class="k">]</span>
+<span class="n">allow_private_cidrs</span> <span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">"192.168.1.50/32"</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p>The environment equivalent is <code class="language-plaintext highlighter-rouge">OPERATOR_EGRESS__ALLOW_PRIVATE_CIDRS=192.168.1.50/32,fd12::50/128</code>.
+Restart Operator after changing deployment environment variables or configuration on disk. No Windows execution target is needed.</p>
+
+<p>Operator selects tool-specific settings for <code class="language-plaintext highlighter-rouge">kind = "lmstudio"</code>:</p>
+
+<ul>
+  <li><strong>Codex:</strong> a per-launch custom provider uses <code class="language-plaintext highlighter-rouge">/v1/responses</code>, and your token reference. See <a href="https://learn.chatgpt.com/docs/config-file/config-advanced">Codex providers</a> and <a href="https://lmstudio.ai/docs/integrations/codex">LM Studio’s Codex integration</a>.</li>
+  <li><strong>Claude Code:</strong> <code class="language-plaintext highlighter-rouge">ANTHROPIC_BASE_URL</code> uses the server root, <code class="language-plaintext highlighter-rouge">ANTHROPIC_AUTH_TOKEN</code> references your token, and attribution headers are disabled. LM Studio serves <code class="language-plaintext highlighter-rouge">/v1/messages</code>; no protocol bridge is needed. See <a href="https://lmstudio.ai/docs/integrations/claude-code">LM Studio’s Claude integration</a>.</li>
+</ul>
+
+<p>The root URL and a trailing <code class="language-plaintext highlighter-rouge">/v1</code> form are both accepted. <code class="language-plaintext highlighter-rouge">extra_env</code> overrides derived environment settings. Without <code class="language-plaintext highlighter-rouge">api_key_env</code>, LM Studio probes do not reuse cloud-provider credentials; unauthenticated servers are supported, but this LAN walkthrough uses authentication.</p>
+
+<h2 id="drive-it-from-vs-code">Drive it from VS Code</h2>
+
+<p>Set <code class="language-plaintext highlighter-rouge">operator.connectionMode</code> to <code class="language-plaintext highlighter-rouge">remote</code> and <code class="language-plaintext highlighter-rouge">operator.apiUrl</code> to your HTTPS Operator origin. Complete the extension’s Operator authentication flow. This connection uses Operator credentials, not your LM Studio token.</p>
+
+<p>Expand <code class="language-plaintext highlighter-rouge">gaming-pc</code> in the model-server tree, choose one of the two delegators for a small ticket, and watch its progress. Your IDE does not need direct access to LM Studio. Agent tools run against the repository in the pod’s workspace.</p>
+
+<h2 id="acceptance-checklist">Acceptance checklist</h2>
+
+<p>Record Windows, LM Studio, Operator, both CLI versions, GPU/VRAM, exact model ID, and context settings with your results. No hardware combination is certified by this guide yet.</p>
+
+<ul>
+  <li>Authenticated Operator model discovery lists the selected model.</li>
+  <li>Each delegator completes a small ticket that reads a file, changes it, and runs a check. Confirm tool execution in Linux and inference in LM Studio logs.</li>
+  <li>Step completion reaches Operator through <code class="language-plaintext highlighter-rouge">opr8r</code> and appears in VS Code.</li>
+  <li>Native judge inference is currently unavailable: the repository has paused
+the <code class="language-plaintext highlighter-rouge">native-llm</code> Cargo feature. Judge configuration falls back to deterministic selection. Re-enabling and validating that feature is a separate prerequisite for testing native judgments against LM Studio.</li>
+  <li>Stop LM Studio during a job: the job must report failure, without false completion or silently calling a cloud provider. Restore it and retry.</li>
+</ul>
+
+<p>Promote this integration to Alpha only after recording successful runs for both CLIs. A model can support chat or listing while failing tool calls, streaming, or the context requirements of an agent.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Symptom</th>
+      <th>Check</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Timeout or connection refused</td>
+      <td>PC sleep, server listening on LAN, Windows firewall, pod routing, CNI policy</td>
+    </tr>
+    <tr>
+      <td>Private destination rejected</td>
+      <td>The PC’s actual address is in <code class="language-plaintext highlighter-rouge">egress.allow_private_cidrs</code>; retain <code class="language-plaintext highlighter-rouge">publicUrl</code></td>
+    </tr>
+    <tr>
+      <td>401</td>
+      <td>Token exists in the pod and matches LM Studio; Operator API auth is separate</td>
+    </tr>
+    <tr>
+      <td>404 on inference</td>
+      <td>LM Studio supports Responses for Codex and Messages for Claude; base URL has no duplicated <code class="language-plaintext highlighter-rouge">/v1</code></td>
+    </tr>
+    <tr>
+      <td>Model lists but agent fails</td>
+      <td>Tool support, model ID, context allocation, GPU memory, CLI/server version compatibility</td>
+    </tr>
+    <tr>
+      <td>Long first response</td>
+      <td>Model cold loading or automatic unloading; inspect LM Studio logs</td>
+    </tr>
+    <tr>
+      <td>Stale running ticket</td>
+      <td>Inspect CLI output and <code class="language-plaintext highlighter-rouge">opr8r</code> callback connectivity before retrying</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The application egress policy protects Operator’s model probes and native inference. It is not a sandbox for spawned agent processes; use NetworkPolicy and the execution environment to constrain their network access.</p>
+
+<p>Codex fresh launches do not use Operator’s tracking UUID as a Codex resume ID. Resuming a native Codex conversation requires its actual CLI session ID; this walkthrough validates fresh ticket steps rather than conversation resumption.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

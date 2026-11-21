@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Telemetry | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="alternate" type="text/markdown" href="/telemetry.md">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.1 -->
+<title>Telemetry | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Telemetry" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="twitter:description" property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/telemetry/" />
+<meta property="og:url" content="https://operator.untra.io/telemetry/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="Telemetry" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"Telemetry","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/telemetry/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/campaigns/" >Campaigns</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/governance/" >Governance</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode-terminals/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Terminals</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/ides/" class="nav-parent-link ">IDEs</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/ides/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/ides/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/connections/" class="nav-parent-link ">Connections</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/connections/api/" >Operator API</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/mcp/" >MCP</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/acp/" >ACP</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/access-keys/" >Access Keys & Identities</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/transports/" class="nav-parent-link ">Execution Transports</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/transports/local/" >Local</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/transports/ssh/" >SSH</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agent-relays/" class="nav-parent-link ">Agent Relays</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agent-relays/claude-relay/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude Relay</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/premium/" >Operator Premium</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/remote-targets/" class="nav-parent-link ">Remote Targets</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/remote-targets/ssh/" >SSH Hosts</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/remote-targets/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/operator/" ><span class="nav-icon"><img src="/assets/icons/operator.svg" alt="" width="16" height="16"></span>Operator</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/grok/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>Grok</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/xai/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>xAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/lmstudio/" ><span class="nav-icon"><img src="/assets/icons/lmstudio.svg" alt="" width="16" height="16"></span>LM Studio</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/forgejo/" ><span class="nav-icon"><img src="/assets/icons/forgejo.svg" alt="" width="16" height="16"></span>Forgejo</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/integrations/keycloak/" ><span class="nav-icon"><img src="/assets/icons/keycloak.svg" alt="" width="16" height="16"></span>Keycloak</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/integrations/authentik/" ><span class="nav-icon"><img src="/assets/icons/authentik.svg" alt="" width="16" height="16"></span>Authentik</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/telemetry/" class="nav-parent-link active"><i class="codicon codicon-pulse nav-codicon"></i>Telemetry</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/telemetry/catalog/" >OTLP Event Catalog</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/telemetry/index.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.17</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-11-21</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">Telemetry</h1>
+  
+
+  <p>Operator accepts OTLP/HTTP on its existing REST port when explicitly enabled.
+Telemetry is off by default and Operator never selects a destination of its own.
+Operator provides authenticated ingestion, a bounded session window, upstream
+forwarding, self-export, and agent environment injection.</p>
+
+<h2 id="configuration">Configuration</h2>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">telemetry</span><span class="k">]</span>
+<span class="n">enabled</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">enable_redaction</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</code></pre></div></div>
+
+<p>These switches are independent and both default to false. Set
+<code class="language-plaintext highlighter-rouge">enable_redaction = true</code> to hash personal attributes and remove content before
+queueing or storing telemetry. The environment override is
+<code class="language-plaintext highlighter-rouge">OPERATOR_TELEMETRY__ENABLE_REDACTION=true</code>.</p>
+
+<p>With redaction disabled, personal data, prompts, code, tool arguments, unknown
+attributes, and log bodies can be retained. Secret-class attributes are always
+dropped, matching attribute values are removed, and retained text is scrubbed in
+both modes. Regex scrubbing cannot recognize every credential format.</p>
+
+<p>The <a href="/telemetry/catalog/">OTLP Event Catalog</a> defines the five classes, fixed
+policy matrix, signal names, and redaction counting rules. There are no per-sink
+thresholds or content opt-in switches. Obsolete <code class="language-plaintext highlighter-rouge">allow_content</code> and
+<code class="language-plaintext highlighter-rouge">max_redaction_class</code> settings are rejected as unknown fields.</p>
+
+<h2 id="sanitization-boundary">Sanitization boundary</h2>
+
+<p>Every accepted payload is enriched from trusted authentication context and then
+sanitized once before entering the bounded queue. The session window and
+forwarder use that same sanitized payload. Personal hashes use a persisted
+installation key; they correlate across restarts but change when the key changes.
+Hashes are pseudonyms, not anonymization or unique identifiers.</p>
+
+<p>With redaction enabled, unapproved span and event names become
+<code class="language-plaintext highlighter-rouge">operator.redacted.span</code> and <code class="language-plaintext highlighter-rouge">operator.redacted.event</code>; unnamed log events stay
+unnamed. Unknown metrics are dropped. Auxiliary text is removed and known metric
+descriptions and units come from the catalog. Trace IDs, span IDs, timestamps,
+and numeric protocol fields retain their protocol meaning.</p>
+
+<h2 id="ingest-and-session-access">Ingest and session access</h2>
+
+<p>Send protobuf or OTLP JSON, optionally gzip-compressed, to
+<code class="language-plaintext highlighter-rouge">/otlp/v1/traces</code>, <code class="language-plaintext highlighter-rouge">/otlp/v1/metrics</code>, or <code class="language-plaintext highlighter-rouge">/otlp/v1/logs</code>.
+Ingest credentials use the <code class="language-plaintext highlighter-rouge">otlp-ingest</code> audience and pin ticket, step, and session
+context; ordinary callback tokens are not ingest credentials. An ingest token
+cannot read the API. Administrator credentials may also ingest.</p>
+
+<p>The server overwrites client-supplied Operator correlation attributes and rejects
+malformed or oversized requests. A full queue returns 503 with <code class="language-plaintext highlighter-rouge">Retry-After</code>.
+Authorized API readers can inspect
+<code class="language-plaintext highlighter-rouge">GET /api/v1/telemetry/sessions/{session_id}</code>. Records are bounded in memory and
+may be evicted; Operator is not a telemetry storage backend.</p>
+
+<h2 id="export-and-self-export">Export and self-export</h2>
+
+<p>Configure an upstream explicitly or use standard environment variables:</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">[</span><span class="n">telemetry</span><span class="k">.</span><span class="n">export</span><span class="k">]</span>
+<span class="n">endpoint</span> <span class="o">=</span><span class="w"> </span><span class="s">"http://collector:4318"</span>
+<span class="n">headers_env</span> <span class="o">=</span><span class="w"> </span><span class="s">"MY_OTLP_HEADERS"</span>
+<span class="n">self_telemetry</span> <span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div></div>
+
+<p>For each signal, an explicit config endpoint wins; otherwise a signal-specific
+<code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code>, <code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_METRICS_ENDPOINT</code>, or
+<code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_LOGS_ENDPOINT</code> is used unchanged. The generic
+<code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_ENDPOINT</code> has <code class="language-plaintext highlighter-rouge">/v1/&lt;signal&gt;</code> appended. With no destination,
+export remains off. Configuration is resolved once at startup.</p>
+
+<p>Explicit <code class="language-plaintext highlighter-rouge">protocol</code>, <code class="language-plaintext highlighter-rouge">compression</code>, and <code class="language-plaintext highlighter-rouge">timeout_secs</code> override environment values,
+including when equal to their defaults. When omitted, use
+<code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_PROTOCOL</code>, <code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_COMPRESSION</code>, and
+<code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_TIMEOUT</code> (milliseconds), with effective defaults of
+<code class="language-plaintext highlighter-rouge">http/protobuf</code>, <code class="language-plaintext highlighter-rouge">gzip</code>, and ten seconds. <code class="language-plaintext highlighter-rouge">grpc</code> warns and falls back to
+<code class="language-plaintext highlighter-rouge">http/protobuf</code>. Headers come from <code class="language-plaintext highlighter-rouge">headers_env</code> when configured, otherwise
+<code class="language-plaintext highlighter-rouge">OTEL_EXPORTER_OTLP_HEADERS</code>; values are percent-decoded.</p>
+
+<p><code class="language-plaintext highlighter-rouge">OTEL_TRACES_EXPORTER=none</code>, <code class="language-plaintext highlighter-rouge">OTEL_METRICS_EXPORTER=none</code>, and
+<code class="language-plaintext highlighter-rouge">OTEL_LOGS_EXPORTER=none</code> disable their respective signals. Standard endpoint
+environment variables enable Operator self-export without enabling ingest.
+<code class="language-plaintext highlighter-rouge">OTEL_SDK_DISABLED=true</code> always disables Operator’s SDK providers; explicitly
+configured forwarding remains available when ingest is enabled. Setting
+<code class="language-plaintext highlighter-rouge">self_telemetry=false</code> disables self-export independently of forwarding.</p>
+
+<p>Operator’s own spans, logs, notification events, auth audit events, and metrics
+pass through the same sanitization policy before export. Console/file formatting
+is separate: <code class="language-plaintext highlighter-rouge">logging.format = "json"</code> emits JSON lines with trace and span IDs
+when the event belongs to a traced span. <code class="language-plaintext highlighter-rouge">OPERATOR_LOGGING__FORMAT=json</code> selects
+that format through the environment.</p>
+
+<p>The forwarder uses bounded queues and retries network failures and HTTP
+429/502/503/504 with jitter and bounded <code class="language-plaintext highlighter-rouge">Retry-After</code> delays. Retry overflow drops
+the oldest batch. Forwarding failure does not block ingest; ingest’s own full
+queue still returns 503. Shutdown flushes within the configured export budget.
+The catalog defines queue depth, active agent, step-duration, and per-signal
+received/dropped/forwarded/redacted metrics.</p>
+
+<h2 id="agent-environment-and-exec-chains">Agent environment and exec chains</h2>
+
+<p>When <code class="language-plaintext highlighter-rouge">telemetry.enabled</code> and <code class="language-plaintext highlighter-rouge">telemetry.ingest.inject_agent_env</code> are true,
+launches receive a target-reachable <code class="language-plaintext highlighter-rouge">&lt;OPERATOR_API_URL&gt;/otlp</code> endpoint,
+OTLP protocol, bearer header, resource correlation attributes, <code class="language-plaintext highlighter-rouge">TRACEPARENT</code>,
+and <code class="language-plaintext highlighter-rouge">OPERATOR_OTLP_TOKEN</code>. Local, Docker, SSH, and Coder targets use their own
+reachable API URL. Inherited exporter credentials, destinations, resource
+attributes, and trace context are scrubbed before injecting the agent values.</p>
+
+<p>Each chained step receives a fresh ingest token and trace context through
+<code class="language-plaintext highlighter-rouge">next_env</code>. The callback credential is also rotated for the next step. A failed
+telemetry credential rotation clears the old ingest credential. Session retention
+starts only when automatic chaining ends, including <code class="language-plaintext highlighter-rouge">opr8r --no-auto-proceed</code>;
+late records retain terminal state.</p>
+
+<p>opr8r exports a started event, a completed step span, and a completed event with
+classified scalar output fields. It never exports captured stdout/stderr,
+summaries, recommendations, or blockers. Completion is reported before flushing
+telemetry; concurrent completion sends share a four-second deadline, with at most
+two two-second attempts each. Telemetry failure does not change the exit status.</p>
+
+<h2 id="agent-clis">Agent CLIs</h2>
+
+<p>Vendor contracts checked October 2026:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>CLI</th>
+      <th>Variables</th>
+      <th>Contract</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Claude</td>
+      <td><code class="language-plaintext highlighter-rouge">CLAUDE_CODE_ENABLE_TELEMETRY=1</code>, <code class="language-plaintext highlighter-rouge">OTEL_{TRACES,METRICS,LOGS}_EXPORTER=otlp</code>, <code class="language-plaintext highlighter-rouge">CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1</code></td>
+      <td><a href="https://code.claude.com/docs/en/monitoring-usage">Monitoring</a></td>
+    </tr>
+    <tr>
+      <td>Claude gateway</td>
+      <td><code class="language-plaintext highlighter-rouge">CLAUDE_CODE_PROPAGATE_TRACEPARENT=1</code> when a model server is resolved</td>
+      <td><a href="https://code.claude.com/docs/en/monitoring-usage#traces-beta">Trace propagation</a></td>
+    </tr>
+    <tr>
+      <td>Gemini</td>
+      <td><code class="language-plaintext highlighter-rouge">GEMINI_TELEMETRY_ENABLED=true</code>, <code class="language-plaintext highlighter-rouge">GEMINI_TELEMETRY_TARGET=local</code>, <code class="language-plaintext highlighter-rouge">GEMINI_TELEMETRY_OTLP_ENDPOINT</code>, <code class="language-plaintext highlighter-rouge">GEMINI_TELEMETRY_OTLP_PROTOCOL=http</code>, <code class="language-plaintext highlighter-rouge">GEMINI_TELEMETRY_LOG_PROMPTS=false</code></td>
+      <td><a href="https://geminicli.com/docs/cli/telemetry/">Telemetry configuration</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Claude non-interactive <code class="language-plaintext highlighter-rouge">-p</code> sessions accept inbound context, permitting
+<code class="language-plaintext highlighter-rouge">operator.agent.launch -&gt; opr8r.step -&gt; claude_code.* -&gt; model-server gateway</code>.
+Interactive Claude sessions ignore inbound context; correlate those by trusted
+Operator resource attributes. Gemini’s HTTP exporter may use OTLP JSON, which
+Operator accepts alongside protobuf. Codex and Grok receive only standard
+variables; no vendor-specific telemetry contract is asserted.</p>
+
+<h2 id="kubernetes">Kubernetes</h2>
+
+<p>The Helm chart configures existing collectors; it never installs one. Use
+<code class="language-plaintext highlighter-rouge">telemetry.export.endpoint</code> for self-export, and separately enable
+<code class="language-plaintext highlighter-rouge">telemetry.enabled</code> for agent ingest. Header credentials reference an existing
+Secret. Pod name and namespace are supplied through the Downward API. Optional
+collector egress restricts traffic to specified peers and a TCP port. See the
+<a href="https://github.com/untra/operator/tree/main/charts/operator">chart configuration</a>.</p>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

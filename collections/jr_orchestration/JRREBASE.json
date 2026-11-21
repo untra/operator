@@ -1,0 +1,94 @@
+{
+  "$schema": "../../schemas/issuetype_schema.json",
+  "key": "JRREBASE",
+  "name": "JR Rebase",
+  "description": "Repair a JR feature branch after base changes, conflicts, or upstream API drift.",
+  "mode": "autonomous",
+  "glyph": "B",
+  "color": "red",
+  "project_required": true,
+  "agent": "jr-coder",
+  "fields": [
+    {
+      "name": "id",
+      "description": "Unique ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0,
+      "user_editable": false
+    },
+    {
+      "name": "summary",
+      "description": "Rebase summary",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "max_length": 120,
+      "display_order": 1
+    },
+    {
+      "name": "feature_id",
+      "description": "Parent JRFEAT ticket",
+      "type": "string",
+      "required": true,
+      "default": "",
+      "display_order": 2
+    },
+    {
+      "name": "base_ref",
+      "description": "Target base branch or commit",
+      "type": "string",
+      "required": false,
+      "default": "main",
+      "display_order": 3
+    },
+    {
+      "name": "reason",
+      "description": "Why rebase or repair is needed",
+      "type": "text",
+      "required": true,
+      "default": "",
+      "display_order": 4
+    }
+  ],
+  "steps": [
+    {
+      "name": "resolve",
+      "display_name": "Resolve Impact",
+      "outputs": ["report"],
+      "prompt": "Investigate why JR rebase/repair is needed.\n\nRead the parent feature handoff, current branch, target base `{{ base_ref }}`, conflicts, failing tests, and upstream API changes. Write an impact report to `.tickets/jr/{{ feature_id }}/rebase-{{ id }}.md`.",
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "artifact_patterns": [".tickets/jr/{{ feature_id }}/rebase-{{ id }}.md"],
+      "next_step": "rebase"
+    },
+    {
+      "name": "rebase",
+      "display_name": "Rebase Repair",
+      "outputs": ["code"],
+      "prompt": "Perform the minimal JR rebase or repair.\n\nRebase, merge, or apply targeted fixes needed to make the feature branch coherent with `{{ base_ref }}`. Preserve the feature's intended behavior. Avoid unrelated cleanup.",
+      "allowed_tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+      "next_step": "repair"
+    },
+    {
+      "name": "repair",
+      "display_name": "Repair Drift",
+      "outputs": ["code", "ticket"],
+      "prompt": "Repair downstream task or API drift caused by the rebase.\n\nRun targeted checks, update affected task notes, and create follow-up JRTASK tickets only when the fix is too large for this rebase ticket.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "next_step": "review"
+    },
+    {
+      "name": "review",
+      "display_name": "Post-Rebase Review",
+      "outputs": ["review", "test"],
+      "prompt": "Review the rebased JR feature branch.\n\nRun relevant checks and inspect the diff for accidental changes. Update the parent feature handoff with validation evidence and any remaining risk.",
+      "allowed_tools": ["Read", "Write", "Edit", "Bash"],
+      "review_type": "plan",
+      "on_reject": {
+        "goto_step": "rebase",
+        "prompt": "Post-rebase review requested changes: {{ rejection_reason }}\n\nRepair the rebase and rerun validation."
+      }
+    }
+  ]
+}

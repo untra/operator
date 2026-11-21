@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OTLP Event Catalog | Operator! Documentation</title>
+  <meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools">
+
+  <link rel="icon" type="image/png" href="/assets/img/patricia_512.png">
+  <link rel="alternate" type="text/markdown" href="/telemetry/catalog.md">
+  <link rel="apple-touch-icon" href="/assets/img/patricia_512.png">
+
+  <script>
+    (function() {
+      function getPreferredTheme() {
+        var stored = localStorage.getItem('theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', getPreferredTheme());
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/codicon.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+
+
+  
+
+  <!-- Begin Jekyll SEO tag v2.9.1 -->
+<title>OTLP Event Catalog | Operator! Documentation</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="OTLP Event Catalog" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<meta name="twitter:description" property="og:description" content="Documentation for Operator! - combining kanban workflows with LLM tools" />
+<link rel="canonical" href="https://operator.untra.io/telemetry/catalog/" />
+<meta property="og:url" content="https://operator.untra.io/telemetry/catalog/" />
+<meta property="og:site_name" content="Operator! Documentation" />
+<meta property="og:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://operator.untra.io/assets/img/operator_og.png" />
+<meta name="twitter:title" content="OTLP Event Catalog" />
+<meta name="twitter:site" content="@" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Documentation for Operator! - combining kanban workflows with LLM tools","headline":"OTLP Event Catalog","image":"https://operator.untra.io/assets/img/operator_og.png","url":"https://operator.untra.io/telemetry/catalog/"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+<body>
+  <nav class="sidebar">
+  <div class="circle"></div>
+
+
+  <div class="sidebar-header">
+    <a href="/" class="sidebar-title">Operator!</a>
+    <p class="sidebar-tagline">A multi-agent orchestration dashboard for AI assisted kanban shaped software development.
+    </p>
+    <p class="sidebar-tagline">A project vibe-coded by <b><a href="https://github.com/untra"
+          target="_blank">@untra</a></b></p>
+  </div>
+
+  <ul class="sidebar-nav">
+    <li><a href="/" >Home</a></li>
+    
+    <li class="nav-section">
+      
+      
+      <details >
+        <summary class="nav-parent">Getting Started</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/getting-started/" >Overview</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/prerequisites/" >Prerequisites</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/platform-support/" >Platform Support</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/installation/" >Installation</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/concepts/" class="nav-parent-link ">Operator Concepts</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/tickets/" >Tickets</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/kanban/" >Kanban</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/campaigns/" >Campaigns</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/concepts/governance/" >Governance</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/sessions/" class="nav-parent-link ">Supported Session Management</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/sessions/tmux/" ><span class="nav-icon"><img src="/assets/icons/tmux.svg" alt="" width="16" height="16"></span>tmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/cmux/" ><span class="nav-icon"><img src="/assets/icons/cmux.svg" alt="" width="16" height="16"></span>cmux</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/zellij/" ><span class="nav-icon"><img src="/assets/icons/zellij.svg" alt="" width="16" height="16"></span>Zellij</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/sessions/vscode-terminals/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Terminals</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/ides/" class="nav-parent-link ">IDEs</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/ides/vscode/" ><span class="nav-icon"><img src="/assets/icons/vscode.svg" alt="" width="16" height="16"></span>VS Code Extension</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/ides/zed/" ><span class="nav-icon"><img src="/assets/icons/zed.svg" alt="" width="16" height="16"></span>Zed</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/connections/" class="nav-parent-link ">Connections</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/connections/api/" >Operator API</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/mcp/" >MCP</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/acp/" >ACP</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/connections/access-keys/" >Access Keys & Identities</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/transports/" class="nav-parent-link ">Execution Transports</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/transports/local/" >Local</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/transports/ssh/" >SSH</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agent-relays/" class="nav-parent-link ">Agent Relays</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agent-relays/claude-relay/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude Relay</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/getting-started/premium/" >Operator Premium</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/remote-targets/" class="nav-parent-link ">Remote Targets</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/remote-targets/ssh/" >SSH Hosts</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/remote-targets/coder/" ><span class="nav-icon"><img src="/assets/icons/coder.svg" alt="" width="16" height="16"></span>Coder</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/kanban/" class="nav-parent-link ">Supported Kanban Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/kanban/operator/" ><span class="nav-icon"><img src="/assets/icons/operator.svg" alt="" width="16" height="16"></span>Operator</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/jira/" ><span class="nav-icon"><img src="/assets/icons/jira.svg" alt="" width="16" height="16"></span>Jira Cloud</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/linear/" ><span class="nav-icon"><img src="/assets/icons/linear.svg" alt="" width="16" height="16"></span>Linear</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea Projects</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/kanban/openspec/" ><span class="nav-icon"><img src="/assets/icons/openspec.svg" alt="" width="16" height="16"></span>OpenSpec</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/agents/" class="nav-parent-link ">Supported Coding Agents</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/agents/claude/" ><span class="nav-icon"><img src="/assets/icons/claude.svg" alt="" width="16" height="16"></span>Claude</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/codex/" ><span class="nav-icon"><img src="/assets/icons/codex.svg" alt="" width="16" height="16"></span>Codex</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/gemini-cli/" ><span class="nav-icon"><img src="/assets/icons/gemini.svg" alt="" width="16" height="16"></span>Gemini CLI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/agents/grok/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>Grok</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/model-servers/" class="nav-parent-link ">Supported Model Providers</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/model-servers/anthropic/" ><span class="nav-icon"><img src="/assets/icons/anthropic.svg" alt="" width="16" height="16"></span>Anthropic</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openai/" ><span class="nav-icon"><img src="/assets/icons/openai.svg" alt="" width="16" height="16"></span>OpenAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/google/" ><span class="nav-icon"><img src="/assets/icons/google.svg" alt="" width="16" height="16"></span>Google</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/xai/" ><span class="nav-icon"><img src="/assets/icons/xai.svg" alt="" width="16" height="16"></span>xAI</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/openrouter/" ><span class="nav-icon"><img src="/assets/icons/openrouter.svg" alt="" width="16" height="16"></span>OpenRouter</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/ollama/" ><span class="nav-icon"><img src="/assets/icons/ollama.svg" alt="" width="16" height="16"></span>Ollama</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/model-servers/lmstudio/" ><span class="nav-icon"><img src="/assets/icons/lmstudio.svg" alt="" width="16" height="16"></span>LM Studio</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/git/" class="nav-parent-link ">Supported Git Repositories</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/git/github/" ><span class="nav-icon"><img src="/assets/icons/github.svg" alt="" width="16" height="16"></span>GitHub</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitlab/" ><span class="nav-icon"><img src="/assets/icons/gitlab.svg" alt="" width="16" height="16"></span>GitLab</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/forgejo/" ><span class="nav-icon"><img src="/assets/icons/forgejo.svg" alt="" width="16" height="16"></span>Forgejo</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/gitea/" ><span class="nav-icon"><img src="/assets/icons/gitea.svg" alt="" width="16" height="16"></span>Gitea</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/git/provider-support/" >Provider Support</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/notifications/" class="nav-parent-link ">Supported Notification Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/notifications/webhooks/" ><span class="nav-icon"><img src="/assets/icons/webhook.svg" alt="" width="16" height="16"></span>Webhooks</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/notifications/os/" ><span class="nav-icon"><img src="/assets/icons/notification.svg" alt="" width="16" height="16"></span>Operating System</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/platforms/" class="nav-parent-link ">Supported Workspace Platforms</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/platforms/docker/" ><span class="nav-icon"><img src="/assets/icons/docker.svg" alt="" width="16" height="16"></span>Docker</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/platforms/kubernetes/" ><span class="nav-icon"><img src="/assets/icons/kubernetes.svg" alt="" width="16" height="16"></span>Kubernetes</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/getting-started/integrations/" class="nav-parent-link ">Automation Platform Integrations</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/getting-started/integrations/agnt/" ><span class="nav-icon"><img src="/assets/icons/agnt.svg" alt="" width="16" height="16"></span>AGNT.gg</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/integrations/keycloak/" ><span class="nav-icon"><img src="/assets/icons/keycloak.svg" alt="" width="16" height="16"></span>Keycloak</a>
+                </li>
+                
+                <li>
+                  <a href="/getting-started/integrations/authentik/" ><span class="nav-icon"><img src="/assets/icons/authentik.svg" alt="" width="16" height="16"></span>Authentik</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="nav-section">
+      
+      
+      <details open>
+        <summary class="nav-parent">Reference</summary>
+        <ul class="nav-children">
+          
+          <li>
+            
+            <a href="/cli/" ><i class="codicon codicon-terminal nav-codicon"></i>CLI</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/llm-tools/" ><i class="codicon codicon-sparkle nav-codicon"></i>LLM Tools</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/configuration/" ><i class="codicon codicon-settings-gear nav-codicon"></i>Configuration</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/shortcuts/" ><i class="codicon codicon-keyboard nav-codicon"></i>Shortcuts</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <a href="/security/" class="nav-parent-link "><i class="codicon codicon-shield nav-codicon"></i>Security</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/security/authentication/" >Authentication</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/design-system/" ><i class="codicon codicon-symbol-color nav-codicon"></i>Design System</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/artifact-detection/" ><i class="codicon codicon-file-binary nav-codicon"></i>Artifact Detection</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/startup/" ><i class="codicon codicon-rocket nav-codicon"></i>Setup Wizard</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/maturity/" ><i class="codicon codicon-verified nav-codicon"></i>Feature Maturity</a>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/delegators/" ><i class="codicon codicon-organization nav-codicon"></i>Delegators</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details open>
+              <summary class="nav-item-row">
+                <a href="/telemetry/" class="nav-parent-link "><i class="codicon codicon-pulse nav-codicon"></i>Telemetry</a>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/telemetry/catalog/" class="active"
+                    >OTLP Event Catalog</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            <a href="/relay/" ><i class="codicon codicon-radio-tower nav-codicon"></i>Relay</a>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-type-hierarchy nav-codicon"></i>Taxonomy</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/taxonomy/" >Project Taxonomy</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+          <li>
+            
+            
+            
+            <details >
+              <summary class="nav-item-row">
+                <span class="nav-parent-text"><i class="codicon codicon-bracket nav-codicon"></i>Schemas</span>
+                <span class="nav-toggle"></span>
+              </summary>
+              <ul class="nav-grandchildren">
+                
+                <li>
+                  <a href="/schemas/" >Overview</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/config/" >Configuration</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/state/" >State</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/issuetype/" >Issue Type Schema</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/metadata/" >Ticket Metadata</a>
+                </li>
+                
+                <li>
+                  <a href="/schemas/api/" >REST API</a>
+                </li>
+                
+              </ul>
+            </details>
+            
+          </li>
+          
+        </ul>
+      </details>
+    </li>
+    
+    <li class="workflows-link"><a href="/workflows/" >Workflows</a></li>
+    <li class="downloads-link"><a href="/downloads/" >Downloads</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p><div><a class="sidebar-nav-item" href="https://github.com/untra/operator"><span class="operator-brand">Operator!</span> GitHub
+        project</a></div><div><a class="sidebar-nav-item" href="https://github.com/untra/operator/tree/main/docs/telemetry/catalog.md"><small>View this page source on Github</small></a></div></p>
+    <p></p>
+    <div><small class="sidebar-nav-item">Currently v0.2.17</small> |
+    <div id="theme-toggle" aria-label="Toggle theme">
+      <div class="theme-icon-light"><small>lights on</small></div>
+      <div class="theme-icon-dark"><small>lights off</small></div>
+    </div>
+    </div>
+    </p><small class="sidebar-nav-item"><i>Last updated 2026-11-21</i></small></p>
+  </div>
+</nav>
+
+  <main class="content">
+    <article class="doc">
+  
+  <h1 class="doc-title">OTLP Event Catalog</h1>
+  
+
+  <!-- AUTO-GENERATED FROM telemetry/ - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run --bin generate_types -->
+
+<p>The catalog defines the classifications and approved signal names used by Operator OTLP ingestion.</p>
+
+<h2 id="redaction-policy">Redaction policy</h2>
+
+<p>Telemetry and optional redaction are independently disabled by default. Set <code class="language-plaintext highlighter-rouge">telemetry.enable_redaction = true</code> to hash personal attributes and drop content. Secret attributes and attributes containing detected credentials are dropped in both modes; retained free text is scrubbed. Unknown attributes are content, not a sixth class.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Class</th>
+      <th>Redaction disabled</th>
+      <th>Redaction enabled</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>public</td>
+      <td>keep</td>
+      <td>keep</td>
+    </tr>
+    <tr>
+      <td>internal</td>
+      <td>keep</td>
+      <td>keep</td>
+    </tr>
+    <tr>
+      <td>personal</td>
+      <td>keep</td>
+      <td>hash</td>
+    </tr>
+    <tr>
+      <td>content</td>
+      <td>keep</td>
+      <td>drop</td>
+    </tr>
+    <tr>
+      <td>secret</td>
+      <td>drop</td>
+      <td>drop</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Hashing uses installation-key HMAC-SHA256 as <code class="language-plaintext highlighter-rouge">hmac:&lt;hex16&gt;</code>. The policy runs once before queueing; all sinks receive that sanitized payload. Configuration changes require a restart.</p>
+
+<p>With redaction enabled, unknown span and event names become <code class="language-plaintext highlighter-rouge">operator.redacted.span</code> and <code class="language-plaintext highlighter-rouge">operator.redacted.event</code>; unknown metrics are dropped. Absent log event names stay absent. Bodies and auxiliary text are content. Retained metrics use catalog descriptions and units. Attribute types must match the catalog.</p>
+
+<p>In both modes, opaque non-UTF-8 bytes and unresolved string-table references are removed. Secret detection is pattern-based and cannot recognize every credential or establish that arbitrary metadata strings are safe.</p>
+
+<p><code class="language-plaintext highlighter-rouge">operator.redacted.count</code> is server-authored: each removed attribute, body, nested body entry, auxiliary field, or metric counts once, each hash counts once, and each non-overlapping secret substitution counts once. A replaced signal name or metric description/unit counts once per field; a removed entity reference counts once. Removing a metric does not additionally count its fields. Client counts are discarded.</p>
+
+<p>See <a href="/telemetry/">Telemetry</a> for configuration and ingest access.</p>
+
+<h2 id="attributes">Attributes</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Type</th>
+      <th>Class</th>
+      <th>Description</th>
+      <th>Source</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cost_usd</code></td>
+      <td>double</td>
+      <td>public</td>
+      <td>Cost usd.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">duration_ms</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Duration ms.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">error</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Error.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">error.type</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Telemetry SDK failure category.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.conversation.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Gen ai conversation id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.input.messages</code></td>
+      <td>any</td>
+      <td>content</td>
+      <td>Gen ai input messages.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.operation.name</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Gen ai operation name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.output.messages</code></td>
+      <td>any</td>
+      <td>content</td>
+      <td>Gen ai output messages.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.provider.name</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Gen ai provider name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.request.model</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Gen ai request model.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.response.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Gen ai response id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.response.model</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Gen ai response model.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.system</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Gen ai system.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.system_instructions</code></td>
+      <td>any</td>
+      <td>content</td>
+      <td>Gen ai system instructions.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.tool.call.arguments</code></td>
+      <td>any</td>
+      <td>content</td>
+      <td>Gen ai tool call arguments.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.tool.call.result</code></td>
+      <td>any</td>
+      <td>content</td>
+      <td>Gen ai tool call result.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.usage.input_tokens</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Gen ai usage input tokens.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">gen_ai.usage.output_tokens</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Gen ai usage output tokens.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/gen_ai.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">http.request.header.authorization</code></td>
+      <td>string</td>
+      <td>secret</td>
+      <td>Http request header authorization.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">http.request.header.cookie</code></td>
+      <td>string</td>
+      <td>secret</td>
+      <td>Http request header cookie.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">input_tokens</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Input tokens.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">k8s.namespace.name</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>K8s namespace name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">k8s.pod.name</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>K8s pod name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Model.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.agent.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator agent id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.auth.detail</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Operator auth detail.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code></td>
+      <td>boolean</td>
+      <td>public</td>
+      <td>Operator auth succeeded.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.auth.token</code></td>
+      <td>string</td>
+      <td>secret</td>
+      <td>Operator auth token.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.duration</code></td>
+      <td>double</td>
+      <td>public</td>
+      <td>Operator duration.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.error</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Operator error.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.exit_code</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Operator exit code.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.investigation.severity</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator investigation severity.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.investigation.source</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator investigation source.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.issuetype.key</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator issuetype key.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.launch.mode</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator launch mode.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.llm_tool</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator llm tool.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.confidence</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Operator output confidence.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.error_count</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Operator output error count.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.exit_signal</code></td>
+      <td>boolean</td>
+      <td>public</td>
+      <td>Operator output exit signal.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.files_modified</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Operator output files modified.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.recommendation</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Operator output recommendation.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.status</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator output status.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.summary</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Operator output summary.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.tasks_completed</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Operator output tasks completed.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.tasks_remaining</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Operator output tasks remaining.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.output.tests_status</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator output tests status.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.pr.number</code></td>
+      <td>int</td>
+      <td>internal</td>
+      <td>Operator pr number.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.pr.url</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator pr url.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.profile.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator profile id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.project</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator project.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.reason</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Operator reason.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.redacted.count</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Operator redacted count.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.session.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator session id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.session.name</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator session name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.step.name</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator step name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.summary</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Operator summary.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.telemetry.reason</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator telemetry reason.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.telemetry.signal</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Operator telemetry signal.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">operator.ticket.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Operator ticket id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/operator.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">organization.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Organization id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">otel.component.name</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Telemetry SDK component instance.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">otel.component.type</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Telemetry SDK component type.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">output_tokens</code></td>
+      <td>int</td>
+      <td>public</td>
+      <td>Output tokens.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">process.executable.path</code></td>
+      <td>string</td>
+      <td>personal</td>
+      <td>Process executable path.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">process.owner</code></td>
+      <td>string</td>
+      <td>personal</td>
+      <td>Process owner.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">prompt</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Prompt.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">service.instance.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Service instance id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">service.name</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Service name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">service.version</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Service version.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">session.id</code></td>
+      <td>string</td>
+      <td>internal</td>
+      <td>Session id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">telemetry.sdk.language</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Telemetry sdk language.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">telemetry.sdk.name</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Telemetry sdk name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">telemetry.sdk.version</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Telemetry sdk version.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">terminal.type</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Terminal type.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool_name</code></td>
+      <td>string</td>
+      <td>public</td>
+      <td>Tool name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool_parameters</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Tool parameters.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tool_result</code></td>
+      <td>string</td>
+      <td>content</td>
+      <td>Tool result.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">user.email</code></td>
+      <td>string</td>
+      <td>personal</td>
+      <td>User email.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">user.id</code></td>
+      <td>string</td>
+      <td>personal</td>
+      <td>User id.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">user.name</code></td>
+      <td>string</td>
+      <td>personal</td>
+      <td>User name.</td>
+      <td><code class="language-plaintext highlighter-rouge">telemetry/model/attributes/resource.yaml</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="events">Events</h2>
+
+<h3 id="claude_codeapi_error"><code class="language-plaintext highlighter-rouge">claude_code.api_error</code></h3>
+
+<p>Claude code api error.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">session.id</code>, <code class="language-plaintext highlighter-rouge">user.email</code>, <code class="language-plaintext highlighter-rouge">model</code>, <code class="language-plaintext highlighter-rouge">error</code>.</p>
+
+<h3 id="claude_codeapi_request"><code class="language-plaintext highlighter-rouge">claude_code.api_request</code></h3>
+
+<p>Claude code api request.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">session.id</code>, <code class="language-plaintext highlighter-rouge">user.email</code>, <code class="language-plaintext highlighter-rouge">model</code>, <code class="language-plaintext highlighter-rouge">input_tokens</code>, <code class="language-plaintext highlighter-rouge">output_tokens</code>, <code class="language-plaintext highlighter-rouge">cost_usd</code>, <code class="language-plaintext highlighter-rouge">duration_ms</code>.</p>
+
+<h3 id="claude_codetool_decision"><code class="language-plaintext highlighter-rouge">claude_code.tool_decision</code></h3>
+
+<p>Claude code tool decision.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">session.id</code>, <code class="language-plaintext highlighter-rouge">user.email</code>, <code class="language-plaintext highlighter-rouge">tool_name</code>.</p>
+
+<h3 id="claude_codetool_result"><code class="language-plaintext highlighter-rouge">claude_code.tool_result</code></h3>
+
+<p>Claude code tool result.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">session.id</code>, <code class="language-plaintext highlighter-rouge">user.email</code>, <code class="language-plaintext highlighter-rouge">tool_name</code>, <code class="language-plaintext highlighter-rouge">tool_parameters</code>, <code class="language-plaintext highlighter-rouge">tool_result</code>, <code class="language-plaintext highlighter-rouge">duration_ms</code>.</p>
+
+<h3 id="claude_codeuser_prompt"><code class="language-plaintext highlighter-rouge">claude_code.user_prompt</code></h3>
+
+<p>Claude code user prompt.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/third_party/claude_code.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">session.id</code>, <code class="language-plaintext highlighter-rouge">user.email</code>, <code class="language-plaintext highlighter-rouge">prompt</code>.</p>
+
+<h3 id="operatoragentawaiting_input"><code class="language-plaintext highlighter-rouge">operator.agent.awaiting_input</code></h3>
+
+<p>Operator agent awaiting input.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/agent.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.reason</code>.</p>
+
+<h3 id="operatoragentcompleted"><code class="language-plaintext highlighter-rouge">operator.agent.completed</code></h3>
+
+<p>Operator agent completed.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/agent.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.pr.url</code>, <code class="language-plaintext highlighter-rouge">operator.duration</code>.</p>
+
+<h3 id="operatoragentfailed"><code class="language-plaintext highlighter-rouge">operator.agent.failed</code></h3>
+
+<p>Operator agent failed.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/agent.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.error</code>.</p>
+
+<h3 id="operatoragentsession_lost"><code class="language-plaintext highlighter-rouge">operator.agent.session_lost</code></h3>
+
+<p>Operator agent session lost.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/agent.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.session.name</code>.</p>
+
+<h3 id="operatoragentstarted"><code class="language-plaintext highlighter-rouge">operator.agent.started</code></h3>
+
+<p>Operator agent started.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/agent.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.session.name</code>, <code class="language-plaintext highlighter-rouge">operator.launch.mode</code>.</p>
+
+<h3 id="operatorauthaccess_key_created"><code class="language-plaintext highlighter-rouge">operator.auth.access_key_created</code></h3>
+
+<p>Operator auth access key created.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthaccess_key_exchange"><code class="language-plaintext highlighter-rouge">operator.auth.access_key_exchange</code></h3>
+
+<p>Operator auth access key exchange.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthaccess_key_revoked"><code class="language-plaintext highlighter-rouge">operator.auth.access_key_revoked</code></h3>
+
+<p>Operator auth access key revoked.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthaccess_key_rotated"><code class="language-plaintext highlighter-rouge">operator.auth.access_key_rotated</code></h3>
+
+<p>Operator auth access key rotated.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthadmin_created"><code class="language-plaintext highlighter-rouge">operator.auth.admin_created</code></h3>
+
+<p>Operator auth admin created.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthbootstrap"><code class="language-plaintext highlighter-rouge">operator.auth.bootstrap</code></h3>
+
+<p>Operator auth bootstrap.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthdevice_approved"><code class="language-plaintext highlighter-rouge">operator.auth.device_approved</code></h3>
+
+<p>Operator auth device approved.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthdevice_code_issued"><code class="language-plaintext highlighter-rouge">operator.auth.device_code_issued</code></h3>
+
+<p>Operator auth device code issued.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthendpoint_revoked"><code class="language-plaintext highlighter-rouge">operator.auth.endpoint_revoked</code></h3>
+
+<p>Operator auth endpoint revoked.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthlogin"><code class="language-plaintext highlighter-rouge">operator.auth.login</code></h3>
+
+<p>Operator auth login.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthlogout"><code class="language-plaintext highlighter-rouge">operator.auth.logout</code></h3>
+
+<p>Operator auth logout.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthoidc_connection_created"><code class="language-plaintext highlighter-rouge">operator.auth.oidc_connection_created</code></h3>
+
+<p>Operator auth oidc connection created.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthoidc_connection_disabled"><code class="language-plaintext highlighter-rouge">operator.auth.oidc_connection_disabled</code></h3>
+
+<p>Operator auth oidc connection disabled.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthoidc_login"><code class="language-plaintext highlighter-rouge">operator.auth.oidc_login</code></h3>
+
+<p>Operator auth oidc login.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthpassword_reset"><code class="language-plaintext highlighter-rouge">operator.auth.password_reset</code></h3>
+
+<p>Operator auth password reset.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthrefresh_token_reuse"><code class="language-plaintext highlighter-rouge">operator.auth.refresh_token_reuse</code></h3>
+
+<p>Operator auth refresh token reuse.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthsession_revoked"><code class="language-plaintext highlighter-rouge">operator.auth.session_revoked</code></h3>
+
+<p>Operator auth session revoked.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorauthuser_permissions_changed"><code class="language-plaintext highlighter-rouge">operator.auth.user_permissions_changed</code></h3>
+
+<p>Operator auth user permissions changed.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/auth.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.auth.succeeded</code>, <code class="language-plaintext highlighter-rouge">operator.auth.detail</code>.</p>
+
+<h3 id="operatorinvestigationcreated"><code class="language-plaintext highlighter-rouge">operator.investigation.created</code></h3>
+
+<p>Operator investigation created.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/ticket.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.investigation.source</code>, <code class="language-plaintext highlighter-rouge">operator.investigation.severity</code>, <code class="language-plaintext highlighter-rouge">operator.summary</code>.</p>
+
+<h3 id="operatorprchanges_requested"><code class="language-plaintext highlighter-rouge">operator.pr.changes_requested</code></h3>
+
+<p>Operator pr changes requested.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/pr.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.pr.number</code>, <code class="language-plaintext highlighter-rouge">operator.pr.url</code>.</p>
+
+<h3 id="operatorprclosed"><code class="language-plaintext highlighter-rouge">operator.pr.closed</code></h3>
+
+<p>Operator pr closed.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/pr.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.pr.number</code>, <code class="language-plaintext highlighter-rouge">operator.pr.url</code>.</p>
+
+<h3 id="operatorprcreated"><code class="language-plaintext highlighter-rouge">operator.pr.created</code></h3>
+
+<p>Operator pr created.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/pr.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.pr.number</code>, <code class="language-plaintext highlighter-rouge">operator.pr.url</code>.</p>
+
+<h3 id="operatorprmerged"><code class="language-plaintext highlighter-rouge">operator.pr.merged</code></h3>
+
+<p>Operator pr merged.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/pr.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.pr.number</code>, <code class="language-plaintext highlighter-rouge">operator.pr.url</code>.</p>
+
+<h3 id="operatorprready_to_merge"><code class="language-plaintext highlighter-rouge">operator.pr.ready_to_merge</code></h3>
+
+<p>Operator pr ready to merge.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/pr.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.pr.number</code>, <code class="language-plaintext highlighter-rouge">operator.pr.url</code>.</p>
+
+<h3 id="operatorredactedevent"><code class="language-plaintext highlighter-rouge">operator.redacted.event</code></h3>
+
+<p>Event whose original name is not approved by the catalog.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/redaction.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.redacted.count</code>.</p>
+
+<h3 id="operatorstepcompleted"><code class="language-plaintext highlighter-rouge">operator.step.completed</code></h3>
+
+<p>Operator step completed.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/step.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.exit_code</code>, <code class="language-plaintext highlighter-rouge">operator.duration</code>, <code class="language-plaintext highlighter-rouge">operator.output.status</code>, <code class="language-plaintext highlighter-rouge">operator.output.exit_signal</code>, <code class="language-plaintext highlighter-rouge">operator.output.confidence</code>, <code class="language-plaintext highlighter-rouge">operator.output.files_modified</code>, <code class="language-plaintext highlighter-rouge">operator.output.tests_status</code>, <code class="language-plaintext highlighter-rouge">operator.output.error_count</code>, <code class="language-plaintext highlighter-rouge">operator.output.tasks_completed</code>, <code class="language-plaintext highlighter-rouge">operator.output.tasks_remaining</code>, <code class="language-plaintext highlighter-rouge">operator.output.summary</code>, <code class="language-plaintext highlighter-rouge">operator.output.recommendation</code>.</p>
+
+<h3 id="operatorstepstarted"><code class="language-plaintext highlighter-rouge">operator.step.started</code></h3>
+
+<p>Operator step started.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/step.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>.</p>
+
+<h3 id="operatorticketreturned"><code class="language-plaintext highlighter-rouge">operator.ticket.returned</code></h3>
+
+<p>Operator ticket returned.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/events/ticket.yaml</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>, <code class="language-plaintext highlighter-rouge">operator.summary</code>.</p>
+
+<h2 id="spans">Spans</h2>
+
+<h3 id="operatoragentlaunch"><code class="language-plaintext highlighter-rouge">operator.agent.launch</code></h3>
+
+<p>Operator agent launch.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/spans/operator.yaml</code>.</p>
+
+<p>Span kind: <code class="language-plaintext highlighter-rouge">internal</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>.</p>
+
+<h3 id="operatorotlpingest"><code class="language-plaintext highlighter-rouge">operator.otlp.ingest</code></h3>
+
+<p>Operator otlp ingest.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/spans/operator.yaml</code>.</p>
+
+<p>Span kind: <code class="language-plaintext highlighter-rouge">server</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>.</p>
+
+<h3 id="operatorredactedspan"><code class="language-plaintext highlighter-rouge">operator.redacted.span</code></h3>
+
+<p>Span whose original name is not approved by the catalog.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/spans/operator.yaml</code>.</p>
+
+<p>Span kind: <code class="language-plaintext highlighter-rouge">internal</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.redacted.count</code>.</p>
+
+<h3 id="opr8rstep"><code class="language-plaintext highlighter-rouge">opr8r.step</code></h3>
+
+<p>Opr8r step.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/spans/operator.yaml</code>.</p>
+
+<p>Span kind: <code class="language-plaintext highlighter-rouge">internal</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.ticket.id</code>, <code class="language-plaintext highlighter-rouge">operator.session.id</code>, <code class="language-plaintext highlighter-rouge">operator.agent.id</code>, <code class="language-plaintext highlighter-rouge">operator.step.name</code>, <code class="language-plaintext highlighter-rouge">operator.project</code>, <code class="language-plaintext highlighter-rouge">operator.profile.id</code>, <code class="language-plaintext highlighter-rouge">operator.issuetype.key</code>, <code class="language-plaintext highlighter-rouge">operator.llm_tool</code>.</p>
+
+<h2 id="metrics">Metrics</h2>
+
+<h3 id="operatoragentsactive"><code class="language-plaintext highlighter-rouge">operator.agents.active</code></h3>
+
+<p>Operator agents active.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">gauge</code>. Unit: <code class="language-plaintext highlighter-rouge">{agent}</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.profile.id</code>.</p>
+
+<h3 id="operatorauthauthenticationdenied"><code class="language-plaintext highlighter-rouge">operator.auth.authentication.denied</code></h3>
+
+<p>Failed credential authentication attempts.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{attempt}</code>.</p>
+
+<p>Attributes: .</p>
+
+<h3 id="operatorauthauthorizationdenied"><code class="language-plaintext highlighter-rouge">operator.auth.authorization.denied</code></h3>
+
+<p>Denied authenticated operations.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{attempt}</code>.</p>
+
+<p>Attributes: .</p>
+
+<h3 id="operatorauthrate_limited"><code class="language-plaintext highlighter-rouge">operator.auth.rate_limited</code></h3>
+
+<p>Requests rejected by credential rate limits.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{request}</code>.</p>
+
+<p>Attributes: .</p>
+
+<h3 id="operatorauthusagedropped"><code class="language-plaintext highlighter-rouge">operator.auth.usage.dropped</code></h3>
+
+<p>Credential usage observations lost to capacity or lock failure.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{observation}</code>.</p>
+
+<p>Attributes: .</p>
+
+<h3 id="operatorauthusageflush_failed"><code class="language-plaintext highlighter-rouge">operator.auth.usage.flush_failed</code></h3>
+
+<p>Failed credential usage database flushes.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{flush}</code>.</p>
+
+<p>Attributes: .</p>
+
+<h3 id="operatorqueuedepth"><code class="language-plaintext highlighter-rouge">operator.queue.depth</code></h3>
+
+<p>Operator queue depth.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">gauge</code>. Unit: <code class="language-plaintext highlighter-rouge">{ticket}</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.profile.id</code>.</p>
+
+<h3 id="operatorstepduration"><code class="language-plaintext highlighter-rouge">operator.step.duration</code></h3>
+
+<p>Operator step duration.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">histogram</code>. Unit: <code class="language-plaintext highlighter-rouge">s</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.profile.id</code>.</p>
+
+<h3 id="operatortelemetrydropped"><code class="language-plaintext highlighter-rouge">operator.telemetry.dropped</code></h3>
+
+<p>Operator telemetry dropped.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{record}</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.telemetry.signal</code>, <code class="language-plaintext highlighter-rouge">operator.telemetry.reason</code>.</p>
+
+<h3 id="operatortelemetryforwarded"><code class="language-plaintext highlighter-rouge">operator.telemetry.forwarded</code></h3>
+
+<p>Operator telemetry forwarded.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{record}</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.telemetry.signal</code>, <code class="language-plaintext highlighter-rouge">operator.telemetry.reason</code>.</p>
+
+<h3 id="operatortelemetryreceived"><code class="language-plaintext highlighter-rouge">operator.telemetry.received</code></h3>
+
+<p>Operator telemetry received.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{record}</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.telemetry.signal</code>, <code class="language-plaintext highlighter-rouge">operator.telemetry.reason</code>.</p>
+
+<h3 id="operatortelemetryredacted"><code class="language-plaintext highlighter-rouge">operator.telemetry.redacted</code></h3>
+
+<p>Operator telemetry redacted.</p>
+
+<p>Source: <code class="language-plaintext highlighter-rouge">telemetry/model/metrics/operator.yaml</code>.</p>
+
+<p>Instrument: <code class="language-plaintext highlighter-rouge">counter</code>. Unit: <code class="language-plaintext highlighter-rouge">{record}</code>.</p>
+
+<p>Attributes: <code class="language-plaintext highlighter-rouge">operator.telemetry.signal</code>, <code class="language-plaintext highlighter-rouge">operator.telemetry.reason</code>.</p>
+
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2026 UNTRA LLC</p>
+  <p>
+    <a href="/privacy-policy/">Privacy Policy</a> |
+    <a href="/terms-of-service/">Terms of Service</a>
+  </p>
+</footer>
+
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // Prevent nav links inside summary from toggling details
+    document.querySelectorAll('summary.nav-item-row .nav-parent-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5JZPJWWT7S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5JZPJWWT7S');
+</script>
+
+</html>

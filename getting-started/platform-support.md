@@ -1,0 +1,97 @@
+# Platform Support & Limitations
+
+> What works on each operating system and which features are unavailable on specific platforms.
+
+This page is the authoritative reference for what Operator supports on each operating system. Each gap is tagged as one of: **not applicable** (the underlying tool doesn't exist on that OS), **blocked** (a dependency prevents support and a workaround is needed), or **planned** (the intent is to support it; no timeline committed).
+
+## Quick Reference Matrix
+
+| Feature | macOS | Linux | Windows |
+|---------|-------|-------|---------|
+| Session manager: VS Code Extension | ✅ | ✅ | ✅ Required |
+| Session manager: Cursor | ✅ | ✅ | ✅ |
+| Session manager: tmux | ✅ | ✅ | ❌ |
+| Session manager: cmux | ✅ | ❌ | ❌ |
+| Session manager: Zellij | ✅ | ✅ | ❌ |
+| Relay hub (multi-agent) | ✅ | ✅ | ❌ |
+| `opr8r relay` subcommand | ✅ | ✅ | ❌ |
+| Native OS notifications | ✅ | ✅ | ⚠️ |
+| Kanban: Jira Cloud | ✅ | ✅ | ✅ |
+| Kanban: Linear | ✅ | ✅ | ✅ |
+| Kanban: GitHub Issues | ⚠️ | ⚠️ | ⚠️ |
+| Git: GitHub (`gh`) | ✅ | ✅ | ✅ |
+| Git: GitLab (`glab`) | ⚠️ | ⚠️ | ⚠️ |
+| Agent: Claude Code | ✅ | ✅ | ✅ |
+| Agent: Codex | ✅ | ✅ | ✅ |
+| Agent: Gemini CLI | ⚠️ | ⚠️ | ⚠️ |
+| Model host (LM Studio, Ollama) | ✅ | ✅ | ✅ |
+| Remote SSH execution target | ✅ | ✅ | ❌ |
+
+**Legend:** ✅ Fully supported &nbsp;·&nbsp; ❌ Not available &nbsp;·&nbsp; ⚠️ Partial / planned
+
+---
+
+## Windows
+
+Windows is a supported download target on both x86_64 and ARM64. The REST API, kanban sync, and VS Code extension all work, and the `opr8r` binary runs. A Windows PC also works well as a **model host**: run [LM Studio](/getting-started/model-servers/lmstudio/) or Ollama on it and point a delegator's model server at it, with nothing from Operator installed there. The following features are currently unavailable on Windows (both architectures).
+
+| Feature | Status | Reason | Workaround |
+|---------|--------|--------|------------|
+| Relay hub / `opr8r relay` | ❌ Blocked | Requires Unix domain sockets (`tokio::net::unix`), which are not available on Windows | None yet. Planned: named-pipe or TCP-loopback transport in a future release |
+| tmux session manager | ❌ N/A | tmux does not run on Windows | Use the VS Code Extension |
+| cmux session manager | ❌ N/A | cmux is macOS-specific | Use the VS Code Extension |
+| Zellij session manager | ❌ N/A | Zellij does not run on Windows | Use the VS Code Extension |
+| Remote SSH execution target | ❌ Planned | Remote launches ship a bash payload, require `tmux` on the target, quote commands for a POSIX shell (including the step-transition commands `opr8r` runs), and probe agent CLIs with `which`. Windows OpenSSH defaults to `cmd.exe` and has no `tmux` | Use the PC as a model host instead, or install WSL2 with `tmux`, the agent CLI, and the Linux `opr8r`, and make the SSH alias land in the WSL shell |
+| Native OS notifications | ⚠️ Planned | Platform notification crates (`mac-notification-sys`, `notify-rust`) are Unix-only; a Windows crate has not been integrated | Notifications fall back to log output only |
+
+---
+
+## Linux
+
+Linux is a first-class platform. One known gap:
+
+| Feature | Status | Reason | Workaround |
+|---------|--------|--------|------------|
+| cmux session manager | ❌ N/A | cmux is a macOS-specific terminal multiplexer | Use tmux or the VS Code Extension |
+
+---
+
+## macOS
+
+macOS is the primary development platform. No known feature gaps.
+
+---
+
+## Containers and Kubernetes
+
+Operator also ships as a container image and a Helm chart. Both are Linux-only
+(`linux/amd64`, `linux/arm64`) regardless of the host you drive them from.
+
+| Distribution | Status | Notes |
+|--------------|--------|-------|
+| Docker image `untra/operator` | ✅ Supported | Multi-arch. See [Docker](/getting-started/platforms/docker/) |
+| Helm chart `oci://ghcr.io/untra/charts/operator` | ⚠️ Alpha | Single-replica StatefulSet, ReadWriteOnce persistence. See [Kubernetes](/getting-started/platforms/kubernetes/) |
+
+| Feature | Status | Reason | Workaround |
+|---------|--------|--------|------------|
+| Horizontal scaling of the chart | ❌ N/A | Operator is a single-writer process over a ReadWriteOnce volume with a local queue and SQLite auth database | Run one replica; scale by running separate instances against separate workspaces |
+| Agent process isolation | ⚠️ Planned | Agents run as child processes sharing Operator's user and filesystem | Treat the configured agent tool as trusted. See [Security](/security/#the-agent-process-is-inside-the-trust-boundary) |
+
+---
+
+## Integration-Level Gaps (all platforms)
+
+These gaps apply on every operating system because the integration itself is not fully implemented.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Kanban: GitHub Issues | ⚠️ Detection only | GitHub Issues is detected as a provider but full two-way sync (create, update, close) is not implemented. Only Jira Cloud and Linear have full sync. |
+| Git: GitLab (`glab`) | ⚠️ Detection only | GitLab is detected via the `glab` CLI for branch and PR metadata, but PR creation and status webhooks are not implemented. |
+| Git: Bitbucket, Azure DevOps | ⚠️ Detection only | Detected via their respective CLIs; no PR workflow integration. |
+| Agent: Gemini CLI | ⚠️ Experimental | Session detection and artifact parsing are less tested than Claude Code. Some multi-step issue-type flows may behave unexpectedly. |
+
+---
+
+## Reporting a Gap
+
+If you hit a limitation not listed here, please [open an issue on GitHub](https://github.com/untra/operator/issues){:target="_blank"}.

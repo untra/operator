@@ -1,0 +1,45 @@
+{
+  "$schema": "https://operator.untra.io/schemas/issuetype.json",
+  "key": "CHORE",
+  "name": "Chore",
+  "description": "Small recurring maintenance task with a verification step",
+  "mode": "autonomous",
+  "glyph": "*",
+  "color": "cyan",
+  "project_required": true,
+  "fields": [
+    {
+      "name": "id",
+      "description": "Ticket identifier",
+      "type": "string",
+      "required": true,
+      "auto": "id",
+      "display_order": 0
+    },
+    {
+      "name": "summary",
+      "description": "One-line description of the chore",
+      "type": "string",
+      "required": false,
+      "placeholder": "e.g. rotate dependency lockfiles",
+      "display_order": 1
+    }
+  ],
+  "steps": [
+    {
+      "name": "execute",
+      "display_name": "Executing",
+      "outputs": ["code", "report"],
+      "prompt": "Complete this maintenance chore:\n\n1. Read the ticket summary and context\n2. Make the smallest change that completes the chore\n3. Note anything that should become a follow-up ticket\n",
+      "review_type": "none",
+      "next_step": "verify"
+    },
+    {
+      "name": "verify",
+      "display_name": "Verifying",
+      "outputs": ["report"],
+      "prompt": "Verify the chore is complete: run the project's test or lint command and summarize the result.\n",
+      "review_type": "none"
+    }
+  ]
+}

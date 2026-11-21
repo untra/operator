@@ -1,0 +1,132 @@
+# Tickets
+
+> Create and manage tickets with markdown format, naming conventions, and best practices for LLM agents.
+
+Tickets are the unit of work in <span class="operator-brand">Operator!</span>. Each one describes a task for an agent to complete, and carries an **issue type** that decides *how* the work is done - see [Workflows](/workflows/) for the process behind the ticket.
+
+## Ticket Format
+
+Tickets are markdown files with a specific naming convention:
+
+```
+{TYPE}-{ID}-{project}-{description}.md
+```
+
+`{TYPE}` is the issue type key (`FEAT`, `FIX`, `PRD`, etc), which is why keys never contain hyphens - the hyphen separates the key from the ticket number.
+
+### Examples
+
+```
+INV-001-backend-investigate-login-failure.md
+FIX-042-api-fix-null-pointer.md
+FEAT-123-frontend-add-dark-mode.md
+SPIKE-007-platform-evaluate-kubernetes.md
+```
+
+## Ticket Structure
+
+A typical ticket contains:
+
+```markdown
+# FEAT-123: Add Dark Mode
+
+## Summary
+Implement a dark mode toggle in the application settings.
+
+## Requirements
+- Add toggle switch in settings page
+- Persist preference to local storage
+- Apply theme to all components
+- Support system preference detection
+
+## Acceptance Criteria
+- [ ] Toggle switch works
+- [ ] Theme persists across sessions
+- [ ] All components support both themes
+
+## Notes
+See design mockup in Figma: [link]
+```
+
+The exact fields a ticket carries are defined by its issue type. See the
+[ticket metadata schema](/schemas/metadata/) for the YAML frontmatter format.
+
+## Creating Tickets
+
+### Manual Creation
+
+1. Create a markdown file in `.tickets/queue/`
+2. Follow the naming convention
+3. Add ticket content
+
+### Using the CLI
+
+```bash
+# Show current queue
+cargo run -- queue
+
+# Launch next ticket
+cargo run -- launch
+```
+
+### From a Kanban Provider
+
+Tickets can also be synced from Jira, Linear, or GitHub Projects rather than
+authored by hand. See [Supported Kanban Providers](/getting-started/kanban/).
+
+## Dependencies and campaigns
+
+A ticket can wait on other tickets with `depends_on` in its frontmatter:
+
+```yaml
+depends_on:
+  - FEAT-0012          # a local ticket id
+  - jira:PROJ-12       # an issue from a kanban provider
+```
+
+Each entry is either a local ticket id or a `provider:key` reference (`jira`, `linear`, `github`, `openspec`). Provider references match a synced ticket by its `external_id`, whatever local id it was given - so they keep working if issue type mappings change.
+
+Kanban sync fills `depends_on` from the provider's own relationships (blockers and sub-tasks) and records the epic, project or parent as `external_parent`. Sync only rewrites its own provider's entries; ids you add by hand are kept. A reference to an issue that isn't synced is kept, and the ticket waits on it.
+
+A ticket joins a [campaign](/getting-started/concepts/campaigns/) - a group of tickets planned and launched together - by naming it:
+
+```yaml
+campaign: CAMP-0003
+```
+
+Within a campaign, `depends_on` orders the tickets into waves that run in parallel.
+
+## Viewing a ticket
+
+Every ticket has a page in the web UI at `/#/tickets/<id>` - follow a ticket id from the dashboard, the queue, a campaign or an agent. It shows:
+
+- the ticket's markdown, including its history;
+- its steps, with the current one marked;
+- what it depends on and what depends on it, each linked to its own page;
+- the agent working it, with its pull request.
+
+From the page you can launch a queued ticket, move it to another column, and approve or reject a review the agent is waiting on. A ticket synced from Jira, Linear or GitHub links back to its issue.
+
+**Open in** opens the ticket file, or the agent's worktree, in VS Code, Cursor, Zed or a JetBrains IDE. VS Code and Cursor open the ticket through the [Operator extension](/getting-started/ides/vscode/); a worktree on an SSH host opens over remote SSH. **Session** reaches the agent's terminal: VS Code and Cursor reveal it through the extension, cmux and tmux focus it, tmux also offers the command to attach, and zellij names the tab to switch to.
+
+## Ticket Directories
+
+```
+.tickets/
+├── queue/        # Pending work
+├── in-progress/  # Currently being worked
+└── completed/    # Finished work
+```
+
+## Ticket Lifecycle
+
+1. **Created** - Ticket added to `queue/`
+2. **Assigned** - Moved to `in-progress/` when an agent starts
+3. **Completed** - Moved to `completed/` when done
+
+## Best Practices
+
+- **Be specific** - Clear requirements help agents succeed
+- **Include context** - Link to related issues, PRs, or docs
+- **Define done** - Clear acceptance criteria
+- **Right-size** - Keep tickets focused and achievable

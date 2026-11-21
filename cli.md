@@ -1,0 +1,289 @@
+# CLI Reference
+
+<!-- AUTO-GENERATED FROM src/main.rs, src/env_vars.rs - DO NOT EDIT MANUALLY -->
+<!-- Regenerate with: cargo run -- docs -->
+
+Operator provides both a TUI dashboard and CLI commands for queue management.
+
+## Global Options
+
+| Option | Description |
+| --- | --- |
+| `-c, --config` | Config file path |
+| `--profile` | Named configuration hosted by this Operator server |
+| `-d, --debug` | Enable debug logging |
+| `-w, --web` | Start with web view enabled |
+| `--ui` | Open the embedded web UI in a browser on launch |
+
+## Commands
+
+When run without a command, Operator launches the interactive TUI dashboard.
+
+### `queue`
+
+Show queue status
+
+| Argument/Option | Description |
+| --- | --- |
+| `-a, --all` | Show all tickets, not just summary |
+
+### `launch`
+
+Launch agent for next available ticket
+
+| Argument/Option | Description |
+| --- | --- |
+| `<TICKET>` | Specific ticket to launch (optional) |
+| `-y, --yes` | Skip confirmation prompt |
+| `--delegator` | Use a named delegator from config (mutually exclusive with --llm-tool/--model/--model-server) |
+| `--llm-tool` | LLM tool override (e.g., claude, codex, gemini, or configured tool) |
+| `--model` | Model override (e.g., opus, gpt-4o, qwen2.5-coder) |
+| `--model-server` | Named model server reference (e.g., ollama-local) - overrides the delegator's default. Pairs with --llm-tool/--model for ad-hoc ollama-backed launches. v1 accepts the flag and validates the name; env-var injection on spawn ships in v2 |
+
+### `agents`
+
+List active agents
+
+| Argument/Option | Description |
+| --- | --- |
+| `-v, --verbose` | Show detailed agent info |
+
+### `pause`
+
+Pause queue processing
+
+No additional arguments.
+
+### `resume`
+
+Resume queue processing
+
+No additional arguments.
+
+### `stalled`
+
+Show stalled agents awaiting input
+
+No additional arguments.
+
+### `alert`
+
+Create investigation from external alert
+
+| Argument/Option | Description |
+| --- | --- |
+| `--source` | Alert source (e.g., pagerduty, datadog) |
+| `--message` | Alert message |
+| `--severity` | Severity (S0, S1, S2) (default: S1) |
+| `--project` | Affected project (optional) |
+
+### `import`
+
+Import tickets from configured kanban providers (jira, linear, github, openspec)
+
+| Argument/Option | Description |
+| --- | --- |
+| `<PROVIDER>` | Provider slug (e.g. openspec). Omit to sync every configured provider |
+| `<REFERENCE>` | Project/change reference (e.g. an `OpenSpec` change id, a Jira project key). Omit to sync all of the provider's configured collections |
+| `--campaign` | Import an `OpenSpec` change as one campaign (Premium). Other providers set `scope` on the project's sync config instead |
+
+### `create`
+
+Create a new ticket (through the local API when it is running)
+
+| Argument/Option | Description |
+| --- | --- |
+| `-t, --issue-type` | Issue type key from the active collection (e.g. FEAT, FIX, TASK) |
+| `-p, --project` | Target project |
+| `-s, --summary` | One-line summary |
+| `--set` | Issue type field value, as `name=value` (repeatable) |
+| `--no-sync` | Do not push the ticket to the project's kanban board |
+| `--no-edit` | Do not open the created ticket in $EDITOR |
+
+### `docs`
+
+Generate documentation from source-of-truth files
+
+| Argument/Option | Description |
+| --- | --- |
+| `-o, --output` | Output directory (default: docs/) |
+| `-g, --only` | Only generate specific docs (taxonomy, issuetype, metadata) |
+
+### `api`
+
+Start the REST API server for issue type management
+
+| Argument/Option | Description |
+| --- | --- |
+| `-p, --port` | Port to listen on (default: 7008) |
+| `--open` | Open the web UI in browser after server starts |
+
+### `mcp`
+
+Run as an MCP stdio server (for use by Claude Code, Cursor, Zed, `JetBrains`, etc.)
+
+No additional arguments.
+
+### `acp`
+
+Run as an ACP agent over stdio (for use by Zed, `JetBrains`, Emacs `agent-shell`, etc.)
+
+No additional arguments.
+
+### `setup`
+
+Initialize operator workspace (non-interactive by default)
+
+| Argument/Option | Description |
+| --- | --- |
+| `-i, --interactive` | Launch TUI setup wizard instead of non-interactive setup |
+| `-C, --collection` | Collection preset: simple, dev-kanban, devops-kanban (default: simple) |
+| `-f, --force` | Overwrite existing files |
+| `-w, --working-dir` | Working directory (parent of .tickets/) |
+| `-k, --kanban-provider` | Kanban provider to configure: jira, linear |
+| `-l, --llm-tool` | Preferred LLM tool (e.g., claude, codex, gemini, or any configured tool) |
+| `--skip-llm-detection` | Skip LLM tool detection |
+
+### `workflow`
+
+Convert between operator issuetypes and other orchestration formats
+
+No additional arguments.
+
+### `auth`
+
+Local authentication administration and recovery
+
+No additional arguments.
+
+### `campaign`
+
+Inspect campaigns: epics of tickets planned into dependency waves
+
+No additional arguments.
+
+## Environment Variables
+
+All configuration can be overridden via environment variables using the `OPERATOR_` prefix with `__` as the separator for nested config paths.
+
+### Quick Reference
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_API__ANTHROPIC_API_KEY` | Anthropic API key for rate limit monitoring and AI provider status | - |
+| `OPERATOR_API__GITHUB_TOKEN` | GitHub personal access token for PR/issue tracking integration | - |
+| `OPERATOR_AGENTS__MAX_PARALLEL` | Maximum number of agents that can run in parallel | 4 |
+| `OPERATOR_AGENTS__CORES_RESERVED` | Number of CPU cores to reserve (not used by agents) | 2 |
+| `OPERATOR_AGENTS__STALE_MINUTES` | Minutes of inactivity before an agent is considered stale | 30 |
+| `OPERATOR_AGENTS__HEALTH_CHECK_INTERVAL_SECS` | Interval in seconds between agent health checks | 60 |
+| `OPERATOR_AGENTS__COMPLETION_DETECTION_INTERVAL_SECS` | Interval in seconds between completion detection checks | 5 |
+| `OPERATOR_AGENTS__SESSION_DIR` | Directory for storing agent session data | .claude/sessions |
+| `OPERATOR_AGENTS__ENABLE_NOTIFICATIONS` | Enable macOS notifications for agent events | true |
+| `OPERATOR_QUEUE__AUTO_ASSIGN` | Automatically assign tickets to available agents | true |
+| `OPERATOR_QUEUE__POLL_INTERVAL_SECS` | Interval in seconds between queue polling cycles | 5 |
+| `OPERATOR_QUEUE__PRIORITY_ORDER` | Comma-separated list of ticket types in priority order | INV,FIX,FEAT,SPIKE |
+| `OPERATOR_NOTIFICATIONS__ENABLED` | Enable the notification system | true |
+| `OPERATOR_NOTIFICATIONS__ON_LAUNCH` | Send notification when an agent launches | true |
+| `OPERATOR_NOTIFICATIONS__ON_COMPLETE` | Send notification when an agent completes | true |
+| `OPERATOR_NOTIFICATIONS__ON_STALL` | Send notification when an agent stalls | true |
+| `OPERATOR_NOTIFICATIONS__ON_ERROR` | Send notification on agent errors | true |
+| `OPERATOR_NOTIFICATIONS__SOUND` | Play sound with notifications | true |
+| `OPERATOR_PATHS__TICKETS` | Directory containing ticket files | .tickets |
+| `OPERATOR_PATHS__PROJECTS` | Root directory for project discovery | . |
+| `OPERATOR_PATHS__STATE` | Directory for persistent operator state | .tickets/operator |
+| `OPERATOR_PATHS__WORKTREES` | Directory for per-ticket git worktrees | ~/.operator/worktrees |
+| `OPERATOR_UI__REFRESH_RATE_MS` | UI refresh rate in milliseconds | 250 |
+| `OPERATOR_UI__SUMMARY_MAX_LENGTH` | Maximum length of ticket summaries in the UI | 60 |
+| `OPERATOR_LAUNCH__MODE` | Agent launch mode (tmux or direct) | tmux |
+| `OPERATOR_LAUNCH__CONFIRM` | Require confirmation before launching agents | true |
+| `OPERATOR_TMUX__SESSION_PREFIX` | Prefix for tmux session names | operator |
+| `OPERATOR_LLM_TOOLS__ENABLED` | Enable LLM tool allowlist/denylist functionality | true |
+| `OPERATOR_LLM_TOOLS__ALLOWED` | Comma-separated list of allowed LLM tools (empty = all allowed) |  |
+| `OPERATOR_LLM_TOOLS__DENIED` | Comma-separated list of denied LLM tools |  |
+| `OPERATOR_LOGGING__LEVEL` | Log level (trace, debug, info, warn, error) | info |
+| `OPERATOR_LOGGING__TO_FILE` | Write logs to file in addition to stderr | true |
+| `OPERATOR_LOGGING__FORMAT` | Console and file log format (text or json). JSON lines include trace_id and span_id | text |
+
+### Authentication
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_API__ANTHROPIC_API_KEY` | Anthropic API key for rate limit monitoring and AI provider status | - |
+| `OPERATOR_API__GITHUB_TOKEN` | GitHub personal access token for PR/issue tracking integration | - |
+
+### Agents
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_AGENTS__MAX_PARALLEL` | Maximum number of agents that can run in parallel | 4 |
+| `OPERATOR_AGENTS__CORES_RESERVED` | Number of CPU cores to reserve (not used by agents) | 2 |
+| `OPERATOR_AGENTS__STALE_MINUTES` | Minutes of inactivity before an agent is considered stale | 30 |
+| `OPERATOR_AGENTS__HEALTH_CHECK_INTERVAL_SECS` | Interval in seconds between agent health checks | 60 |
+| `OPERATOR_AGENTS__COMPLETION_DETECTION_INTERVAL_SECS` | Interval in seconds between completion detection checks | 5 |
+| `OPERATOR_AGENTS__SESSION_DIR` | Directory for storing agent session data | .claude/sessions |
+| `OPERATOR_AGENTS__ENABLE_NOTIFICATIONS` | Enable macOS notifications for agent events | true |
+
+### Queue
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_QUEUE__AUTO_ASSIGN` | Automatically assign tickets to available agents | true |
+| `OPERATOR_QUEUE__POLL_INTERVAL_SECS` | Interval in seconds between queue polling cycles | 5 |
+| `OPERATOR_QUEUE__PRIORITY_ORDER` | Comma-separated list of ticket types in priority order | INV,FIX,FEAT,SPIKE |
+
+### Notifications
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_NOTIFICATIONS__ENABLED` | Enable the notification system | true |
+| `OPERATOR_NOTIFICATIONS__ON_LAUNCH` | Send notification when an agent launches | true |
+| `OPERATOR_NOTIFICATIONS__ON_COMPLETE` | Send notification when an agent completes | true |
+| `OPERATOR_NOTIFICATIONS__ON_STALL` | Send notification when an agent stalls | true |
+| `OPERATOR_NOTIFICATIONS__ON_ERROR` | Send notification on agent errors | true |
+| `OPERATOR_NOTIFICATIONS__SOUND` | Play sound with notifications | true |
+
+### Paths
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_PATHS__TICKETS` | Directory containing ticket files | .tickets |
+| `OPERATOR_PATHS__PROJECTS` | Root directory for project discovery | . |
+| `OPERATOR_PATHS__STATE` | Directory for persistent operator state | .tickets/operator |
+| `OPERATOR_PATHS__WORKTREES` | Directory for per-ticket git worktrees | ~/.operator/worktrees |
+
+### UI
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_UI__REFRESH_RATE_MS` | UI refresh rate in milliseconds | 250 |
+| `OPERATOR_UI__SUMMARY_MAX_LENGTH` | Maximum length of ticket summaries in the UI | 60 |
+
+### Launch
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_LAUNCH__MODE` | Agent launch mode (tmux or direct) | tmux |
+| `OPERATOR_LAUNCH__CONFIRM` | Require confirmation before launching agents | true |
+
+### Tmux
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_TMUX__SESSION_PREFIX` | Prefix for tmux session names | operator |
+
+### LLM Tools
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_LLM_TOOLS__ENABLED` | Enable LLM tool allowlist/denylist functionality | true |
+| `OPERATOR_LLM_TOOLS__ALLOWED` | Comma-separated list of allowed LLM tools (empty = all allowed) |  |
+| `OPERATOR_LLM_TOOLS__DENIED` | Comma-separated list of denied LLM tools |  |
+
+### Logging
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `OPERATOR_LOGGING__LEVEL` | Log level (trace, debug, info, warn, error) | info |
+| `OPERATOR_LOGGING__TO_FILE` | Write logs to file in addition to stderr | true |
+| `OPERATOR_LOGGING__FORMAT` | Console and file log format (text or json). JSON lines include trace_id and span_id | text |
+

@@ -1,5 +1,6 @@
 source "https://rubygems.org"
 
+gem "addressable", ">= 2.9.1", require: false
 gem "jekyll", "~> 4.3"
 gem "webrick" # Required for Ruby 3.0+
 

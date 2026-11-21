@@ -52,7 +52,7 @@ export function TicketCreateForm({
           <option value="">Choose a type…</option>
           {issueTypes.map((issueType) => (
             <option key={issueType.key} value={issueType.key}>
-              {issueType.glyph} {issueType.key} — {issueType.name}
+              {issueType.glyph} {issueType.key} - {issueType.name}
             </option>
           ))}
         </select>

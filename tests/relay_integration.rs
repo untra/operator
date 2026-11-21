@@ -40,8 +40,6 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-// ── Enable guard ──────────────────────────────────────────────────────────────
-
 fn relay_tests_enabled() -> bool {
     std::env::var("OPERATOR_RELAY_INTEGRATION_TEST_ENABLED")
         .map(|v| v == "true" || v == "1")
@@ -56,8 +54,6 @@ macro_rules! skip_if_not_configured {
         }
     };
 }
-
-// ── Test context ──────────────────────────────────────────────────────────────
 
 struct RelayTestContext {
     hub: RelayHub,
@@ -90,8 +86,6 @@ impl RelayTestContext {
         .unwrap_or_else(|e| panic!("failed to connect as {name}: {e}"))
     }
 }
-
-// ── Layer 1: ChannelSession over real socket ──────────────────────────────────
 
 #[tokio::test]
 async fn test_register_and_list_peers() {
@@ -343,8 +337,6 @@ async fn test_peer_gone_on_disconnect() {
     ctx.hub.shutdown().await;
 }
 
-// ── Layer 2: opr8r relay binary via JSON-RPC stdio ───────────────────────────
-
 /// Returns `(binary_path, extra_args)` for invoking the relay MCP server.
 ///
 /// Preference order:
@@ -473,7 +465,7 @@ async fn test_binary_initialize() {
         "missing claude/channel in experimental: {resp}"
     );
 
-    drop(stdin); // Close stdin → process exits
+    drop(stdin);
     let _ = child.wait().await;
     ctx.hub.shutdown().await;
 }
@@ -1017,7 +1009,7 @@ async fn test_binary_ask_error_notification_uses_lowercase_code() {
     )
     .await;
 
-    // Ask a non-existent peer → peer_not_found error
+    // Ask a non-existent peer -> peer_not_found error
     rpc_send(
         &mut stdin,
         serde_json::json!({

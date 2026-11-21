@@ -953,8 +953,6 @@ status: queued
         assert!(!result.is_success());
     }
 
-    // ── OpenSpec end-to-end sync ────────────────────────────────────────────
-
     fn openspec_test_config(root: &std::path::Path) -> Config {
         let mut config = Config::default();
         config.paths.tickets = root.join(".tickets").to_string_lossy().into_owned();
@@ -1057,8 +1055,6 @@ status: queued
             .await
             .is_err());
     }
-
-    // ── Relationship sync ───────────────────────────────────────────────────
 
     fn sync_service(root: &std::path::Path) -> KanbanSyncService {
         let mut config = Config::default();
@@ -1227,8 +1223,6 @@ status: queued
         assert_eq!(result.created, vec!["PROJ-42"]);
         assert_eq!(ticket_count(temp.path()), 2);
     }
-
-    // ── Scoped sync into a campaign ─────────────────────────────────────────
 
     fn all_tickets(root: &std::path::Path) -> Vec<Ticket> {
         ["queue", "in-progress", "completed"]

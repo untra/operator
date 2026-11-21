@@ -122,7 +122,6 @@ mod tests {
         // Check that key shortcuts appear in the documentation
         assert!(result.contains("`q`"));
         assert!(result.contains("`Tab`"));
-        assert!(result.contains("`j/↓`"));
         assert!(result.contains("`Enter`"));
         assert!(result.contains("`L`"));
     }

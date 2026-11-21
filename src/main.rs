@@ -715,7 +715,7 @@ async fn cmd_launch(
 
     // Resolve launch options from the CLI overrides (a named delegator, or the
     // ad-hoc --llm-tool/--model/--model-server trio). The chosen model server's
-    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, …) are threaded into
+    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, etc) are threaded into
     // LaunchOptions.provider.env and exported before the agent CLI spawns.
     let launch_options = crate::agents::delegator_resolution::resolve_launch_options(
         config,

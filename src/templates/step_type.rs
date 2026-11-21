@@ -142,8 +142,6 @@ pub fn effective_agent(step: &StepSchema) -> Option<&str> {
     }
 }
 
-// ── Per-type prompt augmentation ────────────────────────────────────────
-
 fn classifier_prompt_augmentation(cfg: &ClassifierConfig) -> String {
     let type_desc = match cfg.output_type {
         ClassifierOutputType::Boolean => "a boolean (true or false)".to_string(),
@@ -231,8 +229,6 @@ fn mcp_prompt_augmentation(cfg: &McpStepConfig) -> String {
 
     parts.join("\n")
 }
-
-// ── Multi-agent aggregation ─────────────────────────────────────────
 
 use crate::templates::schema::{
     MatrixedConfig, MatrixedOutputFormat, MultiModelConfig, MultiPromptConfig, VotingStrategy,
@@ -628,8 +624,6 @@ mod tests {
         }
     }
 
-    // ── classifier_json_schema tests ────────────────────────────────
-
     #[test]
     fn test_classifier_schema_boolean() {
         let cfg = ClassifierConfig {
@@ -697,8 +691,6 @@ mod tests {
         let required = schema["required"].as_array().unwrap();
         assert!(required.contains(&serde_json::json!("value")));
     }
-
-    // ── prompt_augmentation tests ───────────────────────────────────
 
     #[test]
     fn test_task_no_augmentation() {
@@ -775,8 +767,6 @@ mod tests {
         assert!(aug.contains("All tools from `slack`"));
     }
 
-    // ── effective_agent tests ───────────────────────────────────────
-
     #[test]
     fn test_effective_agent_task_uses_step_agent() {
         let mut step = make_base_step(StepTypeTag::Task);
@@ -823,8 +813,6 @@ mod tests {
         assert_eq!(effective_agent(&step), Some("claude-opus-security"));
     }
 
-    // ── effective_allowed_tools tests ───────────────────────────────
-
     #[test]
     fn test_effective_tools_task_uses_step_tools() {
         let step = make_base_step(StepTypeTag::Task);
@@ -856,8 +844,6 @@ mod tests {
         });
         assert_eq!(effective_allowed_tools(&step), &["Read".to_string()]);
     }
-
-    // ── Aggregation tests ──────────────────────────────────────────
 
     fn make_multi_model_config() -> MultiModelConfig {
         MultiModelConfig {

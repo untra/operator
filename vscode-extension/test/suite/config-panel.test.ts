@@ -3,7 +3,7 @@
  *
  * The canonical list of kanban providers lives in the Rust
  * `KanbanProviderType::ALL` catalog and is projected into the generated
- * `KanbanConfig` TypeScript type (keys: jira, linear, github, …). These tests
+ * `KanbanConfig` TypeScript type (keys: jira, linear, github, etc). These tests
  * guard the invariant that the webview config write path supports EVERY
  * provider in that catalog - so a future provider can't be added to the schema
  * without also being wired into `config-panel.ts`.

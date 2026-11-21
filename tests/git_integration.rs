@@ -34,8 +34,6 @@ use std::env;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-// ─── Configuration Helpers ───────────────────────────────────────────────────
-
 /// Branch prefix for all test branches (easy to identify and cleanup)
 const TEST_BRANCH_PREFIX: &str = "optest/";
 
@@ -110,8 +108,6 @@ async fn get_default_branch(repo_path: &Path) -> String {
     // Fallback to origin/main (works in CI where local main doesn't exist)
     "origin/main".to_string()
 }
-
-// ─── GitCli Read-Only Tests ──────────────────────────────────────────────────
 
 mod git_cli_readonly_tests {
     use super::*;
@@ -271,7 +267,6 @@ mod git_cli_readonly_tests {
     }
 }
 
-// ─── GitCli Remote Tests ─────────────────────────────────────────────────────
 
 mod git_cli_remote_tests {
     use super::*;
@@ -325,8 +320,6 @@ mod git_cli_remote_tests {
         assert!(!exists, "Non-existent branch should return false");
     }
 }
-
-// ─── GitCli Branch Lifecycle Tests ───────────────────────────────────────────
 
 mod git_cli_branch_lifecycle_tests {
     use super::*;
@@ -403,8 +396,6 @@ mod git_cli_branch_lifecycle_tests {
         eprintln!("Local branch test completed");
     }
 }
-
-// ─── GitCli Worktree Tests ───────────────────────────────────────────────────
 
 mod git_cli_worktree_tests {
     use super::*;
@@ -547,8 +538,6 @@ mod git_cli_worktree_tests {
         eprintln!("Repair worktrees completed");
     }
 }
-
-// ─── WorktreeManager Tests ───────────────────────────────────────────────────
 
 mod worktree_manager_tests {
     use super::*;
@@ -813,10 +802,6 @@ mod worktree_manager_tests {
         assert!(remaining.is_empty(), "All worktrees should be cleaned up");
     }
 }
-
-// ─── WorktreeManager Error Tests ─────────────────────────────────────────────
-
-// ─── GitCli Empty Repo Tests ──────────────────────────────────────────────────
 
 mod git_cli_empty_repo_tests {
     use super::*;

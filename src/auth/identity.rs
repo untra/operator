@@ -17,7 +17,7 @@ use crate::rest::dto::auth::{AccessKeySummary, PrincipalKind};
 
 pub const KEY_PREFIX: &str = "opk_v1";
 pub const KEY_LENGTH: usize = 87;
-pub const KEY_PAGE_SIZE: usize = 50;
+pub const KEY_PAGE_SIZE: u32 = 50;
 pub const RECENT_LOGIN_SECONDS: i64 = 300;
 pub const ISSUANCE_WINDOW_SECONDS: u32 = 3600;
 const MAX_ISSUED_PER_WINDOW: u32 = 20;

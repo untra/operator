@@ -53,7 +53,7 @@ export function PermissionSelector({
                     {metadata && (
                       <span>
                         {" "}
-                        — {metadata.label}. {metadata.description}
+                        - {metadata.label}. {metadata.description}
                       </span>
                     )}
                   </label>

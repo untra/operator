@@ -267,8 +267,6 @@ mod tests {
         );
     }
 
-    // ── Pipeline step emission ──────────────────────────────────────
-
     #[test]
     fn pipeline_static_emits_literal_items_and_stage_thunks() {
         let out = export(

@@ -153,7 +153,7 @@ A model provider is **connected** when its model-list probe succeeds. Gateways (
 
 ## LLM tool × model provider
 
-**Native** — the CLI speaks this provider's protocol. **Bridge** — a protocol-preserving front (claude-code-router, litellm, …) is required. **Incompatible** — this first-party API is the wrong protocol for the CLI.
+**Native** - the CLI speaks this provider's protocol. **Bridge** - a protocol-preserving front (claude-code-router, litellm, …) is required. **Incompatible** - this first-party API is the wrong protocol for the CLI.
 
 Operator does not currently block incompatible delegators at launch; this matrix is the catalog fact.
 

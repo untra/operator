@@ -133,7 +133,6 @@ pub enum FieldType {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export, optional_fields = nullable)]
 pub struct StepSchema {
-    // ── Common base (all step types) ────────────────────────────────
     /// Step identifier (lowercase)
     pub name: String,
     /// Human-readable step name
@@ -162,7 +161,6 @@ pub struct StepSchema {
     #[serde(default)]
     pub next_step: Option<String>,
 
-    // ── Task fields (backward-compat, used when type=task) ──────────
     /// Claude Code tools allowed in this step
     #[serde(default)]
     pub allowed_tools: Vec<String>,
@@ -188,7 +186,6 @@ pub struct StepSchema {
     #[serde(default)]
     pub artifact_patterns: Vec<String>,
 
-    // ── Type-specific configs ───────────────────────────────────────
     /// Configuration for classifier steps (required when type=classifier)
     #[serde(default)]
     pub classifier_config: Option<ClassifierConfig>,
@@ -353,8 +350,6 @@ fn default_step_type() -> StepTypeTag {
     StepTypeTag::Task
 }
 
-// ── Classifier ──────────────────────────────────────────────────────────
-
 /// Configuration for classifier steps that return structured typed output
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export, optional_fields = nullable)]
@@ -388,8 +383,6 @@ pub enum ClassifierOutputType {
     /// One of a fixed set of options
     Enum,
 }
-
-// ── RAG ─────────────────────────────────────────────────────────────────
 
 /// Configuration for RAG (retrieval-augmented generation) steps
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -435,8 +428,6 @@ pub enum RagSource {
     },
 }
 
-// ── Delegator Step ──────────────────────────────────────────────────────
-
 /// Configuration for delegator steps that run with a specific model+flavor
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export, optional_fields = nullable)]
@@ -453,8 +444,6 @@ pub struct DelegatorStepConfig {
     #[serde(default)]
     pub permissions: Option<StepPermissions>,
 }
-
-// ── MCP Step ────────────────────────────────────────────────────────────
 
 /// Configuration for MCP steps that require specific MCP tools
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -483,8 +472,6 @@ pub struct McpToolRef {
     #[serde(default)]
     pub tool: Option<String>,
 }
-
-// ── Multi-Model ─────────────────────────────────────────────────────────
 
 /// Configuration for multi-model delegation steps (fan-out + vote)
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
@@ -532,8 +519,6 @@ pub enum VotingMode {
     MultiVoter,
 }
 
-// ── Multi-Prompt ────────────────────────────────────────────────────────
-
 /// Configuration for multi-prompt interrogation steps (N variations, select best)
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export, optional_fields = nullable)]
@@ -563,8 +548,6 @@ pub enum SelectionStrategy {
     Scored,
 }
 
-// ── Matrixed ────────────────────────────────────────────────────────────
-
 /// Configuration for matrixed work output steps (N x M delegators x prompts)
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export, optional_fields = nullable)]
@@ -590,8 +573,6 @@ pub enum MatrixedOutputFormat {
     /// Structured N x M JSON matrix in step output artifact
     Structured,
 }
-
-// ── Pipeline ────────────────────────────────────────────────────────────
 
 /// Configuration for pipeline steps: iterate a list of items through ordered
 /// stages with no barrier (each item flows through all stages independently).
@@ -621,10 +602,10 @@ pub struct PipelineStage {
     /// Optional agent/delegator name (falls back to the step/issuetype agent).
     #[serde(default)]
     pub agent: Option<String>,
-    /// Optional model pin (emitted as `{ model: … }`).
+    /// Optional model pin (emitted as `{ model: ... }`).
     #[serde(default)]
     pub model: Option<String>,
-    /// Optional structured-output JSON schema (emitted as `{ schema: … }`).
+    /// Optional structured-output JSON schema (emitted as `{ schema: ... }`).
     #[serde(default, rename = "jsonSchema")]
     pub json_schema: Option<serde_json::Value>,
     /// Optional display label override (defaults to `<step>:<stage-index>`).
@@ -1506,8 +1487,6 @@ mod tests {
         assert!(schema.steps[0].agent.is_none());
     }
 
-    // ── Step type tests ─────────────────────────────────────────────
-
     #[test]
     fn test_step_type_defaults_to_task() {
         let json = r#"{
@@ -2064,8 +2043,6 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err()[0].contains("at least one required or optional tool"));
     }
-
-    // ── Pipeline step validation ────────────────────────────────────
 
     /// Wrap a single pipeline step's JSON into a full template and validate it.
     fn validate_pipeline_step(step_json: &str) -> Result<(), Vec<String>> {

@@ -1,6 +1,6 @@
 //! The Operator icon standard, enforced.
 //!
-//! Every icon Operator ships is a **Simple Icons-shaped glyph**: a single monochrome `<path>` on a 24×24 canvas that carries no color or size of its
+//! Every icon Operator ships is a **Simple Icons-shaped glyph**: a single monochrome `<path>` on a 24x24 canvas that carries no color or size of its
 //! own. That shape is what makes one file reusable across all four rendering surfaces at any size and in either theme.
 //!
 //! The rules, and why each one exists:
@@ -15,7 +15,7 @@
 //! | No `width`/`height` | Size is the container's decision; a pinned size breaks every other usage. |
 //! | No `on*` handlers or external refs | These files get inlined verbatim into generated pages. |
 //!
-//! Adding an icon: copy the shape from <https://simpleicons.org> where one exists, or draw a single path on a 24×24 grid.
+//! Adding an icon: copy the shape from <https://simpleicons.org> where one exists, or draw a single path on a 24x24 grid.
 //! Run `cargo test --test svg_icon_standard` before committing.
 
 use std::path::{Path, PathBuf};
@@ -137,7 +137,7 @@ fn test_every_icon_matches_the_operator_icon_standard() {
 
         let caps = svg_re
             .captures(svg.trim())
-            .unwrap_or_else(|| panic!("{name}: not a single <svg>…</svg> document"));
+            .unwrap_or_else(|| panic!("{name}: not a single <svg>...</svg> document"));
         let (root_attrs, body) = (&caps[1], &caps[2]);
 
         // 1. Root attributes: one coordinate space, and named for assistive tech.

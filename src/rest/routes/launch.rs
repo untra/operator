@@ -1396,8 +1396,6 @@ mod tests {
         assert_eq!(options.prompt_suffix.as_deref(), Some("END"));
     }
 
-    // ─── Multi-agent grouped completion tests ───────────────────────────
-
     use crate::queue::Ticket;
     use crate::rest::dto::OperatorOutput;
     use crate::state::{PendingSubAgent, State};
@@ -1644,8 +1642,6 @@ mod tests {
         assert!(expected.exists());
     }
 
-    // ─── complete_step chain-hardening tests ────────────────────────────
-    //
     // Uses the builtin SYNC issuetype (scan -> validate -> update): "scan"
     // and "validate" both have review_type None (auto_proceed), which lets
     // duplicate-advance be reproduced (a 2-step type has nowhere further to

@@ -55,8 +55,6 @@ use std::collections::HashSet;
 use std::env;
 use std::sync::Arc;
 
-// ─── Configuration Helpers ───────────────────────────────────────────────────
-
 /// Check if git-provider tests are enabled
 fn gitprovider_tests_enabled() -> bool {
     env::var("OPERATOR_GITPROVIDER_TEST_ENABLED")
@@ -84,8 +82,6 @@ macro_rules! skip_if_not_configured {
         }
     };
 }
-
-// ─── Provider Table ──────────────────────────────────────────────────────────
 
 /// One row of the live provider test table. Adding a new operational
 /// provider (bitbucket, azure, forgejo) is just adding a row here
@@ -166,8 +162,6 @@ fn case_by_slug(slug: &str) -> &'static ProviderCase {
         .find(|case| case.slug == slug)
         .unwrap_or_else(|| panic!("no ProviderCase for slug {slug}"))
 }
-
-// ─── Shared Row Runner ────────────────────────────────────────────────────────
 
 /// The `GitConfig` a row's service and URL parsing both resolve against.
 /// Self-hosted rows register the live repo's own origin as their host.
@@ -296,8 +290,6 @@ async fn run_provider_case(case: &ProviderCase) {
     );
 }
 
-// ─── Live Tests (one per row) ─────────────────────────────────────────────────
-
 #[tokio::test]
 async fn test_github_provider_live() {
     run_provider_case(case_by_slug("github")).await;
@@ -312,8 +304,6 @@ async fn test_gitlab_provider_live() {
 async fn test_gitea_provider_live() {
     run_provider_case(case_by_slug("gitea")).await;
 }
-
-// ─── CLI Flag Contract (no credentials, no network) ──────────────────────────
 
 /// Every long flag an argv builder emits must appear in the installed CLI's
 /// own `--help`. This needs the binary but no auth and no repository, so it
@@ -382,8 +372,6 @@ fn provider_cli_flags_are_accepted_by_the_installed_binary() {
     }
     eprintln!("verified argv flags against {checked} installed CLI(s)");
 }
-
-// ─── Table Invariants (plain `cargo test`, no gating) ────────────────────────
 
 /// CI wires every row with `${{ vars.X || '' }}`, which exports an empty
 /// string when the variable is undefined -- a blank value must read as unset.

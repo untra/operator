@@ -178,7 +178,7 @@ impl SessionMonitor {
     ///
     /// Also detects resume: content changed while in awaiting status.
     ///
-    /// `artifact_context` maps `agent_id` → (`worktree_path`, `artifact_patterns`) for
+    /// `artifact_context` maps `agent_id` -> (`worktree_path`, `artifact_patterns`) for
     /// positive completion detection. When an agent is idle AND its artifacts exist,
     /// the session is added to `artifact_ready` instead of just `awaiting_input`.
     pub fn check_health(

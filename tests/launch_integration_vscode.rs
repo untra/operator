@@ -33,8 +33,6 @@ use operator::agents::{LaunchOptions, Launcher, PreparedLaunch};
 use operator::config::Config;
 use operator::queue::Ticket;
 
-// ─── Configuration ──────────────────────────────────────────────────────────
-
 fn vscode_tests_enabled() -> bool {
     env::var("OPERATOR_VSCODE_TEST_ENABLED")
         .map(|v| v == "true" || v == "1")
@@ -74,8 +72,6 @@ fn load_ticket_from_queue(ctx: &LaunchTestContext) -> Ticket {
         .expect("Should have a ticket file");
     Ticket::from_file(&ticket_file.path()).expect("Should parse ticket")
 }
-
-// ─── Test Cases ─────────────────────────────────────────────────────────────
 
 #[test]
 fn test_vscode_config_parsing() {

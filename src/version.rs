@@ -145,8 +145,6 @@ fn parse_semver(version: &str) -> Option<(u32, u32, u32)> {
 mod tests {
     use super::*;
 
-    // ─── Validation Tests ───────────────────────────────────────────────────
-
     #[test]
     fn test_validate_version_response_success() {
         let result = validate_version_response(StatusCode::OK, "0.1.10");
@@ -195,8 +193,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // ─── Semver Format Tests ────────────────────────────────────────────────
-
     #[test]
     fn test_is_semver_format_valid() {
         assert!(is_semver_format("0.1.10"));
@@ -215,8 +211,6 @@ mod tests {
         assert!(!is_semver_format("1.0.x"));
         assert!(!is_semver_format(""));
     }
-
-    // ─── Version Comparison Tests ───────────────────────────────────────────
 
     #[test]
     fn test_is_newer_version_patch() {
@@ -251,8 +245,6 @@ mod tests {
         assert!(is_newer_version("0.1.9", "v0.1.10"));
         assert!(is_newer_version("v0.1.9", "0.1.10"));
     }
-
-    // ─── Semver Parsing Tests ───────────────────────────────────────────────
 
     #[test]
     fn test_parse_semver_valid() {

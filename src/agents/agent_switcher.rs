@@ -352,8 +352,6 @@ mod tests {
         }
     }
 
-    // ─── exit_command_for_tool tests ─────────────────────────────────────────────
-
     #[test]
     fn test_exit_command_for_tool() {
         assert_eq!(exit_command_for_tool("claude"), "/exit");
@@ -361,8 +359,6 @@ mod tests {
         assert_eq!(exit_command_for_tool("codex"), "\x03");
         assert_eq!(exit_command_for_tool("unknown"), "/exit"); // default
     }
-
-    // ─── needs_switch tests ─────────────────────────────────────────────────────
 
     #[test]
     fn test_needs_switch_different_tool() {
@@ -432,8 +428,6 @@ mod tests {
         assert_eq!(delegator.llm_tool, "claude");
         assert_eq!(delegator.model, "sonnet");
     }
-
-    // ─── switch_agent tests ─────────────────────────────────────────────────────
 
     #[test]
     fn test_switch_agent_graceful_exit() {

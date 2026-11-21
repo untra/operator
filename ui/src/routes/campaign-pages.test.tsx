@@ -203,7 +203,7 @@ describe("CampaignDetailPage", () => {
   test("previews with a dry run before launching", async () => {
     const requests = serve(true);
     mount(DETAIL_ENTRY);
-    fireEvent.click(await screen.findByRole("button", { name: "Launch…" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Launch" }));
     fireEvent.click(await screen.findByRole("button", { name: "Confirm launch" }));
     await waitFor(() => {
       expect(requests.filter((r) => r.path.endsWith("/launch")).length).toBe(2);
@@ -218,7 +218,7 @@ describe("CampaignDetailPage", () => {
   test("offers pause only while running", async () => {
     serve(true, "draft");
     mount(DETAIL_ENTRY);
-    await screen.findByRole("button", { name: "Launch…" });
+    await screen.findByRole("button", { name: "Launch" });
     expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
     cleanup();
     resetSessionState();

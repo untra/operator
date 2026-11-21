@@ -122,7 +122,7 @@ export function Layout() {
           }
           footer={
             <AccountFooter
-              username={username ?? "Loading account…"}
+              username={username ?? "Loading account..."}
               configurationName={selected?.name ?? "No configuration"}
               busy={logout.isPending}
               failed={signOutError}

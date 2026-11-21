@@ -52,9 +52,9 @@ pub struct CampaignDetail {
     pub campaign: Campaign,
     pub members: Vec<CampaignMember>,
     pub waves: Vec<Vec<String>>,
-    /// Member id → local tickets outside the campaign it waits on.
+    /// Member id - local tickets outside the campaign it waits on.
     pub gates: std::collections::BTreeMap<String, Vec<String>>,
-    /// Member id → unsynced upstream refs it waits on.
+    /// Member id - unsynced upstream refs it waits on.
     pub unsynced: std::collections::BTreeMap<String, Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan_error: Option<String>,

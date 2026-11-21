@@ -1,7 +1,7 @@
 // Generic page for a single status section, driven by a concept key. Renders the
 // standard PageHeader (title / rule / summary + docs link) above the live
 // SectionCard for that section, pulled from the shared sections context. Used by
-// the per-section sidebar routes (connections, kanban, llm, …).
+// the per-section sidebar routes (connections, kanban, llm, etc).
 
 import { CONCEPTS } from "../concepts";
 import { useSection } from "../sections-context";

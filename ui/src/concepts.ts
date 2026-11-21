@@ -1,4 +1,4 @@
-// The SPA's reference to the canonical concept→icon table documented in
+// The SPA's reference to the canonical concept -> icon table documented in
 // docs/design-system/ ("/design-system/"). Keyed by the SectionId serde rename
 // from src/ui/status_panel.rs for status concepts, plus the web-only Dashboard
 // and Queue pages. Each concept carries its codicon, sidebar/header label, the

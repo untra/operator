@@ -1,0 +1,348 @@
+# Local audit: unicleaner scan . --config unicleaner.toml
+# Directory scans respect Git ignores and skip hidden paths.
+[global]
+deny_by_default = true
+
+# Markdown permits prose; bidi controls remain forbidden.
+[[rules]]
+pattern = "**/*.md"
+allowed_ranges = [[0x0009, 0x000D], [0x0020, 0x007E], [0x0080, 0x10FFFF]]
+
+# Ticket-status display glyphs.
+[[rules]]
+pattern = "**/webcomponents/src/shared/ticket-fields.ts"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2022, 0x2022], # Bullet
+  [0x23F8, 0x23F8], # Pause
+  [0x25B6, 0x25B6], # Play
+  [0x2713, 0x2713], # Check mark
+]
+
+# Help-dialog keyboard shortcut arrows.
+[[rules]]
+pattern = "**/src/ui/dialogs/help.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2190, 0x2190], # Left arrow
+  [0x2192, 0x2192], # Right arrow
+]
+
+# Schema documentation example placeholders.
+[[rules]]
+pattern = "**/src/templates/schema.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2026, 0x2026], # Ellipsis
+]
+
+# Startup navigation instructions.
+[[rules]]
+pattern = "**/src/startup/steps.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2191, 0x2191], # Up arrow
+  [0x2193, 0x2193], # Down arrow
+]
+
+# Storybook fixture glyphs.
+[[rules]]
+pattern = "**/webcomponents/stories/fixtures/operator.ts"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x25B2, 0x25B2], # Triangle
+  [0x25C6, 0x25C6], # Diamond
+  [0x25C9, 0x25C9], # Fisheye
+  [0x25CF, 0x25CF], # Circle
+  [0x2B22, 0x2B22], # Hexagon
+]
+
+# Upstream naiveasync emoji literal type.
+[[rules]]
+pattern = "**/ui/src/naiveasync.d.ts"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x1F501, 0x1F501], # Repeat emoji
+]
+
+# Theme-toggle icons and sign-out progress text.
+[[rules]]
+pattern = "**/webcomponents/src/components/AppShell.tsx"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2026, 0x2026], # Ellipsis
+  [0x2600, 0x2600], # Sun
+  [0x263E, 0x263E], # Moon
+]
+
+# Unicode slugify regression-test inputs and expected outputs.
+[[rules]]
+pattern = "**/src/queue/mod.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00E9, 0x00E9], # Latin small e with acute
+  [0x4E16, 0x4E16], # CJK ideograph
+  [0x754C, 0x754C], # CJK ideograph
+  [0x1F680, 0x1F680], # Rocket emoji
+]
+
+# CLI display glyphs and existing comment punctuation.
+[[rules]]
+pattern = "{src/main.rs,./src/main.rs,**/operator/src/main.rs}"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2026, 0x2026], # Ellipsis
+  [0x23F8, 0x23F8], # Pause
+  [0x2500, 0x2500], # Horizontal separator
+  [0x25B6, 0x25B6], # Play
+  [0x2713, 0x2713], # Check mark
+]
+
+# Feature-parity report indicators.
+[[rules]]
+pattern = "**/tests/feature_parity_test.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2713, 0x2713], # Check mark
+  [0x2717, 0x2717], # Ballot X
+]
+
+# Expected campaign labels and status separators.
+[[rules]]
+pattern = "**/vscode-extension/test/suite/campaign-provider.test.ts"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00B7, 0x00B7], # Middle dot
+]
+
+# Vertical-parity report indicators.
+[[rules]]
+pattern = "**/tests/vertical_parity.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2713, 0x2713], # Check mark
+  [0x2717, 0x2717], # Ballot X
+]
+
+# Panel status indicators and keyboard hints.
+[[rules]]
+pattern = "**/src/ui/panels.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x21E7, 0x21E7], # Shift arrow
+  [0x23F8, 0x23F8], # Pause
+  [0x25B6, 0x25B6], # Play
+  [0x25CB, 0x25CB], # Hollow circle
+  [0x25CF, 0x25CF], # Filled circle
+  [0x2713, 0x2713], # Check mark
+]
+
+# Arrow-key display labels and their tests.
+[[rules]]
+pattern = "**/src/ui/keybindings.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2190, 0x2190], # Left arrow
+  [0x2191, 0x2191], # Up arrow
+  [0x2192, 0x2192], # Right arrow
+  [0x2193, 0x2193], # Down arrow
+]
+
+# Unicode slugify regression-test input.
+[[rules]]
+pattern = "**/src/queue/ids.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00DC, 0x00DC], # Latin capital U with diaeresis
+  [0x00E7, 0x00E7], # Latin small c with cedilla
+  [0x00E9, 0x00E9], # Latin small e with acute
+  [0x00EF, 0x00EF], # Latin small i with diaeresis
+  [0x00F6, 0x00F6], # Latin small o with diaeresis
+  [0x65E5, 0x65E5], # CJK ideograph
+  [0x672C, 0x672C], # CJK ideograph
+  [0x8A9E, 0x8A9E], # CJK ideograph
+]
+
+# Progress-bar glyphs and their tests.
+[[rules]]
+pattern = "**/src/api/providers/ai/mod.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2588, 0x2588], # Full block
+  [0x2591, 0x2591], # Light shade
+]
+
+# Unicode branch-name sanitization regression tests.
+[[rules]]
+pattern = "**/src/agents/launcher/worktree_setup.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00E9, 0x00E9], # Latin small e with acute
+  [0x65E5, 0x65E5], # CJK ideograph
+  [0x672C, 0x672C], # CJK ideograph
+  [0x8A9E, 0x8A9E], # CJK ideograph
+  [0x1F389, 0x1F389], # Party popper emoji
+]
+
+# Kanban onboarding navigation, status, and masked-input glyphs.
+[[rules]]
+pattern = "**/src/ui/dialogs/kanban_onboarding.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2022, 0x2022], # Bullet
+  [0x2026, 0x2026], # Ellipsis
+  [0x2191, 0x2191], # Up arrow
+  [0x2193, 0x2193], # Down arrow
+  [0x25B6, 0x25B6], # Selection marker
+  [0x2713, 0x2713], # Check mark
+  [0x2717, 0x2717], # Ballot X
+]
+
+# Sync-confirmation status and direction indicators.
+[[rules]]
+pattern = "**/src/ui/dialogs/sync_confirm.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2192, 0x2192], # Right arrow
+  [0x25B6, 0x25B6], # Selection marker
+  [0x2713, 0x2713], # Check mark
+]
+
+# Masking glyph and Unicode editing regression tests.
+[[rules]]
+pattern = "**/src/ui/masked_input.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00E9, 0x00E9], # Latin small e with acute
+  [0x2022, 0x2022], # Bullet
+  [0x1F510, 0x1F510], # Closed lock with key emoji
+]
+
+# Command-wrapper documentation placeholders.
+[[rules]]
+pattern = "**/src/agents/launcher/step_command.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2026, 0x2026], # Ellipsis
+]
+
+# Terminal prompt and spinner activity-detection fixtures.
+[[rules]]
+pattern = "**/src/agents/activity.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x276F, 0x276F], # Prompt marker
+  [0x280B, 0x280B], # Braille spinner frame
+]
+
+# Kanban setup bullets, status indicators, and navigation hints.
+[[rules]]
+pattern = "**/src/ui/setup/steps/kanban.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2022, 0x2022], # Bullet
+  [0x2191, 0x2191], # Up arrow
+  [0x2193, 0x2193], # Down arrow
+  [0x2713, 0x2713], # Check mark
+  [0x2717, 0x2717], # Ballot X
+]
+
+# Launch-confirmation navigation and option indicators.
+[[rules]]
+pattern = "**/src/ui/dialogs/confirm.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2190, 0x2190], # Left arrow
+  [0x2191, 0x2191], # Up arrow
+  [0x2192, 0x2192], # Right arrow
+  [0x2193, 0x2193], # Down arrow
+  [0x2500, 0x2500], # Horizontal separator
+  [0x25B6, 0x25B6], # Selection marker
+  [0x25CB, 0x25CB], # Hollow circle
+  [0x25CF, 0x25CF], # Filled circle
+]
+
+# Invalid profile-name regression-test input.
+[[rules]]
+pattern = "**/src/profiles.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00E9, 0x00E9], # Latin small e with acute
+]
+
+# Terminal prompt and spinner idle-detection fixtures.
+[[rules]]
+pattern = "**/src/agents/idle_detector.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x276F, 0x276F], # Prompt marker
+  [0x280B, 0x280B], # Braille spinner frame
+  [0x2819, 0x2819], # Braille spinner frame
+]
+
+# Session status and section-heading glyphs.
+[[rules]]
+pattern = "**/src/ui/in_progress_panel.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2500, 0x2500], # Horizontal separator
+  [0x2713, 0x2713], # Check mark
+]
+
+# Git branch and dirty-worktree statusline indicators.
+[[rules]]
+pattern = "**/scripts/operator-statusline.sh"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00B1, 0x00B1], # Plus-minus sign
+  [0x271A, 0x271A], # Heavy cross
+]
+
+# Connection-description separators and their tests.
+[[rules]]
+pattern = "**/src/ui/sections/connections_section.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x00B7, 0x00B7], # Middle dot
+]
+
+# Hosted-collection progress and provenance indicators.
+[[rules]]
+pattern = "**/src/ui/setup/steps/hosted.rs"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2026, 0x2026], # Ellipsis
+  [0x24D8, 0x24D8], # Information icon
+  [0x26A0, 0x26A0], # Warning sign
+  [0x2713, 0x2713], # Check mark
+]

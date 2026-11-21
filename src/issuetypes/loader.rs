@@ -177,22 +177,6 @@ pub fn load_collections(path: &Path) -> Result<HashMap<String, IssueTypeCollecti
 
 /// Load collections from directory structure
 ///
-/// Structure (flattened - no issues/ subfolder):
-/// ```text
-/// templates/
-/// ├── dev_kanban/
-/// │   ├── collection.json  (optional: description, issue_types order)
-/// │   ├── TASK.json
-/// │   ├── TASK.md
-/// │   ├── FEAT.json
-/// │   ├── FEAT.md
-/// │   ├── FIX.json
-/// │   └── FIX.md
-/// ├── devops_kanban/
-/// │   ├── collection.json
-/// │   └── ...
-/// ```
-///
 /// Each subdirectory of `templates_path` is treated as a collection.
 /// Issue types (*.json files) are loaded directly from the collection directory.
 /// Optional `collection.json` (or legacy `collection.toml`) specifies the

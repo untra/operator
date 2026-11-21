@@ -37,8 +37,6 @@ use operator::config::ModelServer;
 use std::env;
 use tokio::sync::OnceCell;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 /// Build a probe target for a kind. `base_url: None` lets the probe fall back to
 /// the kind's `default_base_url`; `api_key_env` points the probe at the
 /// `OPERATOR_*` test var (else the kind's default probe var).
@@ -127,8 +125,6 @@ async fn probe_models_owned(kind: &'static str, api_key_env: &'static str) -> Pr
     .await
 }
 
-// ─── Keyless OpenRouter baseline (no secret, runs every CI run) ───────────────
-
 mod openrouter_keyless {
     use super::*;
 
@@ -160,8 +156,6 @@ mod openrouter_keyless {
         );
     }
 }
-
-// ─── Keyed per-provider tests ─────────────────────────────────────────────────
 
 mod anthropic {
     use super::*;
@@ -255,12 +249,9 @@ mod openrouter_keyed {
     }
 }
 
-// ─── Cross-provider consistency ───────────────────────────────────────────────
-
 /// Every configured + reachable provider returns the same uniform
 /// `ModelInfo { id, display_name }` shape - a non-empty id for each model - so a
-/// single dropdown component can render all of them. Skips when nothing is
-/// configured.
+/// single dropdown component can render all of them. Skips when nothing is configured.
 #[tokio::test]
 async fn test_all_providers_return_same_model_shape() {
     let mut checked = 0usize;

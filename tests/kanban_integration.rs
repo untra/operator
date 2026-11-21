@@ -64,8 +64,6 @@ static JIRA_CREDENTIALS_VALID: OnceCell<bool> = OnceCell::const_new();
 static LINEAR_CREDENTIALS_VALID: OnceCell<bool> = OnceCell::const_new();
 static GITHUB_CREDENTIALS_VALID: OnceCell<bool> = OnceCell::const_new();
 
-// ─── Configuration Helpers ───────────────────────────────────────────────────
-
 /// Check if Jira credentials are configured (non-empty env vars)
 fn jira_configured() -> bool {
     env::var("OPERATOR_JIRA_DOMAIN")
@@ -258,8 +256,6 @@ macro_rules! skip_if_not_configured {
         }
     };
 }
-
-// ─── Jira Integration Tests ──────────────────────────────────────────────────
 
 mod jira_tests {
     use super::*;
@@ -479,8 +475,6 @@ mod jira_tests {
     }
 }
 
-// ─── Linear Integration Tests ────────────────────────────────────────────────
-
 mod linear_tests {
     use super::*;
 
@@ -621,7 +615,6 @@ mod linear_tests {
             "Issue should have OPTEST prefix"
         );
 
-        // ─── Cleanup: Move issue to terminal status ────────────────────────────────
         let statuses = provider
             .list_statuses(&team)
             .await
@@ -715,7 +708,6 @@ mod linear_tests {
             eprintln!("No alternative status available for transition test");
         }
 
-        // ─── Cleanup: Move issue to terminal status (Done) ─────────────────────────
         if let Some(done_status) = terminal_status {
             // Only transition if not already in terminal status
             if current_status.eq_ignore_ascii_case(&done_status) {
@@ -755,8 +747,6 @@ mod linear_tests {
         }
     }
 }
-
-// ─── GitHub Projects Integration Tests ───────────────────────────────────────
 
 mod github_tests {
     use super::*;
@@ -927,10 +917,7 @@ mod github_tests {
             "Issue should have OPTEST prefix"
         );
 
-        // ─── Cleanup: Move draft to terminal status ────────────────────────────────
-        // The provider exposes no deletion API; we move to Done so the test
-        // project remains visually sane. Drafts still accumulate - see file
-        // doc comment.
+        // The provider exposes no deletion API; we move to Done so the test project remains visually sane.
         let statuses = provider
             .list_statuses(&project)
             .await
@@ -1024,8 +1011,6 @@ mod github_tests {
         } else {
             eprintln!("No non-terminal status available for transition test");
         }
-
-        // ─── Cleanup: Move draft to terminal status (Done) ─────────────────────────
         if let Some(done_status) = terminal_status {
             eprintln!("Cleanup: Transitioning draft to terminal status: {done_status}");
 
@@ -1060,8 +1045,6 @@ mod github_tests {
         }
     }
 }
-
-// ─── Cross-Provider Tests ────────────────────────────────────────────────────
 
 #[tokio::test]
 async fn test_provider_interface_consistency() {

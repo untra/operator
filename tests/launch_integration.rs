@@ -36,8 +36,6 @@ use std::time::Duration;
 
 use launch_common::{LaunchTestContext, WrapperTestMode};
 
-// ─── Tmux-Specific Helpers ──────────────────────────────────────────────────
-
 /// Check if tmux is available on the system
 fn tmux_available() -> bool {
     Command::new("tmux")
@@ -131,8 +129,6 @@ impl Drop for TmuxTestContext {
         self.cleanup_sessions();
     }
 }
-
-// ─── Test Cases ─────────────────────────────────────────────────────────────
 
 #[test]
 fn test_launch_creates_tmux_session() {
@@ -446,8 +442,6 @@ This feature should have definition of done in its prompt.
         eprintln!("Note: DOD marker not found - template may not include it");
     }
 }
-
-// ─── Module Tests ───────────────────────────────────────────────────────────
 
 mod session_lifecycle {
     use super::*;

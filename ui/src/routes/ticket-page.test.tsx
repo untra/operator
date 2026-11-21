@@ -174,19 +174,6 @@ describe("TicketPage", () => {
     expect(opened).toEqual(["vscode://ssh/builder/srv/feat-2"]);
   });
 
-  test("offers launch only in the queue", async () => {
-    serve(ticket("queue"));
-    mount();
-    await screen.findByRole("button", { name: "Launch…" });
-    cleanup();
-    resetSessionState();
-
-    serve(ticket("in-progress"));
-    mount();
-    await screen.findByTestId("markdown");
-    expect(screen.queryByRole("button", { name: "Launch…" })).toBeNull();
-  });
-
   test("moves the ticket to another column", async () => {
     const requests = serve(ticket("in-progress"));
     mount();

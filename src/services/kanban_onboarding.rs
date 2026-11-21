@@ -23,8 +23,6 @@ use crate::rest::dto::{
 };
 use crate::rest::error::ApiError;
 
-// ─── Error helpers ──────────────────────────────────────────────────────────
-
 /// Map a provider-layer `ApiError` into a human-readable string for inline
 /// display in client UIs.
 fn provider_error_message(err: &crate::api::error::ApiError) -> String {
@@ -51,10 +49,8 @@ fn provider_error_message(err: &crate::api::error::ApiError) -> String {
     }
 }
 
-// ─── validate_credentials ───────────────────────────────────────────────────
 
-/// Validate credentials against the live provider API without persisting
-/// anything or mutating any state.
+/// Validate credentials against the live provider API without persisting anything.
 pub async fn validate_credentials(
     req: ValidateKanbanCredentialsRequest,
 ) -> Result<ValidateKanbanCredentialsResponse, ApiError> {
@@ -231,8 +227,6 @@ pub async fn validate_credentials(
     }
 }
 
-// ─── list_projects ──────────────────────────────────────────────────────────
-
 /// Fetch the list of projects (Jira) or teams (Linear) for the given creds.
 pub async fn list_projects(
     req: ListKanbanProjectsRequest,
@@ -299,8 +293,6 @@ pub async fn list_projects(
     })
 }
 
-// ─── list_statuses ──────────────────────────────────────────────────────────
-
 /// Fetch the workflow statuses/columns of a specific project using ephemeral
 /// creds, for populating the todo/doing/done mapping dropdowns during
 /// onboarding.
@@ -359,8 +351,6 @@ pub async fn list_statuses(
 
     Ok(ListKanbanStatusesResponse { statuses })
 }
-
-// ─── write_config ───────────────────────────────────────────────────────────
 
 /// Write or upsert a kanban config section to `config.toml`.
 ///
@@ -527,8 +517,6 @@ fn save_config_to_path(config: &Config, path: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-// ─── set_session_env ────────────────────────────────────────────────────────
-
 /// Set kanban-related env vars on the server process for the current session
 /// and return a shell export block the client can show to the user for
 /// copying into their shell profile.
@@ -639,8 +627,6 @@ pub fn build_shell_export_block_linear(api_key_env: &str) -> String {
 pub fn build_shell_export_block_github(api_key_env: &str) -> String {
     format!("export {api_key_env}=\"<your-github-projects-token>\"")
 }
-
-// ─── Tests ──────────────────────────────────────────────────────────────────
 
 fn gitea_provider(
     creds: Option<crate::rest::dto::GiteaCredentials>,

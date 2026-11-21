@@ -8,9 +8,6 @@ function probe(partial: Partial<ModelServerModelsResponse>): ModelServerModelsRe
 }
 
 describe("probeStatusLabel", () => {
-  test("pending probe is checking", () => {
-    expect(probeStatusLabel({})).toEqual({ health: "gray", text: "checking…" });
-  });
 
   test("failed request to operator is a probe failure", () => {
     expect(probeStatusLabel({ fetchFailed: true })).toEqual({

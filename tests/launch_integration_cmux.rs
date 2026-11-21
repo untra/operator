@@ -34,8 +34,6 @@ use operator::agents::{LaunchOptions, Launcher, MockCmuxClient};
 use operator::config::Config;
 use operator::queue::Ticket;
 
-// ─── Configuration ──────────────────────────────────────────────────────────
-
 fn cmux_tests_enabled() -> bool {
     env::var("OPERATOR_CMUX_TEST_ENABLED")
         .map(|v| v == "true" || v == "1")
@@ -58,8 +56,6 @@ fn setup_cmux_test(test_name: &str) -> (LaunchTestContext, Config) {
         Config::load(Some(ctx.config_path.to_str().unwrap())).expect("Failed to load test config");
     (ctx, config)
 }
-
-// ─── Test Cases ─────────────────────────────────────────────────────────────
 
 #[test]
 fn test_cmux_config_parsing() {

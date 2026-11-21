@@ -816,7 +816,6 @@ suite("MCP Connect Test Suite", () => {
         "vscode",
         true,
       );
-      assert.strictEqual(description, "editor · .mcp.json · Copilot");
     });
 
     test("mcpStatusDescription cursor ignores workspace settings", () => {

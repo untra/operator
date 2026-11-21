@@ -402,7 +402,7 @@ export class ConfigPanel {
 
       case "openOperatorUi": {
         // The webview now links out to the daemon-hosted Operator UI for
-        // surfaces it no longer reimplements (issue types, projects, …).
+        // surfaces it no longer reimplements (issue types, projects, etc).
         const route = message.route as string;
         const command =
           route === "projects"
@@ -653,13 +653,9 @@ export class ConfigPanel {
   }
 }
 
-// ─── Config TOML Helpers ────────────────────────────────────────────────
-
 interface TomlConfig {
   [key: string]: unknown;
 }
-
-// ─── Kanban Providers ───────────────────────────────────────────────────
 //
 // The canonical list of kanban providers lives in the Rust
 // `KanbanProviderType::ALL` catalog and is projected into the generated
@@ -793,7 +789,7 @@ export function applyKanbanProviderField(
       (projects[pKey] as TomlConfig)[field] = value;
     }
   } else {
-    // Instance-level scalar (enabled, api_key_env, email, …)
+    // Instance-level scalar (enabled, api_key_env, email, etc)
     ws[key] = value;
   }
 }

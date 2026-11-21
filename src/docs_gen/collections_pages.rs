@@ -2,12 +2,6 @@
 //!
 //! Emits the browsable face of the hosted collection bundle:
 //!
-//! ```text
-//! docs/workflows/
-//! ├── index.md          the catalog: vocabulary, cards, table, contributor CTA
-//! └── <id>/index.md     one collection: metadata + the split-view explorer
-//! ```
-//!
 //! Cards and table rows are rendered **here**, at generation time, each carrying
 //! a `data-search` haystack. `<operator-collection-search>` then filters the DOM
 //! that already exists, so the catalog renders in full with `JavaScript`

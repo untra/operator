@@ -89,8 +89,6 @@ pub struct LlmProvider {
     /// Optional display name for UI (e.g., "Claude Opus", "Codex High")
     #[serde(default)]
     pub display_name: Option<String>,
-
-    // ─── Variant fields (all optional) ───────────────────────────────
     /// Additional CLI flags for this provider (e.g., ["--dangerously-skip-permissions"])
     #[serde(default)]
     pub flags: Vec<String>,
@@ -170,7 +168,7 @@ pub struct Delegator {
     pub launch_config: Option<DelegatorLaunchConfig>,
     /// Name of a declared `ModelServer` (from `Config.model_servers`).
     /// `None` means use the `llm_tool`'s implicit vendor default
-    /// (claude : anthropic-api, codex : openai-api, gemini → google-api).
+    /// (claude : anthropic-api, codex : openai-api, gemini : google-api).
     #[serde(default)]
     pub model_server: Option<String>,
     /// Name of a `[[governance]]` policy enforced on every launch by this delegator.
@@ -302,7 +300,7 @@ pub struct ShippedLlmTool {
     /// Implicit builtin `ModelServer` name and kind (`google-api`).
     pub implicit_server: &'static str,
     /// Project-root marker files. `AGENTS.md` is the shared default; the vendor
-    /// file (`CLAUDE.md`, `GROK.md`, …) is the backup.
+    /// file (`CLAUDE.md`, `GROK.md`, etc) is the backup.
     pub markers: &'static [&'static str],
 }
 
@@ -374,7 +372,7 @@ pub fn is_implicit_model_server_name(name: &str) -> bool {
 /// Returns the implicit builtin `ModelServer` associated with a given `llm_tool`.
 ///
 /// Used when a `Delegator` has no explicit `model_server`. Unknown tools
-/// return `None` — they must name a `model_server` rather than inheriting a
+/// return `None` - they must name a `model_server` rather than inheriting a
 /// vendor default.
 pub fn implicit_model_server_for_tool(tool: &str) -> Option<ModelServer> {
     let shipped = shipped_llm_tool_by_name(tool)?;

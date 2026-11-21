@@ -19,7 +19,7 @@
 //! breaks every consumer at once:
 //!
 //! 1. It must be self-contained. No `use crate::...`, no reference to any other
-//!    module in this workspace — it has to compile when dropped into a crate
+//!    module in this workspace - it has to compile when dropped into a crate
 //!    that has never heard of `trust-core`.
 //! 2. It must carry no `#[cfg(test)]` code. A consumer runs its own `cargo
 //!    test`, and tests referencing fixtures that do not exist there would fail
@@ -27,7 +27,7 @@
 //!    bytes.
 //!
 //! Its only dependencies are `base64`, `serde`, `serde_json` and `jsonwebtoken`
-//! — deliberately not `thiserror`, so vendoring imposes as little as possible on
+//! - deliberately not `thiserror`, so vendoring imposes as little as possible on
 //! a consumer's manifest.
 
 use std::collections::BTreeMap;
@@ -88,7 +88,7 @@ impl TrustError {
     /// A stable identifier for this rejection.
     ///
     /// The conformance vectors assert on these strings, and every consuming
-    /// repository asserts against those vectors — so a code is contract. The
+    /// repository asserts against those vectors - so a code is contract. The
     /// `Display` message above is for humans and may be reworded; this may not.
     pub fn code(&self) -> &'static str {
         match self {
@@ -177,7 +177,7 @@ impl RootKeyring {
 /// A license as it is handed to a customer: the license JWT together with the
 /// root-signed attestation for the key that signed it.
 ///
-/// Both travel together so verification stays entirely offline — a client never
+/// Both travel together so verification stays entirely offline - a client never
 /// fetches a key to validate a license.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -256,7 +256,7 @@ pub struct LicensePolicy<'a> {
 /// A root-signed delegation whose signature and claims have been checked.
 ///
 /// Exposed because a license service must verify its *own* attestation at
-/// startup, before it holds any license to verify — and must fail to start
+/// startup, before it holds any license to verify - and must fail to start
 /// rather than sign licenses nobody can validate.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedAttestation {
@@ -285,7 +285,7 @@ impl VerifiedAttestation {
 /// memoise verification against file contents (Operator does), and folding the
 /// clock in would let a cached verdict outlive the trust that produced it.
 /// `attestation_expires_at` is returned so the caller's own clock check can
-/// respect it — see [`VerifiedLicense::effective_expiry`].
+/// respect it - see [`VerifiedLicense::effective_expiry`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedLicense<C> {
     pub claims: C,

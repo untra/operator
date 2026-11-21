@@ -175,7 +175,7 @@ function Launch({ ticketId }: { ticketId: string }) {
   return (
     <>
       <button type="button" onClick={toggle} aria-expanded={open}>
-        Launch…
+        Launch
       </button>
       {open && <div className={styles.launch}>{controls}</div>}
     </>

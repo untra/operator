@@ -184,7 +184,7 @@ function CampaignDetail({ id }: { id: string }) {
       <div className={styles.actions}>
         {LAUNCHABLE.has(lifecycle) && (
           <button type="button" disabled={busy} onClick={onPreview}>
-            Launch…
+            Launch
           </button>
         )}
         {lifecycle === "running" && (

@@ -287,7 +287,7 @@ fn test_maturity_page_lists_badged_entries() {
     }
 }
 
-/// Human-readable matrix of every entry × surface × status. Always passes;
+/// Human-readable matrix of every entry x surface x status. Always passes;
 /// run with `--nocapture` to inspect alignment at a glance.
 #[test]
 fn test_vertical_parity_summary() {

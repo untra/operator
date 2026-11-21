@@ -36,8 +36,6 @@ use std::time::Duration;
 
 use launch_common::{LaunchTestContext, WrapperTestMode};
 
-// ─── Zellij-Specific Helpers ────────────────────────────────────────────────
-
 /// Check if zellij binary is available
 fn zellij_available() -> bool {
     Command::new("zellij")
@@ -146,8 +144,6 @@ impl Drop for ZellijTestContext {
         cleanup_operator_tabs();
     }
 }
-
-// ─── Test Cases ─────────────────────────────────────────────────────────────
 
 #[test]
 fn test_launch_creates_zellij_tab() {

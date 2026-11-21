@@ -19,8 +19,6 @@ pub trait SessionNameSource: Send + Sync + 'static {
         F: Fn(String) + Send + 'static;
 }
 
-// ── ExplicitSessionNameSource ─────────────────────────────────────────────────
-
 /// A fixed name assigned by the caller (e.g., operator assigning a ticket ID).
 /// Used for operator-managed agents where the name is known at launch time.
 pub struct ExplicitSessionNameSource {
@@ -47,8 +45,6 @@ impl SessionNameSource for ExplicitSessionNameSource {
         Ok(())
     }
 }
-
-// ── ClaudeSessionNameSource ───────────────────────────────────────────────────
 
 /// Watches `~/.claude/sessions/{ppid}.json` for Claude Code's `/rename` command output.
 ///

@@ -310,8 +310,6 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    // ─── Slugify Tests ───────────────────────────────────────────────────────────
-
     #[test]
     fn test_slugify_basic() {
         assert_eq!(slugify("Hello World", 100), "hello-world");
@@ -362,8 +360,6 @@ mod tests {
         assert_eq!(slugify("   ", 100), "");
         assert_eq!(slugify("---", 100), "");
     }
-
-    // ─── Queue Priority Tests ────────────────────────────────────────────────────
 
     fn create_test_ticket(
         dir: &std::path::Path,

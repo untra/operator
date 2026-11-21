@@ -187,9 +187,9 @@ fn compat_matrix_section() -> String {
 
     let mut out = String::from(
         "\n## LLM tool × model provider\n\n\
-         **Native** — the CLI speaks this provider's protocol. \
-         **Bridge** — a protocol-preserving front (claude-code-router, litellm, …) is required. \
-         **Incompatible** — this first-party API is the wrong protocol for the CLI.\n\n\
+         **Native** - the CLI speaks this provider's protocol. \
+         **Bridge** - a protocol-preserving front (claude-code-router, litellm, …) is required. \
+         **Incompatible** - this first-party API is the wrong protocol for the CLI.\n\n\
          Operator does not currently block incompatible delegators at launch; \
          this matrix is the catalog fact.\n\n| Tool |",
     );

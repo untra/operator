@@ -4,8 +4,6 @@ use ts_rs::TS;
 
 use crate::types::pr::GitProvider;
 
-// ─── Git Provider Configuration ────────────────────────────────────────────
-
 /// Git provider configuration for PR/MR operations
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]

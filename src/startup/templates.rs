@@ -278,20 +278,6 @@ fn migrate_legacy_user_types(tickets_path: &Path, templates_path: &Path) -> Resu
 }
 
 /// Initialize the templates directory with default collections
-///
-/// Creates the directory structure:
-/// ```text
-/// .tickets/templates/
-/// ├── dev_kanban/
-/// │   ├── collection.toml
-/// │   ├── TASK.json
-/// │   ├── TASK.md
-/// │   ├── FEAT.json
-/// │   ├── FEAT.md
-/// │   ├── FIX.json
-/// │   └── FIX.md
-/// └── ...
-/// ```
 pub fn init_default_templates(templates_path: &Path) -> Result<()> {
     let has_entries = templates_path.exists()
         && fs::read_dir(templates_path).is_ok_and(|mut d| d.next().is_some());

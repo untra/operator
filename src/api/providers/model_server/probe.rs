@@ -223,9 +223,9 @@ pub fn parse_models(kind: ModelServerKind, body: &str) -> Result<Vec<ModelInfo>,
 /// (or none), so the rule is per-kind:
 ///
 /// - Google: authoritative - keep iff `supportedGenerationMethods` advertises
-///   `generateContent`. Absent field ⇒ keep (tolerant of API drift / fixtures).
+///   `generateContent`. Absent field -> keep (tolerant of API drift / fixtures).
 /// - `OpenRouter`: keep iff the architecture's output modalities include `text`.
-///   Absent ⇒ keep.
+///   Absent -> keep.
 /// - `OpenAI`: no capability field, so classify by id family (deny embeddings /
 ///   audio / image / moderation; allow the gpt / o-series / chatgpt families;
 ///   deny anything unrecognized so unknown non-text families stay out).
@@ -241,7 +241,7 @@ fn is_text_model(kind: ModelServerKind, raw: &Value, id: &str) -> bool {
                     .iter()
                     .any(|m| m.as_str() == Some("generateContent"))
             })
-            // Absent capability field ⇒ keep (don't over-filter on drift).
+            // Absent capability field -> keep (don't over-filter on drift).
             .unwrap_or(true),
         ModelServerKind::OpenRouter => openrouter_outputs_text(raw),
         ModelServerKind::OpenAiApi => openai_id_is_text(id),
@@ -333,7 +333,7 @@ fn parse_openai_like(kind: ModelServerKind, value: &Value) -> Vec<ModelInfo> {
 }
 
 /// `OpenRouter` `/models`:
-/// `{ "data": [ { "id": "anthropic/claude-3.5-sonnet", "name": "Anthropic: Claude 3.5 Sonnet", … } ] }`.
+/// `{ "data": [ { "id": "anthropic/claude-3.5-sonnet", "name": "Anthropic: Claude 3.5 Sonnet", etc } ] }`.
 /// Same `data`-array shape as `OpenAI`, but the human label lives in `name`
 /// (`OpenAI` uses `display_name`), so it needs its own reader to keep the label.
 fn parse_openrouter(value: &Value) -> Vec<ModelInfo> {
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn test_parse_gemini_filters_by_generation_method() {
-        // generateContent ⇒ kept; embedding/TTS-only ⇒ dropped.
+        // generateContent -> kept; embedding/TTS-only -> dropped.
         let body = r#"{"models":[
             {"name":"models/gemini-1.5-pro","supportedGenerationMethods":["generateContent","countTokens"]},
             {"name":"models/text-embedding-004","supportedGenerationMethods":["embedContent"]},
@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_parse_openrouter_keeps_models_without_modality_info() {
-        // Existing shape with no `architecture` ⇒ keep (don't over-filter).
+        // Existing shape with no `architecture` -> keep (don't over-filter).
         let body = r#"{"data":[
             {"id":"anthropic/claude-3.5-sonnet","name":"Anthropic: Claude 3.5 Sonnet"},
             {"id":"meta-llama/llama-3-70b-instruct","name":"Meta: Llama 3 70B Instruct"}]}"#;

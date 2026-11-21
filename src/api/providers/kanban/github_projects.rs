@@ -44,8 +44,6 @@ const SCOPE_ERROR_MSG: &str =
      extend a fine-grained PAT to include the Projects permission. \
      See docs/getting-started/kanban/github.md.";
 
-// ─── Public types ────────────────────────────────────────────────────────────
-
 /// Info about a GitHub Project v2 returned by `validate_detailed`.
 #[derive(Debug, Clone)]
 pub struct GithubProjectInfo {
@@ -71,13 +69,11 @@ pub struct GithubValidationDetails {
     pub resolved_env_var: String,
 }
 
-// ─── Status field cache ──────────────────────────────────────────────────────
-
 /// Cached `Status` field info for a single project.
 #[derive(Debug, Clone)]
 struct StatusFieldCache {
     field_id: String,
-    /// Lowercased option name → option id (for case-insensitive lookup).
+    /// Lowercased option name : option id (for case-insensitive lookup).
     options_by_name: HashMap<String, String>,
     /// Original-case option names in declared order (for `list_statuses` output).
     ordered_names: Vec<String>,
@@ -94,17 +90,15 @@ struct ItemLookup {
     item_id: String,
 }
 
-// ─── Provider struct ─────────────────────────────────────────────────────────
-
 /// GitHub Projects v2 (kanban) API provider.
 pub struct GithubProjectsProvider {
     token: String,
     client: Client,
     /// Env var the token was sourced from. Used by `validate_detailed`.
     resolved_env_var: String,
-    /// `project_node_id` → cached Status field info.
+    /// `project_node_id` cached Status field info.
     status_field_cache: RwLock<HashMap<String, StatusFieldCache>>,
-    /// `issue_key` (as returned in `ExternalIssue.key`) → lookup info, populated by `list_issues`.
+    /// `issue_key` (as returned in `ExternalIssue.key`) lookup info, populated by `list_issues`.
     item_lookup: RwLock<HashMap<String, ItemLookup>>,
 }
 
@@ -768,8 +762,6 @@ impl GithubProjectsProvider {
     }
 }
 
-// ─── Item / list_issues response types ──────────────────────────────────────
-
 #[derive(Debug, Deserialize)]
 struct ListItemsResponse {
     node: ListItemsNode,
@@ -979,8 +971,6 @@ enum RawFieldRef {
     #[serde(other)]
     Other,
 }
-
-// ─── KanbanProvider trait impl ───────────────────────────────────────────────
 
 #[async_trait]
 impl KanbanProvider for GithubProjectsProvider {
@@ -1879,8 +1869,6 @@ impl GithubProjectsProvider {
         }))
     }
 }
-
-// ─── Helper functions ────────────────────────────────────────────────────────
 
 /// Extract the Status field value (and a placeholder for Priority) from
 /// an item's `fieldValues` connection.

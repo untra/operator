@@ -3,7 +3,7 @@
  *
  * Bundles React (the docs site has no module infrastructure) and registers the
  * shared components as plain HTML tags, so generated markdown can write
- * `<operator-workflow-explorer base="…">` with no build step of its own.
+ * `<operator-workflow-explorer base="...">` with no build step of its own.
  *
  * Registration is idempotent: re-loading the bundle on a page that already
  * defined these tags is a no-op rather than a `NotSupportedError`.

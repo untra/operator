@@ -28,7 +28,7 @@ export function AsyncState<T>({ value, children }: AsyncStateProps<T>) {
     (value.status === "initial"
       ? "Waiting to load."
       : value.status === "loading"
-        ? "Loading…"
+        ? "Loading..."
         : "No data available.");
   return (
     <>

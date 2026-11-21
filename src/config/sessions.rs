@@ -249,7 +249,7 @@ impl Default for SessionsVSCodeConfig {
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum CmuxPlacementPolicy {
-    /// Automatically choose: 0-1 windows → new workspace, >1 windows → new window
+    /// Automatically choose: 0-1 windows -> new workspace, >1 windows -> new window
     #[default]
     Auto,
     /// Always create a new workspace in the active window

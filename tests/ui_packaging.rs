@@ -25,7 +25,7 @@ const ALLOWED_UI_DEPS: &[&str] = &[
     "@dnd-kit/sortable",
     "@dnd-kit/utilities",
     // Codicon webfont for the sidebar/page icon vocabulary. Zero-dependency,
-    // Microsoft-maintained; the concept→icon mapping lives in ui/src/concepts.ts
+    // Microsoft-maintained; the concept -> icon mapping lives in ui/src/concepts.ts
     // and the canonical table at docs/design-system/.
     "@vscode/codicons",
 ];

@@ -54,7 +54,6 @@ pub struct SetupScreen {
     /// Transient notice shown on the collection-source step (e.g. a deferred
     /// kanban import message)
     pub(crate) import_notice: Option<String>,
-    // ─── Hosted Collection State ───────────────────────────────────────────────
     /// Collections resolved for the hosted picker (hosted + embedded fallback)
     pub hosted_resolved: Vec<crate::collections::fetch::ResolvedCollection>,
     /// List state for the hosted collection picker (highlight cursor)
@@ -75,7 +74,6 @@ pub struct SetupScreen {
     pub(crate) startup_state: ListState,
     /// Acceptance criteria text (editable during setup)
     pub acceptance_criteria_text: String,
-    // ─── Kanban Setup State ─────────────────────────────────────────────────────
     /// Detected kanban providers from environment variables
     pub detected_kanban_providers: Vec<crate::api::providers::kanban::DetectedKanbanProvider>,
     /// Indices of providers with valid credentials
@@ -83,7 +81,6 @@ pub struct SetupScreen {
     pub(crate) kanban_choice_state: ListState,
     /// Set when the user chose "connect"; the key handler opens the dialog
     pub(crate) kanban_dialog_requested: bool,
-    // ─── Model Server State ─────────────────────────────────────────────────
     /// Cursor over `model_providers()`
     pub(crate) model_server_state: ListState,
     /// Live probe result per kind slug, filled on entering the step
@@ -92,7 +89,6 @@ pub struct SetupScreen {
     pub model_servers_declared: Vec<String>,
     /// Whether the probe pass has run
     pub model_servers_probed: bool,
-    // ─── Git Provider State ─────────────────────────────────────────────────
     /// Cursor over `git_providers()`
     pub(crate) git_provider_state: ListState,
     /// Slug the user asked to connect; the key handler resolves onboarding
@@ -103,12 +99,10 @@ pub struct SetupScreen {
     pub(crate) git_export_hint: Option<String>,
     /// Whether kanban detection/testing has run
     pub kanban_detection_complete: bool,
-    // ─── Session Wrapper Setup State ────────────────────────────────────────────
     /// Selected session wrapper type
     pub selected_wrapper: SessionWrapperType,
     /// List state for wrapper selection
     pub(crate) wrapper_state: ListState,
-    // ─── Licence State ──────────────────────────────────────────────────────
     /// Verified licence status for this configuration; the app refreshes it.
     pub license: Option<crate::licensing::LicenseResponse>,
     /// Licence key entry field.
@@ -117,11 +111,9 @@ pub struct SetupScreen {
     pub(crate) license_install_requested: bool,
     /// Inline outcome of the last install attempt.
     pub(crate) license_error: Option<String>,
-    // ─── Execution Mode State ───────────────────────────────────────────────
     pub(crate) execution_mode_state: ListState,
     /// Whether agents run on remote targets; gates the execution-target step.
     pub remote_execution: bool,
-    // ─── Execution Target State ─────────────────────────────────────────────
     pub(crate) execution_target_state: ListState,
     pub(crate) coder_target_name: String,
     pub(crate) coder_template: String,
@@ -131,12 +123,10 @@ pub struct SetupScreen {
     pub tmux_status: TmuxDetectionStatus,
     /// VS Code extension status (checked during `VSCodeSetup` step)
     pub vscode_status: VSCodeDetectionStatus,
-    // ─── Git Worktree Setup State ──────────────────────────────────────────────
     /// Whether to use git worktrees for ticket isolation (default: false)
     pub use_worktrees: bool,
     /// List state for worktree option selection
     pub(crate) worktree_state: ListState,
-    // ─── Admin Password State ─────────────────────────────────────────────────
     /// The admin password field.
     pub(crate) password: MaskedInput,
     /// The confirmation field.

@@ -37,8 +37,6 @@ use tempfile::TempDir;
 use operator::config::Config;
 use operator::rest::server::{ApiSessionInfo, RestApiServer};
 
-// ─── Configuration ────────────────────────────────────────────────────────────
-
 /// Check if REST API integration tests are enabled
 fn rest_api_tests_enabled() -> bool {
     env::var("OPERATOR_REST_API_TEST_ENABLED")
@@ -71,8 +69,6 @@ static NEXT_PORT: AtomicU16 = AtomicU16::new(API_TEST_PORT_BASE);
 fn next_port() -> u16 {
     NEXT_PORT.fetch_add(1, Ordering::SeqCst)
 }
-
-// ─── Test Context ─────────────────────────────────────────────────────────────
 
 /// Test context holding temporary directories and configuration
 struct RestApiTestContext {
@@ -234,8 +230,6 @@ struct HealthResponse {
     status: String,
     version: String,
 }
-
-// ─── Test Cases ───────────────────────────────────────────────────────────────
 
 #[tokio::test]
 async fn test_api_server_starts_and_responds() {

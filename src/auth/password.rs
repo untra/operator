@@ -116,10 +116,8 @@ mod tests {
 
     #[test]
     fn test_length_is_measured_in_characters_not_bytes() {
-        // A 12-character passphrase of multi-byte characters is 12 characters,
-        // not 36 bytes; counting bytes would accept a shorter one.
-        let emoji = "🔐".repeat(MIN_PASSWORD_LENGTH - 1);
-        assert!(validate_password(&emoji).is_err());
-        assert!(validate_password(&"🔐".repeat(MIN_PASSWORD_LENGTH)).is_ok());
+        let multibyte_letter = "\u{10400}";
+        assert!(validate_password(&multibyte_letter.repeat(MIN_PASSWORD_LENGTH - 1)).is_err());
+        assert!(validate_password(&multibyte_letter.repeat(MIN_PASSWORD_LENGTH)).is_ok());
     }
 }

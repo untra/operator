@@ -6,7 +6,7 @@ import { payWithTestCard } from "../fixtures/stripe-checkout";
 
 /**
  * First-time setup buys Premium through the real platform storefront and a Stripe sandbox
- * Checkout, then proves the platform hands the key back (`#license_key=…`), this server
+ * Checkout, then proves the platform hands the key back (`#license_key=...`), this server
  * installs it, and both tabs tell the user they are Premium without a copy and paste.
  *
  * Needs a fresh server, a build whose OPERATOR_PURCHASE_URL is the sandbox storefront, and Stripe

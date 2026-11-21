@@ -380,3 +380,12 @@ allowed_ranges = [
   [0x00B7, 0x00B7], # MIDDLE DOT
   [0x2192, 0x2192], # RIGHTWARDS ARROW
 ]
+
+# Verbatim upstream source, checked by the vendored verifier digest test.
+[[rules]]
+pattern = "{src/trust_verify.rs,./src/trust_verify.rs}"
+allowed_ranges = [
+  [0x0009, 0x000D],
+  [0x0020, 0x007E],
+  [0x2014, 0x2014], # EM DASH
+]

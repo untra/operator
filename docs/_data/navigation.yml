@@ -179,6 +179,12 @@ docs:
           - title: AGNT.gg
             url: /getting-started/integrations/agnt/
             icon: agnt
+          - title: Keycloak
+            url: /getting-started/integrations/keycloak/
+            icon: keycloak
+          - title: Authentik
+            url: /getting-started/integrations/authentik/
+            icon: authentik
   - title: Reference
     children:
       - title: CLI

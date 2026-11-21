@@ -11,10 +11,10 @@ on:
       - 'src/api/glab_cli.rs'
       - 'src/api/gitlab_service.rs'
       - 'src/api/pr_service.rs'
-      - 'tests/kanban_integration.rs'
-      - 'tests/model_server_integration.rs'
-      - 'tests/git_integration.rs'
-      - 'tests/gitprovider_integration.rs'
+      - 'tests/it/suites/kanban_integration.rs'
+      - 'tests/it/suites/model_server_integration.rs'
+      - 'tests/it/suites/git_integration.rs'
+      - 'tests/it/suites/gitprovider_integration.rs'
       - '.github/workflows/integration-tests.yml'
   pull_request:
     branches:
@@ -26,10 +26,10 @@ on:
       - 'src/api/glab_cli.rs'
       - 'src/api/gitlab_service.rs'
       - 'src/api/pr_service.rs'
-      - 'tests/kanban_integration.rs'
-      - 'tests/model_server_integration.rs'
-      - 'tests/git_integration.rs'
-      - 'tests/gitprovider_integration.rs'
+      - 'tests/it/suites/kanban_integration.rs'
+      - 'tests/it/suites/model_server_integration.rs'
+      - 'tests/it/suites/git_integration.rs'
+      - 'tests/it/suites/gitprovider_integration.rs'
   workflow_dispatch:
     inputs:
       run_jira:
@@ -102,7 +102,7 @@ jobs:
           OPERATOR_JIRA_EMAIL: ${{ secrets.OPERATOR_JIRA_EMAIL }}
           OPERATOR_JIRA_API_KEY: ${{ secrets.OPERATOR_JIRA_API_KEY }}
           OPERATOR_JIRA_TEST_PROJECT: ${{ secrets.OPERATOR_JIRA_TEST_PROJECT }}
-        run: cargo test --locked --test kanban_integration jira_tests -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::kanban_integration::jira_tests -- --nocapture --test-threads=1
 
       - name: Run Linear integration tests
         if: >-
@@ -111,7 +111,7 @@ jobs:
         env:
           OPERATOR_LINEAR_API_KEY: ${{ secrets.OPERATOR_LINEAR_API_KEY }}
           OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
-        run: cargo test --locked --test kanban_integration linear_tests -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::kanban_integration::linear_tests -- --nocapture --test-threads=1
 
       - name: Run GitHub Projects integration tests
         if: >-
@@ -120,13 +120,13 @@ jobs:
         env:
           OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
           OPERATOR_GITHUB_TEST_PROJECT: ${{ secrets.OPERATOR_GITHUB_TEST_PROJECT }}
-        run: cargo test --locked --test kanban_integration github_tests -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::kanban_integration::github_tests -- --nocapture --test-threads=1
 
       # Model-server (provider model-listing) integration tests.
       # Listing models consumes no inference tokens.
       - name: Run keyless OpenRouter model-list test
         if: github.event_name != 'workflow_dispatch' || inputs.run_model_servers
-        run: cargo test --locked --test model_server_integration openrouter_keyless -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::model_server_integration::openrouter_keyless -- --nocapture --test-threads=1
 
       - name: Run Anthropic model-list tests
         if: >-
@@ -134,7 +134,7 @@ jobs:
           env.OPERATOR_ANTHROPIC_API_KEY != ''
         env:
           OPERATOR_ANTHROPIC_API_KEY: ${{ secrets.OPERATOR_ANTHROPIC_API_KEY }}
-        run: cargo test --locked --test model_server_integration anthropic -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::model_server_integration::anthropic -- --nocapture --test-threads=1
 
       - name: Run OpenAI model-list tests
         if: >-
@@ -142,7 +142,7 @@ jobs:
           env.OPERATOR_OPENAI_API_KEY != ''
         env:
           OPERATOR_OPENAI_API_KEY: ${{ secrets.OPERATOR_OPENAI_API_KEY }}
-        run: cargo test --locked --test model_server_integration openai -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::model_server_integration::openai -- --nocapture --test-threads=1
 
       - name: Run Google model-list tests
         if: >-
@@ -150,7 +150,7 @@ jobs:
           env.OPERATOR_GEMINI_API_KEY != ''
         env:
           OPERATOR_GEMINI_API_KEY: ${{ secrets.OPERATOR_GEMINI_API_KEY }}
-        run: cargo test --locked --test model_server_integration google -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::model_server_integration::google -- --nocapture --test-threads=1
 
       - name: Run keyed OpenRouter model-list tests
         if: >-
@@ -158,7 +158,7 @@ jobs:
           env.OPERATOR_OPENROUTER_API_KEY != ''
         env:
           OPERATOR_OPENROUTER_API_KEY: ${{ secrets.OPERATOR_OPENROUTER_API_KEY }}
-        run: cargo test --locked --test model_server_integration openrouter_keyed -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::model_server_integration::openrouter_keyed -- --nocapture --test-threads=1
 
       - name: Run model-server consistency test
         if: github.event_name != 'workflow_dispatch' || inputs.run_model_servers
@@ -167,7 +167,7 @@ jobs:
           OPERATOR_OPENAI_API_KEY: ${{ secrets.OPERATOR_OPENAI_API_KEY }}
           OPERATOR_GEMINI_API_KEY: ${{ secrets.OPERATOR_GEMINI_API_KEY }}
           OPERATOR_OPENROUTER_API_KEY: ${{ secrets.OPERATOR_OPENROUTER_API_KEY }}
-        run: cargo test --locked --test model_server_integration test_all_providers_return_same_model_shape -- --nocapture --test-threads=1
+        run: cargo test --locked --test it suites::model_server_integration::test_all_providers_return_same_model_shape -- --nocapture --test-threads=1
 
       - name: Run cross-provider tests
         env:
@@ -179,14 +179,14 @@ jobs:
           OPERATOR_LINEAR_TEST_TEAM: ${{ secrets.OPERATOR_LINEAR_TEST_TEAM }}
           OPERATOR_GITHUB_TOKEN: ${{ secrets.OPERATOR_GITHUB_TOKEN }}
           OPERATOR_GITHUB_TEST_PROJECT: ${{ secrets.OPERATOR_GITHUB_TEST_PROJECT }}
-        run: cargo test --locked --test kanban_integration test_provider_interface_consistency -- --nocapture
+        run: cargo test --locked --test it suites::kanban_integration::test_provider_interface_consistency -- --nocapture
 
       # Git Integration Tests
       - name: Run Git integration tests (read-only)
         if: github.event_name != 'workflow_dispatch' || inputs.run_git
         env:
           OPERATOR_GIT_TEST_ENABLED: 'true'
-        run: cargo test --locked --test git_integration -- --nocapture --test-threads=1
+        run: 'cargo test --locked --test it suites::git_integration:: -- --nocapture --test-threads=1'
 
       # NOTE: Git push tests disabled in CI - require authenticated push access
       # Run locally with OPERATOR_GIT_PUSH_ENABLED=true to test push operations
@@ -216,7 +216,7 @@ jobs:
           OPERATOR_GITPROVIDER_TEST_PR_GITLAB: ${{ vars.OPERATOR_GITPROVIDER_TEST_PR_GITLAB || '' }}
           OPERATOR_GITPROVIDER_TEST_REPO_GITEA: ${{ vars.OPERATOR_GITPROVIDER_TEST_REPO_GITEA || '' }}
           OPERATOR_GITPROVIDER_TEST_PR_GITEA: ${{ vars.OPERATOR_GITPROVIDER_TEST_PR_GITEA || '' }}
-        run: cargo test --locked --test gitprovider_integration -- --nocapture
+        run: 'cargo test --locked --test it suites::gitprovider_integration:: -- --nocapture'
 
       - name: Cleanup optest branches
         if: always()

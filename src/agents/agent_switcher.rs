@@ -101,7 +101,7 @@ const GEMINI_EXIT_CMD: &str = "/quit";
 const CODEX_EXIT_CMD: &str = "\x03"; // Ctrl+C
 
 // Shell prompt patterns indicating agent has exited
-const SHELL_PROMPT_PATTERNS: &[&str] = &["$ ", "% ", "# ", "❯ "];
+const SHELL_PROMPT_PATTERNS: &[&str] = &["$ ", "% ", "# ", "\u{276f} "];
 
 // Timing constants
 const EXIT_POLL_INTERVAL: Duration = Duration::from_millis(200);
@@ -352,8 +352,6 @@ mod tests {
         }
     }
 
-    // ─── exit_command_for_tool tests ─────────────────────────────────────────────
-
     #[test]
     fn test_exit_command_for_tool() {
         assert_eq!(exit_command_for_tool("claude"), "/exit");
@@ -361,8 +359,6 @@ mod tests {
         assert_eq!(exit_command_for_tool("codex"), "\x03");
         assert_eq!(exit_command_for_tool("unknown"), "/exit"); // default
     }
-
-    // ─── needs_switch tests ─────────────────────────────────────────────────────
 
     #[test]
     fn test_needs_switch_different_tool() {
@@ -432,8 +428,6 @@ mod tests {
         assert_eq!(delegator.llm_tool, "claude");
         assert_eq!(delegator.model, "sonnet");
     }
-
-    // ─── switch_agent tests ─────────────────────────────────────────────────────
 
     #[test]
     fn test_switch_agent_graceful_exit() {

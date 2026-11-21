@@ -1,3 +1,25 @@
+[workspace]
+members = ["crates/*", "opr8r"]
+default-members = ["."]
+exclude = ["zed-extension"]
+resolver = "2"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1
+
+[profile.opr8r-release]
+inherits = "release"
+lto = true
+panic = "abort"
+
 [package]
 name = "operator"
 version = "0.2.16"
@@ -98,7 +120,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 async-trait = "0.1"
 
 # REST API
-axum = { version = "0.8", features = ["macros", "tokio", "tracing"] }
+axum = { version = "0.8", features = ["macros", "tokio", "tracing", "ws"] }
 tokio-stream = "0.1"
 futures-util = "0.3"
 tower = "0.5"
@@ -113,7 +135,7 @@ utoipa-swagger-ui = { version = "10", features = ["axum"] }
 agent-client-protocol = "2.0"
 
 # Authentication: local credential store, password hashing, and token signing.
-rusqlite = { version = "0.37", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 argon2 = "0.5"
 password-hash = { version = "0.5", features = ["getrandom"] }
 jsonwebtoken = "9"
@@ -140,6 +162,7 @@ embed-ui = ["dep:rust-embed", "dep:mime_guess"]
 operator-relay = { path = "crates/relay" }
 tokio = { version = "1", features = ["test-util"] }
 tempfile = "3"
+tokio-tungstenite = "0.29"
 
 [lints.rust]
 unsafe_code = "deny"

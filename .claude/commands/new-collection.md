@@ -217,10 +217,10 @@ Run these in order and fix anything that fails. Do not skip ahead.
 
 ```bash
 # Community collections: schema, key grammar, paths, attribution, referenced files
-cargo test --test community_collections
+cargo test --test it suites::community_collections::
 
 # Icon shape
-cargo test --test svg_icon_standard
+cargo test --test it suites::svg_icon_standard::
 
 # Everything: manifest parsing, embedded/manifest ordering, checksums, generators
 make check

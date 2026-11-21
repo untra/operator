@@ -5,17 +5,22 @@
 # gates and is the pre-PR bar. `make install-hooks` wires the committed pre-push
 # hook, which runs the fast gate (root fmt-check + clippy, no tests).
 
-.PHONY: check fmt fmt-check lint test clippy build run install-hooks bindings \
+.PHONY: check fmt fmt-check lint test clippy build run install-hooks install-unicleaner bindings \
 	webcomponents storybook ui docs vscode-extension relay telemetry telemetry-registry opr8r e2e \
 	fmt-rust fmt-ts fmt-tf fmt-check-rust fmt-check-ts fmt-check-tf \
-	lint-rust lint-ts lint-shell lint-helm lint-tf test-rust test-ts test-shell
+	lint-rust lint-ts lint-shell lint-helm lint-tf lint-unicode test-unicode test-rust test-ts test-shell
 
 # CI installs terraform; local dev machines may only have OpenTofu.
 TF := $(shell command -v terraform >/dev/null 2>&1 && echo terraform || echo tofu)
 
+UNICLEANER_REV := 67ecfdade2ab6abf782bb9f5a5d5a6e52bdbfbbc
+
 # Full gate. The commands below are the same ones CI runs, so a clean local run
 # means a clean CI run.
 check: fmt-check lint test
+
+install-unicleaner:
+	cargo install --git https://github.com/poelzi/unicleaner --rev $(UNICLEANER_REV) --locked unicleaner
 
 # Rewrite formatting in every module. `fmt-check` is the same pass in report
 # mode, and is what `check` and the pre-push hook run.
@@ -23,20 +28,12 @@ fmt: fmt-rust fmt-ts fmt-tf
 
 fmt-check: fmt-check-rust fmt-check-ts fmt-check-tf
 
-# crates/relay, crates/telemetry, opr8r and zed-extension have their own Cargo.lock and are not
-# workspace members, so `--all` never reaches them.
 fmt-rust:
 	cargo fmt --all
-	cd crates/relay && cargo fmt
-	cd crates/telemetry && cargo fmt
-	cd opr8r && cargo fmt
 	cd zed-extension && cargo fmt
 
 fmt-check-rust:
 	cargo fmt --all -- --check
-	cd crates/relay && cargo fmt -- --check
-	cd crates/telemetry && cargo fmt -- --check
-	cd opr8r && cargo fmt -- --check
 	cd zed-extension && cargo fmt -- --check
 
 # oxfmt is installed once at the repo root and covers every hand-written JS/TS
@@ -55,7 +52,13 @@ fmt-tf:
 fmt-check-tf:
 	cd coder-module && $(TF) fmt -check -diff
 
-lint: lint-rust lint-ts lint-shell lint-helm lint-tf
+lint: lint-unicode lint-rust lint-ts lint-shell lint-helm lint-tf
+
+lint-unicode: test-unicode
+	unicleaner scan . --config unicleaner.toml
+
+test-unicode:
+	python3 scripts/ci/test-unicode.py
 
 # Root workspace only: the fast gate the pre-push hook pairs with fmt-check.
 clippy:
@@ -97,10 +100,7 @@ test-shell:
 	bash scripts/ci/test-signing.sh
 
 test-rust:
-	cargo test --locked --all-features
-	cd crates/relay && cargo test --locked --all-features
-	cd crates/telemetry && cargo test --locked --all-features
-	cd opr8r && cargo test --locked --all-features
+	cargo test --workspace --locked --all-features
 
 # Display-bound suites (vscode-extension, storybook) stay on their own targets.
 test-ts:

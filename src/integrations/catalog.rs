@@ -9,7 +9,7 @@
 //!
 //! - REST `/api/v1/integrations` ([`crate::rest::dto::integration_catalog`])
 //! - the generated `docs/maturity/` page ([`crate::docs_gen::integrations`])
-//! - the `tests/vertical_parity.rs` soup-to-nuts alignment test, which also
+//! - the `tests/it/suites/vertical_parity.rs` soup-to-nuts alignment test, which also
 //!   cross-checks that every provider-enum variant (`KanbanProviderType::ALL`,
 //!   `ModelServerKind::ALL`, `GitProvider::ALL`, `SessionWrapperType::ALL`) has a
 //!   catalog entry - so a new variant can't ship without docs/badges/UI.
@@ -157,7 +157,7 @@ pub struct CatalogEntry {
     pub docs_path: Option<&'static str>,
     /// Brand icon filename stem in `docs/assets/icons/{icon}.svg`, or `None`
     /// when no brand icon ships. Drives the sidebar nav `icon:` values
-    /// (enforced by `tests/docs_structure.rs`).
+    /// (enforced by `tests/it/suites/docs_structure.rs`).
     pub icon: Option<&'static str>,
     /// Whether this entry carries a curated README badge.
     pub readme_badge: bool,
@@ -189,7 +189,7 @@ impl CatalogEntry {
 ///
 /// Support statuses reflect the current maturity of each integration. `Proto`
 /// entries are intentionally not advertised (no README badge); `Alpha`+ entries
-/// require a docs page (enforced by `tests/vertical_parity.rs`).
+/// require a docs page (enforced by `tests/it/suites/vertical_parity.rs`).
 pub fn all_integrations() -> Vec<CatalogEntry> {
     use SupportStatus::{Alpha, Beta, Ga, Proto};
     use Vertical::{
@@ -596,7 +596,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "keycloak",
             "Keycloak",
             Some("getting-started/integrations/keycloak"),
-            None,
+            Some("keycloak"),
             false,
             Alpha,
         )
@@ -606,7 +606,7 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             "authentik",
             "Authentik",
             Some("getting-started/integrations/authentik"),
-            None,
+            Some("authentik"),
             false,
             Alpha,
         )

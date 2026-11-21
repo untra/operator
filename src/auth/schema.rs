@@ -161,6 +161,21 @@ const MIGRATIONS: &[&str] = &[
     UPDATE operator_user SET issuer = trim(issuer, ' ' || char(9, 10, 13))
     WHERE issuer <> trim(issuer, ' ' || char(9, 10, 13))
       AND NOT EXISTS (SELECT 1 FROM operator_user o WHERE o.subject = operator_user.subject AND o.issuer = trim(operator_user.issuer, ' ' || char(9, 10, 13)));
+    ", // v6 - paired endpoint machines. The id is the endpoint's refresh-family
+    // id, so the family's revocation and expiry govern the endpoint too.
+    r"
+    CREATE TABLE endpoint (
+        id                TEXT PRIMARY KEY REFERENCES refresh_family(id),
+        name              TEXT NOT NULL,
+        created_at        TEXT NOT NULL,
+        revoked_at        TEXT,
+        launch_enabled    INTEGER NOT NULL DEFAULT 0,
+        -- Once an admin names it, the endpoint's reported hostname no longer does.
+        named_by_admin    INTEGER NOT NULL DEFAULT 0,
+        capabilities_json TEXT,
+        capabilities_hash TEXT,
+        last_seen_at      TEXT
+    );
     ",
 ];
 

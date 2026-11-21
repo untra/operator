@@ -19,19 +19,6 @@ updates:
       semver-patch-days: 3
 
   - package-ecosystem: cargo
-    directory: "/opr8r"
-    schedule:
-      interval: weekly
-    groups:
-      opr8r-deps:
-        patterns: ["*"]
-    cooldown:
-      default-days: 7
-      semver-major-days: 30
-      semver-minor-days: 14
-      semver-patch-days: 3
-
-  - package-ecosystem: cargo
     directory: "/zed-extension"
     schedule:
       interval: weekly

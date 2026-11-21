@@ -1,3 +1,4 @@
+import { rejects } from "node:assert/strict";
 import { createAccessKeyMutation } from "./definitions";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { asyncableEmoji } from "@untra/naiveasync";
@@ -183,7 +184,7 @@ describe("queryController", () => {
     };
     const query = queryController(store, host(), def);
     await query.start();
-    await expect(query.refetch()).rejects.toBeInstanceOf(Error);
+    await rejects(query.refetch(), Error);
     const snap = query.snapshot();
     expect(snap.data).toBe("cached");
     expect(snap.error?.message).toBe("upstream");
@@ -330,7 +331,7 @@ describe("mutationController", () => {
       throw new Error("expected cached query data");
     }
     expect(query.snapshot().data).toBe(loaded + 1);
-    await expect(write.mutateAsync({ fail: true })).rejects.toBeInstanceOf(Error);
+    await rejects(write.mutateAsync({ fail: true }), Error);
     await flushAsync();
     expect(query.snapshot().data).toBe(loaded + 2);
   });
@@ -366,9 +367,7 @@ describe("mutationController", () => {
       throw new Error("expected cached query data");
     }
     expect(query.snapshot().data).toBe(loaded + 1);
-    await expect(mutationController(store, host(), second).mutateAsync({})).rejects.toBeInstanceOf(
-      Error,
-    );
+    await rejects(mutationController(store, host(), second).mutateAsync({}), Error);
     await flushAsync();
     expect(query.snapshot().data).toBe(loaded + 2);
   });
@@ -406,7 +405,7 @@ describe("mutationController", () => {
       run: () => Promise.reject(new Error("denied")),
     };
     const mutation = mutationController(store, host(), def);
-    await expect(mutation.mutateAsync({ password: PASSWORD })).rejects.toBeInstanceOf(Error);
+    await rejects(mutation.mutateAsync({ password: PASSWORD }), Error);
     expect(snapshotSecrets()).toEqual([]);
     expect(JSON.stringify(store.getState())).not.toContain(PASSWORD);
   });
@@ -478,7 +477,7 @@ describe("mutationController", () => {
       affected: [QUERY_KEYS.health],
       run: () => Promise.resolve("saved"),
     });
-    await expect(mutation.mutateAsync({})).resolves.toBe("saved");
+    expect(await mutation.mutateAsync({})).toBe("saved");
     expect(query.snapshot().isFetching).toBe(true);
     release("refreshed");
     await flushAsync();
@@ -496,9 +495,9 @@ describe("mutationController", () => {
         }),
     });
     const first = mutation.mutateAsync({});
-    await expect(mutation.mutateAsync({})).rejects.toThrow("already pending");
+    await rejects(mutation.mutateAsync({}), /already pending/);
     release("done");
-    await expect(first).resolves.toBe("done");
+    expect(await first).toBe("done");
   });
 
   test("callback-style failures are consumed after onError", async () => {
@@ -510,7 +509,7 @@ describe("mutationController", () => {
       run: () => Promise.reject(new Error("expected")),
     });
     mutation.mutate({}, { onError: (error) => errors.push(error.message) });
-    await expect(mutation.wait()).resolves.toBeUndefined();
+    expect(await mutation.wait()).toBeUndefined();
     expect(errors).toEqual(["expected"]);
   });
 

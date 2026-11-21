@@ -1,0 +1,1 @@
+{"type":"tunnel_request","req_id":"r1","model_server":"lmstudio","method":"POST","path":"/v1/chat/completions","headers":{"content-type":"application/json"},"body_b64":"e30="}

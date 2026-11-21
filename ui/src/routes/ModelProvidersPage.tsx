@@ -105,7 +105,7 @@ export function ModelProvidersPage() {
   const gateways = useMemo(() => kinds.filter((k) => k.category === "gateway"), [kinds]);
 
   if (loading) {
-    return <div className={styles.loading}>Loading model providers…</div>;
+    return <div className={styles.loading}>Loading model providers...</div>;
   }
 
   return (

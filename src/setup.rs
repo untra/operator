@@ -80,6 +80,7 @@ pub fn parse_collection_preset(s: &str) -> Result<CollectionPreset> {
 
 /// Initialize workspace with the given options
 pub fn initialize_workspace(config: &mut Config, options: &SetupOptions) -> Result<SetupResult> {
+    config.acquire_ownership()?;
     let tickets_path = config.tickets_path();
     let mut result = SetupResult {
         directories_created: Vec::new(),

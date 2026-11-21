@@ -47,7 +47,7 @@
       "default": []
     },
     "campaign_runs": {
-      "description": "Campaign id → runner bookkeeping",
+      "description": "Campaign id to runner bookkeeping",
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/CampaignRun"
@@ -856,7 +856,7 @@
       "type": "object",
       "properties": {
         "launches": {
-          "description": "Ticket id → launches made by the runner",
+          "description": "Ticket id to launches made by the runner",
           "type": "object",
           "additionalProperties": {
             "type": "integer",

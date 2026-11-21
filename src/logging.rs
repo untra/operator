@@ -125,11 +125,14 @@ pub fn init_logging(
     is_tui_mode: bool,
     debug_override: bool,
 ) -> Result<LoggingHandle> {
-    let self_export =
+    let self_export = if config.ownership.is_some() {
         crate::telemetry::self_export::SelfExport::start(config).unwrap_or_else(|error| {
             eprintln!("telemetry initialization failed: {error}");
             None
-        });
+        })
+    } else {
+        None
+    };
     let log_level = if debug_override {
         "debug".to_string()
     } else {

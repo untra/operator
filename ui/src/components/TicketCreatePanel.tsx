@@ -48,7 +48,7 @@ export function TicketCreatePanel({ onCreated }: { onCreated: () => void }) {
       <h2 className={styles.title}>New ticket</h2>
       <p className={styles.hint}>Lands in the TODO queue, ready to launch.</p>
       {loading ? (
-        <p className={styles.hint}>Loading issue types and projects…</p>
+        <p className={styles.hint}>Loading issue types and projects...</p>
       ) : empty ? (
         <p className={styles.hint}>
           {issueTypes.length === 0

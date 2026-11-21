@@ -1,3 +1,4 @@
+import { rejects } from "node:assert/strict";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -165,7 +166,7 @@ describe("useApiMutation", () => {
     act(() => {
       first = result.current.mutateAsync({});
     });
-    await expect(result.current.mutateAsync({})).rejects.toThrow("already pending");
+    await rejects(result.current.mutateAsync({}), /already pending/);
     release();
     await act(() => first);
   });

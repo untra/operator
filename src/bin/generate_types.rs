@@ -43,6 +43,7 @@ use operator::config::{
     TemplatesConfig, TmuxConfig, ToolCapabilities, UiConfig, VersionCheckConfig, WebhookConfig,
     XOperator, YoloConfig,
 };
+use operator::endpoint::bindings as endpoint_bindings;
 use operator::profiles::ProfileIdentity;
 use operator::queue::LlmTask;
 use operator::rest::dto::{
@@ -250,6 +251,18 @@ fn generate_typescript() -> String {
         CreateTicketResponse::decl(&cfg),
         CreateAlertRequest::decl(&cfg),
         CreateAlertResponse::decl(&cfg),
+        // Endpoint machines (src/endpoint/, src/rest/dto/endpoints.rs)
+        operator::endpoint::protocol::GpuVendor::decl(&cfg),
+        operator::endpoint::protocol::GpuInfo::decl(&cfg),
+        operator::endpoint::protocol::LlmToolInfo::decl(&cfg),
+        operator::endpoint::protocol::ModelServerInfo::decl(&cfg),
+        operator::endpoint::protocol::ProjectInfo::decl(&cfg),
+        operator::endpoint::protocol::Capabilities::decl(&cfg),
+        operator::endpoint::registry::Liveness::decl(&cfg),
+        operator::rest::dto::EndpointSummary::decl(&cfg),
+        operator::rest::dto::EndpointDetail::decl(&cfg),
+        operator::rest::dto::EndpointsResponse::decl(&cfg),
+        operator::rest::dto::UpdateEndpointRequest::decl(&cfg),
         // Skills DTOs
         SkillEntry::decl(&cfg),
         SkillsResponse::decl(&cfg),
@@ -358,6 +371,10 @@ fn write_files(ts_content: &str, config_schema: &str, state_schema: &str, jira_a
     fs::write("docs/telemetry/catalog.md", CATALOG_MARKDOWN).expect("write telemetry catalog");
     println!("Generated: docs/telemetry/catalog.md");
 
+    endpoint_bindings::write(Path::new(endpoint_bindings::BINDINGS_DIR))
+        .expect("write endpoint protocol bindings");
+    println!("Generated: {}/", endpoint_bindings::BINDINGS_DIR);
+
     println!("\nType generation complete!");
 }
 
@@ -415,6 +432,13 @@ fn check_files(ts_content: &str, config_schema: &str, state_schema: &str, jira_a
     {
         outdated.push("docs/telemetry/catalog.md (missing or outdated)");
     }
+
+    let endpoint_problems: Vec<String> =
+        endpoint_bindings::outdated(Path::new(endpoint_bindings::BINDINGS_DIR))
+            .into_iter()
+            .map(|p| format!("{}/{p}", endpoint_bindings::BINDINGS_DIR))
+            .collect();
+    outdated.extend(endpoint_problems.iter().map(String::as_str));
 
     if outdated.is_empty() {
         println!("All generated files are up to date.");

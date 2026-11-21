@@ -1,5 +1,5 @@
 /**
- * Campaign tree provider tests: paywall without Premium, campaign → wave →
+ * Campaign tree provider tests: paywall without Premium, campaign -> wave ->
  * ticket children with it, and a context value per lifecycle state.
  */
 

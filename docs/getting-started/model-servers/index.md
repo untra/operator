@@ -66,7 +66,7 @@ Delegators that omit `model_server` resolve to these builtins automatically. Exi
 | `xai-api`       | [xAI](/getting-started/model-servers/xai/) Grok API                       |
 | `ollama`        | Local ollama server (`ollama serve`, default `http://localhost:11434`)   |
 | `openrouter`    | [OpenRouter](/getting-started/model-servers/openrouter/) hosted gateway to 300+ models (`https://openrouter.ai/api/v1`) |
-| `openai-compat` | Any OpenAI-API-compatible server (vllm, lmstudio, together.ai, groq, …)  |
+| `openai-compat` | Any OpenAI-API-compatible server (vllm, lmstudio, together.ai, groq, etc)  |
 | `lmstudio`      | [LM Studio](/getting-started/model-servers/lmstudio/) on a local or LAN GPU host                                                 |
 
 ## Declaring a model server

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Rev every tracked manifest to a version, then verify each rewrite landed.
 # Used by the release job in .github/workflows/build.yaml and for manual bumps.
-# Keep the file list in sync with MANAGED in tests/version_parity.rs.
+# Keep the file list in sync with MANAGED in tests/it/suites/version_parity.rs.
 #
 #   bump-version.sh              # patch bump of the VERSION file
 #   bump-version.sh 1.2.3        # explicit version
@@ -94,7 +94,6 @@ if $DRY_RUN; then
 fi
 
 cargo update --workspace --quiet
-(cd opr8r && cargo update --workspace --quiet)
 (cd zed-extension && cargo update -p operator-zed --quiet)
 
 # Fail loudly here rather than leaving a half-revved release commit.

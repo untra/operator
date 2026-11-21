@@ -148,7 +148,7 @@ name.
 where one exists, or draw a single path on a 24×24 grid. Then:
 
 ```bash
-cargo test --test svg_icon_standard
+cargo test --test it suites::svg_icon_standard::
 ```
 
 That test governs every directory above and catches a missing title, a stray

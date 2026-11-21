@@ -203,7 +203,7 @@ impl ConfigDocGenerator {
         // Check for $ref first
         if let Some(ref_path) = prop.get("$ref").and_then(|r| r.as_str()) {
             let ref_name = ref_path.split('/').next_back().unwrap_or("object");
-            return format!("→ {}", inline_code(ref_name));
+            return format!("\u{2192} {}", inline_code(ref_name));
         }
 
         // Check for allOf (common with schemars for nested types)
@@ -211,7 +211,7 @@ impl ConfigDocGenerator {
             for item in all_of {
                 if let Some(ref_path) = item.get("$ref").and_then(|r| r.as_str()) {
                     let ref_name = ref_path.split('/').next_back().unwrap_or("object");
-                    return format!("→ {}", inline_code(ref_name));
+                    return format!("\u{2192} {}", inline_code(ref_name));
                 }
             }
         }

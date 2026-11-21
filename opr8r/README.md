@@ -106,7 +106,7 @@ Response:
 
 ```bash
 cd opr8r
-cargo build --release
+cargo build --locked --profile opr8r-release
 ```
 
 The release binary is optimized for size (~3-5 MB) with:

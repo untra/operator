@@ -515,7 +515,7 @@ mod tests {
     #[tokio::test]
     async fn test_focus_session_unknown_agent_is_404() {
         // Point state at a fresh temp dir so load() returns an empty agent list
-        // deterministically (not the repo's own state). An unknown id → NotFound.
+        // deterministically (not the repo's own state). An unknown id to NotFound.
         // The cmux success path and the unsupported-wrapper 400 branch need a
         // persisted agent / live cmux, so they're covered by manual e2e.
         let tmp = tempfile::tempdir().unwrap();

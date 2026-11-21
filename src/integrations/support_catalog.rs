@@ -248,7 +248,7 @@ pub enum VerticalSupport {
     Feature(SparseSupport),
 }
 
-/// LLM tool × model server protocol relationship.
+/// LLM tool x model server protocol relationship.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Compatibility {
     Native,
@@ -693,7 +693,7 @@ mod tests {
         ];
         for (tool, kind, want) in cases {
             let got = compatibility(tool, kind).map(Compatibility::slug);
-            assert_eq!(got, Some(want), "{tool} × {kind}");
+            assert_eq!(got, Some(want), "{tool} x {kind}");
         }
     }
 

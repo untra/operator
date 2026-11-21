@@ -2,12 +2,6 @@
 //!
 //! Emits the browsable face of the hosted collection bundle:
 //!
-//! ```text
-//! docs/workflows/
-//! ├── index.md          the catalog: vocabulary, cards, table, contributor CTA
-//! └── <id>/index.md     one collection: metadata + the split-view explorer
-//! ```
-//!
 //! Cards and table rows are rendered **here**, at generation time, each carrying
 //! a `data-search` haystack. `<operator-collection-search>` then filters the DOM
 //! that already exists, so the catalog renders in full with `JavaScript`
@@ -69,7 +63,7 @@ Official collections live in the [operator repository](https://github.com/untra/
 6. Run the CI gate locally, then open a pull request:
 
 ```bash
-cargo test --test community_collections
+cargo test --test it suites::community_collections::
 ```
 
 Submissions are reviewed for prompt quality and safety, not just schema

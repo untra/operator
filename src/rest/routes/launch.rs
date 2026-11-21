@@ -1396,8 +1396,6 @@ mod tests {
         assert_eq!(options.prompt_suffix.as_deref(), Some("END"));
     }
 
-    // ─── Multi-agent grouped completion tests ───────────────────────────
-
     use crate::queue::Ticket;
     use crate::rest::dto::OperatorOutput;
     use crate::state::{PendingSubAgent, State};
@@ -1482,7 +1480,7 @@ mod tests {
         let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req).unwrap();
         assert!(
             response.is_none(),
-            "no group → fall through to single-agent path"
+            "no group -> fall through to single-agent path"
         );
     }
 
@@ -1537,7 +1535,7 @@ mod tests {
         let req = make_complete_request(&session_name);
         let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req)
             .unwrap()
-            .expect("group member → returns Some");
+            .expect("group member -> returns Some");
 
         assert_eq!(response.status, "group_partial");
         assert!(!response.auto_proceed);
@@ -1622,7 +1620,7 @@ mod tests {
         let req = make_complete_request(&session_name);
         let response = handle_multi_agent_completion(&api_state, &ticket, "review", &req)
             .unwrap()
-            .expect("group member → returns Some");
+            .expect("group member -> returns Some");
 
         assert_eq!(
             response.status, "group_complete",
@@ -1644,8 +1642,6 @@ mod tests {
         assert!(expected.exists());
     }
 
-    // ─── complete_step chain-hardening tests ────────────────────────────
-    //
     // Uses the builtin SYNC issuetype (scan -> validate -> update): "scan"
     // and "validate" both have review_type None (auto_proceed), which lets
     // duplicate-advance be reproduced (a 2-step type has nowhere further to
@@ -1783,7 +1779,7 @@ mod tests {
         let fixture = make_chain_fixture();
         let mut config = (*fixture.state.config()).clone();
         config.telemetry.enabled = true;
-        fixture.state.replace_config(config);
+        fixture.state.replace_config(config).unwrap();
         let ticket = write_sync_ticket(&fixture.state, "SYNC-9198", "scan");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "opus", "session-current");
         let mut principal = crate::auth::scope::Principal::local("admin");
@@ -1827,7 +1823,7 @@ mod tests {
         let fixture = make_chain_fixture();
         let mut config = (*fixture.state.config()).clone();
         config.telemetry.enabled = true;
-        fixture.state.replace_config(config);
+        fixture.state.replace_config(config).unwrap();
         let ticket = write_sync_ticket(&fixture.state, "SYNC-9199", "scan");
         let agent_id = add_chain_agent(&fixture.state, &ticket, "opus", "session-current");
         let mut principal = Principal::local("admin");

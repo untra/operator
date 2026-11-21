@@ -14,7 +14,7 @@ Tickets are markdown files with a specific naming convention:
 {TYPE}-{ID}-{project}-{description}.md
 ```
 
-`{TYPE}` is the issue type key (`FEAT`, `FIX`, `PRD`, …), which is why keys never contain hyphens - the hyphen separates the key from the ticket number.
+`{TYPE}` is the issue type key (`FEAT`, `FIX`, `PRD`, etc), which is why keys never contain hyphens - the hyphen separates the key from the ticket number.
 
 ### Examples
 

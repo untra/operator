@@ -3,12 +3,18 @@ name: opr8r
 on:
   push:
     paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
       - 'opr8r/**'
       - '.github/workflows/opr8r.yaml'
     branches:
       - main
   pull_request:
     paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
       - 'opr8r/**'
       - '.github/workflows/opr8r.yaml'
   workflow_dispatch:
@@ -41,8 +47,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            opr8r/target
-          key: opr8r-${{ runner.os }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
+            target
+          key: opr8r-${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             opr8r-${{ runner.os }}-cargo-
 
@@ -84,18 +90,18 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            opr8r/target
-          key: opr8r-${{ runner.os }}-cargo-coverage-${{ hashFiles('opr8r/Cargo.lock') }}
+            target
+          key: opr8r-${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             opr8r-${{ runner.os }}-cargo-coverage-
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.90.3
         with:
           tool: cargo-llvm-cov
 
       - name: Generate coverage
-        run: cargo llvm-cov --locked --all-features --codecov --output-path codecov.json
+        run: cargo llvm-cov -p opr8r --locked --all-features --codecov --output-path codecov.json
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v7

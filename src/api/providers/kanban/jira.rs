@@ -343,8 +343,6 @@ struct JiraIssueType {
     #[serde(rename = "iconUrl")]
     icon_url: Option<String>,
 }
-
-// ─── Jira API Response Types ────────────────────────────────────────────────
 // These types are exported for schema/binding generation
 
 /// Jira user information from assignable users API
@@ -599,8 +597,6 @@ pub struct JiraPriority {
     /// Priority name (e.g., "Highest", "High", "Medium", "Low", "Lowest")
     pub name: String,
 }
-
-// ─── Create Issue Types ──────────────────────────────────────────────────────
 
 /// Response from creating a Jira issue
 #[derive(Debug, Deserialize)]
@@ -931,7 +927,7 @@ impl KanbanProvider for JiraProvider {
         // Format the comment text
         let timestamp = entry.completed_at.format("%Y-%m-%d %H:%M UTC").to_string();
         let mut text = format!(
-            "🤖 opr8r - step: {} | delegator: {} | {}",
+            "opr8r - step: {} | delegator: {} | {}",
             entry.step, entry.delegator, timestamp
         );
         if let Some(ref summary) = entry.summary {

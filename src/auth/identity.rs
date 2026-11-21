@@ -17,7 +17,7 @@ use crate::rest::dto::auth::{AccessKeySummary, PrincipalKind};
 
 pub const KEY_PREFIX: &str = "opk_v1";
 pub const KEY_LENGTH: usize = 87;
-pub const KEY_PAGE_SIZE: usize = 50;
+pub const KEY_PAGE_SIZE: u32 = 50;
 pub const RECENT_LOGIN_SECONDS: i64 = 300;
 pub const ISSUANCE_WINDOW_SECONDS: u32 = 3600;
 const MAX_ISSUED_PER_WINDOW: u32 = 20;
@@ -550,7 +550,7 @@ impl AuthStore {
                 },
                 owner_id: user.user.id.clone(),
                 profile_id: request.grants.profile_id,
-                display_prefix: format!("{KEY_PREFIX}_{id}_…"),
+                display_prefix: format!("{KEY_PREFIX}_{id}_\u{2026}"),
                 grants: request.grants.clone(),
                 replaces_id: replaces.map(str::to_owned),
             },
@@ -670,7 +670,7 @@ impl AuthStore {
             let rows = stmt.query_map(params![owner, profile.to_string(), KEY_PAGE_SIZE, offset], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?, r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?, r.get::<_, Option<String>>(6)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
             rows.into_iter().map(|(id, name, created, expires, used, revoked, replaces_id)| {
                 let parse = |s: &str| -> Result<DateTime<Utc>> { Ok(DateTime::parse_from_rfc3339(s)?.with_timezone(&Utc)) };
-                Ok(UserKey { display_prefix: format!("{KEY_PREFIX}_{id}_…"), owner_id: owner.to_string(), profile_id: profile, grants: read_grants(conn, &id, profile, true)?, replaces_id, summary: AccessKeySummary { id, name, scopes: Vec::new(), created_at: parse(&created)?, expires_at: parse(&expires)?, last_used_at: used.as_deref().map(parse).transpose()?, revoked_at: revoked.as_deref().map(parse).transpose()? } })
+                Ok(UserKey { display_prefix: format!("{KEY_PREFIX}_{id}_\u{2026}"), owner_id: owner.to_string(), profile_id: profile, grants: read_grants(conn, &id, profile, true)?, replaces_id, summary: AccessKeySummary { id, name, scopes: Vec::new(), created_at: parse(&created)?, expires_at: parse(&expires)?, last_used_at: used.as_deref().map(parse).transpose()?, revoked_at: revoked.as_deref().map(parse).transpose()? } })
             }).collect()
         })
     }
@@ -703,6 +703,7 @@ impl UserAuthority {
             ticket_id: None,
             step: None,
             agent_session_id: None,
+            endpoint_id: None,
             authority: Some(self.clone()),
         }
     }

@@ -139,7 +139,7 @@ export function LicensePanel({
           )}
         </>
       ) : (
-        <p>Loading license…</p>
+        <p>Loading license...</p>
       )}
       <form className={styles.form} onSubmit={onSubmit}>
         <StringInput

@@ -229,7 +229,7 @@ export function RemoteTargetsPage() {
       </h1>
       <p>Register SSH hosts and Coder workspaces for delegators to run agents remotely.</p>
       {statusMessage && <output className={styles.status}>{statusMessage}</output>}
-      {loading && <p className={styles.status}>Loading remote targets…</p>}
+      {loading && <p className={styles.status}>Loading remote targets...</p>}
       {license.data && !license.data.premium && (
         <PremiumPaywall
           feature="Remote targets"

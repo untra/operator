@@ -53,7 +53,7 @@ impl DocGenerator for StartupDocGenerator {
             vec!["`Enter`".to_string(), "Confirm/Continue".to_string()],
             vec!["`Esc`".to_string(), "Go back/Cancel".to_string()],
             vec![
-                "`↑`/`↓` or `j`/`k`".to_string(),
+                "`\u{2191}`/`\u{2193}` or `j`/`k`".to_string(),
                 "Navigate list items".to_string(),
             ],
             vec!["`Space`".to_string(), "Toggle selection".to_string()],

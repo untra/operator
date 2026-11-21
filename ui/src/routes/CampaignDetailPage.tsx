@@ -161,7 +161,7 @@ function CampaignDetail({ id }: { id: string }) {
     return <output className={styles.status}>{detail.error.message}</output>;
   }
   if (!detail.data) {
-    return <p className={styles.status}>Loading campaign…</p>;
+    return <p className={styles.status}>Loading campaign...</p>;
   }
 
   const { campaign, members, plan_error } = detail.data;
@@ -185,7 +185,7 @@ function CampaignDetail({ id }: { id: string }) {
       <div className={styles.actions}>
         {LAUNCHABLE.has(lifecycle) && (
           <button type="button" disabled={busy} onClick={onPreview}>
-            Launch…
+            Launch
           </button>
         )}
         {lifecycle === "running" && (

@@ -163,22 +163,6 @@ impl IssueTypeRegistry {
     }
 
     /// Load issue types and collections from directory structure
-    ///
-    /// Flattened directory structure (no issues/ subfolder):
-    /// ```text
-    /// .tickets/templates/
-    /// ├── dev_kanban/
-    /// │   ├── collection.toml  (optional)
-    /// │   ├── TASK.json
-    /// │   ├── TASK.md
-    /// │   ├── FEAT.json
-    /// │   ├── FEAT.md
-    /// │   ├── FIX.json
-    /// │   └── FIX.md
-    /// ├── devops_kanban/
-    /// │   └── ...
-    /// ```
-    ///
     /// Each collection is self-contained with its own issue types.
     pub fn load_from_templates_dir(&mut self, templates_path: &Path) -> Result<()> {
         let mut loaded: Vec<_> = loader::load_collections_from_dir(templates_path)?

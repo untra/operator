@@ -155,8 +155,6 @@ pub struct ExternalField {
     pub options: Vec<String>,
 }
 
-// ─── CRUD Request/Response Types ─────────────────────────────────────────────
-
 /// Request to create a new issue in a kanban provider
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateIssueRequest {
@@ -250,8 +248,6 @@ pub trait KanbanProvider: Send + Sync {
             format!("{} cannot sync scope {scope:?}", self.name()),
         ))
     }
-
-    // ─── CRUD Operations ─────────────────────────────────────────────────────
 
     /// Create a new issue in the specified project
     ///

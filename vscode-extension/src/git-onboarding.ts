@@ -100,7 +100,7 @@ async function writeGitConfig(
 /**
  * GitHub onboarding flow
  *
- * 1. Detect gh CLI → grab token silently
+ * 1. Detect gh CLI -> grab token silently
  * 2. Fall back to manual PAT input
  * 3. Validate via GitHub API
  * 4. Write config
@@ -199,7 +199,7 @@ export async function onboardGitHub(): Promise<void> {
  * GitLab onboarding flow
  *
  * 1. Ask for host (default gitlab.com)
- * 2. Detect glab CLI → grab token silently
+ * 2. Detect glab CLI -> grab token silently
  * 3. Fall back to manual PAT input
  * 4. Validate via GitLab API
  * 5. Write config

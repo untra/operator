@@ -8,7 +8,7 @@ import { HostContext, type Host } from "../host";
 import { mockFetch as mockRequest, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { LoginPage } = await import("./LoginPage");
 const { SetupPage } = await import("./SetupPage");

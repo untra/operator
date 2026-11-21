@@ -50,9 +50,3 @@ Local, SSH, Coder, and Docker launches receive private runtime credentials. Remo
 Runtime credentials are removed on normal exit and handled termination. Abrupt host failure can leave private credential files; provider tokens remain valid until their administrator revokes them. This is credential isolation between launches, not a sandbox against an agent running as the same OS user.
 
 Draft creation prefixes the title with the configured WIP prefix. Configure this prefix to match the Gitea server. PR reads use the server's `draft` result. Comment association is reported as `NONE` where unavailable.
-
-## Validation
-
-The optional read-only live test uses `OPERATOR_GITPROVIDER_TEST_ENABLED=true`, `OPERATOR_GITPROVIDER_TEST_REPO_GITEA` (an HTTPS URL), `OPERATOR_GITPROVIDER_TEST_PR_GITEA`, and `GITEA_TOKEN`. Run `cargo test --test gitprovider_integration gitea_provider_live`.
-
-[Forgejo](/getting-started/git/forgejo/) has separate Alpha Git support using the compatible Tea transport. [Gitea Projects](/getting-started/kanban/gitea/) is a separate import-only kanban provider using `OPERATOR_GITEA_TOKEN`.

@@ -12,7 +12,7 @@ function CampaignList() {
     return <output className={styles.status}>{query.error.message}</output>;
   }
   if (!query.data) {
-    return <p className={styles.status}>Loading campaigns…</p>;
+    return <p className={styles.status}>Loading campaigns...</p>;
   }
   if (query.data.campaigns.length === 0) {
     return (

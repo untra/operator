@@ -122,8 +122,6 @@ Only the *name* of the environment variable holding the token is written to conf
 
 This step is optional; Operator works against a local repository with no provider connected.
 
-**Navigation**: ↑/↓ or j/k to navigate, Enter to connect, Esc to go back
-
 ### 7. Collection Source
 
 *Choose which issue type collection to use*

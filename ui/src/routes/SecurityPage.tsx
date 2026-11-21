@@ -59,7 +59,7 @@ export function SecurityPage() {
         <p className={styles.sectionHint}>
           Signed-in browsers. Revoking a session signs it out immediately.
         </p>
-        {sessions.isLoading && <p className={styles.sectionHint}>Loading browser sessions…</p>}
+        {sessions.isLoading && <p className={styles.sectionHint}>Loading browser sessions...</p>}
         {!sessions.isLoading && !sessions.error && sessionRows.length === 0 && (
           <p className={styles.sectionHint}>No browser sessions were found.</p>
         )}
@@ -122,7 +122,7 @@ export function SecurityPage() {
         <p className={styles.sectionHint}>
           Editors and other clients authorized through the device flow.
         </p>
-        {sessions.isLoading && <p className={styles.sectionHint}>Loading connected devices…</p>}
+        {sessions.isLoading && <p className={styles.sectionHint}>Loading connected devices...</p>}
         {!sessions.isLoading && !sessions.error && deviceRows.length === 0 && (
           <p className={styles.sectionHint}>No connected devices were found.</p>
         )}

@@ -1,6 +1,7 @@
 //! Health check and status endpoints.
 
-use axum::{extract::State, Json};
+use crate::rest::state::RequestState as State;
+use axum::Json;
 
 use crate::rest::directory::directory_identity;
 use crate::rest::dto::{HealthResponse, StatusResponse};

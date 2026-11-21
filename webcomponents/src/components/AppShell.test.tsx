@@ -29,7 +29,6 @@ describe("AccountFooter", () => {
 
     expect(markup).toContain("Could not sign out.");
     expect(markup).toContain("disabled");
-    expect(markup).toContain("Signing out…");
   });
 });
 

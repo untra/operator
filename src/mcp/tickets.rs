@@ -5,6 +5,7 @@
 
 use serde_json::{json, Value};
 
+use super::args::required_str;
 use crate::queue::{Queue, Ticket, TicketColumn};
 use crate::rest::state::ApiState;
 use crate::services::ticket_transitions;
@@ -32,8 +33,11 @@ pub async fn list_tickets(args: Value, state: &ApiState) -> Result<Value, String
         .unwrap_or("queue")
         .to_string();
     let config = (*state.config()).clone();
+    let projects = state.project_filter();
     let tickets = tokio::task::spawn_blocking(move || -> Result<Vec<Ticket>, String> {
-        let queue = Queue::new(&config).map_err(|e| e.to_string())?;
+        let queue = Queue::new(&config)
+            .map_err(|e| e.to_string())?
+            .restrict_projects(projects);
         match status.as_str() {
             "queue" => queue.list_queue().map_err(|e| e.to_string()),
             "in-progress" => queue.list_in_progress().map_err(|e| e.to_string()),
@@ -52,8 +56,11 @@ async fn find_ticket(state: &ApiState, id: &str, in_status: &str) -> Result<Tick
     let id = id.to_string();
     let in_status = in_status.to_string();
     let config = (*state.config()).clone();
+    let projects = state.project_filter();
     tokio::task::spawn_blocking(move || -> Result<Ticket, String> {
-        let queue = Queue::new(&config).map_err(|e| e.to_string())?;
+        let queue = Queue::new(&config)
+            .map_err(|e| e.to_string())?
+            .restrict_projects(projects);
         let list = match in_status.as_str() {
             "queue" => queue.list_queue(),
             "in-progress" => queue.list_in_progress(),
@@ -70,10 +77,7 @@ async fn find_ticket(state: &ApiState, id: &str, in_status: &str) -> Result<Tick
 }
 
 pub async fn claim_ticket(args: Value, state: &ApiState) -> Result<Value, String> {
-    let id = args
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing required arg: id")?;
+    let id = required_str(&args, "id")?;
     let ticket = find_ticket(state, id, "queue").await?;
     let id_str = id.to_string();
     ticket_transitions::move_ticket(state, &ticket, TicketColumn::InProgress).await?;
@@ -81,10 +85,7 @@ pub async fn claim_ticket(args: Value, state: &ApiState) -> Result<Value, String
 }
 
 pub async fn complete_ticket(args: Value, state: &ApiState) -> Result<Value, String> {
-    let id = args
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing required arg: id")?;
+    let id = required_str(&args, "id")?;
     let ticket = find_ticket(state, id, "in-progress").await?;
     let id_str = id.to_string();
     ticket_transitions::move_ticket(state, &ticket, TicketColumn::Completed).await?;
@@ -92,49 +93,37 @@ pub async fn complete_ticket(args: Value, state: &ApiState) -> Result<Value, Str
 }
 
 pub async fn return_to_queue(args: Value, state: &ApiState) -> Result<Value, String> {
-    let id = args
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing required arg: id")?;
+    let id = required_str(&args, "id")?;
     let ticket = find_ticket(state, id, "in-progress").await?;
     let id_str = id.to_string();
     ticket_transitions::move_ticket(state, &ticket, TicketColumn::Queue).await?;
     Ok(json!({ "id": id_str, "moved_to": "queue" }))
 }
 
-pub async fn create_ticket(args: Value, state: &ApiState) -> Result<Value, String> {
-    use crate::templates::TemplateType;
-    use std::collections::HashMap;
+pub async fn create_ticket(mut args: Value, state: &ApiState) -> Result<Value, String> {
+    stringify_values(&mut args);
+    let request: crate::rest::dto::CreateTicketRequest =
+        serde_json::from_value(args).map_err(|e| format!("Invalid arguments: {e}"))?;
+    let created = crate::services::ticket_creation::create(state, request)
+        .await
+        .map_err(|e| {
+            let (_, code, message) = e.parts();
+            format!("{code}: {message}")
+        })?;
+    serde_json::to_value(created).map_err(|e| e.to_string())
+}
 
-    let template_str = args
-        .get("template")
-        .and_then(|v| v.as_str())
-        .ok_or("Missing required arg: template")?;
-    let template_type = TemplateType::from_key(template_str)
-        .ok_or_else(|| format!("Unknown template type: {template_str}"))?;
-
-    let mut values: HashMap<String, String> = HashMap::new();
-    if let Some(obj) = args.get("values").and_then(|v| v.as_object()) {
-        for (k, v) in obj {
-            if let Some(s) = v.as_str() {
-                values.insert(k.clone(), s.to_string());
-            }
+/// MCP clients send numbers and booleans for integer/bool fields; the
+/// contract carries every field value as a string.
+fn stringify_values(args: &mut Value) {
+    let Some(values) = args.get_mut("values").and_then(Value::as_object_mut) else {
+        return;
+    };
+    for value in values.values_mut() {
+        if !value.is_string() {
+            *value = Value::String(value.to_string());
         }
     }
-
-    let (ticket, path) =
-        crate::rest::routes::tickets::create_ticket_from_values(state, template_type, values)
-            .await
-            .map_err(|e| {
-                let (_, code, message) = e.parts();
-                format!("{code}: {message}")
-            })?;
-
-    Ok(json!({
-        "id": ticket.id,
-        "path": path.to_string_lossy(),
-        "filename": ticket.filename,
-    }))
 }
 
 #[cfg(test)]
@@ -148,6 +137,11 @@ mod tests {
         let path = temp.keep();
         // Point the config's tickets path at the tempdir so Queue::new resolves there.
         config.paths.tickets = path.to_string_lossy().into_owned();
+        config.paths.state = path.join("state").to_string_lossy().into_owned();
+        let projects = path.join("projects");
+        std::fs::create_dir_all(projects.join("demo")).unwrap();
+        config.paths.projects = projects.to_string_lossy().into_owned();
+        config.projects = vec!["demo".to_string()];
         let state = ApiState::new(config, path.clone());
         (state, path)
     }
@@ -245,8 +239,9 @@ mod tests {
 
         let result = create_ticket(
             json!({
-                "template": "FEAT",
-                "values": { "project": "demo", "summary": "from mcp test" }
+                "issue_type": "FEAT",
+                "project": "demo",
+                "summary": "from mcp test"
             }),
             &state,
         )
@@ -273,7 +268,27 @@ mod tests {
         let err = create_ticket(json!({ "template": "nope" }), &state)
             .await
             .unwrap_err();
-        assert!(err.contains("Unknown template type"));
+        assert!(err.contains("Unknown issue type"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn test_create_ticket_accepts_legacy_template_key_and_typed_values() {
+        let mut config = Config::default();
+        config.mcp.expose_ticket_write_tools = true;
+        let (state, _) = test_state_with_config(config);
+
+        let result = create_ticket(
+            json!({
+                "template": "task",
+                "summary": "count things",
+                "values": { "description": "d", "points": 3 }
+            }),
+            &state,
+        )
+        .await
+        .unwrap();
+        assert_eq!(result["id"], "TASK-0001");
+        assert_eq!(result["kanban"]["status"], "not_configured");
     }
 
     #[tokio::test]

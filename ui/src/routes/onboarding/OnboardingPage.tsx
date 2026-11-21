@@ -12,6 +12,7 @@ import {
   setupStepsQuery,
 } from "../../api/definitions";
 import { STEP_COMPONENTS, stepRows, visibleSteps } from "./steps";
+import { stepValid } from "./validation";
 import type { SetupStep } from "@operator/bindings/SetupStep";
 import type { StepRow, WizardDraft } from "./types";
 import { useProfiles } from "../../profiles-context";
@@ -44,6 +45,7 @@ function emptyDraft(configurationName: string, acceptanceCriteria = ""): WizardD
   };
 }
 
+/** localStorage, so a checkout return in another tab resumes the same draft. */
 function draftStorageKey(profileId: string): string {
   return `${WIZARD_DRAFT_PREFIX}.${profileId}`;
 }
@@ -130,10 +132,10 @@ export function OnboardingPage() {
     if (selected && !creating) {
       try {
         saved = JSON.parse(
-          sessionStorage.getItem(draftStorageKey(selected.id)) ?? "null",
+          localStorage.getItem(draftStorageKey(selected.id)) ?? "null",
         ) as SavedDraft | null;
       } catch {
-        sessionStorage.removeItem(draftStorageKey(selected.id));
+        localStorage.removeItem(draftStorageKey(selected.id));
       }
     }
     setHydrated(true);
@@ -153,21 +155,22 @@ export function OnboardingPage() {
   }
 
   useEffect(() => {
-    if (!status || (status.initialized && !creating)) {
+    if (!hydrated || !status || (status.initialized && !creating)) {
       return;
     }
     void navigate(`/onboarding?step=${currentSlug}`, { replace: true });
-  }, [creating, currentSlug, navigate, status]);
+  }, [creating, currentSlug, hydrated, navigate, status]);
 
+  // Before hydration the draft is empty; persisting it would clobber the saved one.
   useEffect(() => {
-    if (!selected || !status || status.initialized || creating) {
+    if (!hydrated || !selected || !status || status.initialized || creating) {
       return;
     }
-    sessionStorage.setItem(
+    localStorage.setItem(
       draftStorageKey(selected.id),
       JSON.stringify({ version: WIZARD_DRAFT_VERSION, draft, currentSlug }),
     );
-  }, [creating, currentSlug, draft, selected, status]);
+  }, [creating, currentSlug, draft, hydrated, selected, status]);
 
   const slugs = useMemo(() => steps.map((step) => step.slug), [steps]);
   const walk = useMemo(() => visibleSteps(slugs, draft), [draft, slugs]);
@@ -199,7 +202,7 @@ export function OnboardingPage() {
     setCreatingBusy(true);
     try {
       const profile = await create(draft.configurationName);
-      sessionStorage.setItem(
+      localStorage.setItem(
         draftStorageKey(profile.id),
         JSON.stringify({
           version: WIZARD_DRAFT_VERSION,
@@ -218,15 +221,11 @@ export function OnboardingPage() {
   }
 
   async function next() {
-    if (!current) {
+    if (!current || !stepValid(current.slug, draft)) {
       return;
     }
     const nextSlug = walk[Math.min(currentIndex + 1, walk.length - 1)];
     if (current.slug === "welcome") {
-      if (!/^[a-z0-9_-]{1,64}$/.test(draft.configurationName)) {
-        setError("Use 1-64 lowercase letters, numbers, hyphens, or underscores.");
-        return;
-      }
       if (creating) {
         setError(null);
         await createConfiguration(nextSlug);
@@ -251,29 +250,6 @@ export function OnboardingPage() {
         }
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Could not verify license");
-        return;
-      }
-    }
-    if (current.slug === "hosted-collections" && draft.hostedCollectionIds.length === 0) {
-      setError("Select at least one collection.");
-      return;
-    }
-    if (
-      current.slug === "execution-target" &&
-      draft.executionTarget.kind === "coder" &&
-      (!draft.executionTarget.name.trim() || !draft.executionTarget.template.trim())
-    ) {
-      setError("Coder target name and template are required.");
-      return;
-    }
-    if (current.slug === "execution-target" && draft.executionTarget.kind === "coder") {
-      const names = draft.coderParameters.map((parameter) => parameter.name.trim());
-      if (names.some((name) => !name.trim())) {
-        setError("Coder parameter names cannot be empty.");
-        return;
-      }
-      if (new Set(names).size !== names.length) {
-        setError("Coder parameter names must be unique.");
         return;
       }
     }
@@ -310,7 +286,7 @@ export function OnboardingPage() {
         }),
       });
       if (selected) {
-        sessionStorage.removeItem(draftStorageKey(selected.id));
+        localStorage.removeItem(draftStorageKey(selected.id));
       }
       await refresh();
       void navigate("/", { replace: true });
@@ -386,7 +362,12 @@ export function OnboardingPage() {
               {busy ? "Initializing…" : "Initialize workspace"}
             </button>
           ) : (
-            <button type="button" className={styles.primary} disabled={busy} onClick={onNext}>
+            <button
+              type="button"
+              className={styles.primary}
+              disabled={busy || !stepValid(current.slug, draft)}
+              onClick={onNext}
+            >
               Continue
             </button>
           )}

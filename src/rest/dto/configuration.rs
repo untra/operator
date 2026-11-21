@@ -386,6 +386,8 @@ pub struct ModelServerModelsResponse {
     pub server: String,
     /// Whether the endpoint was reachable
     pub reachable: bool,
+    /// Probe result category
+    pub status: crate::api::providers::model_server::ProbeStatus,
     /// Models offered (empty when unreachable)
     pub models: Vec<ModelEntry>,
     /// Error message when unreachable
@@ -879,6 +881,7 @@ mod tests {
         let resp = ModelServerModelsResponse {
             server: "ollama-local".to_string(),
             reachable: true,
+            status: crate::api::providers::model_server::ProbeStatus::Connected,
             models: vec![ModelEntry {
                 id: "llama3".to_string(),
                 display_name: None,
@@ -889,6 +892,7 @@ mod tests {
         assert!(!json.contains("error"));
         assert!(!json.contains("display_name"));
         assert!(json.contains("\"reachable\":true"));
+        assert!(json.contains("\"status\":\"connected\""));
     }
 
     #[test]

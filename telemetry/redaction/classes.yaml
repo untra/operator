@@ -1,0 +1,16 @@
+classes:
+  - name: public
+    when_enabled: keep
+    when_disabled: keep
+  - name: internal
+    when_enabled: keep
+    when_disabled: keep
+  - name: personal
+    when_enabled: hash
+    when_disabled: keep
+  - name: content
+    when_enabled: drop
+    when_disabled: keep
+  - name: secret
+    when_enabled: drop
+    when_disabled: drop

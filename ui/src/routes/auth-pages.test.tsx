@@ -5,10 +5,10 @@ import { ApiProvider } from "../api";
 import { resetSessionState } from "../api/adapter";
 import { setCsrfToken } from "../api-client";
 import { HostContext, type Host } from "../host";
-import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
+import { mockFetch as mockRequest, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { LoginPage } = await import("./LoginPage");
 const { SetupPage } = await import("./SetupPage");
@@ -25,6 +25,14 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function mockFetch(implementation: Parameters<typeof mockRequest>[0]) {
+  return mockRequest((input, init) =>
+    requestPath(input) === "/api/v1/auth/oidc/providers"
+      ? Promise.resolve(json([]))
+      : implementation(input, init),
+  );
 }
 
 function renderAuth(initialPath: string) {

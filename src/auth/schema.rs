@@ -143,6 +143,40 @@ const MIGRATIONS: &[&str] = &[
     r"
     ALTER TABLE session ADD COLUMN csrf_prev_hash TEXT;
     ",
+    // v3 - telemetry installation key for keyed hashing of personal-class
+    // attributes. Pinned to one row so concurrent first starts agree on a key.
+    r"
+    CREATE TABLE telemetry_key (
+        id          INTEGER PRIMARY KEY CHECK (id = 1),
+        key         BLOB NOT NULL CHECK (length(key) = 32),
+        created_at  TEXT NOT NULL
+    );
+    ",
+    include_str!("identity_migration.sql"),
+    // v5 - strip whitespace stored around OIDC issuers.
+    r"
+    UPDATE oidc_connection SET issuer = trim(issuer, ' ' || char(9, 10, 13))
+    WHERE issuer <> trim(issuer, ' ' || char(9, 10, 13))
+      AND NOT EXISTS (SELECT 1 FROM oidc_connection o WHERE o.issuer = trim(oidc_connection.issuer, ' ' || char(9, 10, 13)));
+    UPDATE operator_user SET issuer = trim(issuer, ' ' || char(9, 10, 13))
+    WHERE issuer <> trim(issuer, ' ' || char(9, 10, 13))
+      AND NOT EXISTS (SELECT 1 FROM operator_user o WHERE o.subject = operator_user.subject AND o.issuer = trim(operator_user.issuer, ' ' || char(9, 10, 13)));
+    ", // v6 - paired endpoint machines. The id is the endpoint's refresh-family
+    // id, so the family's revocation and expiry govern the endpoint too.
+    r"
+    CREATE TABLE endpoint (
+        id                TEXT PRIMARY KEY REFERENCES refresh_family(id),
+        name              TEXT NOT NULL,
+        created_at        TEXT NOT NULL,
+        revoked_at        TEXT,
+        launch_enabled    INTEGER NOT NULL DEFAULT 0,
+        -- Once an admin names it, the endpoint's reported hostname no longer does.
+        named_by_admin    INTEGER NOT NULL DEFAULT 0,
+        capabilities_json TEXT,
+        capabilities_hash TEXT,
+        last_seen_at      TEXT
+    );
+    ",
 ];
 
 /// Apply any migrations the database has not seen.
@@ -173,6 +207,10 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
              Downgrading is not supported.",
             MIGRATIONS.len()
         );
+    }
+    if current >= 3 {
+        let telemetry: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='telemetry_key')", [], |r| r.get(0))?;
+        anyhow::ensure!(telemetry, "auth database has an incompatible draft schema; restore a pre-draft backup before upgrading");
     }
     if current == MIGRATIONS.len() {
         return Ok(());
@@ -234,6 +272,57 @@ mod tests {
     }
 
     #[test]
+    fn test_identity_migration_preserves_telemetry_and_binds_key_profile() {
+        let conn = migrated();
+        for table in [
+            "telemetry_key",
+            "oidc_connection",
+            "operator_user",
+            "user_grant",
+            "user_project",
+            "key_capability",
+            "key_project",
+        ] {
+            assert_eq!(
+                conn.query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+                1,
+                "{table}"
+            );
+        }
+        conn.prepare("SELECT profile_id, user_id FROM access_key")
+            .unwrap();
+    }
+
+    #[test]
+    fn test_migration_trims_padded_oidc_issuers() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        apply_pragmas(&conn).unwrap();
+        for migration in &MIGRATIONS[..4] {
+            conn.execute_batch(migration).unwrap();
+        }
+        conn.execute_batch("PRAGMA user_version = 4").unwrap();
+        conn.execute_batch(
+            "INSERT INTO oidc_connection (id, provider, issuer, client_id, redirect_uri, created_at) \
+             VALUES ('c', 'keycloak', ' https://identity.example/realm', 'operator', 'https://operator.example/cb', 0); \
+             INSERT INTO operator_user (id, connection_id, issuer, subject, created_at) \
+             VALUES ('u', 'c', ' https://identity.example/realm', 'subject', 0);",
+        )
+        .unwrap();
+        migrate(&mut conn).unwrap();
+        for table in ["oidc_connection", "operator_user"] {
+            let issuer: String = conn
+                .query_row(&format!("SELECT issuer FROM {table}"), [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(issuer, "https://identity.example/realm", "{table}");
+        }
+    }
+
+    #[test]
     fn test_migrate_creates_every_table() {
         let conn = migrated();
         for table in [
@@ -246,6 +335,7 @@ mod tests {
             "access_key",
             "audit_log",
             "rate_limit",
+            "telemetry_key",
         ] {
             let count: i64 = conn
                 .query_row(

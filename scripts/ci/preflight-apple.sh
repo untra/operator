@@ -29,7 +29,7 @@ report() {
 
 fail() {
   echo "::error::$1: $2"
-  report "❌" "$1: $2"
+  report "Error:" "$1: $2"
   FAILED=1
 }
 
@@ -46,7 +46,7 @@ require_env() {
 
   if [ "${GITHUB_EVENT_NAME:-}" = "$PULL_REQUEST_EVENT" ]; then
     echo "::warning::$check skipped: ${missing[*]} unavailable to this PR"
-    report "⚠️" "$check skipped: secrets unavailable to this PR"
+    report "Warning:" "$check skipped: secrets unavailable to this PR"
   else
     fail "$check" "${missing[*]} unset"
   fi
@@ -69,10 +69,10 @@ check_notary() {
     --issuer "$APPLE_NOTARY_ISSUER_ID" \
     --output-format json 2>&1); then
     echo "$check: credentials accepted"
-    report "✅" "$check: credentials accepted"
+    report "OK:" "$check: credentials accepted"
   else
     echo "$output" >&2
-    fail "$check" "$(echo "$output" | grep -m1 -i 'error' || echo 'request failed') — check developer.apple.com/account for unsigned agreements and that the API key is not revoked"
+    fail "$check" "$(echo "$output" | grep -m1 -i 'error' || echo 'request failed') - check developer.apple.com/account for unsigned agreements and that the API key is not revoked"
   fi
 }
 
@@ -104,10 +104,10 @@ check_certificate() {
     fail "$check" "expired on $expiry"
   elif ! openssl x509 -in "$pem_path" -noout -checkend $((CERT_EXPIRY_WARN_DAYS * SECONDS_PER_DAY)) > /dev/null; then
     echo "::warning::$check expires on $expiry (within $CERT_EXPIRY_WARN_DAYS days)"
-    report "⚠️" "$check: expires on $expiry"
+    report "Warning:" "$check: expires on $expiry"
   else
     echo "$check: valid until $expiry"
-    report "✅" "$check: valid until $expiry"
+    report "OK:" "$check: valid until $expiry"
   fi
 }
 

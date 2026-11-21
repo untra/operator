@@ -5,22 +5,34 @@
   "version_command": "codex --version",
   "min_version": "0.1.0",
   "capabilities": {
-    "supports_sessions": true,
+    "supports_sessions": false,
     "supports_headless": true,
     "supports_config_override": true,
     "supports_permission_mode": false
   },
-  "model_aliases": ["gpt-4o", "o1", "o3"],
+  "model_aliases": [
+    "gpt-4o",
+    "o1",
+    "o3"
+  ],
   "arg_mapping": {
     "prompt": "",
     "model": "-m",
     "session_id": "--resume",
     "quiet": "-q"
   },
-  "command_template": "codex exec {{config_flags}}-m {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
-  "yolo_flags": ["--full-auto"],
+  "command_template": "codex exec {{config_flags}}{{model_flag}}\"$(cat {{prompt_file}})\"",
+  "yolo_flags": [
+    "-c",
+    "'approval_policy=\"never\"'",
+    "--sandbox",
+    "workspace-write"
+  ],
   "skill_directories": {
     "global": [],
-    "project": [".codex/", "AGENTS.md"]
+    "project": [
+      ".codex/",
+      "AGENTS.md"
+    ]
   }
 }

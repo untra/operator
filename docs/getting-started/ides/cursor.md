@@ -47,11 +47,14 @@ The extension shares the same configuration as the VS Code session manager. Sett
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `operator.webhookPort` | `7009` | Port for webhook server |
-| `operator.autoStart` | `true` | Start server on Cursor launch |
+| `operator.connectionMode` | `local` | `local` uses Operator on this machine. `remote` uses the saved `operator.apiUrl` and does not download or start a binary. |
+| `operator.webhookPort` | `7009` | Port for the local webhook server |
+| `operator.autoStart` | `true` | In local mode, start the Operator API when none is reachable. Remote mode never starts a local server. |
 | `operator.terminalPrefix` | `op-` | Prefix for managed terminal names |
 | `operator.ticketsDir` | `.tickets` | Path to tickets directory |
-| `operator.apiUrl` | `http://localhost:7008` | Operator REST API URL |
+| `operator.apiUrl` | `http://localhost:7008` | REST API origin. In remote mode, set this in User settings to an `https` origin. |
+
+**Operator: Choose Connection** saves that choice. A remote server is reached over its API. Cursor's MCP file is stdio-only, so Connect MCP does not write `~/.cursor/mcp.json` for a remote origin. Use VS Code workspace MCP settings for SSE. The server needs `[rest_api].public_url` set to its public `https` origin. Sign-in tokens stay in the editor secret store for the life of the server session (30 idle days, 90 days at most).
 
 ## MCP Integration
 
@@ -103,7 +106,7 @@ Open the file in any text editor. To remove the operator entry, delete the `mcpS
 
 ### Switching between VS Code and Cursor on the same workspace
 
-If you previously ran `Operator: Connect MCP Server` in stock VS Code on the same workspace, the workspace `mcp.servers.operator` entry still exists in that workspace's `.vscode/settings.json`. Running the command again in Cursor adds a user-scope entry in `~/.cursor/mcp.json`. **Both work in their respective hosts**; the extension intentionally does not delete the workspace entry from inside Cursor (doing so would surprise you when you reopen the workspace in VS Code).
+Running the `Operator: Connect MCP Server` command again in Cursor adds a user-scope entry in `~/.cursor/mcp.json`. **Both work in their respective hosts**; the extension intentionally does not delete the workspace entry from inside Cursor (doing so would surprise you when you reopen the workspace in VS Code).
 
 If you want a clean slate in only one of the two editors, delete the entry from the file Cursor or VS Code doesn't see (`.vscode/settings.json` for VS Code, `~/.cursor/mcp.json` for Cursor).
 

@@ -1,9 +1,7 @@
 //! Collection management endpoints.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 
 use crate::rest::dto::CollectionResponse;
 use crate::rest::error::{ApiError, ErrorResponse};

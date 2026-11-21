@@ -49,10 +49,10 @@ export function TicketCreateForm({
           disabled={busy}
           required
         >
-          <option value="">Choose a type…</option>
+          <option value="">Choose a type...</option>
           {issueTypes.map((issueType) => (
             <option key={issueType.key} value={issueType.key}>
-              {issueType.glyph} {issueType.key} — {issueType.name}
+              {issueType.glyph} {issueType.key} - {issueType.name}
             </option>
           ))}
         </select>
@@ -66,7 +66,7 @@ export function TicketCreateForm({
           disabled={busy}
           required
         >
-          <option value="">Choose a project…</option>
+          <option value="">Choose a project...</option>
           {projects.map((project) => (
             <option key={project.project_name} value={project.project_name}>
               {project.project_name}
@@ -86,7 +86,9 @@ export function TicketCreateForm({
           required
         />
       </label>
-      {error && <div className={styles.error}>{error}</div>}
+      <div role="alert" aria-atomic="true">
+        {error && <div className={styles.error}>{error}</div>}
+      </div>
       <button type="submit" className={styles.createBtn} disabled={busy || !ready}>
         {busy ? "Creating…" : "Add to queue"}
       </button>

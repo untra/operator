@@ -7,6 +7,8 @@ export type PremiumGateProps = {
   description?: string;
   /** Absent while the license is loading. */
   license: LicenseResponse | null | undefined;
+  /** In-app Premium page the paywall links to; checkout starts there, not from the gate. */
+  premiumHref?: string | null;
   onAddLicense: () => void;
   children: ReactNode;
 };
@@ -16,6 +18,7 @@ export function PremiumGate({
   feature,
   description,
   license,
+  premiumHref,
   onAddLicense,
   children,
 }: PremiumGateProps) {
@@ -27,7 +30,7 @@ export function PremiumGate({
       <PremiumPaywall
         feature={feature}
         description={description}
-        purchaseUrl={license.purchase_url}
+        premiumHref={premiumHref}
         onAddLicense={onAddLicense}
       />
     );

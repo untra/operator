@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
 
 use crate::auth::store::{AuthStore, ADMIN_SUBJECT};
-use crate::auth::tokens::callback_claims;
+use crate::auth::tokens::{callback_claims, telemetry_claims, Claims};
 use crate::config::Config;
 
 /// Lifetime of a callback token.
@@ -27,22 +27,52 @@ const CALLBACK_TTL: Duration = Duration::hours(24);
 /// Opens the auth database rather than holding a handle: launches are infrequent, `Launcher` is constructed from a bare `Config` in the CLI,
 /// the TUI, and the REST API alike, and threading an auth handle through all three would be a large change for a per-launch cost that is already dominated by spawning a process.
 pub fn mint(config: &Config, ticket_id: &str, step: &str, session_id: &str) -> Result<String> {
+    sign_for_profile(
+        config,
+        callback_claims(
+            ADMIN_SUBJECT,
+            ticket_id,
+            step,
+            session_id,
+            CALLBACK_TTL,
+            Utc::now(),
+            uuid::Uuid::new_v4().to_string(),
+        ),
+    )
+}
+
+/// Mint the OTLP ingest token for one ticket, step, and agent session.
+///
+/// Same lifetime and pinning as the callback token, under its own audience.
+// Agent env injection (telemetry Phase 4) is the caller.
+#[allow(dead_code)]
+pub fn mint_telemetry(
+    config: &Config,
+    ticket_id: &str,
+    step: &str,
+    session_id: &str,
+) -> Result<String> {
+    sign_for_profile(
+        config,
+        telemetry_claims(
+            ADMIN_SUBJECT,
+            ticket_id,
+            step,
+            session_id,
+            CALLBACK_TTL,
+            Utc::now(),
+            uuid::Uuid::new_v4().to_string(),
+        ),
+    )
+}
+
+fn sign_for_profile(config: &Config, mut claims: Claims) -> Result<String> {
     let store = AuthStore::open(&config.auth_state_path()).context("opening the auth store")?;
     let key = store
         .load_or_create_signing_key()
         .context("loading the token signing key")?;
-
-    let mut claims = callback_claims(
-        ADMIN_SUBJECT,
-        ticket_id,
-        step,
-        session_id,
-        CALLBACK_TTL,
-        Utc::now(),
-        uuid::Uuid::new_v4().to_string(),
-    );
     claims.profile_id = Some(config.profile.id);
-    key.sign(&claims).context("signing the callback token")
+    key.sign(&claims).context("signing the agent token")
 }
 
 #[cfg(test)]
@@ -118,5 +148,23 @@ mod tests {
             claims.exp - claims.iat >= 8 * 60 * 60,
             "callback tokens must outlive a long step"
         );
+    }
+
+    #[test]
+    fn test_telemetry_token_is_pinned_and_profile_bound() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = config_in(dir.path());
+        let token = mint_telemetry(&config, "FEAT-7", "build", "sess-7").unwrap();
+
+        let store = AuthStore::open(&config.auth_state_path()).unwrap();
+        let key = store.load_or_create_signing_key().unwrap();
+        let claims = key
+            .verify(&token, crate::auth::tokens::AUDIENCE_TELEMETRY)
+            .unwrap();
+        assert_eq!(claims.ticket_id.as_deref(), Some("FEAT-7"));
+        assert_eq!(claims.session_id.as_deref(), Some("sess-7"));
+        assert_eq!(claims.profile_id, Some(config.profile.id));
+        assert!(claims.scopes().is_empty());
+        assert!(key.verify(&token, AUDIENCE_CALLBACK).is_err());
     }
 }

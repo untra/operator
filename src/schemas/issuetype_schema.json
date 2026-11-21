@@ -1483,7 +1483,7 @@
           "default": null
         },
         "model": {
-          "description": "Optional model pin (emitted as `{ model: … }`).",
+          "description": "Optional model pin (emitted as `{ model: ... }`).",
           "type": [
             "string",
             "null"
@@ -1491,7 +1491,7 @@
           "default": null
         },
         "jsonSchema": {
-          "description": "Optional structured-output JSON schema (emitted as `{ schema: … }`).",
+          "description": "Optional structured-output JSON schema (emitted as `{ schema: ... }`).",
           "default": null
         },
         "label": {

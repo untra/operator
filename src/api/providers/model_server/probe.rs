@@ -11,7 +11,11 @@
 use crate::auth::egress::EgressPolicy;
 use std::time::Duration;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
+use utoipa::ToSchema;
 
 use super::ModelServerKind;
 use crate::config::ModelServer;
@@ -31,6 +35,8 @@ pub enum ProbeError {
     NoBaseUrl(String),
     #[error("unknown model server kind '{0}'")]
     UnknownKind(String),
+    #[error("{0} is not set")]
+    MissingApiKey(String),
     #[error("request failed: {0}")]
     Network(String),
     #[error("server returned {status}: {body}")]
@@ -39,10 +45,44 @@ pub enum ProbeError {
     Parse(String),
 }
 
+/// Probe result category, so UIs render a state without parsing `error`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ProbeStatus {
+    /// Endpoint answered with a model list
+    Connected,
+    /// The provider needs an API key and its env var is unset; no request was sent
+    MissingKey,
+    /// The provider rejected the API key (HTTP 401/403)
+    Unauthorized,
+    /// The endpoint could not be reached
+    Unreachable,
+    /// Any other failure (bad config, unexpected status, unparseable body)
+    Error,
+}
+
+impl From<&ProbeError> for ProbeStatus {
+    fn from(err: &ProbeError) -> Self {
+        match err {
+            ProbeError::MissingApiKey(_) => ProbeStatus::MissingKey,
+            ProbeError::HttpStatus {
+                status: 401 | 403, ..
+            } => ProbeStatus::Unauthorized,
+            ProbeError::Network(_) => ProbeStatus::Unreachable,
+            ProbeError::NoBaseUrl(_)
+            | ProbeError::UnknownKind(_)
+            | ProbeError::HttpStatus { .. }
+            | ProbeError::Parse(_) => ProbeStatus::Error,
+        }
+    }
+}
+
 /// Result of probing a server: reachability plus the model list (when reachable).
 #[derive(Debug, Clone)]
 pub struct ProbeOutcome {
     pub reachable: bool,
+    pub status: ProbeStatus,
     pub models: Vec<ModelInfo>,
     pub error: Option<String>,
 }
@@ -51,6 +91,7 @@ impl ProbeOutcome {
     fn ok(models: Vec<ModelInfo>) -> Self {
         Self {
             reachable: true,
+            status: ProbeStatus::Connected,
             models,
             error: None,
         }
@@ -59,6 +100,7 @@ impl ProbeOutcome {
     fn failed(err: &ProbeError) -> Self {
         Self {
             reachable: false,
+            status: ProbeStatus::from(err),
             models: Vec::new(),
             error: Some(err.to_string()),
         }
@@ -91,9 +133,17 @@ async fn probe_models_inner(
         .or_else(|| kind.default_base_url())
         .ok_or_else(|| ProbeError::NoBaseUrl(server.name.clone()))?;
 
-    let url = format!("{}{}", base.trim_end_matches('/'), kind.models_endpoint());
+    let url = kind.models_url(base);
 
     let api_key = super::resolve_api_key(server, kind);
+    if api_key.is_none() && kind.probe_requires_key() {
+        let env = server
+            .api_key_env
+            .as_deref()
+            .or_else(|| kind.default_api_key_env())
+            .unwrap_or("API key");
+        return Err(ProbeError::MissingApiKey(env.to_string()));
+    }
 
     // This request carries the provider API key, so where it is allowed to go
     // matters as much as what it sends. Validating the destination *and* every
@@ -173,9 +223,9 @@ pub fn parse_models(kind: ModelServerKind, body: &str) -> Result<Vec<ModelInfo>,
 /// (or none), so the rule is per-kind:
 ///
 /// - Google: authoritative - keep iff `supportedGenerationMethods` advertises
-///   `generateContent`. Absent field ⇒ keep (tolerant of API drift / fixtures).
+///   `generateContent`. Absent field -> keep (tolerant of API drift / fixtures).
 /// - `OpenRouter`: keep iff the architecture's output modalities include `text`.
-///   Absent ⇒ keep.
+///   Absent -> keep.
 /// - `OpenAI`: no capability field, so classify by id family (deny embeddings /
 ///   audio / image / moderation; allow the gpt / o-series / chatgpt families;
 ///   deny anything unrecognized so unknown non-text families stay out).
@@ -191,7 +241,7 @@ fn is_text_model(kind: ModelServerKind, raw: &Value, id: &str) -> bool {
                     .iter()
                     .any(|m| m.as_str() == Some("generateContent"))
             })
-            // Absent capability field ⇒ keep (don't over-filter on drift).
+            // Absent capability field -> keep (don't over-filter on drift).
             .unwrap_or(true),
         ModelServerKind::OpenRouter => openrouter_outputs_text(raw),
         ModelServerKind::OpenAiApi => openai_id_is_text(id),
@@ -283,7 +333,7 @@ fn parse_openai_like(kind: ModelServerKind, value: &Value) -> Vec<ModelInfo> {
 }
 
 /// `OpenRouter` `/models`:
-/// `{ "data": [ { "id": "anthropic/claude-3.5-sonnet", "name": "Anthropic: Claude 3.5 Sonnet", … } ] }`.
+/// `{ "data": [ { "id": "anthropic/claude-3.5-sonnet", "name": "Anthropic: Claude 3.5 Sonnet", etc } ] }`.
 /// Same `data`-array shape as `OpenAI`, but the human label lives in `name`
 /// (`OpenAI` uses `display_name`), so it needs its own reader to keep the label.
 fn parse_openrouter(value: &Value) -> Vec<ModelInfo> {
@@ -421,7 +471,7 @@ mod tests {
 
     #[test]
     fn test_parse_gemini_filters_by_generation_method() {
-        // generateContent ⇒ kept; embedding/TTS-only ⇒ dropped.
+        // generateContent -> kept; embedding/TTS-only -> dropped.
         let body = r#"{"models":[
             {"name":"models/gemini-1.5-pro","supportedGenerationMethods":["generateContent","countTokens"]},
             {"name":"models/text-embedding-004","supportedGenerationMethods":["embedContent"]},
@@ -447,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_parse_openrouter_keeps_models_without_modality_info() {
-        // Existing shape with no `architecture` ⇒ keep (don't over-filter).
+        // Existing shape with no `architecture` -> keep (don't over-filter).
         let body = r#"{"data":[
             {"id":"anthropic/claude-3.5-sonnet","name":"Anthropic: Claude 3.5 Sonnet"},
             {"id":"meta-llama/llama-3-70b-instruct","name":"Meta: Llama 3 70B Instruct"}]}"#;
@@ -531,5 +581,88 @@ mod tests {
             let base = kind.default_base_url().unwrap().trim_end_matches('/');
             assert_eq!(format!("{base}{}", kind.models_endpoint()), want);
         }
+    }
+
+    fn keyed_server(kind: ModelServerKind) -> ModelServer {
+        ModelServer {
+            name: kind.slug().to_string(),
+            kind: kind.slug().to_string(),
+            base_url: Some("http://127.0.0.1:1".to_string()),
+            api_key_env: Some("OPERATOR_TEST_PROBE_UNSET_KEY".to_string()),
+            extra_env: std::collections::HashMap::new(),
+            display_name: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_probe_models_keyed_kind_without_key_returns_missing_key() {
+        let server = keyed_server(ModelServerKind::AnthropicApi);
+        let outcome = probe_models(&server, &EgressPolicy::default()).await;
+        assert!(!outcome.reachable);
+        assert_eq!(outcome.status, ProbeStatus::MissingKey);
+        assert!(outcome
+            .error
+            .as_deref()
+            .is_some_and(|e| e.contains("OPERATOR_TEST_PROBE_UNSET_KEY")));
+    }
+
+    #[tokio::test]
+    async fn test_probe_models_openrouter_without_key_still_probes() {
+        let server = keyed_server(ModelServerKind::OpenRouter);
+        let outcome = probe_models(&server, &EgressPolicy::default()).await;
+        assert_ne!(outcome.status, ProbeStatus::MissingKey);
+    }
+
+    #[test]
+    fn test_probe_status_from_error_maps_each_variant() {
+        let cases = [
+            (
+                ProbeError::MissingApiKey("K".into()),
+                ProbeStatus::MissingKey,
+            ),
+            (
+                ProbeError::HttpStatus {
+                    status: 401,
+                    body: String::new(),
+                },
+                ProbeStatus::Unauthorized,
+            ),
+            (
+                ProbeError::HttpStatus {
+                    status: 403,
+                    body: String::new(),
+                },
+                ProbeStatus::Unauthorized,
+            ),
+            (
+                ProbeError::HttpStatus {
+                    status: 500,
+                    body: String::new(),
+                },
+                ProbeStatus::Error,
+            ),
+            (
+                ProbeError::Network("refused".into()),
+                ProbeStatus::Unreachable,
+            ),
+            (ProbeError::NoBaseUrl("x".into()), ProbeStatus::Error),
+            (ProbeError::UnknownKind("x".into()), ProbeStatus::Error),
+            (ProbeError::Parse("x".into()), ProbeStatus::Error),
+        ];
+        for (err, want) in cases {
+            assert_eq!(ProbeStatus::from(&err), want, "{err}");
+        }
+    }
+
+    #[test]
+    fn test_probe_requires_key_only_first_party_kinds() {
+        assert!(ModelServerKind::AnthropicApi.probe_requires_key());
+        assert!(ModelServerKind::OpenAiApi.probe_requires_key());
+        assert!(ModelServerKind::GoogleApi.probe_requires_key());
+        assert!(ModelServerKind::XaiApi.probe_requires_key());
+        assert!(!ModelServerKind::OpenRouter.probe_requires_key());
+        assert!(!ModelServerKind::Ollama.probe_requires_key());
+        assert!(!ModelServerKind::OpenAiCompat.probe_requires_key());
+        assert!(!ModelServerKind::LmStudio.probe_requires_key());
     }
 }

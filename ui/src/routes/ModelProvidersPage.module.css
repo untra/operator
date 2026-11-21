@@ -148,27 +148,6 @@
   max-width: 460px;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.fieldLabel {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.select,
-.input {
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.85rem;
-}
-
 .delegatorName {
   font-weight: 600;
   font-size: 0.86rem;

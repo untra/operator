@@ -48,6 +48,65 @@ export function AuthField({
   );
 }
 
+export function StringInput({
+  label,
+  value,
+  onChange,
+  type,
+  disabled,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      aria-label={label}
+      type={type}
+      value={value}
+      disabled={disabled}
+      placeholder={placeholder}
+      onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
+    />
+  );
+}
+
+export function SelectInput({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly { value: string; label: string }[];
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value}
+      disabled={disabled}
+      onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange(event.target.value)}
+    >
+      {placeholder !== undefined && <option value="">{placeholder}</option>}
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function AuthSubmit({ children, disabled }: { children: ReactNode; disabled?: boolean }) {
   return (
     <button type="submit" disabled={disabled}>
@@ -111,6 +170,10 @@ export function BrandIcon() {
 
 export function ConceptIcon() {
   return <span />;
+}
+
+export function HealthDot({ health }: { health: string }) {
+  return <span data-health={health} />;
 }
 
 export function ChoiceGroup({ children }: { children: ReactNode }) {
@@ -212,3 +275,7 @@ export function sessionTargets(agent: {
     ? [{ kind: "command", label: "Attach", command: agent.attach_command }]
     : [];
 }
+
+export { PermissionSelector } from "../../webcomponents/src/components/PermissionSelector";
+export { ModelProviderCard } from "../../webcomponents/src/components/ModelProviderChoices";
+export * from "../../webcomponents/src/components/fields/validators";

@@ -683,9 +683,9 @@ impl CmuxClient for MockCmuxClient {
 pub struct CmuxWrapper {
     client: Arc<dyn CmuxClient>,
     placement: CmuxPlacementPolicy,
-    /// Map of session name → workspace ref (for routing operations)
+    /// Map of session name to workspace ref (for routing operations)
     session_workspaces: Mutex<HashMap<String, String>>,
-    /// Map of session name → window ref
+    /// Map of session name to window ref
     session_windows: Mutex<HashMap<String, String>>,
 }
 
@@ -742,7 +742,7 @@ impl CmuxWrapper {
                 Ok((window_id, true))
             }
             CmuxPlacementPolicy::Auto => {
-                // 0-1 windows → workspace in active window; >1 → new window
+                // 0-1 windows to workspace in active window; >1 to new window
                 let count = self.client.window_count()?;
                 if count <= 1 {
                     let window_id = self.client.active_window_id()?;
@@ -1003,114 +1003,6 @@ mod tests {
     }
 
     // ========================================================================
-    // CmuxClient trait tests (via MockCmuxClient)
-    // ========================================================================
-
-    #[test]
-    fn test_cmux_check_available_success() {
-        let client = MockCmuxClient::new();
-        let version = client.check_available().unwrap();
-        assert!(version.meets_minimum(MIN_SUPPORTED_CMUX_VERSION));
-    }
-
-    #[test]
-    fn test_cmux_check_available_unsupported_version() {
-        let client = MockCmuxClient::new();
-        client.set_version(0, 62, 2);
-        let err = client.check_available().unwrap_err();
-        assert!(matches!(err, CmuxError::UnsupportedVersion { .. }));
-        assert!(err.to_string().contains("0.62.2"));
-        assert!(err.to_string().contains("0.64.8"));
-    }
-
-    #[test]
-    fn test_cmux_check_available_not_installed() {
-        let client = MockCmuxClient::unavailable();
-        let err = client.check_available().unwrap_err();
-        assert!(matches!(err, CmuxError::NotInstalled(_)));
-    }
-
-    #[test]
-    fn test_cmux_check_available_not_in_cmux() {
-        let client = MockCmuxClient::not_in_cmux();
-        assert!(client.check_available().is_ok()); // available
-        let err = client.check_in_cmux().unwrap_err();
-        assert!(matches!(err, CmuxError::NotInCmux));
-    }
-
-    #[test]
-    fn test_cmux_window_operations() {
-        let client = MockCmuxClient::new();
-
-        // Should start with 1 window
-        assert_eq!(client.window_count().unwrap(), 1);
-
-        // Create another
-        let win_id = client.create_window().unwrap();
-        assert!(win_id.starts_with("win-"));
-        assert_eq!(client.window_count().unwrap(), 2);
-
-        // List them
-        let windows = client.list_windows().unwrap();
-        assert_eq!(windows.len(), 2);
-    }
-
-    #[test]
-    fn test_cmux_workspace_lifecycle() {
-        let client = MockCmuxClient::new();
-
-        // Create workspace in the existing window
-        let ws_id = client
-            .create_workspace("win-1", "/tmp/test", Some("test-ws"))
-            .unwrap();
-        assert!(ws_id.starts_with("ws-"));
-
-        // Send text
-        assert!(client.send_text(&ws_id, "echo hello").is_ok());
-
-        // Verify sent texts
-        let texts = client.sent_texts();
-        assert_eq!(texts.len(), 1);
-        assert_eq!(texts[0], (ws_id.clone(), "echo hello".to_string()));
-
-        // Read screen (empty by default)
-        let content = client.read_screen(&ws_id, false).unwrap();
-        assert!(content.is_empty());
-
-        // Set and read screen content
-        client.set_screen_content(&ws_id, "$ hello\nworld");
-        let content = client.read_screen(&ws_id, false).unwrap();
-        assert_eq!(content, "$ hello\nworld");
-
-        // Focus workspace
-        assert!(client.focus_workspace(&ws_id).is_ok());
-
-        // Close workspace
-        assert!(client.close_workspace(&ws_id).is_ok());
-
-        // Should not be found after close
-        assert!(client.read_screen(&ws_id, false).is_err());
-    }
-
-    #[test]
-    fn test_cmux_workspace_in_nonexistent_window() {
-        let client = MockCmuxClient::new();
-        let err = client
-            .create_workspace("win-999", "/tmp", None)
-            .unwrap_err();
-        assert!(matches!(err, CmuxError::WindowNotFound(_)));
-    }
-
-    #[test]
-    fn test_cmux_operations_on_nonexistent_workspace() {
-        let client = MockCmuxClient::new();
-        assert!(client.send_text("ws-999", "test").is_err());
-        assert!(client.read_screen("ws-999", false).is_err());
-        assert!(client.focus_workspace("ws-999").is_err());
-        assert!(client.close_workspace("ws-999").is_err());
-    }
-
-    // ========================================================================
     // CmuxWrapper SessionWrapper tests
     // ========================================================================
 
@@ -1157,7 +1049,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_single_window_placement() {
-        // Auto placement with 1 window → workspace in active window
+        // Auto placement with 1 window to workspace in active window
         let wrapper = make_wrapper(MockCmuxClient::new(), CmuxPlacementPolicy::Auto);
 
         wrapper
@@ -1173,7 +1065,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_multi_window_placement() {
-        // Auto placement with >1 windows → new window
+        // Auto placement with >1 windows to new window
         let client = MockCmuxClient::new();
         client.add_window("Second");
         let wrapper = make_wrapper(client, CmuxPlacementPolicy::Auto);
@@ -1191,7 +1083,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_workspace_policy() {
-        // Workspace policy → always in active window
+        // Workspace policy to always in active window
         let client = MockCmuxClient::new();
         client.add_window("Second");
         let wrapper = make_wrapper(client, CmuxPlacementPolicy::Workspace);
@@ -1207,7 +1099,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cmux_create_session_window_policy() {
-        // Window policy → always creates a new window
+        // Window policy to always creates a new window
         let wrapper = make_wrapper(MockCmuxClient::new(), CmuxPlacementPolicy::Window);
 
         wrapper

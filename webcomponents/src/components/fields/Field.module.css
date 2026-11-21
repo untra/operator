@@ -1,0 +1,56 @@
+/* Two-class selectors so page rules like `.form input` or `.card label` never win. */
+.field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.field .label {
+  display: block;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.field .control {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.field .control:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.field .control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field .invalid {
+  border-color: var(--danger);
+}
+
+.field .hint,
+.field .error {
+  min-height: 1.1em;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.field .hint {
+  color: var(--text-muted);
+}
+
+.field .error {
+  color: var(--danger);
+}

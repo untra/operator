@@ -9,7 +9,7 @@
 //!   pre-image-resistant hash; Argon2 on a lookup path would add latency for
 //!   no security benefit, because there is nothing to brute-force.
 //!
-//! Both lookups compare in constant time.
+//! Indexed lookups use complete hashes; explicit comparisons use constant-time equality.
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
@@ -39,8 +39,18 @@ pub fn generate_secret() -> anyhow::Result<String> {
     Ok(URL_SAFE_NO_PAD.encode(bytes))
 }
 
+/// Raw bytes from the OS CSPRNG, for key material that is never shown to a person.
+pub fn random_bytes<const N: usize>() -> anyhow::Result<[u8; N]> {
+    let mut bytes = [0u8; N];
+    rand::rngs::OsRng
+        .try_fill_bytes(&mut bytes)
+        .map_err(|e| anyhow::anyhow!("OS random number generator unavailable: {e}"))?;
+    Ok(bytes)
+}
+
 /// Generate a prefixed secret, e.g. `opk_<random>` for an access key. The
 /// prefix makes a leaked credential recognizable in logs and secret scanners.
+#[cfg(test)]
 pub fn generate_prefixed_secret(prefix: &str) -> anyhow::Result<String> {
     Ok(format!("{prefix}_{}", generate_secret()?))
 }

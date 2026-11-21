@@ -1,40 +1,45 @@
 #!/bin/bash
 set -euo pipefail
 
-# Notarizes a signed macOS binary via App Store Connect API key.
-# Usage: notarize.sh <binary_path>
-#
-# Required environment variables:
-#   APPLE_NOTARY_KEY_BASE64  - base64-encoded .p8 API key
-#   APPLE_NOTARY_KEY_ID      - API key ID
-#   APPLE_NOTARY_ISSUER_ID   - API issuer UUID
-
-BINARY_PATH="${1:?Usage: notarize.sh <binary_path>}"
-ZIP_PATH="${BINARY_PATH}.zip"
-KEY_DIR="/tmp/notary-keys-$$"
-KEY_PATH="$KEY_DIR/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
+# Usage: notarize.sh <binary_path> [binary_path ...]
+: "${1:?Usage: notarize.sh <binary_path> [binary_path ...]}"
+NOTARY_DIR="$(mktemp -d)"
+ZIP_PATH="$NOTARY_DIR/binaries.zip"
+KEY_PATH="$NOTARY_DIR/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
+RESULT_PATH="$NOTARY_DIR/result.json"
 
 cleanup() {
-  rm -f "$ZIP_PATH"
-  rm -rf "$KEY_DIR"
+  rm -rf "$NOTARY_DIR"
 }
 trap cleanup EXIT
 
-# Decode API key
-mkdir -p "$KEY_DIR"
+mkdir "$NOTARY_DIR/binaries"
+for binary in "$@"; do
+  destination="$NOTARY_DIR/binaries/$(basename "$binary")"
+  if [ -e "$destination" ]; then
+    echo "Duplicate binary filename: $binary" >&2
+    exit 1
+  fi
+  cp "$binary" "$destination"
+done
 echo "$APPLE_NOTARY_KEY_BASE64" | base64 --decode > "$KEY_PATH"
+ditto -c -k --keepParent "$NOTARY_DIR/binaries" "$ZIP_PATH"
 
-# Zip the signed binary (notarytool requires .zip, .dmg, or .pkg)
-ditto -c -k --keepParent "$BINARY_PATH" "$ZIP_PATH"
-
-echo "Submitting $BINARY_PATH for notarization..."
-xcrun notarytool submit "$ZIP_PATH" \
+echo "Submitting $# binaries for notarization..."
+if ! xcrun notarytool submit "$ZIP_PATH" \
   --key "$KEY_PATH" \
   --key-id "$APPLE_NOTARY_KEY_ID" \
   --issuer "$APPLE_NOTARY_ISSUER_ID" \
   --wait \
-  --timeout 30m
+  --timeout 30m \
+  --output-format json > "$RESULT_PATH"; then
+  cat "$RESULT_PATH"
+  exit 1
+fi
+cat "$RESULT_PATH"
+if ! jq -e '.status == "Accepted"' "$RESULT_PATH" > /dev/null; then
+  echo "Notarization was not accepted" >&2
+  exit 1
+fi
 
-echo "Notarization complete: $BINARY_PATH"
-# Note: xcrun stapler staple does NOT work on standalone Mach-O binaries.
-# macOS checks the notarization ticket online via Gatekeeper.
+echo "Notarization complete"

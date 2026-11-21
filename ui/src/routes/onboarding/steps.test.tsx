@@ -8,7 +8,7 @@ import { mockFetch, requestBody, requestPath, restoreFetch } from "../../test-fe
 import * as webcomponentMocks from "../../test-webcomponents";
 import type { WizardDraft } from "./types";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { STEP_COMPONENTS } = await import("./steps");
 
@@ -93,6 +93,102 @@ afterEach(() => {
   recordedExports = [];
   restoreFetch();
   jest.restoreAllMocks();
+});
+
+function modelEntry(slug: string, label: string) {
+  return {
+    vertical: "model",
+    vertical_label: "Model Provider",
+    slug,
+    label,
+    docs_url: null,
+    readme_badge: false,
+    status: "ga" as const,
+    premium: false,
+    session_wrappers: null,
+    support: null,
+  };
+}
+
+const MODEL_ENTRIES = [
+  modelEntry("anthropic-api", "Anthropic"),
+  modelEntry("ollama", "Ollama"),
+  modelEntry("openai-api", "OpenAI"),
+];
+
+function modelKind(slug: string, env: string | null, baseUrl: string) {
+  return {
+    slug,
+    display_name: slug,
+    description: "",
+    setup_url: "",
+    icon: "model",
+    is_builtin: env !== null,
+    category: "first_party",
+    category_label: "First party",
+    brand_icon: null,
+    default_base_url: baseUrl,
+    default_api_key_env: env,
+    connectable: true,
+  };
+}
+
+function probeBody(server: string, status: string, error: string | null) {
+  return { server, reachable: status === "connected", status, models: [], error };
+}
+
+describe("onboarding model-server step", () => {
+  test("renders probe states without echoing provider error bodies", async () => {
+    mockFetch((input) => {
+      const path = requestPath(input);
+      if (path.endsWith("/model-servers/kinds")) {
+        return Promise.resolve(
+          json([
+            modelKind("anthropic-api", "ANTHROPIC_API_KEY", "https://api.anthropic.com"),
+            modelKind("ollama", null, "http://localhost:11434"),
+            modelKind("openai-api", "OPENAI_API_KEY", "https://api.openai.com"),
+          ]),
+        );
+      }
+      if (path.endsWith("/kinds/anthropic-api/models")) {
+        return Promise.resolve(
+          json(probeBody("anthropic-api", "missing_key", "ANTHROPIC_API_KEY is not set")),
+        );
+      }
+      if (path.endsWith("/kinds/ollama/models")) {
+        return Promise.resolve(
+          json(probeBody("ollama", "unreachable", "request failed: connection refused")),
+        );
+      }
+      if (path.endsWith("/kinds/openai-api/models")) {
+        return Promise.resolve(
+          json(probeBody("openai-api", "unauthorized", "server returned 401: raw body")),
+        );
+      }
+      return Promise.resolve(json({ message: `Unexpected request: ${path}` }, 500));
+    });
+    const ModelServer = STEP_COMPONENTS["model-server"];
+    render(
+      <ApiProvider>
+        <HostContext.Provider value={TEST_HOST}>
+          <ModelServer
+            status={SETUP_STATUS}
+            integrations={MODEL_ENTRIES}
+            collections={EMPTY_VALUES}
+            creating={false}
+            draft={DRAFT}
+            setDraft={ignoreDraftUpdate}
+            exports={recordedExports}
+            addExport={recordExport}
+          />
+        </HostContext.Provider>
+      </ApiProvider>,
+    );
+    expect(await screen.findByText("set ANTHROPIC_API_KEY")).toBeTruthy();
+    expect(await screen.findByText("not running")).toBeTruthy();
+    expect(await screen.findByText("API key rejected")).toBeTruthy();
+    expect(screen.queryByText(/server returned/)).toBeNull();
+  });
 });
 
 describe("onboarding integration steps", () => {
@@ -215,4 +311,66 @@ describe("onboarding integration steps", () => {
     expect(saved.github.project_key).toBe("PVT_B");
     expect(saved.github.status_mapping.todo).toBe("B-todo");
   });
+});
+
+test("Gitea onboarding saves the selected repository board with separate credentials", async () => {
+  const writes: string[] = [];
+  const projectKey = "https://forge.test/team/repo/projects/1";
+  mockFetch((input, init) => {
+    const path = requestPath(input);
+    if (path.endsWith("/kanban/providers")) {
+      return Promise.resolve(
+        json([{ ...GITHUB_PROVIDER, slug: "gitea", display_name: "Gitea Projects" }]),
+      );
+    }
+    if (path.endsWith("/kanban/validate")) {
+      return Promise.resolve(
+        json({
+          valid: true,
+          gitea: { user_id: "4", user_name: "Agent", users: [{ id: "4", name: "Agent" }] },
+        }),
+      );
+    }
+    if (path.endsWith("/kanban/projects")) {
+      return Promise.resolve(
+        json({ projects: [{ id: projectKey, key: projectKey, name: "Work" }] }),
+      );
+    }
+    if (path.endsWith("/kanban/statuses")) {
+      return Promise.resolve(json({ statuses: ["Todo", "Done"] }));
+    }
+    if (path.endsWith("/kanban/session-env")) {
+      return Promise.resolve(json({ shell_export_block: "export OPERATOR_GITEA_TOKEN=..." }));
+    }
+    if (path.endsWith("/kanban/config")) {
+      writes.push(String(requestBody(init)));
+      return Promise.resolve(json({ written_path: "config.toml", section_header: "gitea" }));
+    }
+    return Promise.resolve(json({ message: path }, 500));
+  });
+  setCsrfToken("csrf");
+  renderKanbanInfo();
+  fireEvent.click(await screen.findByRole("button", { name: /Gitea Projects/ }));
+  fireEvent.change(screen.getByLabelText("Instance URL"), {
+    target: { value: "https://forge.test" },
+  });
+  fireEvent.change(screen.getByLabelText("Repository"), { target: { value: "team/repo" } });
+  fireEvent.change(screen.getByLabelText("API token"), { target: { value: "board-token" } });
+  fireEvent.click(screen.getByRole("button", { name: "Validate and connect" }));
+  await screen.findByText("Credentials validated. Choose a project.");
+  fireEvent.change(screen.getByLabelText("Project"), { target: { value: projectKey } });
+  await screen.findByLabelText("todo");
+  fireEvent.click(screen.getByRole("button", { name: "Save provider" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(JSON.parse(writes[0] ?? "{}")).toMatchObject({
+    provider: "gitea",
+    gitea: {
+      base_url: "https://forge.test",
+      repositories: ["team/repo"],
+      project_key: projectKey,
+      api_key_env: "OPERATOR_GITEA_TOKEN",
+      sync_user_id: "4",
+    },
+  });
+  expect(writes[0]).not.toContain("board-token");
 });

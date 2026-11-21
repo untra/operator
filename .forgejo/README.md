@@ -1,16 +1,14 @@
 # Forgejo Actions runbook
 
-`workflows/deploy-casa.yaml` builds `Dockerfile.local` with the dev license keyring and swaps the image on the
-`operator` release at `operator.<devhost>`. `workflows/pr.yaml` is the required check on `main`: it builds the
-same arm64 image without pushing it, then runs the `e2e/` Playwright suites against it (`scripts/ci/e2e.sh`).
-Runner egress isn't restricted (jobs reach the internet through OrbStack's NAT), but everything they pull comes
-from Forgejo mirrors anyway, for pinning and speed. These commands refresh the mirrors from a workstation.
+`workflows/deploy-casa.yaml` builds `Dockerfile.local` with the dev license keyring and upgrades the `operator` release at `operator.<devhost>` to that ref's `charts/operator` and image, keeping the release's helmfile values. `workflows/pr.yaml` is the required check on `main`: it builds the same arm64 image without pushing it, then runs the `e2e/` Playwright suites against it (`scripts/ci/e2e.sh`).
+Runner egress isn't restricted (jobs reach the internet through OrbStack's NAT), but everything they pull comes from Forgejo mirrors anyway, for pinning and speed. These commands refresh the mirrors from a workstation.
 
 | Workflow / job | Runner label | Reaches |
 | --- | --- | --- |
 | `deploy-casa` / `build` | `docker` | Forgejo registry and mirrors; `deb.debian.org`, `registry.npmjs.org`, `index.crates.io`, `static.crates.io` at build time |
 | `deploy-casa` / `deploy` | `helmfile` | Forgejo registry, cluster API |
 | `pr` / `arm64` | `docker` | as `build`, plus `webhook.operator.untra.casa` for the license suite |
+| `e2e-checkout` / `arm64` | `docker` | as `build`, plus `api.stripe.com`, `checkout.stripe.com`, `app`/`api`/`webhook.operator.untra.casa` |
 
 Common shell setup:
 
@@ -18,7 +16,6 @@ Common shell setup:
 FORGEJO=https://forgejo.<devhost>
 REPO=untra-operator/operator
 MIRROR=forgejo.<devhost>/untra-operator/mirror
-CHARTS=forgejo.<devhost>/untra-operator/charts
 FORGEJO_TOKEN=...   # scopes: write:package, write:repository, write:organization
 api() { curl -fsS -H "Authorization: token $FORGEJO_TOKEN" -H 'Content-Type: application/json' "$@"; }
 ```
@@ -31,14 +28,27 @@ api() { curl -fsS -H "Authorization: token $FORGEJO_TOKEN" -H 'Content-Type: app
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_LICENSE_ROOT_KEYS" \
   -d "$(jq -cn --arg k "$(cat ~/untra-keys/keys/untra-dev-2026.pub)" '{data: ({"untra-dev-2026": $k} | tojson)}')"
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_LICENSE_ISSUER" -d '{"data":"operator-licensing"}'
-api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_PURCHASE_URL" -d '{"data":"https://app.operator.untra.casa/"}'
+api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_PURCHASE_URL" \
+  -d '{"data":"https://app.operator.untra.casa/checkout?sku=premium-lifetime"}'
 api "$FORGEJO/api/v1/repos/$REPO/actions/secrets" | jq -r '.[].name'   # names only; values are write-only
+```
+
+`OPERATOR_PURCHASE_URL` is the Buy Premium link compiled into the binary; the build appends `profile_id` and the UI appends `return_to`.
+A release build (`OPERATOR_RELEASE=1`) fails unless it is an `https://<storefront>/checkout?sku=<sku>` link.
+`<sku>` is a platform SKU id from `GET https://api.<zone>/billing/products` (also the Stripe Price `lookup_key`), never a Stripe `prod_` id; an unknown SKU makes the storefront answer "This checkout link is invalid." instead of redirecting to Stripe.
+
+| Forge | `OPERATOR_PURCHASE_URL` | Stripe |
+| --- | --- | --- |
+| GitHub `untra/operator` (releases) | `https://app.operator.untra.app/checkout?sku=premium-lifetime` | live |
+| Forgejo (`deploy-casa`, `pr`, `e2e-checkout`) | `https://app.operator.untra.casa/checkout?sku=premium-lifetime` | sandbox |
+
+```sh
+gh secret set OPERATOR_PURCHASE_URL --repo untra/operator --body 'https://app.operator.untra.app/checkout?sku=premium-lifetime'
 ```
 
 ## Base image mirror
 
-Re-run whenever a `FROM` in `Dockerfile.local` or `e2e/Dockerfile` changes; the Playwright tag tracks
-`@playwright/test` in `e2e/package.json`. Digest-pinned refs copy whole, so the pin still resolves; the rest copy arm64 only. `--jobs 1` keeps large layer uploads under the ingress timeout.
+Re-run whenever a `FROM` in `Dockerfile.local` or `e2e/Dockerfile` changes; the Playwright tag tracks `@playwright/test` in `e2e/package.json`. Digest-pinned refs copy whole, so the pin still resolves; the rest copy arm64 only. `--jobs 1` keeps large layer uploads under the ingress timeout.
 
 ```sh
 : "${MIRROR:?run the common shell setup first}"
@@ -50,19 +60,6 @@ sed -n 's/^FROM \${BASE_REGISTRY}\([^ ]*\).*/\1/p' Dockerfile.local e2e/Dockerfi
   esac
 done
 crane digest "$MIRROR/debian:trixie-slim"   # must equal the sha256 pinned in Dockerfile.local
-```
-
-## Chart mirror
-
-Mirror every chart version that helmfile deploys; `deploy` upgrades at the release's current chart version.
-
-```sh
-: "${CHARTS:?run the common shell setup first}"
-v=$(helm get metadata operator -n operator | awk '/^VERSION:/ {print $2}')
-helm pull oci://ghcr.io/untra/charts/operator --version "$v" -d /tmp
-helm registry login forgejo.<devhost> -u <registry-user> --password-stdin <<<"$FORGEJO_TOKEN"
-helm push "/tmp/operator-$v.tgz" "oci://$CHARTS"
-helm show chart "oci://$CHARTS/operator" --version "$v"
 ```
 
 ## Checkout action mirror
@@ -79,10 +76,7 @@ api -X POST "$FORGEJO/api/v1/repos/actions/checkout/mirror-sync"                
 
 ## E2E suites
 
-`pr` runs both projects in `e2e/playwright.config.ts`: `workspace` (admin setup and onboarding on a fresh server)
-and `license` (a test-mode key from the platform webhook's `GET /e2e/license`, applied to that server's
-configuration). The license suite skips while `OPERATOR_E2E_LICENSE_TOKEN` is unset, so leave it unset until the
-casa webhook serves the route. Its value is the casa webhook's `E2E_LICENSE_TOKEN`.
+`pr` runs the projects in `e2e/playwright.config.ts` (`checkout` skips there; see Sandbox checkout): `workspace` (admin setup and onboarding on a fresh server) and `license` (a test-mode key from the platform webhook's `GET /e2e/license`, applied to that server's configuration). The license suite skips while `OPERATOR_E2E_LICENSE_TOKEN` is unset, so leave it unset until the casa webhook serves the route. Its value is the casa webhook's `E2E_LICENSE_TOKEN`.
 
 ```sh
 api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_E2E_LICENSE_TOKEN" \
@@ -93,10 +87,35 @@ api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/OPERATOR_E2E_CA_CERT" \
 
 Run the same thing locally with `make e2e`; pass the two `OPERATOR_E2E_*` variables to include the license suite.
 
+## Sandbox checkout
+
+`workflows/e2e-checkout.yaml` (dispatch only) runs `e2e/checkout` against a throwaway server built from the dispatched ref. It makes two sandbox purchases, one per flow, each paid on Stripe's hosted page with the test card:
+
+- **setup**: a new workspace buys from the onboarding paywall. The storefront sends the key back to `/?checkout=setup#license_key=…`; the server installs it and onboarding resumes at the license step with its draft intact, then initializes.
+- **upgrade**: the same workspace, made free again, follows a paywall to `#/settings/premium` and buys there. The return lands on the Premium page's unlocked view, and `#/settings/license` shows Premium with a "Manage license" link to the storefront's `/account`.
+
+The `checkout` query on `return_to` names the flow; the storefront keeps it because it only rejects a fragment.
+
+The build uses the casa `OPERATOR_PURCHASE_URL` (see License secrets), so the Buy link opens the sandbox storefront; the job fails unless it is `https://app.operator.untra.casa/checkout?sku=…`.
+
+Stripe cannot reach the casa webhook. casa runs a `stripe-listen` relay for every purchase (operator-private `stripeListen` in `deploy/env/casa.yaml`, Secret `stripe-listen`); the job also runs its own `stripe listen`, which is redundant but harmless because the webhook inbox is unique per event id. The casa webhook must accept the listener signing secret.
+
+```sh
+STRIPE_API_KEY=sk_test_... stripe listen --print-secret   # set as STRIPE_WEBHOOK_SECRET (or _PREVIOUS) in operator-private deploy/env/casa.yaml
+crane copy --platform linux/arm64 stripe/stripe-cli:v1.21.0 "$MIRROR/stripe/stripe-cli:v1.21.0"
+api -X PUT "$FORGEJO/api/v1/repos/$REPO/actions/secrets/STRIPE_SANDBOX_API_KEY" \
+  -d "$(jq -cn --arg v "$STRIPE_API_KEY" '{data: $v}')"
+api -X POST "$FORGEJO/api/v1/repos/$REPO/actions/workflows/e2e-checkout.yaml/dispatches" -d '{"ref":"main"}'
+```
+
+The casa `api` needs the same sandbox's `STRIPE_SECRET_KEY` and `STRIPE_CHECKOUT_SUCCESS_URL=https://app.operator.untra.casa/license?session_id={CHECKOUT_SESSION_ID}`. It also needs one active Price whose `lookup_key` is the SKU. If the listener log shows `[400]` responses, the webhook's secret is wrong.
+
+The same run works locally once `stripe listen --forward-to https://webhook.operator.untra.casa/webhooks/stripe` is running on the host:
+`OPERATOR_E2E_CHECKOUT=1 scripts/ci/e2e.sh <image built with the casa purchase URL> --project=checkout`.
+
 ## Required check on main
 
-The status context is `<workflow name> / <job name> (<event>)`. Confirm it on the first PR's commit status
-before requiring it, because a misspelled context blocks every merge.
+The status context is `<workflow name> / <job name> (<event>)`. Confirm it on the first PR's commit status before requiring it, because a misspelled context blocks every merge.
 
 ```sh
 api "$FORGEJO/api/v1/repos/$REPO/commits/<pr-head-sha>/statuses" | jq -r '.[].context'   # expect: pr / arm64 (pull_request)
@@ -117,6 +136,8 @@ helm rollback operator <revision> -n operator
 ```
 
 Job logs are not readable through the API; open the run in the web UI.
+
+Roll images through this workflow or `helm rollback`, not `kubectl set image`: `deploy` runs with `--force-conflicts`, so the next run overwrites out-of-band edits.
 
 ## Housekeeping
 

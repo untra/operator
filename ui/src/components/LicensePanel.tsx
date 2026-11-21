@@ -1,7 +1,15 @@
 import { useCallback, useState } from "react";
 import type { LicenseResponse } from "../api-client";
-import { useApiMutation, useApiQuery } from "../api";
-import { installLicenseMutation, licenseQuery, removeLicenseMutation } from "../api/definitions";
+import { useApiMutation } from "../api";
+import { installLicenseMutation, removeLicenseMutation } from "../api/definitions";
+import {
+  type CheckoutFlow,
+  markCheckoutStarted,
+  useLicenseQuery,
+  withReturnTo,
+} from "../license-return";
+import { StringInput } from "@operator/webcomponents";
+import { requiredRules } from "../field-rules";
 import styles from "./LicensePanel.module.css";
 
 const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
@@ -14,11 +22,18 @@ const STATUS_LABELS: Record<LicenseResponse["status"], string> = {
 /// Licence timestamps are i64 seconds, which cross the wire as bigint.
 const date = (seconds: bigint) => new Date(Number(seconds) * 1000).toLocaleString();
 
-export function LicensePanel() {
-  const query = useApiQuery(licenseQuery());
+/**
+ * The license as this machine reads it. `checkout` adds the Buy link for that flow; only setup
+ * passes it, since in-app purchases start on the Premium page.
+ */
+export function LicensePanel({
+  initialKey = "",
+  checkout,
+}: { initialKey?: string; checkout?: CheckoutFlow } = {}) {
+  const query = useLicenseQuery();
   const install = useApiMutation(installLicenseMutation);
   const remove = useApiMutation(removeLicenseMutation);
-  const [key, setKey] = useState("");
+  const [key, setKey] = useState(initialKey);
   const [error, setError] = useState<string | null>(null);
   const license = query.data;
   const busy = install.isPending || remove.isPending;
@@ -55,6 +70,11 @@ export function LicensePanel() {
   );
 
   const displayError = error ?? query.error?.message ?? null;
+  const purchaseUrl =
+    checkout && license?.purchase_url && /^https:\/\//i.test(license.purchase_url)
+      ? withReturnTo(license.purchase_url, checkout)
+      : null;
+  const awaiting = query.checkout === "awaiting" && !license?.premium;
 
   return (
     <section className={styles.panel} aria-label="Operator license">
@@ -64,6 +84,15 @@ export function LicensePanel() {
         <p role="alert" className={styles.error}>
           {displayError}
         </p>
+      )}
+      {awaiting && (
+        <output>
+          Finish checkout in the new tab. This page updates automatically once your license is
+          applied.
+        </output>
+      )}
+      {query.checkout === "activated" && license?.premium && (
+        <output>Operator Premium is active. Thanks for your purchase!</output>
       )}
       {license ? (
         <>
@@ -91,28 +120,37 @@ export function LicensePanel() {
               </>
             )}
           </dl>
-          {license.purchase_url && /^https:\/\//i.test(license.purchase_url) && (
-            <p>
-              <a href={license.purchase_url} target="_blank" rel="noopener noreferrer">
-                View Operator Premium
+          {purchaseUrl && !license.premium && (
+            <div className={styles.purchase}>
+              <a
+                className={styles.buy}
+                href={purchaseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={markCheckoutStarted}
+              >
+                Buy Operator Premium
               </a>
-            </p>
+              <p>
+                After checkout you are returned here and the license is applied for you. You can
+                also paste a license key below.
+              </p>
+            </div>
           )}
         </>
       ) : (
-        <p>Loading license…</p>
+        <p>Loading license...</p>
       )}
       <form className={styles.form} onSubmit={onSubmit}>
-        <label>
-          License key
-          <input
-            type="password"
-            autoComplete="off"
-            value={key}
-            onChange={(event) => setKey(event.target.value)}
-            disabled={busy}
-          />
-        </label>
+        <StringInput
+          label="License key"
+          type="password"
+          autoComplete="off"
+          rules={requiredRules}
+          value={key}
+          onChange={setKey}
+          disabled={busy}
+        />
         <button type="submit" disabled={busy || !key.trim()}>
           {busy ? "Saving…" : "Apply license"}
         </button>

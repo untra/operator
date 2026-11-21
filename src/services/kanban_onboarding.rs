@@ -10,7 +10,8 @@ use std::path::PathBuf;
 use tracing::info;
 
 use crate::api::providers::kanban::{
-    GithubProjectsProvider, JiraProvider, LinearProvider, OpenspecProvider,
+    GiteaProjectsProvider, GithubProjectsProvider, JiraProvider, KanbanProvider, LinearProvider,
+    OpenspecProvider,
 };
 use crate::config::Config;
 use crate::rest::dto::{
@@ -21,8 +22,6 @@ use crate::rest::dto::{
     ValidateKanbanCredentialsResponse, WriteKanbanConfigRequest, WriteKanbanConfigResponse,
 };
 use crate::rest::error::ApiError;
-
-// ─── Error helpers ──────────────────────────────────────────────────────────
 
 /// Map a provider-layer `ApiError` into a human-readable string for inline
 /// display in client UIs.
@@ -50,14 +49,41 @@ fn provider_error_message(err: &crate::api::error::ApiError) -> String {
     }
 }
 
-// ─── validate_credentials ───────────────────────────────────────────────────
-
-/// Validate credentials against the live provider API without persisting
-/// anything or mutating any state.
+/// Validate credentials against the live provider API without persisting anything.
 pub async fn validate_credentials(
     req: ValidateKanbanCredentialsRequest,
 ) -> Result<ValidateKanbanCredentialsResponse, ApiError> {
     match req.provider {
+        KanbanProviderKind::Gitea => {
+            let provider = gitea_provider(req.gitea)?;
+            let result = async {
+                provider.test_connection().await?;
+                let user = provider.authenticated_user().await?;
+                let mut users = std::collections::BTreeMap::new();
+                for project in provider.list_projects().await? {
+                    for member in provider.list_users(&project.key).await? {
+                        users.insert(member.id, member.name);
+                    }
+                }
+                Ok::<_, crate::api::error::ApiError>(crate::rest::dto::GiteaValidationDetailsDto {
+                    user_id: user.id,
+                    user_name: user.name,
+                    users: users
+                        .into_iter()
+                        .map(|(id, name)| crate::rest::dto::GiteaUserDto { id, name })
+                        .collect(),
+                })
+            }
+            .await;
+            Ok(ValidateKanbanCredentialsResponse {
+                valid: result.is_ok(),
+                error: result.as_ref().err().map(provider_error_message),
+                gitea: result.ok(),
+                jira: None,
+                linear: None,
+                github: None,
+            })
+        }
         KanbanProviderKind::Jira => {
             let creds = req.jira.ok_or_else(|| {
                 ApiError::BadRequest("Missing `jira` field for jira provider".to_string())
@@ -67,6 +93,7 @@ pub async fn validate_credentials(
 
             match provider.validate_detailed().await {
                 Ok(details) => Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: true,
                     error: None,
                     jira: Some(JiraValidationDetailsDto {
@@ -77,6 +104,7 @@ pub async fn validate_credentials(
                     github: None,
                 }),
                 Err(e) => Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: false,
                     error: Some(provider_error_message(&e)),
                     jira: None,
@@ -93,6 +121,7 @@ pub async fn validate_credentials(
 
             match provider.validate_detailed().await {
                 Ok(details) => Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: true,
                     error: None,
                     jira: None,
@@ -113,6 +142,7 @@ pub async fn validate_credentials(
                     github: None,
                 }),
                 Err(e) => Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: false,
                     error: Some(provider_error_message(&e)),
                     jira: None,
@@ -133,6 +163,7 @@ pub async fn validate_credentials(
 
             match provider.validate_detailed().await {
                 Ok(details) => Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: true,
                     error: None,
                     jira: None,
@@ -155,6 +186,7 @@ pub async fn validate_credentials(
                     }),
                 }),
                 Err(e) => Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: false,
                     error: Some(provider_error_message(&e)),
                     jira: None,
@@ -170,6 +202,7 @@ pub async fn validate_credentials(
             let changes = std::path::Path::new(&source.root_path).join("changes");
             if changes.is_dir() {
                 Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: true,
                     error: None,
                     jira: None,
@@ -178,6 +211,7 @@ pub async fn validate_credentials(
                 })
             } else {
                 Ok(ValidateKanbanCredentialsResponse {
+                    gitea: None,
                     valid: false,
                     error: Some(format!(
                         "No OpenSpec changes directory at {}",
@@ -192,8 +226,6 @@ pub async fn validate_credentials(
     }
 }
 
-// ─── list_projects ──────────────────────────────────────────────────────────
-
 /// Fetch the list of projects (Jira) or teams (Linear) for the given creds.
 pub async fn list_projects(
     req: ListKanbanProjectsRequest,
@@ -201,6 +233,10 @@ pub async fn list_projects(
     use crate::api::providers::kanban::KanbanProvider;
 
     let projects = match req.provider {
+        KanbanProviderKind::Gitea => gitea_provider(req.gitea)?
+            .list_projects()
+            .await
+            .map_err(|e| ApiError::BadRequest(provider_error_message(&e)))?,
         KanbanProviderKind::Jira => {
             let creds = req.jira.ok_or_else(|| {
                 ApiError::BadRequest("Missing `jira` field for jira provider".to_string())
@@ -256,8 +292,6 @@ pub async fn list_projects(
     })
 }
 
-// ─── list_statuses ──────────────────────────────────────────────────────────
-
 /// Fetch the workflow statuses/columns of a specific project using ephemeral
 /// creds, for populating the todo/doing/done mapping dropdowns during
 /// onboarding.
@@ -267,6 +301,10 @@ pub async fn list_statuses(
     use crate::api::providers::kanban::KanbanProvider;
 
     let statuses = match req.provider {
+        KanbanProviderKind::Gitea => gitea_provider(req.gitea)?
+            .list_statuses(&req.project_key)
+            .await
+            .map_err(|e| ApiError::BadRequest(provider_error_message(&e)))?,
         KanbanProviderKind::Jira => {
             let creds = req.jira.ok_or_else(|| {
                 ApiError::BadRequest("Missing `jira` field for jira provider".to_string())
@@ -312,8 +350,6 @@ pub async fn list_statuses(
 
     Ok(ListKanbanStatusesResponse { statuses })
 }
-
-// ─── write_config ───────────────────────────────────────────────────────────
 
 /// Write or upsert a kanban config section to `config.toml`.
 ///
@@ -361,6 +397,51 @@ pub fn apply_config_request(
     req: WriteKanbanConfigRequest,
 ) -> Result<String, ApiError> {
     let section_header = match req.provider {
+        KanbanProviderKind::Gitea => {
+            let body = req
+                .gitea
+                .ok_or_else(|| ApiError::BadRequest("Missing gitea configuration".into()))?;
+            if body.instance.trim().is_empty() || body.sync_user_id.trim().is_empty() {
+                return Err(ApiError::BadRequest(
+                    "Instance name and sync user are required".into(),
+                ));
+            }
+            let existing = config.kanban.gitea.get(&body.instance);
+            if existing.is_some_and(|cfg| {
+                cfg.base_url != body.base_url || cfg.api_key_env != body.api_key_env
+            }) {
+                return Err(ApiError::BadRequest(
+                    "Use a separate instance name for a different URL or credential".into(),
+                ));
+            }
+            let mut cfg = existing
+                .cloned()
+                .unwrap_or(crate::config::GiteaProjectsConfig {
+                    enabled: false,
+                    base_url: body.base_url,
+                    api_key_env: body.api_key_env,
+                    repositories: vec![],
+                    projects: std::collections::HashMap::default(),
+                });
+            for repo in body.repositories {
+                if !cfg.repositories.contains(&repo) {
+                    cfg.repositories.push(repo);
+                }
+            }
+            cfg.projects.insert(
+                body.project_key,
+                crate::config::ProjectSyncConfig {
+                    sync_user_id: body.sync_user_id,
+                    status_mapping: body.status_mapping.unwrap_or_default(),
+                    ..Default::default()
+                },
+            );
+            GiteaProjectsProvider::validate_config(&cfg)
+                .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+            cfg.enabled = true;
+            config.kanban.gitea.insert(body.instance.clone(), cfg);
+            format!("[kanban.gitea.\"{}\"]", body.instance)
+        }
         KanbanProviderKind::Jira => {
             let body = req.jira.ok_or_else(|| {
                 ApiError::BadRequest("Missing `jira` field for jira provider".to_string())
@@ -435,8 +516,6 @@ fn save_config_to_path(config: &Config, path: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-// ─── set_session_env ────────────────────────────────────────────────────────
-
 /// Set kanban-related env vars on the server process for the current session
 /// and return a shell export block the client can show to the user for
 /// copying into their shell profile.
@@ -444,10 +523,23 @@ fn save_config_to_path(config: &Config, path: &PathBuf) -> anyhow::Result<()> {
 /// Security note: the `shell_export_block` uses `<your-token>` placeholders,
 /// NOT the actual secret value supplied in the request. The secret lives
 /// only in the process env.
-pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvResponse {
+pub fn set_session_env(
+    req: SetKanbanSessionEnvRequest,
+) -> Result<SetKanbanSessionEnvResponse, ApiError> {
     let mut env_vars_set: Vec<String> = Vec::new();
 
     match req.provider {
+        KanbanProviderKind::Gitea => {
+            let body = req
+                .gitea
+                .ok_or_else(|| ApiError::BadRequest("Missing gitea credentials".into()))?;
+            GiteaProjectsProvider::set_session_token(&body.base_url, &body.api_key_env, body.token)
+                .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+            return Ok(SetKanbanSessionEnvResponse {
+                env_vars_set: vec![body.api_key_env.clone()],
+                shell_export_block: format!("export {}=\"<your-gitea-token>\"", body.api_key_env),
+            });
+        }
         KanbanProviderKind::Jira => {
             if let Some(body) = req.jira {
                 // HAZARD: this writes to the process environment while other
@@ -468,10 +560,10 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
                 env_vars_set.push("OPERATOR_JIRA_EMAIL".to_string());
 
                 let shell_export_block = build_shell_export_block_jira(&body.api_key_env);
-                return SetKanbanSessionEnvResponse {
+                return Ok(SetKanbanSessionEnvResponse {
                     env_vars_set,
                     shell_export_block,
-                };
+                });
             }
         }
         KanbanProviderKind::Linear => {
@@ -480,10 +572,10 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
                 env_vars_set.push(body.api_key_env.clone());
 
                 let shell_export_block = build_shell_export_block_linear(&body.api_key_env);
-                return SetKanbanSessionEnvResponse {
+                return Ok(SetKanbanSessionEnvResponse {
                     env_vars_set,
                     shell_export_block,
-                };
+                });
             }
         }
         KanbanProviderKind::Github => {
@@ -492,10 +584,10 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
                 env_vars_set.push(body.api_key_env.clone());
 
                 let shell_export_block = build_shell_export_block_github(&body.api_key_env);
-                return SetKanbanSessionEnvResponse {
+                return Ok(SetKanbanSessionEnvResponse {
                     env_vars_set,
                     shell_export_block,
-                };
+                });
             }
         }
         // OpenSpec has no secrets - nothing to set; fall through to the
@@ -504,10 +596,10 @@ pub fn set_session_env(req: SetKanbanSessionEnvRequest) -> SetKanbanSessionEnvRe
     }
 
     // No body supplied for the selected provider - return empty envelope.
-    SetKanbanSessionEnvResponse {
+    Ok(SetKanbanSessionEnvResponse {
         env_vars_set,
         shell_export_block: String::new(),
-    }
+    })
 }
 
 /// Build a copy-paste-ready `export` block for Jira's env vars.
@@ -535,7 +627,13 @@ pub fn build_shell_export_block_github(api_key_env: &str) -> String {
     format!("export {api_key_env}=\"<your-github-projects-token>\"")
 }
 
-// ─── Tests ──────────────────────────────────────────────────────────────────
+fn gitea_provider(
+    creds: Option<crate::rest::dto::GiteaCredentials>,
+) -> Result<GiteaProjectsProvider, ApiError> {
+    let creds = creds.ok_or_else(|| ApiError::BadRequest("Missing gitea credentials".into()))?;
+    GiteaProjectsProvider::new(&creds.base_url, creds.repositories, creds.token)
+        .map_err(|e| ApiError::BadRequest(e.to_string()))
+}
 
 #[cfg(test)]
 mod tests {
@@ -549,6 +647,7 @@ mod tests {
         let path = dir.path().join("config.toml");
 
         let req = WriteKanbanConfigRequest {
+            gitea: None,
             provider: KanbanProviderKind::Jira,
             jira: Some(WriteJiraConfigBody {
                 domain: "acme.atlassian.net".to_string(),
@@ -580,6 +679,7 @@ mod tests {
         let path = dir.path().join("config.toml");
 
         let req = WriteKanbanConfigRequest {
+            gitea: None,
             provider: KanbanProviderKind::Linear,
             jira: None,
             linear: Some(WriteLinearConfigBody {
@@ -611,6 +711,7 @@ mod tests {
         // Write first project
         write_config(
             WriteKanbanConfigRequest {
+                gitea: None,
                 provider: KanbanProviderKind::Jira,
                 jira: Some(WriteJiraConfigBody {
                     domain: "acme.atlassian.net".to_string(),
@@ -631,6 +732,7 @@ mod tests {
         // Write second project to the same workspace
         write_config(
             WriteKanbanConfigRequest {
+                gitea: None,
                 provider: KanbanProviderKind::Jira,
                 jira: Some(WriteJiraConfigBody {
                     domain: "acme.atlassian.net".to_string(),
@@ -690,6 +792,7 @@ mod tests {
         let path = dir.path().join("config.toml");
 
         let req = WriteKanbanConfigRequest {
+            gitea: None,
             provider: KanbanProviderKind::Github,
             jira: None,
             linear: None,
@@ -721,6 +824,7 @@ mod tests {
         let path = dir.path().join("config.toml");
 
         let req = WriteKanbanConfigRequest {
+            gitea: None,
             provider: KanbanProviderKind::Jira,
             jira: Some(WriteJiraConfigBody {
                 domain: "acme.atlassian.net".to_string(),
@@ -751,6 +855,7 @@ mod tests {
     #[test]
     fn test_list_statuses_missing_creds_returns_bad_request() {
         let req = ListKanbanStatusesRequest {
+            gitea: None,
             provider: KanbanProviderKind::Jira,
             project_key: "PROJ".to_string(),
             jira: None,
@@ -766,6 +871,7 @@ mod tests {
     #[test]
     fn test_validate_missing_jira_body_returns_bad_request() {
         let req = ValidateKanbanCredentialsRequest {
+            gitea: None,
             provider: KanbanProviderKind::Jira,
             jira: None,
             linear: None,
@@ -780,6 +886,7 @@ mod tests {
     #[test]
     fn test_validate_missing_github_body_returns_bad_request() {
         let req = ValidateKanbanCredentialsRequest {
+            gitea: None,
             provider: KanbanProviderKind::Github,
             jira: None,
             linear: None,

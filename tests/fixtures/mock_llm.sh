@@ -2,14 +2,11 @@
 # Mock LLM script for integration testing
 # Captures invocation details to a JSON file for test verification
 #
-# Environment variables:
-#   MOCK_LLM_OUTPUT_DIR - Directory to write invocation files (default: /tmp/operator-test)
-#
 # Output: Creates invocation-{timestamp}.json with all captured data
 
 set -e
 
-OUTPUT_DIR="${MOCK_LLM_OUTPUT_DIR:-/tmp/operator-test}"
+OUTPUT_DIR="$(dirname "$0")"
 mkdir -p "$OUTPUT_DIR"
 
 # Generate unique invocation ID using nanoseconds

@@ -88,14 +88,14 @@ Until you enable it, Operator is reachable only in-cluster.
 
 Set `publicUrl` to the externally reachable URL whenever you expose Operator. This is required.
 
-> **Setting `publicUrl` also hardens outbound request validation.** A non-empty
-> value switches model-server destination checks to the hardened policy, which
-> rejects loopback and private ranges (`10.0.0.0/8`, `172.16.0.0/12`,
-> `192.168.0.0/16`). If you point Operator at a self-hosted LLM inside the
-> cluster or on the LAN, configuring that model server will fail once
-> `publicUrl` is set, with an error that does not mention `publicUrl`. Only the
-> model-server probe and save paths are affected; Git, kanban, webhook, and
-> collection traffic is not.
+> **Setting `publicUrl` hardens outbound model requests.** Private addresses
+> require an explicit `egress.allowPrivateCidrs` allowlist (prefer a single-host
+> `/32`); loopback and reserved destinations remain blocked. For a Windows GPU
+> host, follow the [LM Studio walkthrough](/getting-started/model-servers/lmstudio/).
+> This application policy does not constrain agent CLI traffic; use NetworkPolicy
+> for process-level network restrictions. Model probes and native-judge calls
+> connect directly and ignore `HTTPS_PROXY`/`HTTP_PROXY`, so a cluster that
+> reaches cloud providers only through a proxy cannot probe them.
 
 ## Persistence
 
@@ -144,9 +144,11 @@ networkPolicy:
             - 192.168.0.0/16
 ```
 
-Operator needs egress to the model provider, kanban provider, and Git host. It does not need egress to the rest of the cluster - unless you use [Coder targets](#coder-targets), which need to reach the Coder deployment.
+Operator needs egress to the model provider, kanban provider, and Git host.
 
-Note default: with `enabled: true` and an empty `egress.to`, the rendered policy permits DNS. An empty list is deny-all, not allow-all.
+Operator does not need egress to the rest of the cluster - unless you use [Coder targets](#coder-targets), which will need to reach the Coder deployment.
+
+Note default: with `enabled: true` and an empty `egress.to`, the rendered policy permits DNS. With no additional rules, an empty list denies non-DNS egress. Use `networkPolicy.egress.additionalRules` for rules containing both `to` peers and `ports`; the older `egress.to` list allows all ports to its destinations.
 
 ## Custom agent images
 

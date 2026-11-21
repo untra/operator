@@ -69,12 +69,14 @@ fn repository_path(url: &url::Url) -> &str {
 }
 
 pub fn private_dir(path: &Path) -> Result<()> {
-    let mut builder = fs::DirBuilder::new();
+    let builder = fs::DirBuilder::new();
     #[cfg(unix)]
-    {
+    let builder = {
         use std::os::unix::fs::DirBuilderExt;
+        let mut builder = builder;
         builder.mode(0o700);
-    }
+        builder
+    };
     builder
         .create(path)
         .context("Creating private Git runtime directory")?;
@@ -89,6 +91,8 @@ pub fn private_file(path: &Path, contents: &[u8], executable: bool) -> Result<()
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(if executable { 0o700 } else { 0o600 });
     }
+    #[cfg(not(unix))]
+    let _ = executable;
     options.open(path)?.write_all(contents)?;
     Ok(())
 }

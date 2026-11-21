@@ -42,6 +42,17 @@ interface ConfigPageProps {
   delegatorPrefill?: NavigationPrefill;
 }
 
+const PAGE_LAYOUT_STYLE: React.CSSProperties = {
+  display: "flex",
+  height: "100vh",
+  overflow: "hidden",
+};
+const SCROLL_CONTAINER_STYLE: React.CSSProperties = {
+  flexGrow: 1,
+  overflow: "auto",
+  padding: "16px 24px",
+};
+
 export function ConfigPage({
   config,
   onUpdate,
@@ -89,10 +100,10 @@ export function ConfigPage({
   );
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+    <div style={PAGE_LAYOUT_STYLE}>
       <SidebarNav items={navItems} scrollContainerRef={scrollRef} />
 
-      <div ref={scrollRef} style={{ flexGrow: 1, overflow: "auto", padding: "16px 24px" }}>
+      <div ref={scrollRef} style={SCROLL_CONTAINER_STYLE}>
         <div className="op-row op-space-between op-mb-2">
           <h1 className="op-h6">
             <OperatorBrand /> Settings

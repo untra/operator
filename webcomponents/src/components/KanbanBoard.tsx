@@ -69,12 +69,15 @@ function Card({
         <span className={styles.ticketType}>{ticket.ticket_type}</span>
         <span className={styles.ticketId}>{ticket.id}</span>
         {ticket.attention && (
-          <span
-            className={styles.attention}
-            data-reason={ticket.attention}
-            title={ATTENTION_TITLE[ticket.attention]}
-            aria-label={ATTENTION_TITLE[ticket.attention]}
-          />
+          <span>
+            <span
+              className={styles.attention}
+              data-reason={ticket.attention}
+              title={ATTENTION_TITLE[ticket.attention]}
+              aria-hidden="true"
+            />
+            <span className={styles.srOnly}>{ATTENTION_TITLE[ticket.attention]}</span>
+          </span>
         )}
       </div>
       <div className={styles.cardSummary}>{ticket.summary}</div>

@@ -44,6 +44,17 @@ docs:
           - title: Zed
             url: /getting-started/ides/zed/
             icon: zed
+      - title: Connections
+        url: /getting-started/connections/
+        children:
+          - title: Operator API
+            url: /getting-started/connections/api/
+          - title: MCP
+            url: /getting-started/connections/mcp/
+          - title: ACP
+            url: /getting-started/connections/acp/
+          - title: Access Keys & Identities
+            url: /getting-started/connections/access-keys/
       - title: Execution Transports
         url: /getting-started/transports/
         children:
@@ -82,6 +93,9 @@ docs:
           - title: GitHub Projects
             url: /getting-started/kanban/github/
             icon: github
+          - title: Gitea Projects
+            url: /getting-started/kanban/gitea/
+            icon: gitea
           - title: OpenSpec
             url: /getting-started/kanban/openspec/
             icon: openspec
@@ -121,6 +135,9 @@ docs:
           - title: Ollama
             url: /getting-started/model-servers/ollama/
             icon: ollama
+          - title: LM Studio
+            url: /getting-started/model-servers/lmstudio/
+            icon: lmstudio
       - title: Supported Git Repositories
         url: /getting-started/git/
         children:
@@ -130,6 +147,9 @@ docs:
           - title: GitLab
             url: /getting-started/git/gitlab/
             icon: gitlab
+          - title: Forgejo
+            url: /getting-started/git/forgejo/
+            icon: forgejo
           - title: Gitea
             url: /getting-started/git/gitea/
             icon: gitea
@@ -159,6 +179,12 @@ docs:
           - title: AGNT.gg
             url: /getting-started/integrations/agnt/
             icon: agnt
+          - title: Keycloak
+            url: /getting-started/integrations/keycloak/
+            icon: keycloak
+          - title: Authentik
+            url: /getting-started/integrations/authentik/
+            icon: authentik
   - title: Reference
     children:
       - title: CLI
@@ -194,6 +220,12 @@ docs:
       - title: Delegators
         url: /delegators/
         codicon: organization
+      - title: Telemetry
+        url: /telemetry/
+        codicon: pulse
+        children:
+          - title: OTLP Event Catalog
+            url: /telemetry/catalog/
       - title: Relay
         url: /relay/
         codicon: radio-tower

@@ -134,6 +134,11 @@ pub fn configure_git_provider(config: &mut Config, provider: &str, token_env: &s
             config.git.gitlab.enabled = true;
             config.git.gitlab.token_env = token_env.to_string();
         }
+        "forgejo" => {
+            config.git.provider = Some(GitProviderConfig::Forgejo);
+            config.git.forgejo.enabled = true;
+            config.git.forgejo.token_env = token_env.to_string();
+        }
         "gitea" => {
             config.git.provider = Some(GitProviderConfig::Gitea);
             config.git.gitea.enabled = true;
@@ -162,6 +167,7 @@ pub fn token_env_for(config: &Config, provider: &str) -> Option<String> {
         "github" => Some(config.git.github.token_env.clone()),
         "gitlab" => Some(config.git.gitlab.token_env.clone()),
         "gitea" => Some(config.git.gitea.token_env.clone()),
+        "forgejo" => Some(config.git.forgejo.token_env.clone()),
         _ => None,
     }
 }
@@ -178,12 +184,19 @@ pub fn validate_token(provider: &str, token: &str) -> Result<String> {
     }
 }
 
+fn forge_base_url(config: &Config, provider: &str) -> Result<url::Url> {
+    let (host, default) = if provider == "forgejo" {
+        (config.git.forgejo.host.as_deref(), "codeberg.org")
+    } else {
+        (config.git.gitea.host.as_deref(), "gitea.com")
+    };
+    crate::types::pr::provider_base_url(host, default)
+}
+
 pub fn resolve_onboarding_with_config(config: &Config, provider: &str) -> Option<OnboardingStep> {
     let mut step = resolve_onboarding(provider)?;
-    if provider == "gitea" {
-        let base =
-            crate::types::pr::provider_base_url(config.git.gitea.host.as_deref(), "gitea.com")
-                .ok()?;
+    if matches!(provider, "gitea" | "forgejo") {
+        let base = forge_base_url(config, provider).ok()?;
         if let OnboardingStep::CollectToken { pat_url, .. } = &mut step {
             *pat_url = base.join("user/settings/applications").ok()?.to_string();
         }
@@ -192,15 +205,16 @@ pub fn resolve_onboarding_with_config(config: &Config, provider: &str) -> Option
 }
 
 pub fn validate_token_with_config(config: &Config, provider: &str, token: &str) -> Result<String> {
-    if provider != "gitea" {
+    if !matches!(provider, "gitea" | "forgejo") {
         return validate_token(provider, token);
     }
-    let base = crate::types::pr::provider_base_url(config.git.gitea.host.as_deref(), "gitea.com")?;
+    let base = forge_base_url(config, provider)?;
     let git = crate::config::GitExecutionConfig {
         credentials: Some(crate::config::GitCredentialConfig {
             repository_url: base.join("operator/authentication")?.to_string(),
             username: "operator".into(),
-            token_env: config.git.gitea.token_env.clone(),
+            token_env: token_env_for(config, provider)
+                .context("Missing forge token configuration")?,
         }),
         ..Default::default()
     };
@@ -225,6 +239,7 @@ pub fn provider_is_configured(config: &Config, provider: &str) -> bool {
         "github" => config.git.provider == Some(GitProviderConfig::GitHub),
         "gitlab" => config.git.provider == Some(GitProviderConfig::GitLab),
         "gitea" => config.git.provider == Some(GitProviderConfig::Gitea),
+        "forgejo" => config.git.provider == Some(GitProviderConfig::Forgejo),
         _ => false,
     }
 }

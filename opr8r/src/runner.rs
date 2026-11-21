@@ -21,6 +21,7 @@ pub struct RunResult {
 /// Configuration for running a subprocess
 #[derive(Debug, Default)]
 pub struct RunConfig {
+    pub envs: Vec<(String, String)>,
     /// Enable verbose logging
     pub verbose: bool,
     /// Enable output capture (tee mode: capture while displaying)
@@ -30,6 +31,7 @@ pub struct RunConfig {
 impl RunConfig {
     pub fn new() -> Self {
         Self {
+            envs: Vec::new(),
             verbose: false,
             capture_output: false,
         }
@@ -62,10 +64,10 @@ pub async fn run_command(
 
     if config.capture_output {
         // Tee mode: capture output while displaying to terminal
-        run_with_capture(program, args, config.verbose).await
+        run_with_capture(program, args, config.verbose, &config.envs).await
     } else {
         // Pure passthrough mode: no capture
-        run_passthrough(program, args, config.verbose).await
+        run_passthrough(program, args, config.verbose, &config.envs).await
     }
     .map(|(exit_status, duration, captured)| RunResult {
         exit_status,
@@ -80,11 +82,13 @@ async fn run_passthrough(
     program: &str,
     args: &[String],
     verbose: bool,
+    envs: &[(String, String)],
 ) -> io::Result<(ExitStatus, Duration, Option<String>)> {
     let start = Instant::now();
 
     let mut child = Command::new(program)
         .args(args)
+        .envs(envs.iter().cloned())
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
@@ -112,11 +116,13 @@ async fn run_with_capture(
     program: &str,
     args: &[String],
     verbose: bool,
+    envs: &[(String, String)],
 ) -> io::Result<(ExitStatus, Duration, Option<String>)> {
     let start = Instant::now();
 
     let mut child = Command::new(program)
         .args(args)
+        .envs(envs.iter().cloned())
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

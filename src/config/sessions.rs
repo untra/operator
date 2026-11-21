@@ -35,7 +35,7 @@ impl SessionWrapperType {
     /// truth mirrored by the vertical catalog (`crate::integrations::catalog`);
     /// `vscode` is advertised under the Editor vertical.
     ///
-    /// Consumed by `tests/vertical_parity.rs` to enforce catalog coverage; reads
+    /// Consumed by `tests/it/suites/vertical_parity.rs` to enforce catalog coverage; reads
     /// as unused in the bin crate, which has no blanket dead-code allowance here.
     #[allow(dead_code)]
     pub const ALL: [SessionWrapperType; 4] = [
@@ -249,7 +249,7 @@ impl Default for SessionsVSCodeConfig {
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum CmuxPlacementPolicy {
-    /// Automatically choose: 0-1 windows → new workspace, >1 windows → new window
+    /// Automatically choose: 0-1 windows -> new workspace, >1 windows -> new window
     #[default]
     Auto,
     /// Always create a new workspace in the active window

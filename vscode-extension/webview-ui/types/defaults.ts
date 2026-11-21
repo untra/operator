@@ -3,6 +3,7 @@ import type { Config } from "../../src/generated/Config";
 
 /** Sensible defaults matching Rust Config::default() */
 const DEFAULT_CONFIG: Config = {
+  egress: { allow_private_cidrs: [] },
   profile: { id: "00000000-0000-0000-0000-000000000000", name: "legacy" },
   projects: [],
   agents: {
@@ -73,6 +74,29 @@ const DEFAULT_CONFIG: Config = {
   logging: {
     level: "info",
     to_file: false,
+    format: "text",
+  },
+  telemetry: {
+    enabled: false,
+    enable_redaction: false,
+    ingest: {
+      max_body_bytes: BigInt(64 * 1024 * 1024),
+      queue_capacity: 1024,
+      inject_agent_env: true,
+    },
+    export: {
+      endpoint: null,
+      protocol: null,
+      headers_env: null,
+      compression: null,
+      timeout_secs: BigInt(10),
+      self_telemetry: true,
+    },
+    window: {
+      max_sessions: 64,
+      records_per_session: 2048,
+      grace_secs: BigInt(300),
+    },
   },
   tmux: {
     config_generated: false,
@@ -127,6 +151,8 @@ const DEFAULT_CONFIG: Config = {
     use_worktrees: false,
   },
   kanban: {
+    gitea: {},
+    forgejo: {},
     jira: {},
     linear: {},
     github: {},

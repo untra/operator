@@ -37,7 +37,8 @@ pub fn build_initialize_response(request: &InitializeRequest) -> InitializeRespo
 /// transport errors. Logs go to stderr via `tracing`; stdout is reserved
 /// for line-delimited JSON-RPC (see `src/logging.rs` - global subscriber
 /// writes to stderr).
-pub async fn run_stdio(config: Config) -> agent_client_protocol::Result<()> {
+pub async fn run_stdio(mut config: Config) -> agent_client_protocol::Result<()> {
+    config.acquire_ownership()?;
     let registry = Arc::new(SessionRegistry::new());
     let config = Arc::new(config);
 
@@ -151,7 +152,7 @@ fn resolve_acp_delegator(config: &Config) -> Option<&Delegator> {
     crate::agents::delegator_resolution::resolve_default_delegator(config)
 }
 
-/// Run the prompt → delegator → stream-back-to-editor pipeline.
+/// Run the prompt -> delegator -> stream-back-to-editor pipeline.
 ///
 /// Returns the prompt response on success, or an `Err(String)` message that
 /// the caller will wrap in `internal_error`.

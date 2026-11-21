@@ -109,7 +109,6 @@ mod tests {
 
     #[test]
     fn test_wrapper_inference_precedes_editor_defaults() {
-        // Same empty environment, different wrapper → different defaults.
         // This proves wrapper type drives the defaults.
         with_clean_env(|| {
             let vscode = EditorConfig::detect(SessionWrapperType::Vscode);

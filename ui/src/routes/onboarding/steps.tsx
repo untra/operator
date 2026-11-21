@@ -1,14 +1,22 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { KanbanProviderKind } from "@operator/bindings/KanbanProviderKind";
 import type { SetupStep } from "@operator/bindings/SetupStep";
+import type { ModelServerKindEntry } from "@operator/bindings/ModelServerKindEntry";
 import type { StepComponent, StepProps, StepRow } from "./types";
-import { Choice, ChoiceGroup, PremiumPaywall } from "@operator/webcomponents";
+import {
+  Choice,
+  ChoiceGroup,
+  ModelProviderCard,
+  PremiumPaywall,
+  SelectInput,
+  StringInput,
+} from "@operator/webcomponents";
 import { LicensePanel } from "../../components/LicensePanel";
+import { onPurchaseLinkClick, useLicenseQuery, withReturnTo } from "../../license-return";
 import { useApiMutation, useApiQuery } from "../../api";
 import {
   gitProvidersQuery,
   kanbanProvidersQuery,
-  licenseQuery,
   listKanbanProjectsMutation,
   listKanbanStatusesMutation,
   providerKindsQuery,
@@ -20,11 +28,21 @@ import {
   writeGitConfigMutation,
   writeKanbanConfigMutation,
 } from "../../api/definitions";
+import {
+  coderParameterNameRules,
+  coderTargetNameRules,
+  coderTemplateRules,
+  configurationNameRules,
+  emailRules,
+  kanbanCredentialsValid,
+  repositoryRules,
+} from "./validation";
+import { httpUrlRules, requiredRules } from "../../field-rules";
 import styles from "./OnboardingPage.module.css";
 
 const TASK_FIELDS = ["priority", "points", "user_story"] as const;
 const WRAPPERS = ["tmux", "vscode", "cmux", "zellij"] as const;
-const KANBAN_KINDS = ["jira", "linear", "github", "openspec"] as const;
+const KANBAN_KINDS = ["jira", "linear", "github", "openspec", "gitea"] as const;
 const EMPTY_STATUS_MAPPING = { todo: "", doing: "", done: "" };
 const COLLECTION_SOURCES = [
   ["simple", "Simple"],
@@ -49,45 +67,48 @@ function ExportBlock({ value }: { value: string }) {
   );
 }
 
-const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => (
-  <Intro>
-    <h2>Welcome to Operator</h2>
-    <p>We’ll configure this workspace for both the terminal and browser.</p>
-    <label className={styles.form}>
-      Configuration name
-      <input
-        required
-        pattern="[a-z0-9_-]+"
-        maxLength={64}
-        value={draft.configurationName}
-        onChange={(event) =>
-          setDraft((current) => ({ ...current, configurationName: event.target.value }))
-        }
-      />
-      <span>Use lowercase letters, numbers, hyphens, and underscores.</span>
-    </label>
-    {!creating && (
-      <>
-        <dl>
-          <dt>Configuration</dt>
-          <dd>{status.config_path}</dd>
-          <dt>Tickets</dt>
-          <dd>{status.tickets_path}</dd>
-        </dl>
-        {Object.entries(status.projects_by_tool).map(([tool, projects]) => (
-          <p key={tool}>
-            <strong>{tool}</strong>: {projects.join(", ") || "none"}
-          </p>
-        ))}
-      </>
-    )}
-  </Intro>
-);
+const Welcome: StepComponent = ({ status, creating, draft, setDraft }) => {
+  const setName = useCallback(
+    (configurationName: string) => setDraft((current) => ({ ...current, configurationName })),
+    [setDraft],
+  );
+  return (
+    <Intro>
+      <h2>Welcome to Operator</h2>
+      <p>Setup the Operator Server Instance</p>
+      <div className={styles.form}>
+        <StringInput
+          label="Configuration name"
+          hint="Use lowercase letters, numbers, hyphens, and underscores."
+          rules={configurationNameRules}
+          maxLength={64}
+          value={draft.configurationName}
+          onChange={setName}
+        />
+      </div>
+      {!creating && (
+        <>
+          <dl>
+            <dt>Configuration</dt>
+            <dd>{status.config_path}</dd>
+            <dt>Tickets</dt>
+            <dd>{status.tickets_path}</dd>
+          </dl>
+          {Object.entries(status.projects_by_tool).map(([tool, projects]) => (
+            <p key={tool}>
+              <strong>{tool}</strong>: {projects.join(", ") || "none"}
+            </p>
+          ))}
+        </>
+      )}
+    </Intro>
+  );
+};
 
-const License: StepComponent = () => <LicensePanel />;
+const License: StepComponent = () => <LicensePanel checkout="setup" />;
 
 const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
-  const licenseQueryResult = useApiQuery(licenseQuery());
+  const licenseQueryResult = useLicenseQuery();
   const [showLicense, setShowLicense] = useState(false);
   const license = licenseQueryResult.data;
 
@@ -132,12 +153,14 @@ const ExecutionMode: StepComponent = ({ draft, setDraft }) => {
         </Choice>
       </ChoiceGroup>
       {!license?.premium && (
-        <PremiumPaywall
-          inline
-          feature="Remote targets"
-          purchaseUrl={license?.purchase_url}
-          onAddLicense={addLicense}
-        />
+        <div onClickCapture={onPurchaseLinkClick}>
+          <PremiumPaywall
+            inline
+            feature="Remote targets"
+            purchaseUrl={withReturnTo(license?.purchase_url, "setup")}
+            onAddLicense={addLicense}
+          />
+        </div>
       )}
       {showLicense && <LicensePanel />}
     </Intro>
@@ -153,6 +176,7 @@ function KanbanInfo({ addExport }: StepProps) {
   const setSessionEnv = useApiMutation(setKanbanSessionEnvMutation);
   const [provider, setProvider] = useState<KanbanProviderKind | "">("");
   const [domain, setDomain] = useState("");
+  const [repository, setRepository] = useState("");
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [rootPath, setRootPath] = useState("");
@@ -175,6 +199,13 @@ function KanbanInfo({ addExport }: StepProps) {
 
   const selectProvider = useCallback(
     (slug: string) => {
+      if (busy) {
+        return;
+      }
+      setToken("");
+      setSyncUserId("");
+      setMessage(null);
+      validateCredentials.reset();
       setProvider(KANBAN_KINDS.find((kind) => kind === slug) ?? "");
       setProjectKey("");
       setMapping(EMPTY_STATUS_MAPPING);
@@ -182,20 +213,54 @@ function KanbanInfo({ addExport }: StepProps) {
       listProjects.reset();
       listStatuses.reset();
     },
-    [listProjects, listStatuses],
+    [busy, listProjects, listStatuses, validateCredentials],
+  );
+
+  const setGiteaDomain = useCallback(
+    (value: string) => {
+      setDomain(value);
+      selectProvider("gitea");
+    },
+    [selectProvider],
+  );
+  const setGiteaRepository = useCallback(
+    (value: string) => {
+      setRepository(value);
+      selectProvider("gitea");
+    },
+    [selectProvider],
+  );
+  const setProviderToken = useCallback(
+    (value: string) => {
+      if (provider === "gitea") {
+        selectProvider("gitea");
+      }
+      setToken(value);
+    },
+    [provider, selectProvider],
+  );
+  const setMappingState = useCallback(
+    (state: keyof typeof EMPTY_STATUS_MAPPING) => (value: string) =>
+      setMapping((current) => ({ ...current, [state]: value })),
+    [],
   );
 
   // The catalog carries one more provider than `KANBAN_KINDS`: the built-in board
   const builtInBoard = providers.find((item) => !KANBAN_KINDS.some((kind) => kind === item.slug));
   const connectable = providers.filter((item) => KANBAN_KINDS.some((kind) => kind === item.slug));
 
-  const credentials = () => ({
-    provider: provider as KanbanProviderKind,
-    jira: provider === "jira" ? { domain, email, api_token: token } : null,
-    linear: provider === "linear" ? { api_key: token } : null,
-    github: provider === "github" ? { token } : null,
-    openspec: provider === "openspec" ? { root_path: rootPath } : null,
-  });
+  const credentials = useCallback(
+    () => ({
+      gitea:
+        provider === "gitea" ? { base_url: domain, repositories: [repository], token } : undefined,
+      provider: provider as KanbanProviderKind,
+      jira: provider === "jira" ? { domain, email, api_token: token } : null,
+      linear: provider === "linear" ? { api_key: token } : null,
+      github: provider === "github" ? { token } : null,
+      openspec: provider === "openspec" ? { root_path: rootPath } : null,
+    }),
+    [provider, domain, repository, token, email, rootPath],
+  );
 
   async function connect() {
     if (!provider) {
@@ -211,6 +276,7 @@ function KanbanInfo({ addExport }: StepProps) {
         validation.jira?.account_id ??
           validation.linear?.user_id ??
           validation.github?.user_id ??
+          validation.gitea?.users.find((user) => user.id === validation.gitea?.user_id)?.id ??
           "",
       );
       setWorkspaceKey(validation.github?.user_login ?? "");
@@ -225,37 +291,45 @@ function KanbanInfo({ addExport }: StepProps) {
         setMessage("OpenSpec connected.");
         return;
       }
-      await listProjects.mutateAsync(credentials());
-      setMessage("Credentials validated. Choose a project.");
+      const discovered = await listProjects.mutateAsync(credentials());
+      setMessage(
+        discovered.projects.length > 0
+          ? "Credentials validated. Choose a project."
+          : "No projects are available for these credentials.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Connection failed");
     }
   }
 
-  async function chooseProject(value: string) {
-    const request = ++statusRequest.current;
-    setProjectKey(value);
-    setMapping(EMPTY_STATUS_MAPPING);
-    if (!provider || !value) {
-      return;
-    }
-    try {
-      const result = await listStatuses.mutateAsync({ ...credentials(), project_key: value });
-      if (request !== statusRequest.current) {
+  const listStatusesAsync = listStatuses.mutateAsync;
+  const chooseProject = useCallback(
+    async (value: string) => {
+      const request = ++statusRequest.current;
+      setProjectKey(value);
+      setMapping(EMPTY_STATUS_MAPPING);
+      if (!provider || !value) {
         return;
       }
-      setMapping({
-        todo: result.statuses[0] ?? "",
-        doing: result.statuses[1] ?? "",
-        done: result.statuses.at(-1) ?? "",
-      });
-    } catch (error) {
-      if (request !== statusRequest.current) {
-        return;
+      try {
+        const result = await listStatusesAsync({ ...credentials(), project_key: value });
+        if (request !== statusRequest.current) {
+          return;
+        }
+        setMapping({
+          todo: result.statuses[0] ?? "",
+          doing: result.statuses[1] ?? "",
+          done: result.statuses.at(-1) ?? "",
+        });
+      } catch (error) {
+        if (request !== statusRequest.current) {
+          return;
+        }
+        setMessage(error instanceof Error ? error.message : "Could not list statuses");
       }
-      setMessage(error instanceof Error ? error.message : "Could not list statuses");
-    }
-  }
+    },
+    [provider, credentials, listStatusesAsync],
+  );
 
   async function save() {
     if (!provider || !projectKey) {
@@ -267,9 +341,36 @@ function KanbanInfo({ addExport }: StepProps) {
           ? "OPERATOR_JIRA_API_KEY"
           : provider === "linear"
             ? "OPERATOR_LINEAR_API_KEY"
-            : "OPERATOR_GITHUB_TOKEN";
+            : provider === "gitea"
+              ? "OPERATOR_GITEA_TOKEN"
+              : "OPERATOR_GITHUB_TOKEN";
       const status_mapping = mapping;
-      if (provider === "jira") {
+      if (provider === "gitea") {
+        const envResult = await setSessionEnv.mutateAsync({
+          provider,
+          gitea: { base_url: domain, api_key_env: env, token },
+          jira: null,
+          linear: null,
+          github: null,
+        });
+        await writeConfig.mutateAsync({
+          provider,
+          gitea: {
+            instance,
+            base_url: domain,
+            repositories: [repository],
+            api_key_env: env,
+            project_key: projectKey,
+            sync_user_id: syncUserId,
+            status_mapping,
+          },
+          jira: null,
+          linear: null,
+          github: null,
+          openspec: null,
+        });
+        addExport(envResult.shell_export_block);
+      } else if (provider === "jira") {
         const envResult = await setSessionEnv.mutateAsync({
           provider,
           jira: { domain, email, api_token: token, api_key_env: env },
@@ -350,6 +451,8 @@ function KanbanInfo({ addExport }: StepProps) {
       <p>
         Connect an external Kanban provider to sync its issues, or continue and connect one later.
       </p>
+      {providersQuery.isLoading && <p>Loading kanban providers...</p>}
+      {providersQuery.error && <p>{providersQuery.error.message}</p>}
       <ChoiceGroup>
         {builtInBoard && (
           <Choice
@@ -380,83 +483,156 @@ function KanbanInfo({ addExport }: StepProps) {
       </ChoiceGroup>
       {provider && (
         <div className={styles.form}>
+          {provider === "gitea" && (
+            <>
+              <StringInput
+                label="Instance name"
+                rules={requiredRules}
+                disabled={busy}
+                value={instance}
+                onChange={setInstance}
+              />
+              <StringInput
+                label="Instance URL"
+                type="url"
+                rules={httpUrlRules}
+                disabled={busy}
+                value={domain}
+                onChange={setGiteaDomain}
+                placeholder="https://git.example.com"
+              />
+              <StringInput
+                label="Repository"
+                rules={repositoryRules}
+                disabled={busy}
+                value={repository}
+                onChange={setGiteaRepository}
+                placeholder="owner/repository"
+              />
+              <p>
+                Alpha imports repository board issues. Use a token with read:repository, read:issue,
+                and read:user access.
+              </p>
+            </>
+          )}
           {provider === "jira" && (
             <>
-              <label>
-                Jira domain
-                <input
-                  value={domain}
-                  onChange={(event) => setDomain(event.target.value)}
-                  placeholder="org.atlassian.net"
-                />
-              </label>
-              <label>
-                Email
-                <input value={email} onChange={(event) => setEmail(event.target.value)} />
-              </label>
+              <StringInput
+                label="Jira domain"
+                rules={requiredRules}
+                value={domain}
+                onChange={setDomain}
+                placeholder="org.atlassian.net"
+              />
+              <StringInput
+                label="Email"
+                type="email"
+                autoComplete="email"
+                rules={emailRules}
+                value={email}
+                onChange={setEmail}
+              />
             </>
           )}
           {provider === "openspec" ? (
             <>
-              <label>
-                Instance name
-                <input value={instance} onChange={(event) => setInstance(event.target.value)} />
-              </label>
-              <label>
-                OpenSpec root
-                <input value={rootPath} onChange={(event) => setRootPath(event.target.value)} />
-              </label>
+              <StringInput
+                label="Instance name"
+                rules={requiredRules}
+                value={instance}
+                onChange={setInstance}
+              />
+              <StringInput
+                label="OpenSpec root"
+                rules={requiredRules}
+                value={rootPath}
+                onChange={setRootPath}
+              />
             </>
           ) : (
-            <label>
-              API token
-              <input
-                type="password"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-              />
-            </label>
+            <StringInput
+              label="API token"
+              type="password"
+              autoComplete="off"
+              rules={requiredRules}
+              disabled={busy}
+              value={token}
+              onChange={setProviderToken}
+            />
           )}
-          <button type="button" onClick={connect} disabled={busy}>
+          <button
+            type="button"
+            onClick={connect}
+            disabled={
+              busy ||
+              !kanbanCredentialsValid(provider, {
+                domain,
+                email,
+                instance,
+                repository,
+                rootPath,
+                token,
+              })
+            }
+          >
             Validate and connect
           </button>
+          {busy && <output>Connecting or saving provider...</output>}
+          {provider === "gitea" && validateCredentials.data?.gitea?.users.length === 0 && (
+            <p>No assignable users are available for this repository.</p>
+          )}
+          {provider === "gitea" && validateCredentials.data?.gitea && (
+            <SelectInput
+              label="Sync user"
+              placeholder="Choose a user"
+              rules={requiredRules}
+              value={syncUserId}
+              disabled={busy}
+              options={validateCredentials.data.gitea.users.map((user) => ({
+                value: user.id,
+                label: user.name,
+              }))}
+              onChange={setSyncUserId}
+            />
+          )}
           {projects.length > 0 && (
             <>
-              <label>
-                Project
-                <select
-                  value={projectKey}
-                  disabled={listStatuses.isPending}
-                  onChange={(event) => chooseProject(event.target.value)}
-                >
-                  <option value="">Choose…</option>
-                  {projects.map((item) => (
-                    <option key={item.id} value={item.key}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SelectInput
+                label="Project"
+                placeholder="Choose…"
+                rules={requiredRules}
+                value={projectKey}
+                disabled={listStatuses.isPending}
+                options={projects.map((item) => ({ value: item.key, label: item.name }))}
+                onChange={chooseProject}
+              />
+              {projectKey && listStatuses.data && statuses.length === 0 && (
+                <p>This project has no available columns.</p>
+              )}
               {statuses.length > 0 && (
                 <div className={styles.mapping}>
-                  {(["todo", "doing", "done"] as const).map((state) => (
-                    <label key={state}>
-                      {state}
-                      <select
+                  {(["todo", "doing", "done"] as const)
+                    .filter((state) => provider !== "gitea" || state === "todo")
+                    .map((state) => (
+                      <SelectInput
+                        key={state}
+                        label={state}
                         value={mapping[state]}
-                        onChange={(event) =>
-                          setMapping((current) => ({ ...current, [state]: event.target.value }))
-                        }
-                      >
-                        {statuses.map((status) => (
-                          <option key={status}>{status}</option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
+                        options={statuses.map((status) => ({ value: status, label: status }))}
+                        onChange={setMappingState(state)}
+                      />
+                    ))}
                 </div>
               )}
-              <button type="button" onClick={save} disabled={busy || !projectKey}>
+              <button
+                type="button"
+                onClick={save}
+                disabled={
+                  busy ||
+                  !projectKey ||
+                  (provider === "gitea" && (!syncUserId || statuses.length === 0))
+                }
+              >
                 Save provider
               </button>
             </>
@@ -470,15 +646,43 @@ function KanbanInfo({ addExport }: StepProps) {
   );
 }
 
-function ProbeLabel({ slug }: { slug: string }) {
-  const { data, error, isLoading } = useApiQuery(providerModelsQuery(slug));
-  if (data?.reachable) {
-    return `${data.models.length} models`;
+function isLocalUrl(url: string | null | undefined): boolean {
+  if (!url) {
+    return false;
   }
-  if (isLoading) {
-    return "checking…";
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
+  } catch {
+    return false;
   }
-  return data?.error ?? (error ? "unreachable" : "checking…");
+}
+
+function ProbedProviderCard({
+  slug,
+  label,
+  kind,
+  selected,
+  onToggle,
+}: {
+  slug: string;
+  label: string;
+  kind: ModelServerKindEntry | undefined;
+  selected: boolean;
+  onToggle: (slug: string) => void;
+}) {
+  const { data, error } = useApiQuery(providerModelsQuery(slug));
+  const provider = useMemo(
+    () => ({
+      slug,
+      label,
+      probe: data ?? undefined,
+      fetchFailed: Boolean(error),
+      keyEnv: kind?.default_api_key_env ?? undefined,
+      local: isLocalUrl(kind?.default_base_url),
+    }),
+    [slug, label, data, error, kind],
+  );
+  return <ModelProviderCard provider={provider} selected={selected} onToggle={onToggle} />;
 }
 
 function ModelServer({ integrations, draft, setDraft }: StepProps) {
@@ -511,17 +715,14 @@ function ModelServer({ integrations, draft, setDraft }: StepProps) {
       </p>
       <ChoiceGroup>
         {entries.map((entry) => (
-          <Choice
+          <ProbedProviderCard
             key={entry.slug}
+            slug={entry.slug}
+            label={entry.label}
+            kind={kinds.find((kind) => kind.slug === entry.slug)}
             selected={draft.modelServers.includes(entry.slug)}
-            value={entry.slug}
-            onSelect={toggleProvider}
-          >
-            <strong>{entry.label}</strong>
-            <span>
-              <ProbeLabel slug={entry.slug} />
-            </span>
-          </Choice>
+            onToggle={toggleProvider}
+          />
         ))}
       </ChoiceGroup>
       {keyExports.length > 0 && <ExportBlock value={keyExports.join("\n")} />}
@@ -592,14 +793,14 @@ function GitProvider({ addExport }: StepProps) {
       {provider && (
         <div className={styles.form}>
           {provider.state !== "authenticated" && (
-            <label>
-              Personal access token
-              <input
-                type="password"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-              />
-            </label>
+            <StringInput
+              label="Personal access token"
+              type="password"
+              autoComplete="off"
+              rules={requiredRules}
+              value={token}
+              onChange={setToken}
+            />
           )}
           <a href={provider.action_url} target="_blank" rel="noreferrer">
             Provider setup
@@ -758,6 +959,20 @@ const ExecutionTarget: StepComponent = ({ draft, setDraft }) => {
       })),
     [setDraft],
   );
+  const setCoderField = (field: "name" | "template") => (value: string) =>
+    setDraft((current) =>
+      current.executionTarget.kind === "coder"
+        ? { ...current, executionTarget: { ...current.executionTarget, [field]: value } }
+        : current,
+    );
+  const setParameter = (id: number, field: "name" | "value") => (value: string) =>
+    setDraft((current) => ({
+      ...current,
+      coderParameters: current.coderParameters.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item,
+      ),
+    }));
+  const parameterNames = draft.coderParameters.map((parameter) => parameter.name);
   return (
     <Intro>
       <h2>Execution target</h2>
@@ -781,81 +996,34 @@ const ExecutionTarget: StepComponent = ({ draft, setDraft }) => {
       </ChoiceGroup>
       {draft.executionTarget.kind === "coder" && (
         <div className={styles.form}>
-          <label>
-            Target name
-            <input
-              value={draft.executionTarget.name}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  executionTarget: {
-                    kind: "coder",
-                    name: event.target.value,
-                    template:
-                      current.executionTarget.kind === "coder"
-                        ? current.executionTarget.template
-                        : "",
-                    parameters:
-                      current.executionTarget.kind === "coder"
-                        ? current.executionTarget.parameters
-                        : {},
-                  },
-                }))
-              }
-            />
-          </label>
-          <label>
-            Coder template
-            <input
-              value={draft.executionTarget.template}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  executionTarget: {
-                    kind: "coder",
-                    name:
-                      current.executionTarget.kind === "coder"
-                        ? current.executionTarget.name
-                        : "coder-agents",
-                    template: event.target.value,
-                    parameters:
-                      current.executionTarget.kind === "coder"
-                        ? current.executionTarget.parameters
-                        : {},
-                  },
-                }))
-              }
-            />
-          </label>
+          <StringInput
+            label="Target name"
+            rules={coderTargetNameRules}
+            value={draft.executionTarget.name}
+            onChange={setCoderField("name")}
+          />
+          <StringInput
+            label="Coder template"
+            rules={coderTemplateRules}
+            value={draft.executionTarget.template}
+            onChange={setCoderField("template")}
+          />
           <fieldset className={styles.parameters}>
             <legend>Template parameters (optional)</legend>
             {draft.coderParameters.map((parameter, index) => (
               <div className={styles.parameterRow} key={parameter.id}>
-                <input
-                  aria-label={`Coder parameter ${index + 1} name`}
+                <StringInput
+                  label={`Coder parameter ${index + 1} name`}
                   placeholder="name"
+                  rules={coderParameterNameRules(parameterNames, index)}
                   value={parameter.name}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      coderParameters: current.coderParameters.map((item) =>
-                        item.id === parameter.id ? { ...item, name: event.target.value } : item,
-                      ),
-                    }))
-                  }
+                  onChange={setParameter(parameter.id, "name")}
                 />
-                <input
-                  aria-label={`Coder parameter ${index + 1} value`}
+                <StringInput
+                  label={`Coder parameter ${index + 1} value`}
                   placeholder="value"
                   value={parameter.value}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      coderParameters: current.coderParameters.map((item) =>
-                        item.id === parameter.id ? { ...item, value: event.target.value } : item,
-                      ),
-                    }))
-                  }
+                  onChange={setParameter(parameter.id, "value")}
                 />
                 <button
                   type="button"

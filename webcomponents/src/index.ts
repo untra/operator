@@ -32,6 +32,23 @@ export {
   type AuthFieldProps,
   type AuthSubmitProps,
 } from "./components/AuthCard";
+export { StringInput, type StringInputProps } from "./components/fields/StringInput";
+export {
+  SelectInput,
+  type SelectInputProps,
+  type SelectOption,
+} from "./components/fields/SelectInput";
+export {
+  isValid,
+  maxLength,
+  minLength,
+  oneOf,
+  pattern,
+  required,
+  url,
+  validate,
+  type Validator,
+} from "./components/fields/validators";
 export { Choice, ChoiceGroup, type ChoiceProps, type ChoiceGroupProps } from "./components/Choice";
 export { AsyncState } from "./components/AsyncState";
 export type { AsyncStateProps, AsyncValue } from "./components/AsyncState";
@@ -51,6 +68,20 @@ export { PageHeader } from "./components/PageHeader";
 export type { PageHeaderProps } from "./components/PageHeader";
 export { RightPanel } from "./components/RightPanel";
 export type { RightPanelProps } from "./components/RightPanel";
+export { HealthDot } from "./components/HealthDot";
+export {
+  ModelProviderCard,
+  ModelProviderChoices,
+  probeStatusLabel,
+} from "./components/ModelProviderChoices";
+export type {
+  ModelProviderCardProps,
+  ModelProviderChoice,
+  ModelProviderChoicesProps,
+  ProbeLabel,
+  ProbeState,
+} from "./components/ModelProviderChoices";
+export type { HealthDotProps } from "./components/HealthDot";
 export { SectionCard } from "./components/SectionCard";
 export type { SectionCardProps } from "./components/SectionCard";
 export { TicketDetailView } from "./components/TicketDetailView";
@@ -96,3 +127,4 @@ export {
   type SessionAgent,
   type SessionTarget,
 } from "./shared/ticket-links";
+export { PermissionSelector, type PermissionSelectorProps } from "./components/PermissionSelector";

@@ -86,7 +86,7 @@ export function MappingRow({
             onClick={onViewIssueType}
             style={{ textAlign: "left" }}
           >
-            view issue type →
+            view issue type
           </button>
         </div>
       )}

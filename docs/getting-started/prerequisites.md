@@ -12,9 +12,9 @@ Before installing Operator, ensure your system meets the following requirements.
 
 | Platform | Versions | Architectures |
 |----------|----------|---------------|
-| macOS | 12.0+ (Monterey or later) | Apple Silicon (arm64), Intel (x86_64) |
+| macOS | 12.0+ (Monterey or later) | Apple Silicon (arm64) |
 | Linux | Modern distributions | arm64, x86_64 |
-| Windows | 10+ | x86_64 |
+| Windows | 10+ | x86_64, arm64 |
 
 ### Hardware Requirements
 

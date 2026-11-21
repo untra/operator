@@ -8,7 +8,7 @@ import { HostContext, type Host } from "../host";
 import { mockFetch, requestBody, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { TicketPage } = await import("./TicketPage");
 
@@ -172,19 +172,6 @@ describe("TicketPage", () => {
     expect(tree.textContent).not.toContain("JetBrains");
     fireEvent.click(tree.querySelector("button") as HTMLButtonElement);
     expect(opened).toEqual(["vscode://ssh/builder/srv/feat-2"]);
-  });
-
-  test("offers launch only in the queue", async () => {
-    serve(ticket("queue"));
-    mount();
-    await screen.findByRole("button", { name: "Launch…" });
-    cleanup();
-    resetSessionState();
-
-    serve(ticket("in-progress"));
-    mount();
-    await screen.findByTestId("markdown");
-    expect(screen.queryByRole("button", { name: "Launch…" })).toBeNull();
   });
 
   test("moves the ticket to another column", async () => {

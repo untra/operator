@@ -56,7 +56,7 @@ export function DevicePage() {
       error={error}
       onSubmit={submit}
       actions={
-        <AuthSubmit busy={approve.isPending} busyLabel="Approving…" disabled={!userCode}>
+        <AuthSubmit busy={approve.isPending} busyLabel="Approving..." disabled={!userCode}>
           Approve
         </AuthSubmit>
       }

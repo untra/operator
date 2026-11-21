@@ -1,0 +1,1 @@
+{"type":"launch","launch_id":"l1","ticket_id":"FEAT-1234","step":"plan","project":"operator","branch":"feat/FEAT-1234","prompt":"Plan the change → résumé <b>&'quotes'</b>","llm_command":["claude","--print"],"env":{"OPENAI_API_KEY":"${OPERATOR_LM_STUDIO_TOKEN}"},"api_url":"https://operator.example/api","callback_token":"cb.token"}

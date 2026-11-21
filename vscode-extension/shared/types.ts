@@ -576,7 +576,7 @@ launch_config: DelegatorLaunchConfig | null,
 /**
  * Name of a declared `ModelServer` (from `Config.model_servers`).
  * `None` means use the `llm_tool`'s implicit vendor default
- * (claude → anthropic-api, codex → openai-api, gemini → google-api).
+ * (claude : anthropic-api, codex : openai-api, gemini : google-api).
  */
 model_server: string | null, 
 /**
@@ -608,7 +608,7 @@ x_openai?: JsonValue | null,
 /**
  * Opaque carry for `AgentProfile` shared-core fields Operator cannot model
  * first-class (`system_prompt` / `skills` / `mcp_servers` / `tools`) so an
- * import→export round-trip is lossless. Distinct from `x_agnt`: these are
+ * import-export round-trip is lossless. Distinct from `x_agnt`: these are
  * shared-core fields, not AGNT-specific, so folding them into `x_agnt` would
  * corrupt that namespace. Operator never interprets this.
  */
@@ -735,7 +735,7 @@ export type RemoteAgentRef = {
  */
 platform: string, 
 /**
- * Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id).
+ * Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_` id).
  */
 id: string, };
 
@@ -1034,7 +1034,7 @@ export type SectionRowDto = {
 id: string, 
 /**
  * Nesting depth within the section (1 = direct child, 2 = grandchild).
- * Lets clients rebuild the tree (e.g. LLM tools → model aliases).
+ * Lets clients rebuild the tree (e.g. LLM tools to model aliases).
  */
 depth: number, label: string, description: string, 
 /**

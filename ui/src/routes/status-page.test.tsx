@@ -7,11 +7,11 @@ import * as webcomponentMocks from "../test-webcomponents";
 
 const sectionsBox: { current: SectionDto[] | null } = { current: null };
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
-mock.module("../sections-context", () => ({
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("../sections-context", () => ({
   useSections: () => ({ sections: sectionsBox.current, error: null }),
 }));
-mock.module("../components/SectionCard", () => ({
+await mock.module("../components/SectionCard", () => ({
   SectionCard: ({ section }: { section: SectionDto }) => (
     <section id={section.id}>{section.label}</section>
   ),

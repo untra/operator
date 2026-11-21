@@ -18,11 +18,11 @@ prompt: string,
  */
 agent?: string | null, 
 /**
- * Optional model pin (emitted as `{ model: … }`).
+ * Optional model pin (emitted as `{ model: ... }`).
  */
 model?: string | null, 
 /**
- * Optional structured-output JSON schema (emitted as `{ schema: … }`).
+ * Optional structured-output JSON schema (emitted as `{ schema: ... }`).
  */
 jsonSchema?: JsonValue | null, 
 /**

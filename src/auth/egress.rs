@@ -16,7 +16,8 @@
 //! redirect policy, so validating only the initial URL would let an allowed
 //! host bounce the request to a forbidden one.
 
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
@@ -38,6 +39,8 @@ pub struct EgressPolicy {
     pub allow_loopback: bool,
     /// Permit RFC 1918 / unique-local addresses, for a self-hosted provider on the same network.
     pub allow_private: bool,
+    /// Explicit private-network exceptions.
+    pub allowed_private: Vec<ipnet::IpNet>,
 }
 
 impl Default for EgressPolicy {
@@ -45,6 +48,7 @@ impl Default for EgressPolicy {
         Self {
             allow_loopback: true,
             allow_private: true,
+            allowed_private: Vec::new(),
         }
     }
 }
@@ -55,6 +59,7 @@ impl EgressPolicy {
         Self {
             allow_loopback: false,
             allow_private: false,
+            allowed_private: Vec::new(),
         }
     }
 
@@ -62,12 +67,14 @@ impl EgressPolicy {
     ///
     /// A deployment that has declared a public URL is reachable from outside,
     /// so its outbound reach is narrowed to match.
-    pub fn from_config(config: &crate::config::Config) -> Self {
-        if config.rest_api.public_base_url().is_some() {
+    pub fn from_config(config: &crate::config::Config) -> Result<Self> {
+        let mut policy = if config.rest_api.public_base_url().is_some() {
             Self::hardened()
         } else {
             Self::default()
-        }
+        };
+        policy.allowed_private = config.egress.private_networks()?;
+        Ok(policy)
     }
 }
 
@@ -107,6 +114,7 @@ fn is_private(ip: IpAddr) -> bool {
 
 /// Check one resolved address against the policy.
 pub fn check_addr(ip: IpAddr, policy: &EgressPolicy) -> Result<()> {
+    let ip = ip.to_canonical();
     if is_always_forbidden(ip) {
         return Err(anyhow!(
             "destination {ip} is in a reserved range (link-local, multicast, or cloud metadata) \
@@ -118,9 +126,15 @@ pub fn check_addr(ip: IpAddr, policy: &EgressPolicy) -> Result<()> {
             "destination {ip} is loopback, which this deployment does not permit"
         ));
     }
-    if is_private(ip) && !policy.allow_private {
+    if is_private(ip)
+        && !policy.allow_private
+        && !policy
+            .allowed_private
+            .iter()
+            .any(|network| network.contains(&ip))
+    {
         return Err(anyhow!(
-            "destination {ip} is a private address, which this deployment does not permit"
+            "destination {ip} is private and this policy does not permit it; add its CIDR to [egress].allow_private_cidrs"
         ));
     }
     Ok(())
@@ -159,6 +173,34 @@ pub fn validate(raw: &str, policy: &EgressPolicy) -> Result<Url> {
     Ok(url)
 }
 
+struct PolicyResolver {
+    policy: EgressPolicy,
+}
+
+fn checked_addresses(
+    addresses: Vec<SocketAddr>,
+    policy: &EgressPolicy,
+) -> Result<reqwest::dns::Addrs> {
+    anyhow::ensure!(
+        !addresses.is_empty(),
+        "destination hostname has no addresses"
+    );
+    for address in &addresses {
+        check_addr(address.ip(), policy)?;
+    }
+    Ok(Box::new(addresses.into_iter()))
+}
+
+impl reqwest::dns::Resolve for PolicyResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let policy = self.policy.clone();
+        Box::pin(async move {
+            let addresses = tokio::net::lookup_host((name.as_str(), 0)).await?.collect();
+            checked_addresses(addresses, &policy).map_err(Into::into)
+        })
+    }
+}
+
 /// Build an HTTP client that enforces `policy` on the initial request and on
 /// every redirect hop.
 ///
@@ -166,6 +208,9 @@ pub fn validate(raw: &str, policy: &EgressPolicy) -> Result<Url> {
 /// `302 Location: http://169.254.169.254/...`, and reqwest follows redirects by
 /// default at every existing call site.
 pub fn validated_client(policy: EgressPolicy, timeout: Duration) -> Result<reqwest::Client> {
+    let resolver = Arc::new(PolicyResolver {
+        policy: policy.clone(),
+    });
     let redirect_policy = reqwest::redirect::Policy::custom(move |attempt| {
         if attempt.previous().len() >= 10 {
             return attempt.error("too many redirects");
@@ -177,6 +222,8 @@ pub fn validated_client(policy: EgressPolicy, timeout: Duration) -> Result<reqwe
     });
 
     crate::http_client::client_builder()
+        .no_proxy()
+        .dns_resolver(resolver)
         .timeout(timeout)
         .redirect(redirect_policy)
         .build()
@@ -187,6 +234,96 @@ pub fn validated_client(policy: EgressPolicy, timeout: Duration) -> Result<reqwe
 mod tests {
     use super::*;
     use std::net::Ipv6Addr;
+
+    #[test]
+    fn test_mapped_private_and_loopback_rejected_when_hardened() {
+        for ip in ["::ffff:192.168.1.5", "::ffff:127.0.0.1"] {
+            assert!(check_addr(ip.parse().unwrap(), &EgressPolicy::hardened()).is_err());
+        }
+    }
+
+    #[test]
+    fn test_allowlist_is_narrow_and_reserved_ranges_stay_forbidden() {
+        let mut config = crate::config::Config::default();
+        config.rest_api.public_url = Some("https://operator.example.com".into());
+        config.egress.allow_private_cidrs = vec![
+            "192.168.1.50/32".into(),
+            "fd12::50/128".into(),
+            "169.254.0.0/16".into(),
+            "127.0.0.0/8".into(),
+        ];
+        let policy = EgressPolicy::from_config(&config).unwrap();
+        for ip in ["192.168.1.50", "::ffff:192.168.1.50", "fd12::50"] {
+            assert!(check_addr(ip.parse().unwrap(), &policy).is_ok());
+        }
+        for ip in [
+            "192.168.1.51",
+            "fd12::51",
+            "127.0.0.1",
+            "::ffff:127.0.0.1",
+            "169.254.169.254",
+        ] {
+            assert!(check_addr(ip.parse().unwrap(), &policy).is_err());
+        }
+        config.egress.allow_private_cidrs.push("not-a-cidr".into());
+        assert!(EgressPolicy::from_config(&config)
+            .unwrap_err()
+            .to_string()
+            .contains("egress.allow_private_cidrs"));
+    }
+
+    #[tokio::test]
+    async fn test_dns_loopback_rejected_by_hardened_client() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!(
+            "http://localhost:{}/",
+            listener.local_addr().unwrap().port()
+        );
+        let task = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                axum::Router::new().route("/", axum::routing::get(|| async { "ok" })),
+            )
+            .await
+            .unwrap();
+        });
+        let client = validated_client(EgressPolicy::hardened(), Duration::from_secs(2)).unwrap();
+        assert!(client.get(&url).send().await.is_err());
+        let client = validated_client(EgressPolicy::default(), Duration::from_secs(2)).unwrap();
+        assert_eq!(
+            client.get(&url).send().await.unwrap().status(),
+            reqwest::StatusCode::OK
+        );
+        task.abort();
+    }
+
+    #[test]
+    fn test_dns_mixed_answers_and_empty_answers_fail_closed() {
+        assert!(checked_addresses(Vec::new(), &EgressPolicy::hardened()).is_err());
+        let mixed = vec![
+            "8.8.8.8:0".parse().unwrap(),
+            "192.168.1.51:0".parse().unwrap(),
+        ];
+        assert!(checked_addresses(mixed, &EgressPolicy::hardened()).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_redirect_to_reserved_address_is_rejected() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let task = tokio::spawn(async move {
+            let app = axum::Router::new().route(
+                "/",
+                axum::routing::get(|| async {
+                    axum::response::Redirect::temporary("http://169.254.169.254/")
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        let client = validated_client(EgressPolicy::default(), Duration::from_secs(2)).unwrap();
+        assert!(client.get(url).send().await.unwrap_err().is_redirect());
+        task.abort();
+    }
 
     fn permissive() -> EgressPolicy {
         EgressPolicy::default()
@@ -299,10 +436,10 @@ mod tests {
     #[test]
     fn test_hardened_policy_is_selected_for_a_published_deployment() {
         let mut config = crate::config::Config::default();
-        assert!(EgressPolicy::from_config(&config).allow_loopback);
+        assert!(EgressPolicy::from_config(&config).unwrap().allow_loopback);
 
         config.rest_api.public_url = Some("https://operator.example.com".to_string());
-        let policy = EgressPolicy::from_config(&config);
+        let policy = EgressPolicy::from_config(&config).unwrap();
         assert!(!policy.allow_loopback);
         assert!(!policy.allow_private);
     }

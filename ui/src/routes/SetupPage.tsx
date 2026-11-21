@@ -63,7 +63,7 @@ export function SetupPage() {
   }
 
   if (bootstrap.isLoading) {
-    return <AuthCard title="Set up Operator">Checking server status…</AuthCard>;
+    return <AuthCard title="Set up Operator">Checking server status...</AuthCard>;
   }
 
   if (bootstrap.error) {

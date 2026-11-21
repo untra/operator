@@ -49,6 +49,7 @@ pub fn queue_order_key(config: &Config, ticket: &Ticket) -> (usize, TicketPriori
 }
 
 pub struct Queue {
+    allowed_projects: Option<Vec<String>>,
     config: Config,
     queue_path: PathBuf,
     in_progress_path: PathBuf,
@@ -58,15 +59,23 @@ pub struct Queue {
 
 impl Queue {
     pub fn new(config: &Config) -> Result<Self> {
+        let mut config = config.clone();
+        config.acquire_ownership()?;
         let tickets_path = config.tickets_path();
 
         Ok(Self {
+            allowed_projects: None,
             config: config.clone(),
             queue_path: tickets_path.join("queue"),
             in_progress_path: tickets_path.join("in-progress"),
             completed_path: tickets_path.join("completed"),
             templates_path: tickets_path.join("templates"),
         })
+    }
+
+    pub fn restrict_projects(mut self, projects: Option<Vec<String>>) -> Self {
+        self.allowed_projects = projects;
+        self
     }
 
     /// List all tickets in queue: issuetype rank, then the ticket's own
@@ -107,7 +116,13 @@ impl Queue {
 
             if path.extension().is_some_and(|e| e == "md") {
                 if let Ok(ticket) = Ticket::from_file(&path) {
-                    tickets.push(ticket);
+                    if self
+                        .allowed_projects
+                        .as_ref()
+                        .is_none_or(|p| p.contains(&ticket.project))
+                    {
+                        tickets.push(ticket);
+                    }
                 }
             }
         }
@@ -295,8 +310,6 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    // ─── Slugify Tests ───────────────────────────────────────────────────────────
-
     #[test]
     fn test_slugify_basic() {
         assert_eq!(slugify("Hello World", 100), "hello-world");
@@ -347,8 +360,6 @@ mod tests {
         assert_eq!(slugify("   ", 100), "");
         assert_eq!(slugify("---", 100), "");
     }
-
-    // ─── Queue Priority Tests ────────────────────────────────────────────────────
 
     fn create_test_ticket(
         dir: &std::path::Path,

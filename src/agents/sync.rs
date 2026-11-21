@@ -1606,8 +1606,6 @@ mod tests {
         assert_ne!(action, SyncAction::MovedToAwaiting);
     }
 
-    // ── multi-agent judge phase ─────────────────────────────────────
-
     mod judge_phase {
         use super::*;
         use crate::agents::judge::ConfiguredJudge;

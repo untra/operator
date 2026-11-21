@@ -28,7 +28,8 @@ export function TicketCreatePanel({ onCreated }: { onCreated: () => void }) {
   const onSubmit = useCallback(() => {
     create.mutate(
       {
-        template: value.issueType,
+        issue_type: value.issueType,
+        sync_to_kanban: null,
         project: value.project,
         summary: value.summary,
         values: {},
@@ -47,7 +48,7 @@ export function TicketCreatePanel({ onCreated }: { onCreated: () => void }) {
       <h2 className={styles.title}>New ticket</h2>
       <p className={styles.hint}>Lands in the TODO queue, ready to launch.</p>
       {loading ? (
-        <p className={styles.hint}>Loading issue types and projects…</p>
+        <p className={styles.hint}>Loading issue types and projects...</p>
       ) : empty ? (
         <p className={styles.hint}>
           {issueTypes.length === 0

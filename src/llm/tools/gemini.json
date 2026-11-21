@@ -10,7 +10,11 @@
     "supports_config_override": true,
     "supports_permission_mode": false
   },
-  "model_aliases": ["pro", "flash", "ultra"],
+  "model_aliases": [
+    "pro",
+    "flash",
+    "ultra"
+  ],
   "arg_mapping": {
     "prompt": "-p",
     "model": "--model",
@@ -18,9 +22,21 @@
     "quiet": "--output-format json"
   },
   "command_template": "gemini {{config_flags}}--model {{model}} --resume {{session_id}} \"$(cat {{prompt_file}})\"",
-  "yolo_flags": ["--auto-approve", "-y"],
+  "yolo_flags": [
+    "--auto-approve",
+    "-y"
+  ],
   "skill_directories": {
     "global": [],
-    "project": [".gemini/"]
+    "project": [
+      ".gemini/"
+    ]
+  },
+  "telemetry_env": {
+    "GEMINI_TELEMETRY_ENABLED": "true",
+    "GEMINI_TELEMETRY_TARGET": "local",
+    "GEMINI_TELEMETRY_OTLP_ENDPOINT": "{{otlp_endpoint}}",
+    "GEMINI_TELEMETRY_OTLP_PROTOCOL": "http",
+    "GEMINI_TELEMETRY_LOG_PROMPTS": "false"
   }
 }

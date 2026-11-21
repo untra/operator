@@ -468,46 +468,60 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mock_activity_detector_defaults_to_not_idle() {
-        let detector = MockActivityDetector::new();
-        assert!(!detector.is_idle("test-session").unwrap());
-        assert!(!detector.has_resumed("test-session").unwrap());
-    }
-
-    #[test]
-    fn test_mock_activity_detector_set_idle() {
-        let detector = MockActivityDetector::new();
-        detector.set_idle("test-session", true);
-        assert!(detector.is_idle("test-session").unwrap());
-    }
-
-    #[test]
-    fn test_mock_activity_detector_set_resumed() {
-        let detector = MockActivityDetector::new();
-        detector.set_resumed("test-session", true);
-        assert!(detector.has_resumed("test-session").unwrap());
-    }
-
-    #[test]
-    fn test_mock_activity_detector_clear() {
-        let detector = MockActivityDetector::new();
-        detector.set_idle("test-session", true);
-        detector.set_resumed("test-session", true);
-
-        detector.clear("test-session").unwrap();
-
-        assert!(!detector.is_idle("test-session").unwrap());
-        assert!(!detector.has_resumed("test-session").unwrap());
-    }
-
-    #[test]
     fn test_llm_hook_detector_no_signal() {
-        // Create with a custom signal dir that doesn't exist
-        let hook_manager = HookManager::with_signal_dir("/tmp/nonexistent-test-signals".into());
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let hook_manager = HookManager::with_signal_dir(temp_dir.path().join("signals"));
         let detector = LlmHookDetector::new(hook_manager);
 
         // No signal file = not idle
         assert!(!detector.is_idle("test-session").unwrap());
+    }
+
+    fn write_activity_signal(manager: &HookManager, session: &str, event: &str) {
+        let signal = crate::agents::hooks::HookSignal {
+            event: event.to_owned(),
+            timestamp: 0,
+            session_id: session.to_owned(),
+        };
+        std::fs::write(
+            manager.signal_path(session),
+            serde_json::to_vec(&signal).unwrap(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_llm_hook_detector_stop_then_start_resumes() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let manager = HookManager::with_signal_dir(temp.path().to_path_buf());
+        let detector = LlmHookDetector::new(manager.clone());
+        assert!(!detector.is_idle("session").unwrap());
+        assert!(!detector.has_resumed("session").unwrap());
+        write_activity_signal(&manager, "session", "stop");
+        assert!(detector.is_idle("session").unwrap());
+        assert!(!detector.has_resumed("session").unwrap());
+        write_activity_signal(&manager, "session", "start");
+        assert!(detector.has_resumed("session").unwrap());
+        assert!(!detector.is_idle("session").unwrap());
+    }
+
+    #[test]
+    fn test_llm_hook_detector_clear_removes_only_selected_session_state() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let manager = HookManager::with_signal_dir(temp.path().to_path_buf());
+        let detector = LlmHookDetector::new(manager.clone());
+        for session in ["selected", "other"] {
+            write_activity_signal(&manager, session, "stop");
+            assert!(detector.is_idle(session).unwrap());
+        }
+        detector.clear("selected").unwrap();
+        assert!(!manager.signal_path("selected").exists());
+        assert!(!detector.is_idle("selected").unwrap());
+        assert!(!detector.has_resumed("selected").unwrap());
+        assert!(manager.signal_path("other").exists());
+        assert!(detector.is_idle("other").unwrap());
+        std::fs::remove_file(manager.signal_path("other")).unwrap();
+        assert!(detector.has_resumed("other").unwrap());
     }
 
     // ========================================================================
@@ -598,7 +612,7 @@ mod tests {
         // Prime the hash
         let _ = detector.has_resumed("session-1");
 
-        // Clear removes workspace ref → subsequent calls fail with SessionNotFound
+        // Clear removes workspace ref -> subsequent calls fail with SessionNotFound
         detector.clear("session-1").unwrap();
         assert!(detector.is_idle("session-1").is_err());
     }
@@ -670,7 +684,7 @@ mod tests {
         // Prime the hash
         let _ = detector.has_resumed("session-1");
 
-        // Clear removes tab name → subsequent calls fail with SessionNotFound
+        // Clear removes tab name, subsequent calls fail
         detector.clear("session-1").unwrap();
         assert!(detector.get_tab_name("session-1").is_none());
     }

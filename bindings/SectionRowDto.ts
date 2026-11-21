@@ -14,7 +14,7 @@ export type SectionRowDto = {
 id: string, 
 /**
  * Nesting depth within the section (1 = direct child, 2 = grandchild).
- * Lets clients rebuild the tree (e.g. LLM tools → model aliases).
+ * Lets clients rebuild the tree (e.g. LLM tools to model aliases).
  */
 depth: number, label: string, description: string, 
 /**

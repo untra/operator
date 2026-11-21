@@ -47,6 +47,7 @@ export function IssueTypesView({
                   type="button"
                   key={item.key}
                   className={`${styles.item} ${selected?.key === item.key ? styles.selectedItem : ""}`}
+                  aria-pressed={selected?.key === item.key}
                   onClick={() => onSelect(item.key)}
                 >
                   <span className={styles.glyph}>{item.glyph}</span>
@@ -83,12 +84,11 @@ export function IssueTypesView({
                 <div className={styles.steps}>
                   <div className={styles.stepsHead}>
                     <h3 className={styles.stepsTitle}>Workflow</h3>
-                    <div className={styles.toggle} role="tablist" aria-label="Workflow view">
+                    <fieldset className={styles.toggle} aria-label="Workflow view">
                       {(["steps", "graph"] as const).map((nextMode) => (
                         <button
                           type="button"
-                          role="tab"
-                          aria-selected={mode === nextMode}
+                          aria-pressed={mode === nextMode}
                           key={nextMode}
                           className={mode === nextMode ? styles.toggleActive : styles.toggleBtn}
                           onClick={() => onModeChange(nextMode)}
@@ -96,7 +96,7 @@ export function IssueTypesView({
                           {nextMode === "steps" ? "Steps" : "Graph"}
                         </button>
                       ))}
-                    </div>
+                    </fieldset>
                   </div>
                   {mode === "steps" ? (
                     <ol className={styles.stepList}>

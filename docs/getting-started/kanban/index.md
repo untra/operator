@@ -18,6 +18,7 @@ Statuses follow the [feature maturity](/maturity/) scale.
 | [Jira Cloud](/getting-started/kanban/jira/) | Beta | Full API integration |
 | [Linear](/getting-started/kanban/linear/) | Beta | Full API integration |
 | [GitHub Projects](/getting-started/kanban/github/) | Beta | Projects v2 GraphQL integration |
+| [Gitea Projects](/getting-started/kanban/gitea/) | Alpha | Repository boards; import-only |
 | [OpenSpec](/getting-started/kanban/openspec/) | Alpha | Local spec-driven changes; pull-only |
 
 ## How It Works
@@ -28,7 +29,7 @@ loop on top of it:
 1. **Pull**: Fetches issues from configured boards/projects
 2. **Queue**: Writes them as tickets on the Operator board, ordered by type then FIFO
 3. **Assign**: Dispatches tickets to available agents
-4. **Update**: Pushes column changes back to the originating provider
+4. **Update**: Pushes column changes back when the provider supports write-back and it is enabled
 
 The Operator board is only ever the destination of a sync, never a source.
 

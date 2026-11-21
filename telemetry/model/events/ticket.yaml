@@ -1,0 +1,33 @@
+groups:
+  - id: event.operator.ticket.returned
+    type: "event"
+    name: "operator.ticket.returned"
+    brief: "Operator ticket returned."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.summary
+  - id: event.operator.investigation.created
+    type: "event"
+    name: "operator.investigation.created"
+    brief: "Operator investigation created."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.investigation.source
+      - ref: operator.investigation.severity
+      - ref: operator.summary

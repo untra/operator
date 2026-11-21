@@ -2,7 +2,8 @@
 //!
 //! Scans tool skill directories for .md files and returns them tagged by tool.
 
-use axum::{extract::State, Json};
+use crate::rest::state::RequestState as State;
+use axum::Json;
 
 use crate::llm::tool_config::load_all_tool_configs;
 use crate::rest::dto::{SkillEntry, SkillsResponse};

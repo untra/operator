@@ -12,7 +12,7 @@ The **VS Code Extension** is the recommended way to get started with Operator. I
 
 <a href="https://marketplace.visualstudio.com/items?itemName=untra.operator-terminals" target="_blank" class="button">Install from VS Code Marketplace</a>
 
-Works on **macOS**, **Linux**, and **Windows** - no additional setup required.
+Works on **macOS**, **Linux**, and **Windows**. A local install needs no additional setup; to use an Operator server elsewhere, choose **Connect to a server** and sign in ([details](/getting-started/ides/vscode/#choose-a-connection)).
 
 ---
 
@@ -33,6 +33,18 @@ For headless servers, CI/CD pipelines, or advanced workflows, download the CLI b
 | Linux | x86_64 | [operator-linux-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-linux-x86_64)<br><small>sha256:<code>{{ site.data.checksums.operator.linux_x86_64 }}</code></small> |
 | Windows | x86_64 | [operator-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-x86_64.exe)<br><small>sha256:<code>{{ site.data.checksums.operator.windows_x86_64 }}</code></small> |
 | Windows | ARM64 | [operator-windows-arm64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/operator-windows-arm64.exe)<br><small>sha256:<code>{{ site.data.checksums.operator.windows_arm64 }}</code></small> |
+
+### opr8r step wrapper
+
+`opr8r` runs beside each agent CLI on the machine where agents execute. It reports step completion to Operator and starts the next workflow step. The container image and the VS Code extension already include it, so you only need these downloads for a hand-built execution host. A machine that only serves models, such as a gaming PC running [LM Studio](/getting-started/model-servers/lmstudio/), does not need `opr8r`. See [platform support](/getting-started/platform-support/) for which operating systems can be execution hosts.
+
+| Platform | Architecture | Download |
+|----------|--------------|----------|
+| macOS | ARM64 (Apple Silicon) | [opr8r-macos-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/opr8r-macos-arm64)<br><small>sha256:<code>{{ site.data.checksums.opr8r.macos_arm64 }}</code></small> |
+| Linux | ARM64 | [opr8r-linux-arm64]({{ site.github.repo }}/releases/download/v{{ site.version }}/opr8r-linux-arm64)<br><small>sha256:<code>{{ site.data.checksums.opr8r.linux_arm64 }}</code></small> |
+| Linux | x86_64 | [opr8r-linux-x86_64]({{ site.github.repo }}/releases/download/v{{ site.version }}/opr8r-linux-x86_64)<br><small>sha256:<code>{{ site.data.checksums.opr8r.linux_x86_64 }}</code></small> |
+| Windows | x86_64 | [opr8r-windows-x86_64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/opr8r-windows-x86_64.exe)<br><small>sha256:<code>{{ site.data.checksums.opr8r.windows_x86_64 }}</code></small> |
+| Windows | ARM64 | [opr8r-windows-arm64.exe]({{ site.github.repo }}/releases/download/v{{ site.version }}/opr8r-windows-arm64.exe)<br><small>sha256:<code>{{ site.data.checksums.opr8r.windows_arm64 }}</code></small> |
 
 ## Kubernetes
 

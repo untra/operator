@@ -19,33 +19,33 @@ use utoipa::{Modify, OpenApi};
 use crate::auth::scope::{required_access, Access};
 use crate::mcp::descriptor::McpDescriptorResponse;
 use crate::rest::dto::{
-    AccessKeyListResponse, AccessKeySummary, ActiveAgentResponse, ActiveAgentsResponse,
-    AgentDetailResponse, AssessTicketResponse, BootstrapState, BootstrapStatusResponse,
-    BootstrapSubmitRequest, BootstrapSubmitResponse, CollectionResponse, CreateAccessKeyRequest,
-    CreateAccessKeyResponse, CreateAlertRequest, CreateAlertResponse,
-    CreateDelegatorFromToolRequest, CreateDelegatorRequest, CreateFieldRequest,
-    CreateIssueTypeRequest, CreateModelServerRequest, CreateStepRequest, CreateTicketRequest,
-    CreateTicketResponse, CsrfTokenResponse, CurrentSessionResponse, DefaultLlmResponse,
-    DelegatorLaunchConfigDto, DelegatorResponse, DelegatorsResponse, DeviceApprovalRequest,
-    DeviceApprovalResponse, DeviceAuthorizationRequest, DeviceAuthorizationResponse, DeviceSummary,
-    ExternalIssueTypeSummary, FieldResponse, ForgotPasswordRequest, ForgotPasswordResponse,
-    GitOnboardingState, GitProviderOnboardingResponse, HealthResponse, HostedCollectionSelection,
+    ActiveAgentResponse, ActiveAgentsResponse, AgentDetailResponse, AssessTicketResponse,
+    BootstrapState, BootstrapStatusResponse, BootstrapSubmitRequest, BootstrapSubmitResponse,
+    CollectionResponse, CreateAlertRequest, CreateAlertResponse, CreateDelegatorFromToolRequest,
+    CreateDelegatorRequest, CreateFieldRequest, CreateIssueTypeRequest, CreateModelServerRequest,
+    CreateStepRequest, CreateTicketRequest, CreateTicketResponse, CsrfTokenResponse,
+    CurrentSessionResponse, DefaultLlmResponse, DelegatorLaunchConfigDto, DelegatorResponse,
+    DelegatorsResponse, DeviceApprovalRequest, DeviceApprovalResponse, DeviceAuthorizationRequest,
+    DeviceAuthorizationResponse, DeviceSummary, ExternalIssueTypeSummary, FieldError,
+    FieldResponse, ForgotPasswordRequest, ForgotPasswordResponse, GitOnboardingState,
+    GitProviderOnboardingResponse, HealthResponse, HostedCollectionSelection,
     IntegrationCatalogEntryDto, IssueTypeResponse, IssueTypeSummary, KanbanBoardResponse,
-    KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanSyncResponse, KanbanTicketCard,
-    LaunchTicketRequest, LaunchTicketResponse, ListKanbanProjectsRequest,
-    ListKanbanProjectsResponse, ListKanbanStatusesRequest, ListKanbanStatusesResponse,
-    LoginRequest, LoginResponse, LogoutResponse, ModelEntry, ModelServerKindEntry,
-    ModelServerModelsResponse, ModelServerResponse, ModelServersResponse, NextStepInfo,
-    OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind, ProjectSummary, QueueByType,
-    QueueControlResponse, QueueStatusResponse, RejectReviewRequest, ResetPasswordRequest,
-    ResetPasswordResponse, ReviewResponse, RevokeAccessKeyResponse, Scope, SectionDto,
-    SectionRowDto, SessionListResponse, SessionSummary, SetDefaultLlmRequest,
-    SetGitSessionEnvRequest, SetGitSessionEnvResponse, SetKanbanSessionEnvRequest,
-    SetKanbanSessionEnvResponse, SetupCollectionResponse, SetupExecutionTarget,
-    SetupInitializeRequest, SetupInitializeResponse, SetupStatusResponse, SetupStepResponse,
-    SkillEntry, SkillsResponse, StatusResponse, StepCompleteRequest, StepCompleteResponse,
-    StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse, TokenRequest, TokenResponse,
-    UpdateIssueTypeRequest, UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
+    KanbanIssueTypeResponse, KanbanProviderCatalogEntry, KanbanPushOutcome, KanbanSyncResponse,
+    KanbanTarget, KanbanTicketCard, LaunchTicketRequest, LaunchTicketResponse,
+    ListKanbanProjectsRequest, ListKanbanProjectsResponse, ListKanbanStatusesRequest,
+    ListKanbanStatusesResponse, LoginRequest, LoginResponse, LogoutResponse, ModelEntry,
+    ModelServerKindEntry, ModelServerModelsResponse, ModelServerResponse, ModelServersResponse,
+    NextStepInfo, OAuthErrorCode, OAuthErrorResponse, OperatorOutput, PrincipalKind,
+    ProjectSummary, ProtectedResourceMetadata, QueueByType, QueueControlResponse,
+    QueueStatusResponse, RejectReviewRequest, ResetPasswordRequest, ResetPasswordResponse,
+    ReviewResponse, Scope, SectionDto, SectionRowDto, SessionListResponse, SessionSummary,
+    SetDefaultLlmRequest, SetGitSessionEnvRequest, SetGitSessionEnvResponse,
+    SetKanbanSessionEnvRequest, SetKanbanSessionEnvResponse, SetupCollectionResponse,
+    SetupExecutionTarget, SetupInitializeRequest, SetupInitializeResponse, SetupStatusResponse,
+    SetupStepResponse, SkillEntry, SkillsResponse, StatusResponse, StepCompleteRequest,
+    StepCompleteResponse, StepResponse, SyncKanbanIssueTypesResponse, TicketDetailResponse,
+    TicketPreviewResponse, TokenRequest, TokenResponse, UpdateIssueTypeRequest,
+    UpdateModelServerRequest, UpdateStepRequest, UpdateTicketStatusRequest,
     UpdateTicketStatusResponse, ValidateGitTokenRequest, ValidateGitTokenResponse,
     ValidateKanbanCredentialsRequest, ValidateKanbanCredentialsResponse, WorkflowExportResponse,
     WorkflowFormatDto, WorkflowHintsDto, WorkflowPreviewResponse, WriteGitConfigRequest,
@@ -121,6 +121,13 @@ use crate::rest::error::ErrorResponse;
             ModelServerKindEntry,
             ModelEntry,
             ModelServerModelsResponse,
+            crate::api::providers::model_server::ProbeStatus,
+            // Endpoint types
+            crate::rest::dto::EndpointSummary,
+            crate::rest::dto::EndpointDetail,
+            crate::rest::dto::EndpointsResponse,
+            crate::rest::dto::UpdateEndpointRequest,
+            crate::endpoint::registry::Liveness,
             // LLM tools types
             SetDefaultLlmRequest,
             DefaultLlmResponse,
@@ -130,6 +137,10 @@ use crate::rest::error::ErrorResponse;
             UpdateTicketStatusResponse,
             CreateTicketRequest,
             CreateTicketResponse,
+            TicketPreviewResponse,
+            KanbanPushOutcome,
+            KanbanTarget,
+            FieldError,
             CreateAlertRequest,
             CreateAlertResponse,
             // Workflow export types
@@ -202,13 +213,9 @@ use crate::rest::error::ErrorResponse;
             DeviceApprovalResponse,
             TokenRequest,
             TokenResponse,
+            ProtectedResourceMetadata,
             OAuthErrorCode,
             OAuthErrorResponse,
-            CreateAccessKeyRequest,
-            CreateAccessKeyResponse,
-            AccessKeySummary,
-            AccessKeyListResponse,
-            RevokeAccessKeyResponse,
             // Setup
             SetupStatusResponse,
             SetupStepResponse,
@@ -249,6 +256,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Skills", description = "Skill discovery across LLM tools"),
         (name = "Delegators", description = "Agent delegator CRUD operations"),
         (name = "ModelServers", description = "Model server (ollama, openai-compat, etc.) CRUD operations"),
+        (name = "Endpoints", description = "Paired endpoint machines and their uplink"),
         (name = "MCP", description = "Model Context Protocol integration"),
         (name = "Queue", description = "Ticket queue board, status, and control"),
         (name = "Agents", description = "Active agent tracking and review actions"),
@@ -258,6 +266,7 @@ use crate::rest::error::ErrorResponse;
         (name = "Auth", description = "Bootstrap, sessions, OAuth device flow, and access keys"),
         (name = "Setup", description = "First-run workspace initialization"),
         (name = "Git", description = "Git provider onboarding"),
+        (name = "Telemetry", description = "OTLP ingest from agent sessions and the per-session telemetry window"),
     )
 )]
 pub struct ApiDoc;
@@ -319,8 +328,8 @@ const FORBIDDEN_RESPONSE_NAME: &str = "Forbidden";
 const JSON_MEDIA_TYPE: &str = "application/json";
 const UNAUTHORIZED_RESPONSE_NAME: &str = "Unauthorized";
 
-fn error_content() -> Content {
-    Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME)))
+fn error_content() -> RefOr<Content> {
+    RefOr::T(Content::new(Some(Ref::from_schema_name(ERROR_SCHEMA_NAME))))
 }
 
 fn error_response(description: &str) -> Response {
@@ -331,10 +340,10 @@ fn error_response(description: &str) -> Response {
     response
 }
 
-fn response_header(description: &str, schema_type: Type) -> Header {
+fn response_header(description: &str, schema_type: Type) -> RefOr<Header> {
     let mut header = Header::new(Object::with_type(schema_type));
     header.description = Some(description.to_string());
-    header
+    RefOr::T(header)
 }
 
 fn document_error_responses(operation: &mut Operation) {
@@ -368,6 +377,25 @@ fn document_error_responses(operation: &mut Operation) {
                     Type::Integer,
                 ),
             );
+        }
+    }
+}
+
+fn document_missing_descriptions(operation: &mut Operation) {
+    for (status, response) in &mut operation.responses.responses {
+        let RefOr::T(response) = response else {
+            continue;
+        };
+        if !response.description.is_empty() {
+            continue;
+        }
+        if let Some(reason) = status
+            .parse::<u16>()
+            .ok()
+            .and_then(|code| axum::http::StatusCode::from_u16(code).ok())
+            .and_then(|code| code.canonical_reason())
+        {
+            response.description = reason.to_string();
         }
     }
 }
@@ -442,7 +470,7 @@ fn prune_unreachable_schemas(spec: &mut utoipa::openapi::OpenApi) {
         .retain(|name, _| reachable.contains(name));
 }
 
-fn csrf_parameter() -> Parameter {
+fn csrf_parameter() -> RefOr<Parameter> {
     let mut parameter = Parameter::new(crate::rest::middleware::auth::CSRF_HEADER);
     parameter.parameter_in = ParameterIn::Header;
     parameter.required = Required::False;
@@ -451,7 +479,15 @@ fn csrf_parameter() -> Parameter {
             .to_string(),
     );
     parameter.schema = Some(Object::with_type(Type::String).into());
-    parameter
+    RefOr::T(parameter)
+}
+
+/// The `x-operator-scope` value for a route gated on a credential kind rather than a scope.
+fn bearer_only_marker(access: Access) -> &'static str {
+    match access {
+        Access::Endpoint => crate::auth::tokens::ENDPOINT_CLIENT_ID,
+        _ => crate::auth::tokens::AUDIENCE_TELEMETRY,
+    }
 }
 
 fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>) {
@@ -463,6 +499,29 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
 
     match access {
         Access::Public => operation.security = Some(Vec::new()),
+        Access::TelemetryIngest | Access::Endpoint => {
+            operation.security = Some(vec![SecurityRequirement::new(
+                "bearerAuth",
+                Vec::<String>::new(),
+            )]);
+            operation
+                .extensions
+                .get_or_insert_with(Extensions::default)
+                .insert(
+                    "x-operator-scope".to_string(),
+                    serde_json::json!(bearer_only_marker(access)),
+                );
+            operation
+                .responses
+                .responses
+                .entry("401".to_string())
+                .or_insert_with(|| Ref::from_response_name(UNAUTHORIZED_RESPONSE_NAME).into());
+            operation
+                .responses
+                .responses
+                .entry("403".to_string())
+                .or_insert_with(|| Ref::from_response_name(FORBIDDEN_RESPONSE_NAME).into());
+        }
         Access::Scoped(scope) => {
             operation.security = Some(vec![
                 SecurityRequirement::new("bearerAuth", Vec::<String>::new()),
@@ -495,7 +554,27 @@ fn enrich_operation(method: &str, path: &str, operation: Option<&mut Operation>)
         }
     }
 
+    if crate::auth::policy::browser_identity_route(path) {
+        operation.security = Some(vec![SecurityRequirement::new(
+            "sessionCookie",
+            Vec::<String>::new(),
+        )]);
+    }
+    if let Some(policy) = crate::auth::policy::OPERATIONS
+        .iter()
+        .find(|policy| policy.method == method && policy.path == path)
+    {
+        operation
+            .extensions
+            .get_or_insert_with(Extensions::default)
+            .insert(
+                "x-operator-capability".to_string(),
+                serde_json::json!(policy.capability),
+            );
+    }
+
     document_error_responses(operation);
+    document_missing_descriptions(operation);
 
     match (method, path) {
         ("POST", "/api/v1/auth/login") => {
@@ -541,8 +620,8 @@ impl ApiDoc {
     ///
     /// The version is stamped from `CARGO_PKG_VERSION` by [`crate::rest::openapi_spec`].
     #[allow(dead_code)]
-    pub fn yaml() -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(&crate::rest::openapi_spec())
+    pub fn yaml() -> Result<String, serde_saphyr::ser::Error> {
+        serde_saphyr::to_string(&crate::rest::openapi_spec())
     }
 }
 
@@ -606,13 +685,24 @@ mod tests {
             );
             match rule.access {
                 Access::Public => assert_eq!(operation["security"], serde_json::json!([])),
+                Access::TelemetryIngest | Access::Endpoint => {
+                    assert_eq!(
+                        operation["security"],
+                        serde_json::json!([{ "bearerAuth": [] }])
+                    );
+                    assert_eq!(
+                        operation["x-operator-scope"],
+                        bearer_only_marker(rule.access)
+                    );
+                }
                 Access::Scoped(scope) => {
                     assert_eq!(
                         operation["security"],
-                        serde_json::json!([
-                            { "bearerAuth": [] },
-                            { "sessionCookie": [] }
-                        ])
+                        if crate::auth::policy::browser_identity_route(rule.path) {
+                            serde_json::json!([{ "sessionCookie": [] }])
+                        } else {
+                            serde_json::json!([{ "bearerAuth": [] }, { "sessionCookie": [] }])
+                        }
                     );
                     assert_eq!(operation["x-operator-scope"], scope.as_str());
                 }
@@ -624,8 +714,10 @@ mod tests {
     fn test_protected_mutations_document_csrf_header() {
         let spec = parsed_spec();
         for rule in crate::auth::scope::ROUTE_RULES {
-            if matches!(rule.access, Access::Public)
-                || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
+            if matches!(
+                rule.access,
+                Access::Public | Access::TelemetryIngest | Access::Endpoint
+            ) || matches!(rule.method, "GET" | "HEAD" | "OPTIONS")
             {
                 continue;
             }
@@ -670,6 +762,31 @@ mod tests {
                     if status == "429" {
                         assert!(response["headers"]["Retry-After"].is_object());
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_every_response_has_a_description() {
+        let spec = parsed_spec();
+        for (path, item) in spec["paths"].as_object().expect("paths") {
+            for (method, operation) in item.as_object().expect("path item") {
+                let Some(responses) = operation
+                    .get("responses")
+                    .and_then(|value| value.as_object())
+                else {
+                    continue;
+                };
+                for (status, response) in responses {
+                    if response.get("$ref").is_some() {
+                        continue;
+                    }
+                    let description = response["description"].as_str().unwrap_or_default();
+                    assert!(
+                        !description.is_empty(),
+                        "{method} {path} {status} must have a description (required by OpenAPI)"
+                    );
                 }
             }
         }
@@ -731,10 +848,19 @@ mod tests {
 
     #[test]
     fn test_openapi_registers_auth_schemas() {
-        // Phase 2 ships the contract before any handler exists, so these types
-        // are reachable only through `components(schemas(...))`. Dropping one
-        // would silently remove it from the spec and from every generated client.
-        let spec = ApiDoc::json().expect("generate spec");
+        let spec = parsed_spec();
+        let schemas = spec["components"]["schemas"].as_object().unwrap();
+        for obsolete in [
+            "CreateAccessKeyRequest",
+            "CreateAccessKeyResponse",
+            "AccessKeyListResponse",
+            "RevokeAccessKeyResponse",
+        ] {
+            assert!(
+                !schemas.contains_key(obsolete),
+                "obsolete schema {obsolete}"
+            );
+        }
         for schema in [
             "Scope",
             "BootstrapState",
@@ -751,12 +877,14 @@ mod tests {
             "TokenRequest",
             "TokenResponse",
             "OAuthErrorResponse",
-            "CreateAccessKeyResponse",
             "AccessKeySummary",
+            "UserKeyList",
+            "IssuedUserKey",
+            "CreateUserKey",
             "SessionListResponse",
         ] {
             assert!(
-                spec.contains(&format!("\"{schema}\"")),
+                schemas.contains_key(schema),
                 "spec should register the {schema} component schema"
             );
         }

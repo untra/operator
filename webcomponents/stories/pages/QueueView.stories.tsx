@@ -25,7 +25,7 @@ const meta = {
   component: QueueView,
   args: {
     header,
-    board: { status: "loading", message: "Loading queue…" },
+    board: { status: "loading", message: "Loading queue" },
     onOpenTicket: NOOP,
   },
   decorators: [

@@ -620,8 +620,6 @@ mod tests {
         assert_eq!(result, "Severity is ");
     }
 
-    // ─── Per-sub-agent artifact tests ─────────────────────────────────
-
     #[test]
     fn test_read_agent_step_output_missing_returns_null() {
         let tmp = tempfile::tempdir().unwrap();

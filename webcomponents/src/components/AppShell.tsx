@@ -7,6 +7,7 @@
 
 import { useId, type ReactNode } from "react";
 import { ConceptIcon } from "./ConceptIcon";
+import { HealthIndicator } from "./HealthIndicator";
 import styles from "./AppShell.module.css";
 
 export interface AppShellProps {
@@ -77,7 +78,7 @@ export function NavRow({ label, icon, health, disabledReason, renderLink }: NavR
     <>
       <ConceptIcon name={icon} className={styles.navIcon} />
       <span className={styles.navLabel}>{label}</span>
-      {health && <span className={styles.navDot} data-health={health} />}
+      {health && <HealthIndicator health={health} />}
     </>
   );
 
@@ -96,7 +97,7 @@ export function NavRow({ label, icon, health, disabledReason, renderLink }: NavR
             {disabledReason}
           </span>
         </span>
-        {health && <span className={styles.navDot} data-health={health} />}
+        {health && <HealthIndicator health={health} />}
       </button>
     );
   }
@@ -145,7 +146,9 @@ export function AccountFooter({
 }: AccountFooterProps) {
   return (
     <div className={styles.accountFooter}>
-      {failed && <p className={styles.signOutError}>Could not sign out.</p>}
+      <div role="alert" aria-atomic="true">
+        {failed && <p className={styles.signOutError}>Could not sign out.</p>}
+      </div>
       <div className={styles.accountRow}>
         <div className={styles.accountIdentity}>
           <span className={styles.username} title={username}>

@@ -9,14 +9,14 @@
 
 * **IDE** [![VS Code](https://img.shields.io/badge/VS_Code-007ACC)](https://operator.untra.io/getting-started/ides/vscode/) [![Zed](https://img.shields.io/badge/Zed-084CCF?logo=zedindustries&logoColor=white)](https://operator.untra.io/getting-started/ides/zed/)
 
-* **Kanban Provider** [![Operator](https://img.shields.io/badge/Operator-C8613F)](https://operator.untra.io/getting-started/kanban/operator/) [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) [![GitHub Projects](https://img.shields.io/badge/GitHub_Projects-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/kanban/github/)
+* **Kanban Provider** [![Operator](https://img.shields.io/badge/Operator-C8613F)](https://operator.untra.io/getting-started/kanban/operator/) [![Jira](https://img.shields.io/badge/Jira-0052CC?logo=jira&logoColor=white)](https://operator.untra.io/getting-started/kanban/jira/) [![Linear](https://img.shields.io/badge/Linear-5E6AD2?logo=linear&logoColor=white)](https://operator.untra.io/getting-started/kanban/linear/) [![GitHub Projects](https://img.shields.io/badge/GitHub_Projects-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/kanban/github/) [![Gitea Projects](https://img.shields.io/badge/Gitea_Projects-Alpha-orange)](https://operator.untra.io/getting-started/kanban/gitea/)
 
 * **LLM Tool** [![Claude](https://img.shields.io/badge/Claude-D97757?logo=claude&logoColor=white)](https://operator.untra.io/getting-started/agents/claude/) [![Codex](https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/agents/codex/) [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](https://operator.untra.io/getting-started/agents/gemini-cli/) [![Grok](https://img.shields.io/badge/Grok-000000)](https://operator.untra.io/getting-started/agents/grok/)
 
 * **Model Provider** [![Anthropic](https://img.shields.io/badge/Anthropic-D97757?logo=anthropic&logoColor=white)](https://operator.untra.io/getting-started/model-servers/anthropic/) [![OpenAI](https://img.shields.io/badge/OpenAI-000000?logo=openai&logoColor=white)](https://operator.untra.io/getting-started/model-servers/openai/) [![Google](https://img.shields.io/badge/Google-4285F4?logo=google&logoColor=white)](https://operator.untra.io/getting-started/model-servers/google/) [![xAI](https://img.shields.io/badge/xAI-000000)](https://operator.untra.io/getting-started/model-servers/xai/) [![OpenRouter](https://img.shields.io/badge/OpenRouter-94A3B8?logo=openrouter&logoColor=white)](https://operator.untra.io/getting-started/model-servers/openrouter/) [![Ollama](https://img.shields.io/badge/Ollama-000000?logo=ollama&logoColor=white)](https://operator.untra.io/getting-started/model-servers/ollama/)
 
 
-* **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/) [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?logo=gitlab&logoColor=white)](https://operator.untra.io/getting-started/git/gitlab/)
+* **Git Version Control** [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://operator.untra.io/getting-started/git/github/) [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?logo=gitlab&logoColor=white)](https://operator.untra.io/getting-started/git/gitlab/) [![Forgejo](https://img.shields.io/badge/Forgejo-Alpha-orange)](https://operator.untra.io/getting-started/git/forgejo/) [![Gitea](https://img.shields.io/badge/Gitea-Alpha-orange)](https://operator.untra.io/getting-started/git/gitea/)
 
 * **Platform** [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://operator.untra.io/getting-started/platforms/docker/) [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://operator.untra.io/getting-started/platforms/kubernetes/)
 
@@ -56,7 +56,7 @@ When started for the first time, Operator will setup configuration to consume an
 
 Operator comes with a separate web component, unneeded to do work but purpose built to give you a developer portal to expand their workflows and administrate Operator with ease.
 
-Operator starts and runs it's own REST API, which can be reached by outside clients, including by the `opr8r` wrapper client. This is included to communicate with Operator api hosts outside of where it's hosted.
+Operator starts and runs its own REST API, which outside clients such as the VS Code extension can reach, locally or against a remote server. The `opr8r` binary is the step wrapper that runs beside each agent CLI on the execution host: it reports step completion back to that API and chains the next workflow step. It is not a remote worker client.
 
 ## Usage
 
@@ -304,6 +304,22 @@ operator launch --delegator codex-local-qwen
 operator launch --llm-tool codex --model qwen2.5-coder --model-server ollama-local
 ```
 
-**Protocol compatibility.** Codex speaks the OpenAI API - pairing with ollama requires no bridge. Claude and Gemini use their own vendor protocols and require a translating proxy (e.g. `claude-code-router`, `litellm-proxy`) between the CLI and ollama; declare the bridge URL as your `model_server.base_url`.
+A model server can live on another machine. For example, a Windows gaming PC running [LM Studio](https://operator.untra.io/getting-started/model-servers/lmstudio/) can serve both codex and claude delegators over your LAN, with nothing from Operator installed on it:
 
-Current release ships the infrastructure - ollama detection and automatic env-var injection on spawn land in the next release. See `docs/getting-started/model-servers/` for the full walkthrough.
+```toml
+[[model_servers]]
+name = "gaming-pc"
+kind = "lmstudio"
+base_url = "http://192.168.1.50:1234"
+api_key_env = "LM_STUDIO_API_TOKEN"
+
+[[delegators]]
+name = "gaming-codex"
+llm_tool = "codex"
+model = "MODEL_ID"
+model_server = "gaming-pc"
+```
+
+**Protocol compatibility.** Codex speaks the OpenAI API, so pairing with ollama or LM Studio needs no bridge. Claude speaks the Anthropic protocol: LM Studio serves Anthropic's `/v1/messages`, so claude works with it directly; other servers need a translating proxy (e.g. `claude-code-router`, `litellm-proxy`). Gemini needs a proxy too; declare the bridge URL as your `model_server.base_url`.
+
+On spawn, Operator exports the server's connection settings (base URL, plus API key by reference) into the agent's environment. OpenAI-protocol base URLs get `/v1` appended for the agent, so `base_url` can be the host root. Automatic ollama detection during setup is still deferred. See `docs/getting-started/model-servers/` for the full walkthrough.

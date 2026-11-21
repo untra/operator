@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AuthCard, AuthField, AuthSubmit } from "../../src/components/AuthCard";
 
@@ -24,7 +25,7 @@ const meta = {
     title: "Sign in to Operator",
     subtitle: "Enter your account credentials.",
     children: credentials,
-    actions: <AuthSubmit busyLabel="Signing in…">Sign in</AuthSubmit>,
+    actions: <AuthSubmit busyLabel="Signing in...">Sign in</AuthSubmit>,
     links: <a href="#forgot">Forgot password?</a>,
   },
 } satisfies Meta<typeof AuthCard>;
@@ -50,7 +51,7 @@ export const WithNotice: Story = {
 export const Submitting: Story = {
   args: {
     actions: (
-      <AuthSubmit busy busyLabel="Signing in…">
+      <AuthSubmit busy busyLabel="Signing in...">
         Sign in
       </AuthSubmit>
     ),
@@ -83,7 +84,7 @@ export const FieldHints: Story = {
       </>
     ),
     actions: (
-      <AuthSubmit disabled busyLabel="Creating…">
+      <AuthSubmit disabled busyLabel="Creating...">
         Create admin account
       </AuthSubmit>
     ),
@@ -110,4 +111,15 @@ export const DarkTheme: Story = { globals: { theme: "dark" } };
 
 export const Narrow: Story = {
   globals: { viewport: { value: "narrow" } },
+};
+
+export const FailedSubmission: Story = {
+  render: function Stateful(args) {
+    const [error, setError] = useState<string | null>(null);
+    const onSubmit = useCallback((event: React.SubmitEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setError("Incorrect username or password.");
+    }, []);
+    return <AuthCard {...args} error={error} onSubmit={onSubmit} />;
+  },
 };

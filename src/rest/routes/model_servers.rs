@@ -5,10 +5,8 @@
 //! servers (`anthropic-api`, `openai-api`, `google-api`) are returned on list
 //! but cannot be created, updated, or deleted.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use crate::rest::state::RequestState as State;
+use axum::{extract::Path, Json};
 
 use crate::api::providers::model_server::{probe_models, ModelServerKind};
 use crate::config::{implicit_model_servers, is_implicit_model_server_name, Config, ModelServer};
@@ -268,12 +266,14 @@ pub async fn models(
 
     let outcome = probe_models(
         &server,
-        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+        &crate::auth::egress::EgressPolicy::from_config(&state.config())
+            .map_err(|e| ApiError::InternalError(e.to_string()))?,
     )
     .await;
     Ok(Json(ModelServerModelsResponse {
         server: name,
         reachable: outcome.reachable,
+        status: outcome.status,
         models: outcome
             .models
             .into_iter()
@@ -363,12 +363,14 @@ pub async fn kind_models(
 
     let outcome = probe_models(
         &server,
-        &crate::auth::egress::EgressPolicy::from_config(&state.config()),
+        &crate::auth::egress::EgressPolicy::from_config(&state.config())
+            .map_err(|e| ApiError::InternalError(e.to_string()))?,
     )
     .await;
     Ok(Json(ModelServerModelsResponse {
         server: kind.slug().to_string(),
         reachable: outcome.reachable,
+        status: outcome.status,
         models: outcome
             .models
             .into_iter()
@@ -454,7 +456,7 @@ mod tests {
             anthropic.default_api_key_env.as_deref(),
             Some("ANTHROPIC_API_KEY")
         );
-        // Gateways (ollama, openrouter, …) are not builtins.
+        // Gateways (ollama, openrouter, etc) are not builtins.
         let ollama = resp.0.iter().find(|k| k.slug == "ollama").unwrap();
         assert!(!ollama.is_builtin);
         assert_eq!(ollama.category, "gateway");

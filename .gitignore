@@ -37,6 +37,7 @@ docs/assets/js/
 # Test coverage
 coverage/
 *.lcov
+codecov.json
 
 # Docs output
 docs/_site/
@@ -56,6 +57,7 @@ vscode-extension/.vscode-test/
 test-output.txt
 .tickets/
 .proof/
+**/.vitest-attachments
 
 # terraform working files left by `bun test` in coder-module/
 coder-module/.terraform/
@@ -64,3 +66,5 @@ coder-module/terraform.tfstate*
 
 # superpowers and agent internal notes
 superpowers/
+
+webcomponents/stories/__screenshots__/

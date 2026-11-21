@@ -11,12 +11,15 @@ pub mod agents;
 pub mod auth;
 pub mod campaigns;
 pub mod configuration;
+pub mod connections;
+pub mod endpoints;
 pub mod git_onboarding;
 pub mod integrations;
 pub mod issue_types;
 pub mod kanban;
 pub mod sections;
 pub mod setup;
+pub mod telemetry;
 pub mod tickets;
 pub mod workflow;
 
@@ -24,12 +27,14 @@ pub use agents::*;
 pub use auth::*;
 pub use campaigns::*;
 pub use configuration::*;
+pub use endpoints::*;
 pub use git_onboarding::*;
 pub use integrations::*;
 pub use issue_types::*;
 pub use kanban::*;
 pub use sections::*;
 pub use setup::*;
+pub use telemetry::*;
 pub use tickets::*;
 pub use workflow::*;
 
@@ -152,6 +157,8 @@ mod tests {
         };
 
         let request = StepCompleteRequest {
+            no_auto_proceed: false,
+            traceparent: None,
             exit_code: 0,
             output_valid: true,
             output_schema_errors: None,

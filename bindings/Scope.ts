@@ -3,9 +3,7 @@
 /**
  * A typed authorization scope.
  *
- * Scopes are **not hierarchical**: `Write` does not imply `Read`. A credential
- * is granted each scope it needs explicitly, so an integration's authority is
- * legible from its scope list alone rather than requiring the reader to reason
- * about implication.
+ * Scopes are **not hierarchical**: `Write` does not imply `Read`.
+ * A credential is granted each scope it needs explicitly, so an integration's authority is legible from its scope list.
  */
 export type Scope = "read" | "write" | "execute" | "admin";

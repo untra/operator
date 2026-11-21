@@ -1,10 +1,11 @@
 ![Operator! logo](https://operator.untra.io/assets/img/operator_logo.svg)
 
-Welcome friend! **Operator!** is an application for orchestrating [Claude Code](/getting-started/agents/claude/) (and other [LLM coding agents](/getting-started/agents/)) across multi-repository codebases following kanban shaped workflows you control. It connects to [kanban-style ticket management software](/getting-started/kanban/), and will spawn terminal sessions within your IDE, with prompts prepared to create powerful workflows for managing AI-assisted software development.
+Welcome friend! **Operator!** orchestrates LLM coding agents across multi-repository codebases following kanban shaped workflows.
 
-## Getting Started
+## Choose a connection
 
-1. Download the **Operator!** server binary
-2. Select the working directory for **Operator!**
-3. Configure kanban providers
-4. Detect and configure LLM coding tools
+1. **Running on this machine.** Attach to an Operator that is already listening for this folder. Nothing is downloaded.
+2. **Run for this folder.** The free local install. Operator runs against the `.tickets` directory in the parent of this project.
+3. **Connect to a server.** Save an `https` address such as a homelab Operator. The sidebar uses that API. The extension does not download or start a binary. SSH, Coder, and other remote targets are entitled by that server's license.
+
+The address and the local-or-remote choice are saved in VS Code user settings. The sign-in token stays in the editor secret store.

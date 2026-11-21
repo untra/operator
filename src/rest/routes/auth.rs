@@ -4,7 +4,8 @@
 //! persisted backoff, so restarting the process does not reset an attacker's
 //! budget.
 
-use axum::extract::{Path, State};
+use crate::rest::state::RequestState as State;
+use axum::extract::Path;
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -14,15 +15,18 @@ use crate::auth::store::{
     AuthStore, DevicePollOutcome, RefreshOutcome, ADMIN_SUBJECT, DEVICE_CODE_TTL_SECS,
     DEVICE_POLL_INTERVAL_SECS,
 };
-use crate::auth::tokens::{api_claims, ACCESS_TOKEN_TTL};
+use crate::auth::tokens::{api_claims, endpoint_claims, ACCESS_TOKEN_TTL, ENDPOINT_CLIENT_ID};
 use crate::rest::dto::auth::{
-    AccessKeyListResponse, BootstrapState, BootstrapStatusResponse, BootstrapSubmitRequest,
-    BootstrapSubmitResponse, CreateAccessKeyRequest, CreateAccessKeyResponse, CsrfTokenResponse,
-    CurrentSessionResponse, DeviceApprovalRequest, DeviceApprovalResponse,
+    BootstrapState, BootstrapStatusResponse, BootstrapSubmitRequest, BootstrapSubmitResponse,
+    CsrfTokenResponse, CurrentSessionResponse, DeviceApprovalRequest, DeviceApprovalResponse,
     DeviceAuthorizationRequest, DeviceAuthorizationResponse, ForgotPasswordRequest,
     ForgotPasswordResponse, LoginRequest, LoginResponse, LogoutResponse, OAuthErrorCode,
-    OAuthErrorResponse, ResetPasswordRequest, ResetPasswordResponse, RevokeAccessKeyResponse,
-    Scope, SessionListResponse, TokenRequest, TokenResponse,
+    OAuthErrorResponse, ResetPasswordRequest, ResetPasswordResponse, Scope, SessionListResponse,
+    TokenRequest, TokenResponse,
+};
+#[cfg(test)]
+use crate::rest::dto::auth::{
+    CreateAccessKeyRequest, CreateAccessKeyResponse, RevokeAccessKeyResponse,
 };
 use crate::rest::error::{ApiError, Rejection};
 use crate::rest::middleware::auth::{enforce_backoff, Authenticated, SESSION_COOKIE};
@@ -172,7 +176,11 @@ pub async fn bootstrap_submit(
                     let s = store(&state);
                     let _ = blocking(move || {
                         s.record_failure(BUCKET_BOOTSTRAP)?;
-                        s.audit("bootstrap", Some("bad temporary password"), false)
+                        s.audit(
+                            crate::auth::audit::AuditAction::Bootstrap,
+                            Some("bad temporary password"),
+                            false,
+                        )
                     })
                     .await;
                     return Err(ApiError::Unauthorized(
@@ -192,7 +200,14 @@ pub async fn bootstrap_submit(
 
             let s = store(&state);
             if !created {
-                let _ = blocking(move || s.audit("bootstrap", Some("lost the race"), false)).await;
+                let _ = blocking(move || {
+                    s.audit(
+                        crate::auth::audit::AuditAction::Bootstrap,
+                        Some("lost the race"),
+                        false,
+                    )
+                })
+                .await;
                 return Err(ApiError::Conflict(
                     "the admin account was created concurrently".to_string(),
                 )
@@ -200,7 +215,7 @@ pub async fn bootstrap_submit(
             }
             let _ = blocking(move || {
                 s.clear_rate_limit(BUCKET_BOOTSTRAP)?;
-                s.audit("bootstrap", None, true)
+                s.audit(crate::auth::audit::AuditAction::Bootstrap, None, true)
             })
             .await;
 
@@ -220,7 +235,11 @@ pub async fn bootstrap_submit(
                 let s = store(&state);
                 let _ = blocking(move || {
                     s.record_failure(BUCKET_BOOTSTRAP)?;
-                    s.audit("bootstrap", Some("bad temporary password"), false)
+                    s.audit(
+                        crate::auth::audit::AuditAction::Bootstrap,
+                        Some("bad temporary password"),
+                        false,
+                    )
                 })
                 .await;
                 return Err(ApiError::Unauthorized(
@@ -238,7 +257,11 @@ pub async fn bootstrap_submit(
             blocking(move || {
                 s.set_admin_password(&password)?;
                 s.clear_rate_limit(BUCKET_BOOTSTRAP)?;
-                s.audit("bootstrap", Some("password set"), true)
+                s.audit(
+                    crate::auth::audit::AuditAction::Bootstrap,
+                    Some("password set"),
+                    true,
+                )
             })
             .await?;
 
@@ -303,7 +326,7 @@ pub async fn login(
     let (token, csrf, expires_at) = blocking(move || {
         let session = s.create_session()?;
         s.clear_rate_limit(BUCKET_LOGIN)?;
-        s.audit("login", None, true)?;
+        s.audit(crate::auth::audit::AuditAction::Login, None, true)?;
         Ok(session)
     })
     .await?;
@@ -326,7 +349,7 @@ async fn reject_login(state: &ApiState, detail: &'static str) -> Response {
     let s = store(state);
     let _ = blocking(move || {
         s.record_failure(BUCKET_LOGIN)?;
-        s.audit("login", Some(detail), false)
+        s.audit(crate::auth::audit::AuditAction::Login, Some(detail), false)
     })
     .await;
     ApiError::Unauthorized("incorrect username or password".to_string()).into_response()
@@ -389,7 +412,7 @@ pub async fn reset_password(
     let _ = blocking(move || {
         s.clear_rate_limit(BUCKET_PASSWORD_RESET)?;
         s.audit(
-            "password reset",
+            crate::auth::audit::AuditAction::PasswordReset,
             Some("via HTTP with current credentials"),
             true,
         )
@@ -402,7 +425,11 @@ async fn reject_password_reset(state: &ApiState) -> Response {
     let s = store(state);
     let _ = blocking(move || {
         s.record_failure(BUCKET_PASSWORD_RESET)?;
-        s.audit("password reset", Some("invalid credentials"), false)
+        s.audit(
+            crate::auth::audit::AuditAction::PasswordReset,
+            Some("invalid credentials"),
+            false,
+        )
     })
     .await;
     ApiError::Unauthorized("incorrect username or password".to_string()).into_response()
@@ -424,7 +451,7 @@ pub async fn logout(
         let s = store(&state);
         blocking(move || {
             s.revoke_session(&session_id)?;
-            s.audit("logout", None, true)
+            s.audit(crate::auth::audit::AuditAction::Logout, None, true)
         })
         .await?;
     }
@@ -529,7 +556,7 @@ pub async fn revoke_session(
     let s = store(&state);
     blocking(move || {
         s.revoke_session(&id)?;
-        s.audit("session revoked", None, true)
+        s.audit(crate::auth::audit::AuditAction::SessionRevoked, None, true)
     })
     .await?;
     Ok(Json(LogoutResponse { ended: true }))
@@ -569,18 +596,33 @@ pub async fn device_code(
     }
 
     // An IDE client acts as the human admin, so it receives every scope. A
-    // client asking for less is honored; asking for more than exists is not.
-    let scopes = if req.scopes.is_empty() {
-        Scope::ALL.to_vec()
-    } else {
+    // client asking for less is honored. The endpoint client is the inverse:
+    // its authority is the endpoint binding, so it holds no scope at all.
+    let is_endpoint_client = req.client_id == ENDPOINT_CLIENT_ID;
+    if is_endpoint_client && !req.scopes.is_empty() {
+        record_bucket_failure(&state, BUCKET_DEVICE_CODE).await;
+        return Err(oauth_error(
+            StatusCode::BAD_REQUEST,
+            OAuthErrorCode::InvalidScope,
+            "the endpoint client is granted no scopes",
+        )
+        .into());
+    }
+    let scopes = if is_endpoint_client || !req.scopes.is_empty() {
         req.scopes.clone()
+    } else {
+        Scope::ALL.to_vec()
     };
 
     let client_id = req.client_id.clone();
     let s = store(&state);
     let (device_code, user_code) = blocking(move || {
         let pair = s.create_device_authorization(&client_id, &scopes)?;
-        s.audit("device code issued", None, true)?;
+        s.audit(
+            crate::auth::audit::AuditAction::DeviceCodeIssued,
+            None,
+            true,
+        )?;
         // A successful issue is not proof of the admin: this endpoint is public.
         s.record_failure(BUCKET_DEVICE_CODE)?;
         Ok(pair)
@@ -631,7 +673,14 @@ pub async fn device_approve(
 
     let s = store(&state);
     let detail = client_id.clone();
-    let _ = blocking(move || s.audit("device approved", Some(&detail), true)).await;
+    let _ = blocking(move || {
+        s.audit(
+            crate::auth::audit::AuditAction::DeviceApproved,
+            Some(&detail),
+            true,
+        )
+    })
+    .await;
 
     Ok(Json(DeviceApprovalResponse {
         client_id,
@@ -661,7 +710,7 @@ pub async fn token(
         return Err(limited.into());
     }
 
-    let (scopes, refresh_token) = match req {
+    let (scopes, refresh_token, endpoint_id) = match req {
         TokenRequest::DeviceCode {
             device_code: code,
             client_id,
@@ -681,10 +730,16 @@ pub async fn token(
             match outcome {
                 DevicePollOutcome::Approved { client_id, scopes } => {
                     let s = store(&state);
-                    let owned = scopes.clone();
-                    let refresh =
-                        blocking(move || s.create_refresh_family(&client_id, &owned)).await?;
-                    (scopes, Some(refresh))
+                    if client_id == ENDPOINT_CLIENT_ID {
+                        let (endpoint_id, refresh) =
+                            blocking(move || s.create_endpoint_family(&client_id)).await?;
+                        (scopes, Some(refresh), Some(endpoint_id))
+                    } else {
+                        let owned = scopes.clone();
+                        let refresh =
+                            blocking(move || s.create_refresh_family(&client_id, &owned)).await?;
+                        (scopes, Some(refresh), None)
+                    }
                 }
                 DevicePollOutcome::Pending => {
                     return Err(oauth_error(
@@ -737,18 +792,41 @@ pub async fn token(
                 .into());
             }
             let s = store(&state);
+            let is_endpoint_client = client_id == ENDPOINT_CLIENT_ID;
             let outcome = blocking(move || s.redeem_refresh_token(&token, &client_id)).await?;
 
             match outcome {
                 RefreshOutcome::Rotated {
                     refresh_token,
                     scopes,
-                } => (scopes, Some(refresh_token)),
+                    family_id,
+                } => {
+                    if is_endpoint_client {
+                        let s = store(&state);
+                        let id = family_id.clone();
+                        if blocking(move || s.endpoint_authority(&id)).await?.is_none() {
+                            return Err(reject_token(
+                                &state,
+                                OAuthErrorCode::InvalidGrant,
+                                "the endpoint has been revoked",
+                            )
+                            .await
+                            .into());
+                        }
+                        (scopes, Some(refresh_token), Some(family_id))
+                    } else {
+                        (scopes, Some(refresh_token), None)
+                    }
+                }
                 RefreshOutcome::Reused => {
                     let s = store(&state);
                     let _ = blocking(move || {
                         s.record_failure(BUCKET_TOKEN)?;
-                        s.audit("refresh token reuse", Some("family revoked"), false)
+                        s.audit(
+                            crate::auth::audit::AuditAction::RefreshTokenReuse,
+                            Some("family revoked"),
+                            false,
+                        )
                     })
                     .await;
                     return Err(oauth_error(
@@ -771,34 +849,25 @@ pub async fn token(
         }
 
         TokenRequest::AccessKey { access_key: key } => {
-            let s = store(&state);
-            let scopes = blocking(move || s.redeem_access_key(&key)).await?;
-            let Some(scopes) = scopes else {
-                let s = store(&state);
-                let _ = blocking(move || {
-                    s.record_failure(BUCKET_TOKEN)?;
-                    s.audit("access key exchange", Some("rejected"), false)
-                })
-                .await;
-                return Err(oauth_error(
-                    StatusCode::BAD_REQUEST,
+            return match super::identity::exchange_key(&state, key).await {
+                Ok(response) => Ok(response),
+                Err(error @ ApiError::Unavailable(_)) => Err(error.into()),
+                Err(_) => Err(reject_token(
+                    &state,
                     OAuthErrorCode::InvalidGrant,
                     "the access key is invalid, expired, or revoked",
                 )
-                .into());
+                .await
+                .into()),
             };
-            // An access key is re-presented on each exchange, so it produces no
-            // refresh token - there is nothing to refresh.
-            (scopes, None)
         }
     };
 
-    let claims = api_claims(
-        ADMIN_SUBJECT,
-        &scopes,
-        Utc::now(),
-        uuid::Uuid::new_v4().to_string(),
-    );
+    let jti = uuid::Uuid::new_v4().to_string();
+    let claims = match &endpoint_id {
+        Some(id) => endpoint_claims(id, Utc::now(), jti),
+        None => api_claims(ADMIN_SUBJECT, &scopes, Utc::now(), jti),
+    };
     let access_token = state
         .auth
         .signing_key
@@ -817,22 +886,6 @@ pub async fn token(
     }))
 }
 
-/// List access keys
-#[utoipa::path(
-    operation_id = "auth_list_access_keys",
-    get,
-    path = "/api/v1/auth/keys",
-    tag = "Auth",
-    responses((status = 200, description = "Access keys", body = AccessKeyListResponse))
-)]
-pub async fn list_access_keys(
-    State(state): State<ApiState>,
-) -> Result<Json<AccessKeyListResponse>, ApiError> {
-    let s = store(&state);
-    let keys = blocking(move || s.list_access_keys()).await?;
-    Ok(Json(AccessKeyListResponse { keys }))
-}
-
 /// Create an access key
 #[utoipa::path(
     operation_id = "auth_create_access_key",
@@ -842,6 +895,7 @@ pub async fn list_access_keys(
     request_body = CreateAccessKeyRequest,
     responses((status = 200, description = "Key created; secret returned once", body = CreateAccessKeyResponse))
 )]
+#[cfg(test)]
 pub async fn create_access_key(
     State(state): State<ApiState>,
     Json(req): Json<CreateAccessKeyRequest>,
@@ -873,7 +927,11 @@ pub async fn create_access_key(
     // so they must surface as 400 rather than 500.
     let created = tokio::task::spawn_blocking(move || {
         let created = s.create_access_key(&name, &scopes, days)?;
-        s.audit("access key created", Some(&name), true)?;
+        s.audit(
+            crate::auth::audit::AuditAction::AccessKeyCreated,
+            Some(&name),
+            true,
+        )?;
         anyhow::Ok(created)
     })
     .await
@@ -895,6 +953,7 @@ pub async fn create_access_key(
         (status = 404, description = "Unknown or already revoked"),
     )
 )]
+#[cfg(test)]
 pub async fn revoke_access_key(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -904,7 +963,11 @@ pub async fn revoke_access_key(
     let revoked = blocking(move || {
         let at = s.revoke_access_key(&owned)?;
         if at.is_some() {
-            s.audit("access key revoked", Some(&owned), true)?;
+            s.audit(
+                crate::auth::audit::AuditAction::AccessKeyRevoked,
+                Some(&owned),
+                true,
+            )?;
         }
         Ok(at)
     })
@@ -920,8 +983,9 @@ pub async fn revoke_access_key(
 
 #[cfg(test)]
 mod tests {
+    use crate::rest::state::RequestState as State;
     use axum::body::Body;
-    use axum::extract::{Path, State};
+    use axum::extract::Path;
     use axum::http::{header, HeaderMap, Request, StatusCode};
     use axum::response::{IntoResponse, Response};
     use axum::Json;
@@ -932,16 +996,15 @@ mod tests {
 
     use super::{
         bootstrap_status, bootstrap_submit, create_access_key, csrf_token, current_session,
-        device_approve, device_code, forgot_password, list_access_keys, list_sessions, login,
-        logout, reset_password, revoke_access_key, revoke_session, token,
-        BOOTSTRAP_PASSWORD_FILE_ENV, BUCKET_DEVICE_CODE, BUCKET_LOGIN, BUCKET_PASSWORD_RESET,
-        BUCKET_TOKEN,
+        device_approve, device_code, forgot_password, list_sessions, login, logout, reset_password,
+        revoke_access_key, revoke_session, token, BOOTSTRAP_PASSWORD_FILE_ENV, BUCKET_DEVICE_CODE,
+        BUCKET_LOGIN, BUCKET_PASSWORD_RESET, BUCKET_TOKEN,
     };
     use crate::auth::scope::Principal;
     use crate::auth::store::{
         ADMIN_SUBJECT, AUTH_DB_FILENAME, DEVICE_CODE_TTL_SECS, DEVICE_POLL_INTERVAL_SECS,
     };
-    use crate::auth::tokens::ACCESS_TOKEN_TTL;
+    use crate::auth::tokens::{ACCESS_TOKEN_TTL, AUDIENCE_API, ENDPOINT_CLIENT_ID};
     use crate::config::Config;
     use crate::rest::dto::auth::*;
     use crate::rest::error::{ApiError, Rejection};
@@ -1623,6 +1686,164 @@ mod tests {
         }
     }
 
+    async fn assert_invalid_scope(state: &ApiState, client_id: &str, scopes: Vec<Scope>) {
+        let (status, _, value) =
+            body_json(device(state, client_id, None, scopes.clone()).await).await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "{client_id} {scopes:?}: {value}"
+        );
+        assert_eq!(
+            parse::<OAuthErrorResponse>(value).error,
+            OAuthErrorCode::InvalidScope,
+            "{client_id} {scopes:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_the_endpoint_client_requests_no_scopes() {
+        let (_dir, state) = fresh();
+        assert_invalid_scope(&state, ENDPOINT_CLIENT_ID, vec![Scope::Read]).await;
+        assert_invalid_scope(&state, ENDPOINT_CLIENT_ID, Scope::ALL.to_vec()).await;
+
+        let (_dir, state) = fresh();
+        let (status, _, value) =
+            body_json(device(&state, ENDPOINT_CLIENT_ID, None, vec![]).await).await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+    }
+
+    #[tokio::test]
+    async fn test_endpoint_pairing_issues_endpoint_bound_tokens_until_revoked() {
+        let (dir, state) = fresh();
+        let issued: DeviceAuthorizationResponse = parse(
+            body_json(device(&state, ENDPOINT_CLIENT_ID, None, vec![]).await)
+                .await
+                .2,
+        );
+        let approved = device_approve(
+            State(state.clone()),
+            Json(DeviceApprovalRequest {
+                user_code: issued.user_code.clone(),
+            }),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert!(approved.scopes.is_empty());
+        rewind_device_poll(dir.path());
+
+        let (status, _, value) = body_json(
+            exchange(
+                &state,
+                TokenRequest::DeviceCode {
+                    device_code: issued.device_code.clone(),
+                    client_id: ENDPOINT_CLIENT_ID.into(),
+                },
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+        let first: TokenResponse = parse(value);
+        assert!(first.scopes.is_empty());
+        let claims = state
+            .auth
+            .signing_key
+            .verify(&first.access_token, AUDIENCE_API)
+            .unwrap();
+        assert_eq!(claims.scope, "");
+        let endpoint_id = claims.endpoint_id.expect("endpoint-bound token");
+        assert!(state
+            .auth
+            .store
+            .endpoint_authority(&endpoint_id)
+            .unwrap()
+            .is_some());
+
+        let (status, _, value) = body_json(
+            exchange(
+                &state,
+                TokenRequest::RefreshToken {
+                    refresh_token: first.refresh_token.clone().unwrap(),
+                    client_id: ENDPOINT_CLIENT_ID.into(),
+                },
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+        let second: TokenResponse = parse(value);
+        let refreshed = state
+            .auth
+            .signing_key
+            .verify(&second.access_token, AUDIENCE_API)
+            .unwrap();
+        assert_eq!(refreshed.endpoint_id.as_deref(), Some(endpoint_id.as_str()));
+
+        assert!(state
+            .auth
+            .store
+            .revoke_endpoint(&endpoint_id, "test")
+            .unwrap());
+        let (status, _, value) = body_json(
+            exchange(
+                &state,
+                TokenRequest::RefreshToken {
+                    refresh_token: second.refresh_token.unwrap(),
+                    client_id: ENDPOINT_CLIENT_ID.into(),
+                },
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{value}");
+        assert_eq!(
+            parse::<OAuthErrorResponse>(value).error,
+            OAuthErrorCode::InvalidGrant
+        );
+    }
+
+    #[tokio::test]
+    async fn test_human_device_tokens_carry_no_endpoint_binding() {
+        let (dir, state) = fresh();
+        let issued: DeviceAuthorizationResponse = parse(
+            body_json(device(&state, "vscode", None, vec![]).await)
+                .await
+                .2,
+        );
+        let _approved = device_approve(
+            State(state.clone()),
+            Json(DeviceApprovalRequest {
+                user_code: issued.user_code.clone(),
+            }),
+        )
+        .await
+        .unwrap();
+        rewind_device_poll(dir.path());
+        let token_response: TokenResponse = parse(
+            body_json(
+                exchange(
+                    &state,
+                    TokenRequest::DeviceCode {
+                        device_code: issued.device_code,
+                        client_id: "vscode".into(),
+                    },
+                )
+                .await,
+            )
+            .await
+            .2,
+        );
+        assert_eq!(token_response.scopes, Scope::ALL.to_vec());
+        let claims = state
+            .auth
+            .signing_key
+            .verify(&token_response.access_token, AUDIENCE_API)
+            .unwrap();
+        assert!(claims.endpoint_id.is_none());
+    }
+
     #[tokio::test]
     async fn test_device_approval_reports_granted_scopes_and_unknown_codes() {
         let (_dir, state) = fresh();
@@ -1992,43 +2213,52 @@ mod tests {
     #[tokio::test]
     async fn test_access_key_is_returned_once_and_exchanges_without_a_refresh_token() {
         let (_dir, state) = fresh();
-        let created = create_access_key(
-            State(state.clone()),
-            Json(CreateAccessKeyRequest {
-                name: "  ci  ".into(),
-                scopes: vec![Scope::Read],
-                expires_in_days: 30,
-            }),
-        )
-        .await
-        .unwrap()
-        .0;
-        assert_eq!(created.key.name, "ci");
-        assert_eq!(created.secret.len(), 47);
-        assert!(created.secret.starts_with("opk_"));
-
-        let listed = list_access_keys(State(state.clone())).await.unwrap().0;
-        let json = serde_json::to_string(&listed).unwrap();
-        assert!(!json.contains(&created.secret));
-        assert_eq!(listed.keys.len(), 1);
-
+        let (_, owner, request) =
+            crate::auth::identity::tests::fixture_in(state.auth.store.clone());
+        let created = state
+            .auth
+            .store
+            .create_user_key(&owner, &request, None)
+            .unwrap();
+        let listed = state
+            .auth
+            .store
+            .user_keys(&owner.user.id, request.grants.profile_id, 0)
+            .unwrap();
+        assert!(!serde_json::to_string(&listed)
+            .unwrap()
+            .contains(&created.secret));
         let (status, _, value) = body_json(
             exchange(
                 &state,
                 TokenRequest::AccessKey {
-                    access_key: "not-a-key".into(),
+                    access_key: created.secret.clone(),
                 },
             )
             .await,
         )
         .await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{value}");
+        assert_eq!(status, StatusCode::OK, "{value}");
+        let token_body: TokenResponse = parse(value);
+        assert!(token_body.refresh_token.is_none());
+        assert!(token_body.scopes.is_empty());
+        let claims = state
+            .auth
+            .signing_key
+            .verify(&token_body.access_token, crate::auth::tokens::AUDIENCE_API)
+            .unwrap();
         assert_eq!(
-            parse::<OAuthErrorResponse>(value).error,
-            OAuthErrorCode::InvalidGrant
+            claims.key_id.as_deref(),
+            Some(created.key.summary.id.as_str())
         );
-
-        let (status, _, value) = body_json(
+        assert_eq!(claims.profile_id, Some(request.grants.profile_id));
+        assert_eq!(claims.sub, owner.user.id);
+        state
+            .auth
+            .store
+            .revoke_user_key(&owner.user.id, &created.key.summary.id, false)
+            .unwrap();
+        let (status, _, _) = body_json(
             exchange(
                 &state,
                 TokenRequest::AccessKey {
@@ -2038,21 +2268,7 @@ mod tests {
             .await,
         )
         .await;
-        assert_eq!(status, StatusCode::OK, "{value}");
-        let token_body: TokenResponse = parse(value);
-        assert_eq!(token_body.token_type, "Bearer");
-        assert!(token_body.refresh_token.is_none());
-        assert_eq!(token_body.scopes, vec![Scope::Read]);
-
-        let revoked = revoke_access_key(State(state.clone()), Path(created.key.id.clone()))
-            .await
-            .unwrap()
-            .0;
-        assert_eq!(revoked.id, created.key.id);
-        let error = revoke_access_key(State(state), Path(created.key.id))
-            .await
-            .unwrap_err();
-        assert_eq!(error.parts().0, StatusCode::NOT_FOUND);
+        assert_eq!(status, StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
@@ -2180,7 +2396,7 @@ mod tests {
                 .unwrap(),
         )
         .await;
-        assert_eq!(status, StatusCode::OK, "{value}");
+        assert_eq!(status, StatusCode::FORBIDDEN, "{value}");
 
         let (status, _, value) = body_json(
             app.clone()

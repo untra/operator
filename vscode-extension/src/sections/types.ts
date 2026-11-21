@@ -72,6 +72,8 @@ export interface ConfigState {
   wrapperType: string;
   operatorVersion?: string;
   updateAvailable?: string;
+  remoteReady?: boolean;
+  remoteUrl?: string;
   editorVar: string;
   visualVar: string;
 }

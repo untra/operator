@@ -1,9 +1,7 @@
+use crate::rest::state::RequestState as State;
 use std::time::Duration;
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use axum::{extract::Path, Json};
 use serde::Serialize;
 use ts_rs::TS;
 use utoipa::ToSchema;

@@ -1,0 +1,108 @@
+groups:
+  - id: metric.operator.agents.active
+    type: "metric"
+    metric_name: "operator.agents.active"
+    brief: "Operator agents active."
+    stability: "development"
+    instrument: "gauge"
+    unit: "{agent}"
+    attributes:
+      - ref: operator.profile.id
+  - id: metric.operator.queue.depth
+    type: "metric"
+    metric_name: "operator.queue.depth"
+    brief: "Operator queue depth."
+    stability: "development"
+    instrument: "gauge"
+    unit: "{ticket}"
+    attributes:
+      - ref: operator.profile.id
+  - id: metric.operator.step.duration
+    type: "metric"
+    metric_name: "operator.step.duration"
+    brief: "Operator step duration."
+    stability: "development"
+    instrument: "histogram"
+    unit: "s"
+    attributes:
+      - ref: operator.profile.id
+  - id: metric.operator.telemetry.received
+    type: "metric"
+    metric_name: "operator.telemetry.received"
+    brief: "Operator telemetry received."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason
+  - id: metric.operator.telemetry.dropped
+    type: "metric"
+    metric_name: "operator.telemetry.dropped"
+    brief: "Operator telemetry dropped."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason
+  - id: metric.operator.telemetry.forwarded
+    type: "metric"
+    metric_name: "operator.telemetry.forwarded"
+    brief: "Operator telemetry forwarded."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason
+  - id: metric.operator.telemetry.redacted
+    type: "metric"
+    metric_name: "operator.telemetry.redacted"
+    brief: "Operator telemetry redacted."
+    stability: "development"
+    instrument: "counter"
+    unit: "{record}"
+    attributes:
+      - ref: operator.telemetry.signal
+      - ref: operator.telemetry.reason
+  - id: metric.operator.auth.authentication.denied
+    type: "metric"
+    metric_name: "operator.auth.authentication.denied"
+    brief: "Failed credential authentication attempts."
+    stability: "development"
+    instrument: "counter"
+    unit: "{attempt}"
+    attributes: []
+  - id: metric.operator.auth.authorization.denied
+    type: "metric"
+    metric_name: "operator.auth.authorization.denied"
+    brief: "Denied authenticated operations."
+    stability: "development"
+    instrument: "counter"
+    unit: "{attempt}"
+    attributes: []
+  - id: metric.operator.auth.rate_limited
+    type: "metric"
+    metric_name: "operator.auth.rate_limited"
+    brief: "Requests rejected by credential rate limits."
+    stability: "development"
+    instrument: "counter"
+    unit: "{request}"
+    attributes: []
+  - id: metric.operator.auth.usage.dropped
+    type: "metric"
+    metric_name: "operator.auth.usage.dropped"
+    brief: "Credential usage observations lost to capacity or lock failure."
+    stability: "development"
+    instrument: "counter"
+    unit: "{observation}"
+    attributes: []
+  - id: metric.operator.auth.usage.flush_failed
+    type: "metric"
+    metric_name: "operator.auth.usage.flush_failed"
+    brief: "Failed credential usage database flushes."
+    stability: "development"
+    instrument: "counter"
+    unit: "{flush}"
+    attributes: []

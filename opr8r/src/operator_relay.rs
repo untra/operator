@@ -18,8 +18,6 @@ use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-// ── Config loader ─────────────────────────────────────────────────────────────
-
 static CONFIG: OnceLock<Value> = OnceLock::new();
 
 fn config() -> &'static Value {
@@ -32,8 +30,6 @@ fn config() -> &'static Value {
 fn tools_list() -> &'static Value {
     &config()["tools"]
 }
-
-// ── Stdout helpers ────────────────────────────────────────────────────────────
 
 fn write_response(id: Option<&Value>, result: Value) {
     let resp = json!({ "jsonrpc": "2.0", "id": id, "result": result });
@@ -58,8 +54,6 @@ fn write_notification(method: &str, params: Value) {
     let _ = out.write_all(b"\n");
     let _ = out.flush();
 }
-
-// ── Entry point ───────────────────────────────────────────────────────────────
 
 /// Run the relay MCP stdio server.
 pub async fn run() -> ExitCode {
@@ -183,8 +177,6 @@ fn determine_name() -> String {
     }
     format!("channel-{}", std::process::id())
 }
-
-// ── Request dispatch ──────────────────────────────────────────────────────────
 
 async fn handle_request(line: &str, session: &Arc<ChannelSession>) {
     let Ok(req) = serde_json::from_str::<Value>(line) else {

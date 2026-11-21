@@ -90,7 +90,7 @@ export function ProfilesProvider() {
           value={
             error
               ? { status: "error", message: error.message }
-              : { status: "loading", message: "Loading configurations…" }
+              : { status: "loading", message: "Loading configurations..." }
           }
         >
           {() => null}

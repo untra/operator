@@ -4,7 +4,7 @@ description: "Zed editor integration for Operator via MCP context server, ACP ag
 layout: doc
 ---
 
-Zed provides MCP and ACP integration. It does not provide an Operator-managed terminal session controller; terminal sessions remain a separate configuration choice.
+Zed provides MCP and ACP integration.
 
 <span class="badge alpha">Alpha</span>
 

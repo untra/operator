@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { safePurchaseDestination } from "./PremiumPaywall";
+import { safeInAppDestination, safePurchaseDestination } from "./PremiumPaywall";
 
 describe("safePurchaseDestination", () => {
   test("accepts https, whatever the case", () => {
@@ -37,5 +37,26 @@ describe("safePurchaseDestination", () => {
   test("treats a missing destination as no link", () => {
     expect(safePurchaseDestination(null)).toBeNull();
     expect(safePurchaseDestination(undefined)).toBeNull();
+  });
+});
+
+describe("safeInAppDestination", () => {
+  test("accepts a hash route", () => {
+    expect(safeInAppDestination("#/settings/premium")).toBe("#/settings/premium");
+  });
+
+  test("refuses anything that leaves the app", () => {
+    for (const outside of [
+      "https://operator.untra.io/premium",
+      "//operator.untra.io",
+      // oxlint-disable-next-line no-script-url
+      "javascript:alert(1)",
+      "#",
+      "",
+      null,
+      undefined,
+    ]) {
+      expect(safeInAppDestination(outside)).toBeNull();
+    }
   });
 });

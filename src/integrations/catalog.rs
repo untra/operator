@@ -9,7 +9,7 @@
 //!
 //! - REST `/api/v1/integrations` ([`crate::rest::dto::integration_catalog`])
 //! - the generated `docs/maturity/` page ([`crate::docs_gen::integrations`])
-//! - the `tests/vertical_parity.rs` soup-to-nuts alignment test, which also
+//! - the `tests/it/suites/vertical_parity.rs` soup-to-nuts alignment test, which also
 //!   cross-checks that every provider-enum variant (`KanbanProviderType::ALL`,
 //!   `ModelServerKind::ALL`, `GitProvider::ALL`, `SessionWrapperType::ALL`) has a
 //!   catalog entry - so a new variant can't ship without docs/badges/UI.
@@ -157,7 +157,7 @@ pub struct CatalogEntry {
     pub docs_path: Option<&'static str>,
     /// Brand icon filename stem in `docs/assets/icons/{icon}.svg`, or `None`
     /// when no brand icon ships. Drives the sidebar nav `icon:` values
-    /// (enforced by `tests/docs_structure.rs`).
+    /// (enforced by `tests/it/suites/docs_structure.rs`).
     pub icon: Option<&'static str>,
     /// Whether this entry carries a curated README badge.
     pub readme_badge: bool,
@@ -189,7 +189,7 @@ impl CatalogEntry {
 ///
 /// Support statuses reflect the current maturity of each integration. `Proto`
 /// entries are intentionally not advertised (no README badge); `Alpha`+ entries
-/// require a docs page (enforced by `tests/vertical_parity.rs`).
+/// require a docs page (enforced by `tests/it/suites/vertical_parity.rs`).
 pub fn all_integrations() -> Vec<CatalogEntry> {
     use SupportStatus::{Alpha, Beta, Ga, Proto};
     use Vertical::{
@@ -243,6 +243,24 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             Some("openspec"),
             false,
             Alpha,
+        ),
+        entry(
+            Kanban,
+            "gitea",
+            "Gitea Projects",
+            Some("getting-started/kanban/gitea"),
+            Some("gitea"),
+            true,
+            Alpha,
+        ),
+        entry(
+            Kanban,
+            "forgejo",
+            "Forgejo Projects",
+            Some("getting-started/kanban/forgejo"),
+            None,
+            false,
+            Proto,
         ),
         // --- Model providers (mirror ModelServerKind::ALL; slug == kind slug) ---
         entry(
@@ -308,7 +326,15 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             false,
             Proto,
         ),
-        entry(Model, "lmstudio", "LM Studio", None, None, false, Proto),
+        entry(
+            Model,
+            "lmstudio",
+            "LM Studio",
+            Some("getting-started/model-servers/lmstudio"),
+            Some("lmstudio"),
+            false,
+            Proto,
+        ),
         // --- Git providers (mirror GitProvider::ALL) ---
         entry(
             Git,
@@ -330,14 +356,22 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
         ),
         entry(Git, "bitbucket", "Bitbucket", None, None, false, Proto),
         entry(Git, "azure", "Azure DevOps", None, None, false, Proto),
-        entry(Git, "forgejo", "Forgejo", None, None, false, Proto),
+        entry(
+            Git,
+            "forgejo",
+            "Forgejo",
+            Some("getting-started/git/forgejo"),
+            Some("forgejo"),
+            true,
+            Alpha,
+        ),
         entry(
             Git,
             "gitea",
             "Gitea",
             Some("getting-started/git/gitea"),
             Some("gitea"),
-            false,
+            true,
             Alpha,
         ),
         // --- Session wrappers (mirror SessionWrapperType::ALL) ---
@@ -557,6 +591,26 @@ pub fn all_integrations() -> Vec<CatalogEntry> {
             true,
             Beta,
         ),
+        entry(
+            Integration,
+            "keycloak",
+            "Keycloak",
+            Some("getting-started/integrations/keycloak"),
+            Some("keycloak"),
+            false,
+            Alpha,
+        )
+        .premium(),
+        entry(
+            Integration,
+            "authentik",
+            "Authentik",
+            Some("getting-started/integrations/authentik"),
+            Some("authentik"),
+            false,
+            Alpha,
+        )
+        .premium(),
         // --- Operator features (concepts, not brands) ---
         entry(
             Feature,
@@ -757,7 +811,10 @@ mod tests {
 
     #[test]
     fn test_onboardable_git_is_the_alpha_or_better_set() {
-        assert_eq!(slugs(Vertical::Git), vec!["github", "gitlab", "gitea"]);
+        assert_eq!(
+            slugs(Vertical::Git),
+            vec!["github", "gitlab", "forgejo", "gitea"]
+        );
     }
 
     #[test]

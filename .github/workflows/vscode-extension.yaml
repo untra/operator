@@ -78,6 +78,8 @@ jobs:
   opr8r-build:
     name: Build opr8r (${{ matrix.artifact }})
     needs: lint-test
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
     if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
@@ -90,7 +92,7 @@ jobs:
             os: ubuntu-24.04-arm
             artifact: opr8r-linux-arm64
           - target: aarch64-apple-darwin
-            os: macos-14
+            os: macos-15
             artifact: opr8r-macos-arm64
           - target: x86_64-pc-windows-msvc
             os: windows-latest
@@ -116,41 +118,41 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            opr8r/target
-          key: opr8r-${{ matrix.artifact }}-cargo-${{ hashFiles('opr8r/Cargo.lock') }}
+            target
+          key: opr8r-${{ matrix.artifact }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             opr8r-${{ matrix.artifact }}-cargo-
 
       - name: Build release binary
-        run: cargo build --locked --release
+        run: cargo build --locked --profile opr8r-release
 
       - name: Strip binary (Linux/macOS)
         if: runner.os != 'Windows'
-        run: strip target/release/opr8r || true
+        run: strip ../target/opr8r-release/opr8r || true
 
       # Apple code signing + notarization (macOS only)
       - name: Codesign opr8r binary
-        if: matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
         working-directory: .
         env:
           APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: scripts/codesign.sh opr8r/target/release/opr8r
+        run: scripts/codesign.sh target/opr8r-release/opr8r
 
       - name: Notarize opr8r binary
-        if: matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
         working-directory: .
         env:
           APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
           APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-        run: scripts/notarize.sh opr8r/target/release/opr8r
+        run: scripts/notarize.sh target/opr8r-release/opr8r
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: opr8r/target/release/opr8r${{ matrix.extension || '' }}
+          path: target/opr8r-release/opr8r${{ matrix.extension || '' }}
 
   build-vsix:
     name: Build VSIX (${{ matrix.vscode_target }})

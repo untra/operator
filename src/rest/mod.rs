@@ -22,6 +22,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod directory;
 pub mod dto;
 pub mod error;
+pub mod local_client;
 pub mod middleware;
 pub mod openapi;
 mod profile_router;
@@ -82,6 +83,7 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::reset_password))
         .routes(routes!(routes::auth::device_code))
         .routes(routes!(routes::auth::token))
+        .routes(routes!(routes::oauth_metadata::protected_resource))
         // Managing credentials (authenticated).
         .routes(routes!(routes::auth::logout))
         .routes(routes!(routes::auth::current_session))
@@ -90,10 +92,22 @@ fn auth_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::auth::revoke_session))
         .routes(routes!(routes::auth::device_approve))
         .routes(routes!(
-            routes::auth::list_access_keys,
-            routes::auth::create_access_key
+            routes::identity::keys,
+            routes::identity::create_key
         ))
-        .routes(routes!(routes::auth::revoke_access_key))
+        .routes(routes!(routes::identity::revoke_key))
+        .routes(routes!(routes::identity::rotate_key))
+        .routes(routes!(routes::identity::providers))
+        .routes(routes!(
+            routes::identity::connections,
+            routes::identity::create_connection
+        ))
+        .routes(routes!(routes::identity::disable_connection))
+        .routes(routes!(routes::identity::login))
+        .routes(routes!(routes::identity::callback))
+        .routes(routes!(routes::identity::users))
+        .routes(routes!(routes::identity::update_user))
+        .routes(routes!(routes::identity::capabilities))
 }
 
 /// Configuration registry, licence, remote-target and campaign routes.
@@ -202,6 +216,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // Ticket endpoints
         .routes(routes!(routes::tickets::get_one))
         .routes(routes!(routes::tickets::create))
+        .routes(routes!(routes::tickets::preview))
         .routes(routes!(routes::campaigns::batch_preview))
         .routes(routes!(routes::campaigns::batch_create))
         .routes(routes!(routes::tickets::update_status))
@@ -275,6 +290,31 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         // MCP descriptor - always mounted so non-HTTP MCP clients can still
         // discover the stdio entrypoint.
         .routes(routes!(crate::mcp::descriptor::descriptor))
+        .routes(routes!(routes::connections::get))
+        .routes(routes!(routes::connections::clients))
+        .merge(telemetry_router())
+        .merge(endpoint_router())
+}
+
+/// Paired endpoint machines. The literal `uplink` segment wins over `{id}`.
+fn endpoint_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(routes::endpoints::uplink))
+        .routes(routes!(routes::endpoints::list))
+        .routes(routes!(
+            routes::endpoints::get_one,
+            routes::endpoints::update,
+            routes::endpoints::revoke
+        ))
+}
+
+/// OTLP ingest (outside `/api/v1`, at the paths OTLP exporters derive) and the session window.
+fn telemetry_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(routes::telemetry::ingest_traces))
+        .routes(routes!(routes::telemetry::ingest_metrics))
+        .routes(routes!(routes::telemetry::ingest_logs))
+        .routes(routes!(routes::telemetry::get_session))
 }
 
 /// The canonical OpenAPI spec for the documented API surface.
@@ -335,18 +375,20 @@ fn cors_layer(config: &crate::config::Config) -> CorsLayer {
         .allow_credentials(true)
 }
 
-pub fn build_router(state: ApiState) -> Router {
-    let profiles = crate::profiles::ServerProfiles::open(state)
-        .expect("configuration registry must be available");
+pub fn build_router(state: ApiState) -> Result<Router> {
+    let profiles = crate::profiles::ServerProfiles::open(state)?;
     let default = profiles.default_state();
-    profile_router::mount(build_profile_router(default), profiles)
+    Ok(profile_router::mount(
+        build_profile_router(default),
+        profiles,
+    ))
 }
 
 pub(crate) fn build_profile_router(state: ApiState) -> Router {
     let config = state.config();
     let cors = cors_layer(&config);
 
-    let mcp_enabled = config.mcp.http_enabled;
+    let mcp_enabled = state.mcp_http_mounted;
 
     let (mut router, _api) = documented_router().split_for_parts();
 
@@ -376,6 +418,9 @@ pub(crate) fn build_profile_router(state: ApiState) -> Router {
         ))
         .layer(
             TraceLayer::new_for_http()
+                .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
+                    tracing::info_span!("http_request", method = %request.method(), path = request.uri().path())
+                })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
@@ -384,30 +429,59 @@ pub(crate) fn build_profile_router(state: ApiState) -> Router {
 }
 
 /// Start the REST API server (standalone mode with session file and logging)
-pub async fn serve(state: ApiState, port: u16) -> Result<()> {
+pub async fn serve(state: ApiState, port: u16, open: bool) -> Result<()> {
     let tickets_path = state.tickets_path.clone();
     let state_path = state.config().auth_state_path();
     let profile_id = state.config().profile.id;
     let host_ip = state.config().rest_api.host_ip();
-    let app = build_router(state.clone());
+    let app = build_router(state.clone())?;
     let addr = SocketAddr::new(host_ip, port);
 
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let addr = listener.local_addr()?;
+    let port = addr.port();
     tracing::info!("REST API listening on http://{}", addr);
     tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
-
-    // Write session file for client discovery
     write_session_file(&tickets_path, &state_path, port, profile_id)?;
-
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    state.auth.store.start_usage_tracking();
+    let (stop_runner, runner) =
+        crate::services::campaign_runner::spawn_campaign_runner(state.clone());
+    if open {
+        let url = format!("http://localhost:{port}/");
+        let mut command = if cfg!(target_os = "macos") {
+            std::process::Command::new("open")
+        } else if cfg!(target_os = "windows") {
+            let mut command = std::process::Command::new("cmd");
+            command.args(["/C", "start"]);
+            command
+        } else {
+            std::process::Command::new("xdg-open")
+        };
+        if let Err(error) = command.arg(url).spawn() {
+            tracing::warn!(%error, "Failed to open browser");
+        }
+    }
 
     // Serve with graceful shutdown
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(state.clone()))
-        .await?;
+    let result = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal(state.clone()))
+    .await;
+
+    let _ = stop_runner.send(());
+    let _ = runner.await;
+    state.wait_until_idle().await;
+    state.auth.store.stop_usage_tracking().await;
+
+    let flushed = state.auth.store.flush_usage();
 
     // Clean up session file on shutdown
     remove_session_file(&tickets_path);
 
+    result?;
+    flushed?;
     Ok(())
 }
 
@@ -491,16 +565,18 @@ async fn shutdown_signal(state: state::ApiState) {
     );
 
     loop {
-        let active_agents = crate::state::State::load(&config)
-            .map(|app_state| {
-                app_state.agents.iter().any(|agent| {
-                    matches!(
-                        agent.status.as_str(),
-                        "running" | "awaiting_input" | "completing"
-                    )
+        let active_agents = state.runtime_configs().iter().any(|config| {
+            crate::state::State::load(config)
+                .map(|app_state| {
+                    app_state.agents.iter().any(|agent| {
+                        matches!(
+                            agent.status.as_str(),
+                            "running" | "awaiting_input" | "completing"
+                        )
+                    })
                 })
-            })
-            .unwrap_or(true);
+                .unwrap_or(true)
+        });
         if !active_agents && state.in_flight_operations() == 0 {
             break;
         }
@@ -519,9 +595,13 @@ async fn shutdown_signal(state: state::ApiState) {
     }
 
     if state.in_flight_operations() == 0 {
-        let cleanup_config = (*config).clone();
-        let cleanup =
-            tokio::task::spawn_blocking(move || interrupt_agents_for_shutdown(&cleanup_config));
+        let configs = state.runtime_configs();
+        let cleanup = tokio::task::spawn_blocking(move || -> Result<()> {
+            for config in configs {
+                interrupt_agents_for_shutdown(&config)?;
+            }
+            Ok(())
+        });
         let remaining = cleanup_deadline.saturating_duration_since(Instant::now());
         match tokio::time::timeout(remaining, cleanup).await {
             Ok(Ok(Ok(()))) => {}

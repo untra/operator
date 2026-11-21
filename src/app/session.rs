@@ -131,7 +131,7 @@ impl App {
             .get_in_progress_ticket(ticket_id)?
             .ok_or_else(|| anyhow::anyhow!("Ticket not found: {ticket_id}"))?;
 
-        // Move ticket back to queue. Upstream kanban requeue-push (doing→todo)
+        // Move ticket back to queue. Upstream kanban requeue-push (doing -> todo)
         // is wired on the MCP return_to_queue path; this sync recovery path
         // stays local-only to avoid blocking on provider calls.
         queue.return_to_queue(&ticket)?;

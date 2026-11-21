@@ -2,15 +2,6 @@
 //!
 //! Emits the static collection bundle served from the docs site:
 //!
-//! ```text
-//! docs/collections/
-//! ├── index.json                 (CollectionIndex of all collections)
-//! └── <id>/
-//!     ├── collection.json         (CollectionManifest with checksums)
-//!     ├── icon.svg                (Simple Icons-shaped collection glyph)
-//!     ├── <KEY>.json              (issuetype schema, byte-identical to embedded)
-//!     └── <KEY>.md                (issuetype template)
-//!
 //! Two sources feed the bundle:
 //!
 //! * **Embedded** collections (`src/collections/`) are compiled into the binary

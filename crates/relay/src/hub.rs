@@ -20,8 +20,6 @@ use crate::protocol::{
     self, ClientMsg, ErrCode, PeerRecord, ServerMsg, MAX_LINE_LEN, PROTOCOL_VERSION,
 };
 
-// ── Public handle ────────────────────────────────────────────────────────────
-
 /// Handle to the running relay hub.
 pub struct RelayHub {
     cmd_tx: mpsc::Sender<HubCommand>,
@@ -113,8 +111,6 @@ impl RelayHub {
     }
 }
 
-// ── Actor commands ────────────────────────────────────────────────────────────
-
 enum HubCommand {
     ClientConnected {
         conn_id: u64,
@@ -132,8 +128,6 @@ enum HubCommand {
     },
     Shutdown,
 }
-
-// ── State ─────────────────────────────────────────────────────────────────────
 
 struct PeerEntry {
     name: String,
@@ -205,8 +199,6 @@ impl HubState {
     fn all_names(&self) -> Vec<String> {
         self.id_to_entry.values().map(|e| e.name.clone()).collect()
     }
-
-    // ── Message dispatch ──────────────────────────────────────────────────────
 
     fn handle_line(&mut self, conn_id: u64, line: &str) {
         let Ok(raw) = serde_json::from_str::<serde_json::Value>(line) else {
@@ -662,8 +654,6 @@ impl HubState {
     }
 }
 
-// ── Actor task ────────────────────────────────────────────────────────────────
-
 async fn run_actor(mut cmd_rx: mpsc::Receiver<HubCommand>, cmd_tx: mpsc::Sender<HubCommand>) {
     let mut state = HubState::new(cmd_tx);
     let mut sweep = tokio::time::interval(Duration::from_secs(1));
@@ -694,8 +684,6 @@ async fn run_actor(mut cmd_rx: mpsc::Receiver<HubCommand>, cmd_tx: mpsc::Sender<
         }
     }
 }
-
-// ── Accept loop ───────────────────────────────────────────────────────────────
 
 async fn run_accept_loop(listener: UnixListener, cmd_tx: mpsc::Sender<HubCommand>) {
     let next_conn_id = Arc::new(AtomicU64::new(1));
@@ -786,16 +774,12 @@ async fn handle_connection(socket: UnixStream, conn_id: u64, cmd_tx: mpsc::Sende
     let _ = cmd_tx.send(HubCommand::ClientDisconnect { conn_id }).await;
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::Duration;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::net::UnixStream;
-
-    // ── Test helpers ──────────────────────────────────────────────────────────
 
     struct TestHub {
         hub: RelayHub,
@@ -867,8 +851,6 @@ mod tests {
     async fn tick() {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-
-    // ── Tests ─────────────────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn test_register_ack() {

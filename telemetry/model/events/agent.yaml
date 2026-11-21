@@ -1,0 +1,78 @@
+groups:
+  - id: event.operator.agent.started
+    type: "event"
+    name: "operator.agent.started"
+    brief: "Operator agent started."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.session.name
+      - ref: operator.launch.mode
+  - id: event.operator.agent.completed
+    type: "event"
+    name: "operator.agent.completed"
+    brief: "Operator agent completed."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.pr.url
+      - ref: operator.duration
+  - id: event.operator.agent.failed
+    type: "event"
+    name: "operator.agent.failed"
+    brief: "Operator agent failed."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.error
+  - id: event.operator.agent.awaiting_input
+    type: "event"
+    name: "operator.agent.awaiting_input"
+    brief: "Operator agent awaiting input."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.reason
+  - id: event.operator.agent.session_lost
+    type: "event"
+    name: "operator.agent.session_lost"
+    brief: "Operator agent session lost."
+    stability: "development"
+    attributes:
+      - ref: operator.ticket.id
+      - ref: operator.session.id
+      - ref: operator.agent.id
+      - ref: operator.step.name
+      - ref: operator.project
+      - ref: operator.profile.id
+      - ref: operator.issuetype.key
+      - ref: operator.llm_tool
+      - ref: operator.session.name

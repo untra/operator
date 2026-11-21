@@ -402,7 +402,7 @@ export class ConfigPanel {
 
       case "openOperatorUi": {
         // The webview now links out to the daemon-hosted Operator UI for
-        // surfaces it no longer reimplements (issue types, projects, …).
+        // surfaces it no longer reimplements (issue types, projects, etc).
         const route = message.route as string;
         const command =
           route === "projects"
@@ -653,13 +653,9 @@ export class ConfigPanel {
   }
 }
 
-// ─── Config TOML Helpers ────────────────────────────────────────────────
-
 interface TomlConfig {
   [key: string]: unknown;
 }
-
-// ─── Kanban Providers ───────────────────────────────────────────────────
 //
 // The canonical list of kanban providers lives in the Rust
 // `KanbanProviderType::ALL` catalog and is projected into the generated
@@ -688,6 +684,8 @@ export const KANBAN_PROVIDERS: Record<string, KanbanProviderMeta> = {
   linear: { instanceKeyField: "team_id", defaultInstanceKey: "default-team" },
   github: { instanceKeyField: "owner", defaultInstanceKey: "your-org" },
   openspec: { instanceKeyField: "instance", defaultInstanceKey: "my-repo" },
+  gitea: { instanceKeyField: "instance", defaultInstanceKey: "work" },
+  forgejo: { instanceKeyField: "instance", defaultInstanceKey: "work" },
 };
 
 /** Slugs of every supported kanban provider, in catalog order. */
@@ -707,7 +705,7 @@ const KANBAN_PROJECT_LEVEL_KEYS = new Set([
  * in {@link KANBAN_PROVIDERS} - no new branch here or in the message handler.
  *
  * @param kanban the `[kanban]` table from the parsed config
- * @param slug   provider slug (`jira`, `linear`, `github`, …)
+ * @param slug   provider slug (`jira`, `linear`, `github`, etc)
  * @param instanceKey provider map key identifying the instance to update
  * @param key    field key emitted by the webview (`enabled`, `api_key_env`,
  *               the instance-key field, `project_key`, a project-level key, or
@@ -791,7 +789,7 @@ export function applyKanbanProviderField(
       (projects[pKey] as TomlConfig)[field] = value;
     }
   } else {
-    // Instance-level scalar (enabled, api_key_env, email, …)
+    // Instance-level scalar (enabled, api_key_env, email, etc)
     ws[key] = value;
   }
 }

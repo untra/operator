@@ -151,7 +151,7 @@ A model provider is **connected** when its model-list probe succeeds. Gateways (
 | Ollama | openai | gateway | yes | optional | - |
 | OpenRouter | openai | gateway | yes | yes | - |
 
-## LLM tool × model provider
+## LLM tool X model provider
 
 **Native** - the CLI speaks this provider's protocol. **Bridge** - a protocol-preserving front (claude-code-router, litellm, etc) is required. **Incompatible** - this first-party API is the wrong protocol for the CLI.
 

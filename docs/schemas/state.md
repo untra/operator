@@ -31,7 +31,7 @@ This file tracks the current state of agents, completed tickets, and system stat
 | `project_llm_stats` | `object` | No | Per-project LLM usage statistics |
 | `project_collection_prefs` | `object` | No | Per-project issue type collection preferences (`project_name` -> `collection_name`) |
 | `multi_agent_groups` | `array` | No | Active multi-agent step groups (`multi_model`, `multi_prompt`, `matrixed`) |
-| `campaign_runs` | `object` | No | Campaign id → runner bookkeeping |
+| `campaign_runs` | `object` | No | Campaign id to runner bookkeeping |
 
 ## Type Definitions
 
@@ -235,7 +235,7 @@ Runner bookkeeping for one campaign.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `launches` | `object` | No | Ticket id → launches made by the runner |
+| `launches` | `object` | No | Ticket id to launches made by the runner |
 | `started_at` | `string` \| `null` | No |  |
 | `last_error` | `string` \| `null` | No |  |
 | `pause_reason` | `string` \| `null` | No | Why the run paused, if it did |

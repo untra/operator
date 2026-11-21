@@ -43,6 +43,7 @@ JSON Schema for the Operator configuration file (`config.toml`).
 | `sessions` | → `SessionsConfig` | No | Session wrapper configuration (tmux, vscode, or cmux) |
 | `llm_tools` | → `LlmToolsConfig` | No | Detected LLM CLIs and provider preferences. |
 | `rest_api` | → `RestApiConfig` | No | Embedded REST API server. |
+| `egress` | → `EgressConfig` | No | Private destinations permitted for guarded outbound model requests. |
 | `git` | → `GitConfig` | No | Git provider, identity, and worktree settings. |
 | `kanban` | → `KanbanConfig` | No | Kanban provider configuration for syncing issues from Jira, Linear, etc. |
 | `version_check` | → `VersionCheckConfig` | No | Version check configuration for automatic update notifications |
@@ -383,7 +384,7 @@ Placement policy for cmux sessions: where to create new agent terminals
 
 **Allowed Values:**
 
-- `auto` - Automatically choose: 0-1 windows → new workspace, >1 windows → new window
+- `auto` - Automatically choose: 0-1 windows -> new workspace, >1 windows -> new window
 - `workspace` - Always create a new workspace in the active window
 - `window` - Always create a new window for each ticket
 
@@ -487,7 +488,7 @@ Per-tool skill directory overrides
 
 ### RestApiConfig
 
-REST API server configuration
+REST API server configuration.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -498,6 +499,14 @@ REST API server configuration
 | `public_url` | `string` \| `null` | No | Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host. |
 | `shutdown_drain_seconds` | `integer` | No | Maximum time to wait for active agents before shutdown cleanup begins. |
 | `shutdown_cleanup_seconds` | `integer` | No | Maximum time reserved for final callbacks and persistent cleanup. |
+
+### EgressConfig
+
+Outbound model destination exceptions.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `allow_private_cidrs` | `array` | No | Private IPv4/IPv6 CIDRs allowed in published deployments; reserved and loopback addresses remain blocked. |
 
 ### GitConfig
 
@@ -612,8 +621,8 @@ Per-project/team sync configuration for a kanban provider
 | `sync_user_id` | `string` | No | User ID to sync issues for (provider-specific format) - Jira: accountId (e.g., "5e3f7acd9876543210abcdef") - Linear: user ID (e.g., "abc12345-6789-0abc-def0-123456789abc") - GitHub Projects: numeric GitHub `databaseId` (e.g., "12345678") |
 | `status_mapping` | → `KanbanStatusMapping` | No | Mapping of operator todo/doing/done to external board columns |
 | `collection_name` | `string` \| `null` | No | Optional `IssueTypeCollection` name this project maps to. Not required for kanban onboarding or sync. |
-| `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
-| `bidirectional` | `boolean` | No | When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo→doing, doing→done) and step completions with delegator info are reflected upstream. Default: false. |
+| `type_mappings` | `object` | No | Explicit mapping: kanban issue type ID to operator issue type key (e.g., TASK, FEAT, FIX). Multiple kanban types can map to the same operator template. |
+| `bidirectional` | `boolean` | No | When true, operator pushes status changes and activity logs back to this kanban project. Ticket state changes (todo->doing, doing->done) and step completions with delegator info are reflected upstream. Default: false. |
 | `ticket_project` | `string` \| `null` | No | Operator project name stamped on tickets created from this source. Defaults to the external project key when unset. |
 | `scope` | object | No | Sync one upstream container into a campaign instead of the whole project (Premium). Scoped syncs pull every member regardless of assignee. |
 
@@ -625,7 +634,7 @@ external board's column/status names.
 Drives bidirectional sync: issues are pulled from the `todo` column,
 pushed to `doing` when a ticket is claimed, to `done` when completed, and
 back to `todo` when requeued. Unset fields fall back per-transition
-(`doing` → "In Progress", `done` → "Done"); requeue only pushes when
+(`doing` -> "In Progress", `done` -> "Done"); requeue only pushes when
 `todo` is explicitly mapped.
 
 | Property | Type | Required | Description |
@@ -737,7 +746,7 @@ A delegator is a named {tool, model} pairing with optional launch configuration.
 | `display_name` | `string` \| `null` | No | Optional display name for UI |
 | `model_properties` | `object` | No | Arbitrary model properties (e.g., `reasoning_effort`, sandbox) |
 | `launch_config` | object | No | Optional launch configuration |
-| `model_server` | `string` \| `null` | No | Name of a declared `ModelServer` (from `Config.model_servers`). `None` means use the `llm_tool`'s implicit vendor default (claude : anthropic-api, codex : openai-api, gemini → google-api). |
+| `model_server` | `string` \| `null` | No | Name of a declared `ModelServer` (from `Config.model_servers`). `None` means use the `llm_tool`'s implicit vendor default (claude : anthropic-api, codex : openai-api, gemini : google-api). |
 | `governance` | `string` \| `null` | No | Name of a `[[governance]]` policy enforced on every launch by this delegator. |
 | `remote_agent` | object | No | Declarative reference to a remote, named agent on another platform (e.g. an AGNT agent or an `OpenAI` Assistant; see [`crate::config::AgentProfile`]).  Export-only: Operator has no runtime client for those platforms, so a delegator carrying this CANNOT be launched locally - resolution errors out (see `delegator_resolution`). It is stored, listed, serialized into an `AgentProfile`, and - for `platform == "agnt"` - surfaced in the `--format agnt` workflow export as a native AGNT `agnt-agent` node, whose `agentId` is this reference's `id` (AGNT identifies agents by UUID, so the `id` must be the agent's UUID, not its display name). `None` = ordinary, locally launchable delegator. |
 | `x_agnt` | object | No | Opaque AGNT-namespaced extension fields, preserved verbatim across an `AgentProfile` round-trip so re-export is lossless (e.g. `memory`, `assignedWorkflows`, `creditLimit`). Operator never interprets this. |
@@ -807,7 +816,7 @@ cannot be launched locally (see the guard in `delegator_resolution`).
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `platform` | `string` | Yes | Hosting platform (e.g. `"agnt"`, `"openai"`). |
-| `id` | `string` | Yes | Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id). |
+| `id` | `string` | Yes | Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_` id). |
 
 ### ModelServer
 

@@ -30,7 +30,7 @@ Schema definition for an issuetype template
 | `key` | `string` | Yes | Unique issuetype key (e.g., FEAT, FIX, SPIKE, INV, TASK) |
 | `name` | `string` | Yes | Display name of the template type |
 | `description` | `string` | Yes | Brief description of when to use this template |
-| `mode` | `ExecutionMode` | Yes | Whether this issuetype runs autonomously or requires human pairing |
+| `mode` | → `ExecutionMode` | Yes | Whether this issuetype runs autonomously or requires human pairing |
 | `glyph` | `string` | Yes | Glyph character displayed in UI for this issuetype |
 | `color` | `string` \| `null` | No | Optional color for glyph display in TUI |
 | `project_required` | `boolean` | No | Whether a project must be specified for this issuetype |
@@ -425,7 +425,7 @@ step-graph linearity question.
 | --- | --- | --- | --- |
 | `prompt` | `string` | Yes | Handlebars prompt. The per-item value is appended as a JS binding at export time (see `workflow_gen::export`), not via a Handlebars variable. |
 | `agent` | `string` \| `null` | No | Optional agent/delegator name (falls back to the step/issuetype agent). |
-| `model` | `string` \| `null` | No | Optional model pin (emitted as `{ model: … }`). |
-| `jsonSchema` | object | No | Optional structured-output JSON schema (emitted as `{ schema: … }`). |
+| `model` | `string` \| `null` | No | Optional model pin (emitted as `{ model: ... }`). |
+| `jsonSchema` | object | No | Optional structured-output JSON schema (emitted as `{ schema: ... }`). |
 | `label` | `string` \| `null` | No | Optional display label override (defaults to `<step>:<stage-index>`). |
 

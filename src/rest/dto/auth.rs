@@ -20,16 +20,10 @@ use utoipa::ToSchema;
 pub const MAX_ACCESS_KEY_EXPIRY_DAYS: u64 = 365;
 pub const MAX_IDENTIFIER_LENGTH: usize = 128;
 
-// =============================================================================
-// Scopes
-// =============================================================================
-
 /// A typed authorization scope.
 ///
-/// Scopes are **not hierarchical**: `Write` does not imply `Read`. A credential
-/// is granted each scope it needs explicitly, so an integration's authority is
-/// legible from its scope list alone rather than requiring the reader to reason
-/// about implication.
+/// Scopes are **not hierarchical**: `Write` does not imply `Read`.
+/// A credential is granted each scope it needs explicitly, so an integration's authority is legible from its scope list.
 #[derive(
     Debug,
     Clone,
@@ -61,11 +55,6 @@ pub enum Scope {
 impl Scope {
     /// Every scope, in privilege-suggesting order. The single source of truth
     /// for "all scopes" across the API, the CLI, and the clients.
-    ///
-    /// Unused in the binary until Phase 3 wires route authorization; the DTO
-    /// contract ships a phase ahead of its consumers so generated clients and
-    /// the OpenAPI spec are settled before any handler depends on them.
-    #[allow(dead_code)]
     pub const ALL: [Scope; 4] = [Scope::Read, Scope::Write, Scope::Execute, Scope::Admin];
 
     /// Wire representation, matching the `serde` rename.
@@ -270,6 +259,8 @@ pub enum PrincipalKind {
     AgentCallback,
     /// An agent session's scopeless OTLP ingest token.
     TelemetryIngest,
+    /// A paired endpoint machine's access token.
+    Endpoint,
 }
 
 /// A freshly minted CSRF token for the current session.
@@ -410,7 +401,7 @@ impl std::fmt::Debug for TokenResponse {
     }
 }
 
-/// Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can
+/// Standardized OAuth error, shaped per RFC 6749 so stock clients can
 /// interpret it - notably `authorization_pending` and `slow_down`, which a
 /// device-flow client polls against.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
@@ -456,6 +447,7 @@ pub enum OAuthErrorCode {
 // =============================================================================
 
 /// Create a service access key for an integration.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyRequest {
@@ -473,6 +465,7 @@ pub struct CreateAccessKeyRequest {
 
 /// A newly created access key. **The secret appears here and nowhere else,
 /// ever** - only its hash is stored, so it cannot be shown again.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CreateAccessKeyResponse {
@@ -507,6 +500,7 @@ pub struct AccessKeySummary {
 }
 
 /// All access keys, active and revoked.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct AccessKeyListResponse {
@@ -515,6 +509,7 @@ pub struct AccessKeyListResponse {
 }
 
 /// Result of revoking an access key.
+#[cfg(test)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct RevokeAccessKeyResponse {
@@ -607,6 +602,25 @@ mod tests {
         }
         assert_eq!("".parse::<Scope>(), Err(()));
         assert_eq!("superuser".parse::<Scope>(), Err(()));
+    }
+
+    #[test]
+    fn test_scope_is_exactly_read_write_execute_admin() {
+        assert_eq!(
+            Scope::ALL,
+            [Scope::Read, Scope::Write, Scope::Execute, Scope::Admin]
+        );
+        for scope in Scope::ALL {
+            match scope {
+                Scope::Read | Scope::Write | Scope::Execute | Scope::Admin => {}
+            }
+            assert_eq!(
+                serde_json::to_value(scope).unwrap(),
+                serde_json::json!(scope.as_str())
+            );
+        }
+        assert_eq!("endpoint".parse::<Scope>(), Err(()));
+        assert!(serde_json::from_value::<Scope>(serde_json::json!("endpoint")).is_err());
     }
 
     #[test]

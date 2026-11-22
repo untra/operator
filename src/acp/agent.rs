@@ -37,7 +37,8 @@ pub fn build_initialize_response(request: &InitializeRequest) -> InitializeRespo
 /// transport errors. Logs go to stderr via `tracing`; stdout is reserved
 /// for line-delimited JSON-RPC (see `src/logging.rs` - global subscriber
 /// writes to stderr).
-pub async fn run_stdio(config: Config) -> agent_client_protocol::Result<()> {
+pub async fn run_stdio(mut config: Config) -> agent_client_protocol::Result<()> {
+    config.acquire_ownership()?;
     let registry = Arc::new(SessionRegistry::new());
     let config = Arc::new(config);
 

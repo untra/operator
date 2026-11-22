@@ -63,8 +63,6 @@ async function syncAndNudgeIssueTypes(
   }
 }
 
-// ─── Input Helpers ─────────────────────────────────────────────────────
-
 /**
  * Show an InputBox with Back button support and step indicators.
  * Returns the entered string, 'back' if Back was pressed, or undefined if cancelled.
@@ -159,8 +157,6 @@ export async function showEnvVarInstructions(exportBlock: string): Promise<void>
     void vscode.window.showInformationMessage("Environment variable exports copied to clipboard.");
   }
 }
-
-// ─── Interactive Onboarding Flows ──────────────────────────────────────
 
 /**
  * Collect Jira credentials via a 3-step InputBox wizard.
@@ -963,8 +959,6 @@ export async function startKanbanOnboarding(context: vscode.ExtensionContext): P
       );
   }
 }
-
-// ─── Add Project/Team Flows ───────────────────────────────────────────
 
 /**
  * Add a new Jira project. Since all credential state lives on the server

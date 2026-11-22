@@ -60,7 +60,7 @@ export function ResetPasswordPage() {
       actions={
         <AuthSubmit
           busy={reset.isPending || login.isPending}
-          busyLabel="Changing…"
+          busyLabel="Changing..."
           disabled={!ready}
         >
           Change password

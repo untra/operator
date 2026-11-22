@@ -14,7 +14,7 @@ use crate::rest::state::ApiState;
 
 pub const MAX_PROFILE_NAME_LENGTH: usize = 64;
 pub const LEGACY_PROFILE_NAME: &str = "legacy";
-const REGISTRY_FILE: &str = "profiles.sqlite";
+pub(crate) const REGISTRY_FILE: &str = "profiles.sqlite";
 pub const REGISTRY_ENV: &str = "OPERATOR_PROFILE_REGISTRY";
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, ToSchema)]
@@ -71,6 +71,54 @@ fn open_registry(path: &Path) -> Result<Connection> {
     Ok(connection)
 }
 
+fn read_registry(path: &Path) -> Result<Option<Connection>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let connection = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    Ok(Some(connection))
+}
+
+pub(crate) fn auth_path_read_only(path: &Path) -> Result<Option<PathBuf>> {
+    let Some(connection) = read_registry(path)? else {
+        return Ok(None);
+    };
+    if !connection.table_exists(None, "settings")? {
+        return Ok(None);
+    }
+    use rusqlite::OptionalExtension;
+    Ok(connection
+        .query_row(
+            "SELECT value FROM settings WHERE key='auth_path'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .map(PathBuf::from)
+        .filter(|path| path.exists()))
+}
+
+pub(crate) fn registered_configs_read_only(registry: &Path) -> Result<Vec<Config>> {
+    let Some(connection) = read_registry(registry)? else {
+        return Ok(Vec::new());
+    };
+    if !connection.table_exists(None, "profiles")? {
+        return Ok(Vec::new());
+    }
+    let mut query = connection.prepare("SELECT config_path FROM profiles ORDER BY config_path")?;
+    let mut configs = Vec::new();
+    for row in query.query_map([], |row| row.get::<_, String>(0))? {
+        let path = row?;
+        match load_registered(Path::new(&path), registry) {
+            Ok(config) => configs.push(config),
+            Err(error) => {
+                tracing::warn!(config_path = %path, %error, "Registered configuration is unavailable");
+            }
+        }
+    }
+    Ok(configs)
+}
+
 fn absolute_paths(config: &mut Config, root: &Path) {
     for value in [
         &mut config.paths.tickets,
@@ -96,7 +144,7 @@ pub fn load_registered(path: &Path, registry: &Path) -> Result<Config> {
         .try_deserialize()?;
     config.config_file = Some(path.clone());
     config.profile_registry = Some(registry.to_path_buf());
-    let connection = open_registry(registry)?;
+    let connection = read_registry(registry)?.context("Configuration registry does not exist")?;
     let (id, name): (String, String) = connection
         .query_row(
             "SELECT id, name FROM profiles WHERE config_path = ?1",
@@ -115,7 +163,8 @@ pub fn load_registered(path: &Path, registry: &Path) -> Result<Config> {
             |row| row.get::<_, String>(0),
         )
         .ok()
-        .map(PathBuf::from);
+        .map(PathBuf::from)
+        .filter(|path| path.exists());
     absolute_paths(
         &mut config,
         path.parent().context("Configuration needs a parent")?,
@@ -127,7 +176,7 @@ pub fn load_registered(path: &Path, registry: &Path) -> Result<Config> {
 pub fn select(name: &str) -> Result<Config> {
     validate_name(name)?;
     let registry = registry_path()?;
-    let connection = open_registry(&registry)?;
+    let connection = read_registry(&registry)?.context("Configuration registry does not exist")?;
     let path: String = connection
         .query_row(
             "SELECT config_path FROM profiles WHERE name = ?1",
@@ -139,6 +188,7 @@ pub fn select(name: &str) -> Result<Config> {
 }
 
 pub fn rename_registered(config: &mut Config, name: &str) -> Result<()> {
+    let _ownership = crate::ownership::Ownership::acquire(config)?;
     validate_name(name)?;
     let registry = config
         .profile_registry
@@ -188,6 +238,12 @@ pub fn register_legacy(config: &mut Config) -> Result<()> {
 /// row already exists for this config path. Split from [`register_legacy`] so
 /// tests can point at a temporary registry instead of the user's own.
 fn register_in(config: &mut Config, registry: &Path) -> Result<()> {
+    let _registry_guard = crate::ownership::registry_guard(registry)?;
+    let mut ownership_config = config.clone();
+    ownership_config.profile_registry = Some(registry.to_path_buf());
+    ownership_config.acquire_ownership()?;
+    config.ownership = ownership_config.ownership;
+    config.server_auth_path = ownership_config.server_auth_path;
     let registry = registry.to_path_buf();
     let mut connection = open_registry(&registry)?;
     // Immediate, not deferred: every `operator` invocation runs this, so two
@@ -314,7 +370,7 @@ impl ServerProfiles {
             let mut query = registry.prepare("SELECT config_path FROM profiles")?;
             for row in query.query_map([], |row| row.get::<_, String>(0))? {
                 let path = row?;
-                let loaded = match load_registered(Path::new(&path), &registry_path) {
+                let mut loaded = match load_registered(Path::new(&path), &registry_path) {
                     Ok(loaded) => loaded,
                     Err(error) => {
                         tracing::warn!(config_path = %path, %error, "Registered configuration is unavailable");
@@ -322,11 +378,13 @@ impl ServerProfiles {
                     }
                 };
                 if loaded.profile.id != config.profile.id {
-                    let state = ApiState::with_auth(
+                    loaded.acquire_ownership()?;
+                    let mut state = ApiState::try_with_auth(
                         loaded.clone(),
                         loaded.tickets_path(),
                         Arc::clone(&primary.auth),
-                    );
+                    )?;
+                    state.inherit_runtime(&primary);
                     states.insert(loaded.profile.id, state);
                 }
             }
@@ -386,13 +444,20 @@ impl ServerProfiles {
     }
 
     pub fn create(&self, name: &str) -> Result<ProfileSummary> {
+        self.create_with_id(name, Uuid::new_v4())
+    }
+
+    fn create_with_id(&self, name: &str, id: Uuid) -> Result<ProfileSummary> {
+        let _permit = self
+            .primary
+            .begin_launch()
+            .map_err(|error| anyhow::anyhow!("{error:?}"))?;
         validate_name(name)?;
         let registry = self.registry.lock().expect("profile registry poisoned");
         anyhow::ensure!(
             !self.list().iter().any(|p| p.name == name),
             "Configuration name already exists"
         );
-        let id = Uuid::new_v4();
         let root = self
             .registry_path
             .parent()
@@ -418,6 +483,12 @@ impl ServerProfiles {
             .into_owned();
         config.rest_api = self.primary.config().rest_api.clone();
         config.sessions.tmux.socket_name = format!("operator-{id}");
+        config.acquire_ownership()?;
+        let mut state = ApiState::try_with_auth(
+            config.clone(),
+            config.tickets_path(),
+            Arc::clone(&self.primary.auth),
+        )?;
         config.save()?;
         registry.execute(
             "INSERT INTO profiles (id,name,config_path) VALUES (?1,?2,?3)",
@@ -427,12 +498,8 @@ impl ServerProfiles {
                 config.operator_config_path_for().to_string_lossy()
             ],
         )?;
+        state.inherit_runtime(&self.primary);
         let summary = self.summary_for(&config);
-        let state = ApiState::with_auth(
-            config.clone(),
-            config.tickets_path(),
-            Arc::clone(&self.primary.auth),
-        );
         self.states
             .write()
             .expect("profile registry poisoned")
@@ -483,6 +550,61 @@ impl ServerProfiles {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_profile_activation_contention_preserves_registry_and_primary() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut config = Config::default();
+        config.paths.state = temp.path().join("state").to_string_lossy().into_owned();
+        config.paths.tickets = temp.path().join("tickets").to_string_lossy().into_owned();
+        config.profile_registry = Some(temp.path().join(REGISTRY_FILE));
+        let primary = ApiState::new(config.clone(), config.tickets_path());
+        let profiles = ServerProfiles::open(primary.clone()).unwrap();
+        let before = profiles.list().len();
+        let id = Uuid::new_v4();
+        let root = temp.path().join("profiles").join(id.to_string());
+        let _conflict = crate::ownership::ResourceGuard::state(&root.join("state")).unwrap();
+        assert!(profiles.create_with_id("contended", id).is_err());
+        assert_eq!(profiles.list().len(), before);
+        assert!(profiles.state(id).is_none());
+        assert!(!root.join("config.toml").exists());
+        assert_eq!(
+            profiles
+                .registry
+                .lock()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM profiles WHERE id=?1",
+                    [id.to_string()],
+                    |row| row.get::<_, u32>(0)
+                )
+                .unwrap(),
+            0
+        );
+        assert!(crate::ownership::ResourceGuard::state(&config.state_path()).is_err());
+        assert!(primary.is_accepting_launches());
+    }
+
+    #[test]
+    fn test_profile_states_share_runtime_admission_and_endpoint_shutdown() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut config = Config::default();
+        config.paths.state = temp.path().join("state").to_string_lossy().into_owned();
+        config.paths.tickets = temp.path().join("tickets").to_string_lossy().into_owned();
+        config.profile_registry = Some(temp.path().join(REGISTRY_FILE));
+        let primary = ApiState::new(config.clone(), config.tickets_path());
+        let profiles = ServerProfiles::open(primary.clone()).unwrap();
+        let created = profiles.create("second").unwrap();
+        let second = profiles.state(created.id).unwrap();
+        assert!(Arc::ptr_eq(&primary.endpoints, &second.endpoints));
+        let permit = second.begin_callback().unwrap();
+        assert_eq!(primary.in_flight_operations(), 1);
+        primary.start_stopping();
+        assert!(!second.is_accepting_launches());
+        assert!(second.endpoints.is_stopping());
+        drop(permit);
+        assert_eq!(primary.in_flight_operations(), 0);
+    }
 
     #[test]
     fn names_reject_paths_unicode_and_empty_values() {

@@ -31,6 +31,13 @@ pub const AUDIENCE_CALLBACK: &str = "opr8r-callback";
 /// Audience for agent-session OTLP ingest; carries no API scopes.
 pub const AUDIENCE_TELEMETRY: &str = "otlp-ingest";
 
+/// OAuth client id an endpoint machine pairs with. It receives no scopes: its
+/// authority is the endpoint binding, re-checked against the store per request.
+pub const ENDPOINT_CLIENT_ID: &str = "opr8r-endpoint";
+
+/// Subject of an endpoint token: it acts as the machine, not the admin.
+pub const ENDPOINT_SUBJECT: &str = "endpoint";
+
 /// Registered and Operator-specific claims.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
@@ -63,6 +70,10 @@ pub struct Claims {
     /// Agent session a callback token is pinned to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Paired endpoint an endpoint token acts as. The middleware re-checks it
+    /// against the store on every request, so revocation is immediate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint_id: Option<String>,
 }
 
 impl Claims {
@@ -199,6 +210,15 @@ pub fn api_claims(subject: &str, scopes: &[Scope], now: DateTime<Utc>, jti: Stri
         ticket_id: None,
         step: None,
         session_id: None,
+        endpoint_id: None,
+    }
+}
+
+/// Build the claims for a paired endpoint's access token.
+pub fn endpoint_claims(endpoint_id: &str, now: DateTime<Utc>, jti: String) -> Claims {
+    Claims {
+        endpoint_id: Some(endpoint_id.to_string()),
+        ..api_claims(ENDPOINT_SUBJECT, &[], now, jti)
     }
 }
 
@@ -233,6 +253,41 @@ pub fn callback_claims(
         ticket_id: Some(ticket_id.to_string()),
         step: Some(step.to_string()),
         session_id: Some(session_id.to_string()),
+        endpoint_id: None,
+    }
+}
+
+/// Build the claims for an agent session's OTLP ingest token.
+///
+/// Pinned like a callback token, but it carries **no** scopes, so it fails
+/// every ordinary route; only `/otlp/v1/*` accepts its audience. The pinned
+/// ticket, step and session become the trusted correlation attributes that
+/// overwrite whatever the client claimed.
+#[allow(dead_code)]
+pub fn telemetry_claims(
+    subject: &str,
+    ticket_id: &str,
+    step: &str,
+    session_id: &str,
+    ttl: Duration,
+    now: DateTime<Utc>,
+    jti: String,
+) -> Claims {
+    Claims {
+        credential_version: 1,
+        key_id: None,
+        profile_id: None,
+        iss: ISSUER.to_string(),
+        aud: AUDIENCE_TELEMETRY.to_string(),
+        sub: subject.to_string(),
+        scope: String::new(),
+        exp: (now + ttl).timestamp(),
+        iat: now.timestamp(),
+        jti,
+        ticket_id: Some(ticket_id.to_string()),
+        step: Some(step.to_string()),
+        session_id: Some(session_id.to_string()),
+        endpoint_id: None,
     }
 }
 
@@ -284,6 +339,23 @@ pub(crate) mod test_support {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn endpoint_claims_carry_the_endpoint_and_no_scope() {
+        let claims = endpoint_claims("ep-1", Utc::now(), "jti".into());
+        assert_eq!(claims.endpoint_id.as_deref(), Some("ep-1"));
+        assert_eq!(claims.scope, "");
+        assert!(claims.scopes().is_empty());
+        assert_eq!(claims.aud, AUDIENCE_API);
+    }
+
+    #[test]
+    fn claims_without_an_endpoint_id_still_parse_and_omit_it() {
+        let claims = api_claims("admin", &[Scope::Read], Utc::now(), "jti".into());
+        let json = serde_json::to_value(&claims).unwrap();
+        assert!(json.get("endpoint_id").is_none());
+        let back: Claims = serde_json::from_value(json).unwrap();
+        assert!(back.endpoint_id.is_none());
+    }
 
     #[test]
     fn test_scope_claim_uses_space_separated_oauth_form() {

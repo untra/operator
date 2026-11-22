@@ -279,7 +279,8 @@ mod tests {
                 "oidc connection disabled",
                 "user permissions changed",
                 "oidc login",
-                "access key rotated"
+                "access key rotated",
+                "endpoint revoked"
             ]
         );
         for action in AuditAction::ALL {

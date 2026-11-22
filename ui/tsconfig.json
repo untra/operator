@@ -11,6 +11,7 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "types": ["bun"],
     "paths": {
       "@operator/bindings/*": ["../bindings/*"],
       "@operator/webcomponents": ["../webcomponents/dist/index.d.ts"]

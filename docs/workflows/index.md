@@ -279,7 +279,7 @@ Official collections live in the [operator repository](https://github.com/untra/
 6. Run the CI gate locally, then open a pull request:
 
 ```bash
-cargo test --test community_collections
+cargo test --test it suites::community_collections::
 ```
 
 Submissions are reviewed for prompt quality and safety, not just schema

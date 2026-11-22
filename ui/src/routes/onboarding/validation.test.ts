@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import * as webcomponentMocks from "../../test-webcomponents";
 import type { WizardDraft } from "./types";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
 const { coderParameterNameRules, kanbanCredentialsValid, stepValid } = await import("./validation");
 

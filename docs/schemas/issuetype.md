@@ -425,7 +425,7 @@ step-graph linearity question.
 | --- | --- | --- | --- |
 | `prompt` | `string` | Yes | Handlebars prompt. The per-item value is appended as a JS binding at export time (see `workflow_gen::export`), not via a Handlebars variable. |
 | `agent` | `string` \| `null` | No | Optional agent/delegator name (falls back to the step/issuetype agent). |
-| `model` | `string` \| `null` | No | Optional model pin (emitted as `{ model: … }`). |
-| `jsonSchema` | object | No | Optional structured-output JSON schema (emitted as `{ schema: … }`). |
+| `model` | `string` \| `null` | No | Optional model pin (emitted as `{ model: ... }`). |
+| `jsonSchema` | object | No | Optional structured-output JSON schema (emitted as `{ schema: ... }`). |
 | `label` | `string` \| `null` | No | Optional display label override (defaults to `<step>:<stage-index>`). |
 

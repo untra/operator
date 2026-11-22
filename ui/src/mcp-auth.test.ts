@@ -1,3 +1,4 @@
+import { rejects } from "node:assert/strict";
 import { afterEach, expect, test } from "bun:test";
 import { OperatorApi, setCsrfToken } from "./api-client";
 import type { Host } from "./host";
@@ -31,9 +32,10 @@ test("exchanges a raw key and sends only the bearer token to the profile MCP tra
     }
     return Promise.resolve(new Response(null, { status: 403 }));
   });
-  await expect(
+  await rejects(
     new OperatorApi(host).checkMcp("raw-key", new AbortController().signal),
-  ).rejects.toThrow("Permission denied");
+    /Permission denied/,
+  );
   expect(calls).toEqual([
     {
       path: "/prefix/api/v1/auth/token",
@@ -58,7 +60,7 @@ test("a cancelled check cannot proceed to MCP", async () => {
       new Response(JSON.stringify({ access_token: "token", token_type: "Bearer" })),
     );
   });
-  await expect(new OperatorApi(host).checkMcp("raw-key", controller.signal)).rejects.toThrow();
+  await rejects(new OperatorApi(host).checkMcp("raw-key", controller.signal));
   expect(calls).toEqual(["/prefix/api/v1/auth/token"]);
 });
 
@@ -68,8 +70,9 @@ test("a malformed token exchange never falls back to the browser session", async
     calls.push(requestPath(input));
     return Promise.resolve(new Response("{}"));
   });
-  await expect(
+  await rejects(
     new OperatorApi(host).checkMcp("raw-key", new AbortController().signal),
-  ).rejects.toThrow("Token exchange did not return a bearer token");
+    /Token exchange did not return a bearer token/,
+  );
   expect(calls).toEqual(["/prefix/api/v1/auth/token"]);
 });

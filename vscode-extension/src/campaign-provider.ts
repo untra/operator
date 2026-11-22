@@ -1,5 +1,5 @@
 /**
- * Campaigns view: campaign → wave → ticket, read from the Operator REST API.
+ * Campaigns view: campaign -> wave -> ticket, read from the Operator REST API.
  *
  * Campaigns are Premium. Without a license the view stays visible with a
  * single row linking to the license page, so the feature reads as locked

@@ -391,11 +391,20 @@ pub fn wake() -> Arc<Notify> {
 const TICK_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Tick every running campaign on an interval and whenever a ticket moves.
-pub fn spawn_campaign_runner(config: impl Fn() -> Arc<Config> + Send + 'static) {
-    tokio::spawn(async move {
+pub fn spawn_campaign_runner(
+    state: crate::rest::ApiState,
+) -> (
+    tokio::sync::oneshot::Sender<()>,
+    tokio::task::JoinHandle<()>,
+) {
+    let (stop, mut stopping) = tokio::sync::oneshot::channel();
+    let worker = tokio::spawn(async move {
         let notify = wake();
         loop {
-            let config = config();
+            if !state.is_accepting_launches() {
+                break;
+            }
+            let config = state.config();
             let port = LauncherPort::new((*config).clone());
             for campaign in CampaignStore::new(&config).list() {
                 if campaign.status != CampaignStatus::Running {
@@ -406,11 +415,13 @@ pub fn spawn_campaign_runner(config: impl Fn() -> Arc<Config> + Send + 'static) 
                 }
             }
             tokio::select! {
+                _ = &mut stopping => break,
                 () = notify.notified() => {}
                 () = tokio::time::sleep(TICK_INTERVAL) => {}
             }
         }
     });
+    (stop, worker)
 }
 
 #[cfg(test)]

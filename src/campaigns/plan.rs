@@ -12,9 +12,9 @@ use crate::queue::{queue_order_key, Ticket};
 pub struct CampaignPlan {
     /// Pending members in launch order; wave N depends only on earlier waves.
     pub waves: Vec<Vec<String>>,
-    /// Member id → local tickets outside the campaign it waits on.
+    /// Member id - local tickets outside the campaign it waits on.
     pub gates: BTreeMap<String, Vec<String>>,
-    /// Member id → references to issues that are not synced; these block.
+    /// Member id - references to issues that are not synced; these block.
     pub unsynced: BTreeMap<String, Vec<String>>,
 }
 

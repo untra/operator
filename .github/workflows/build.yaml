@@ -10,8 +10,6 @@ on:
       - main
     paths-ignore:
       - 'VERSION'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
       - 'docs/**'
       - '.github/workflows/docs.yml'
       - 'vscode-extension/package.json'
@@ -51,6 +49,12 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install Unicleaner
+        run: make install-unicleaner
+
+      - name: Lint Unicode
+        run: make lint-unicode
 
       # The frontend is typed against these; generate before anything compiles.
       - name: Generate TypeScript bindings and verify they are committed
@@ -116,7 +120,7 @@ jobs:
           fi
 
       - name: Set up Helm
-        uses: azure/setup-helm@v5.0.1
+        uses: azure/setup-helm@v5.1.0
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -134,8 +138,6 @@ jobs:
           arguments: --all-features
           command: check
 
-      # crates/relay has its own Cargo.lock and is not a workspace member, so
-      # the root fmt/clippy/deny above never reach it.
       - name: crates/relay
         run: |
           cd crates/relay
@@ -300,7 +302,7 @@ jobs:
           components: llvm-tools-preview
 
       - name: Set up Helm
-        uses: azure/setup-helm@v5.0.1
+        uses: azure/setup-helm@v5.1.0
 
       - name: Cache cargo
         uses: actions/cache@v6
@@ -313,7 +315,7 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-coverage-
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.90.3
         with:
           tool: cargo-llvm-cov
 
@@ -375,22 +377,22 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            crates/relay/target
-          key: relay-${{ runner.os }}-cargo-coverage-${{ hashFiles('crates/relay/Cargo.lock') }}
+            target
+          key: relay-${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
           restore-keys: relay-${{ runner.os }}-cargo-coverage-
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.90.3
         with:
           tool: cargo-llvm-cov
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.90.3
         with:
           tool: cargo-nextest
 
       - name: Generate coverage
-        run: cargo llvm-cov nextest --locked --all-features --profile ci --codecov --output-path codecov.json
+        run: cargo llvm-cov nextest --locked -p operator-relay --all-features --profile ci --codecov --output-path codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -404,7 +406,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
-          files: crates/relay/target/nextest/ci/junit.xml
+          files: target/nextest/ci/junit.xml
           flags: relay
           report_type: test_results
           disable_search: true
@@ -431,22 +433,22 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            crates/telemetry/target
-          key: telemetry-${{ runner.os }}-cargo-coverage-${{ hashFiles('crates/telemetry/Cargo.lock') }}
+            target
+          key: telemetry-${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
           restore-keys: telemetry-${{ runner.os }}-cargo-coverage-
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.90.3
         with:
           tool: cargo-llvm-cov
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.90.3
         with:
           tool: cargo-nextest
 
       - name: Generate coverage
-        run: cargo llvm-cov nextest --locked --all-features --profile ci --codecov --output-path codecov.json
+        run: cargo llvm-cov nextest --locked -p operator-telemetry --all-features --profile ci --codecov --output-path codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -460,7 +462,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
         with:
-          files: crates/telemetry/target/nextest/ci/junit.xml
+          files: target/nextest/ci/junit.xml
           flags: telemetry
           report_type: test_results
           disable_search: true
@@ -485,7 +487,6 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-            opr8r/target
           key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-integration-
 
@@ -498,17 +499,22 @@ jobs:
       - name: Verify integration binaries
         run: |
           test -x target/debug/operator
-          test -x opr8r/target/debug/opr8r
+          test -x target/debug/opr8r
 
       - name: Run launch integration tests
         env:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
-        run: cargo test --locked --test launch_integration -- --test-threads=1 --nocapture
+        run: 'cargo test --locked --test it suites::launch_integration:: -- --test-threads=1 --nocapture'
 
       - name: Run campaign launch integration tests
         env:
           OPERATOR_LAUNCH_TEST_ENABLED: 'true'
-        run: cargo test --locked --test campaign_launch_integration -- --test-threads=1 --nocapture
+        run: 'cargo test --locked --test it suites::campaign_launch_integration:: -- --test-threads=1 --nocapture'
+
+      - name: Run relay integration tests
+        env:
+          OPERATOR_RELAY_INTEGRATION_TEST_ENABLED: 'true'
+        run: 'cargo test --locked --test it suites::relay_integration:: -- --nocapture --test-threads=1'
 
       - name: Run relay integration tests
         env:
@@ -637,7 +643,6 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-            opr8r/target
           key: ${{ runner.os }}-${{ matrix.target }}-release-binaries-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-${{ matrix.target }}-release-binaries-cargo-
 
@@ -688,11 +693,11 @@ jobs:
           OPERATOR_PURCHASE_URL: ${{ secrets.OPERATOR_PURCHASE_URL }}
 
       - name: Build opr8r release
-        run: cargo build --locked --release --manifest-path opr8r/Cargo.toml --target ${{ matrix.target }}
+        run: cargo build --locked --profile opr8r-release -p opr8r --target ${{ matrix.target }}
 
       - name: Strip opr8r binary
         if: runner.os != 'Windows'
-        run: strip opr8r/target/${{ matrix.target }}/release/opr8r || true
+        run: strip target/${{ matrix.target }}/opr8r-release/opr8r || true
 
       - name: Rename binary
         shell: bash
@@ -701,10 +706,10 @@ jobs:
         run: |
           if [[ "$TARGET" == *"windows"* ]]; then
             cp target/${{ matrix.target }}/release/operator.exe ${{ matrix.artifact_name }}
-            cp opr8r/target/${{ matrix.target }}/release/opr8r.exe ${{ matrix.opr8r_artifact }}
+            cp target/${{ matrix.target }}/opr8r-release/opr8r.exe ${{ matrix.opr8r_artifact }}
           else
             cp target/${{ matrix.target }}/release/operator ${{ matrix.artifact_name }}
-            cp opr8r/target/${{ matrix.target }}/release/opr8r ${{ matrix.opr8r_artifact }}
+            cp target/${{ matrix.target }}/opr8r-release/opr8r ${{ matrix.opr8r_artifact }}
           fi
 
       # Apple code signing + notarization (macOS only)
@@ -839,7 +844,7 @@ jobs:
             charts/operator/Chart.yaml \
             vscode-extension/package.json \
             vscode-extension/src/webhook-server.ts \
-            opr8r/Cargo.toml opr8r/Cargo.lock \
+            opr8r/Cargo.toml \
             zed-extension/Cargo.toml zed-extension/extension.toml zed-extension/Cargo.lock \
             agnt-plugin/package.json agnt-plugin/manifest.json \
             coder-module/main.tf \
@@ -943,7 +948,7 @@ jobs:
 
       - name: Report scan result
         if: always()
-        run: echo "### linux/${{ matrix.arch }} blocking Trivy scan — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### linux/${{ matrix.arch }} blocking Trivy scan - ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
 
   docker-publish:
     needs: [release, docker]
@@ -1002,7 +1007,7 @@ jobs:
           ref: ${{ needs.release.outputs.commit }}
 
       - name: Set up Helm
-        uses: azure/setup-helm@v5.0.1
+        uses: azure/setup-helm@v5.1.0
 
       - name: Log in to GHCR
         run: echo "${{ github.token }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin

@@ -293,6 +293,19 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::connections::get))
         .routes(routes!(routes::connections::clients))
         .merge(telemetry_router())
+        .merge(endpoint_router())
+}
+
+/// Paired endpoint machines. The literal `uplink` segment wins over `{id}`.
+fn endpoint_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(routes::endpoints::uplink))
+        .routes(routes!(routes::endpoints::list))
+        .routes(routes!(
+            routes::endpoints::get_one,
+            routes::endpoints::update,
+            routes::endpoints::revoke
+        ))
 }
 
 /// OTLP ingest (outside `/api/v1`, at the paths OTLP exporters derive) and the session window.
@@ -362,11 +375,13 @@ fn cors_layer(config: &crate::config::Config) -> CorsLayer {
         .allow_credentials(true)
 }
 
-pub fn build_router(state: ApiState) -> Router {
-    let profiles = crate::profiles::ServerProfiles::open(state)
-        .expect("configuration registry must be available");
+pub fn build_router(state: ApiState) -> Result<Router> {
+    let profiles = crate::profiles::ServerProfiles::open(state)?;
     let default = profiles.default_state();
-    profile_router::mount(build_profile_router(default), profiles)
+    Ok(profile_router::mount(
+        build_profile_router(default),
+        profiles,
+    ))
 }
 
 pub(crate) fn build_profile_router(state: ApiState) -> Router {
@@ -415,35 +430,59 @@ pub(crate) fn build_profile_router(state: ApiState) -> Router {
 }
 
 /// Start the REST API server (standalone mode with session file and logging)
-pub async fn serve(state: ApiState, port: u16) -> Result<()> {
+pub async fn serve(state: ApiState, port: u16, open: bool) -> Result<()> {
     let tickets_path = state.tickets_path.clone();
     let state_path = state.config().auth_state_path();
     let profile_id = state.config().profile.id;
     let host_ip = state.config().rest_api.host_ip();
-    let app = build_router(state.clone());
+    let app = build_router(state.clone())?;
     let addr = SocketAddr::new(host_ip, port);
 
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let addr = listener.local_addr()?;
+    let port = addr.port();
     tracing::info!("REST API listening on http://{}", addr);
     tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
-
-    // Write session file for client discovery
     write_session_file(&tickets_path, &state_path, port, profile_id)?;
-
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    state.auth.store.start_usage_tracking();
+    let (stop_runner, runner) =
+        crate::services::campaign_runner::spawn_campaign_runner(state.clone());
+    if open {
+        let url = format!("http://localhost:{port}/");
+        let mut command = if cfg!(target_os = "macos") {
+            std::process::Command::new("open")
+        } else if cfg!(target_os = "windows") {
+            let mut command = std::process::Command::new("cmd");
+            command.args(["/C", "start"]);
+            command
+        } else {
+            std::process::Command::new("xdg-open")
+        };
+        if let Err(error) = command.arg(url).spawn() {
+            tracing::warn!(%error, "Failed to open browser");
+        }
+    }
 
     // Serve with graceful shutdown
-    axum::serve(
+    let result = axum::serve(
         listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
     .with_graceful_shutdown(shutdown_signal(state.clone()))
-    .await?;
+    .await;
 
-    state.auth.store.flush_usage()?;
+    let _ = stop_runner.send(());
+    let _ = runner.await;
+    state.wait_until_idle().await;
+    state.auth.store.stop_usage_tracking().await;
+
+    let flushed = state.auth.store.flush_usage();
 
     // Clean up session file on shutdown
     remove_session_file(&tickets_path);
 
+    result?;
+    flushed?;
     Ok(())
 }
 
@@ -527,16 +566,18 @@ async fn shutdown_signal(state: state::ApiState) {
     );
 
     loop {
-        let active_agents = crate::state::State::load(&config)
-            .map(|app_state| {
-                app_state.agents.iter().any(|agent| {
-                    matches!(
-                        agent.status.as_str(),
-                        "running" | "awaiting_input" | "completing"
-                    )
+        let active_agents = state.runtime_configs().iter().any(|config| {
+            crate::state::State::load(config)
+                .map(|app_state| {
+                    app_state.agents.iter().any(|agent| {
+                        matches!(
+                            agent.status.as_str(),
+                            "running" | "awaiting_input" | "completing"
+                        )
+                    })
                 })
-            })
-            .unwrap_or(true);
+                .unwrap_or(true)
+        });
         if !active_agents && state.in_flight_operations() == 0 {
             break;
         }
@@ -555,9 +596,13 @@ async fn shutdown_signal(state: state::ApiState) {
     }
 
     if state.in_flight_operations() == 0 {
-        let cleanup_config = (*config).clone();
-        let cleanup =
-            tokio::task::spawn_blocking(move || interrupt_agents_for_shutdown(&cleanup_config));
+        let configs = state.runtime_configs();
+        let cleanup = tokio::task::spawn_blocking(move || -> Result<()> {
+            for config in configs {
+                interrupt_agents_for_shutdown(&config)?;
+            }
+            Ok(())
+        });
         let remaining = cleanup_deadline.saturating_duration_since(Instant::now());
         match tokio::time::timeout(remaining, cleanup).await {
             Ok(Ok(Ok(()))) => {}

@@ -557,8 +557,7 @@
         },
         "worktrees": {
           "description": "Base directory for per-ticket worktrees (default: ~/.operator/worktrees)",
-          "type": "string",
-          "default": "/Users/samuelvolin/.operator/worktrees"
+          "type": "string"
         }
       },
       "required": [
@@ -1206,7 +1205,7 @@
       "description": "Placement policy for cmux sessions: where to create new agent terminals",
       "oneOf": [
         {
-          "description": "Automatically choose: 0-1 windows → new workspace, >1 windows → new window",
+          "description": "Automatically choose: 0-1 windows -> new workspace, >1 windows -> new window",
           "type": "string",
           "const": "auto"
         },
@@ -1945,7 +1944,7 @@
           ]
         },
         "type_mappings": {
-          "description": "Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX).\nMultiple kanban types can map to the same operator template.",
+          "description": "Explicit mapping: kanban issue type ID to operator issue type key (e.g., TASK, FEAT, FIX).\nMultiple kanban types can map to the same operator template.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -1953,7 +1952,7 @@
           "default": {}
         },
         "bidirectional": {
-          "description": "When true, operator pushes status changes and activity logs back to this kanban project.\nTicket state changes (todo→doing, doing→done) and step completions with delegator info\nare reflected upstream. Default: false.",
+          "description": "When true, operator pushes status changes and activity logs back to this kanban project.\nTicket state changes (todo->doing, doing->done) and step completions with delegator info\nare reflected upstream. Default: false.",
           "type": "boolean",
           "default": false
         },
@@ -1978,7 +1977,7 @@
       }
     },
     "KanbanStatusMapping": {
-      "description": "Explicit mapping from operator's strict todo/doing/done states to the\nexternal board's column/status names.\n\nDrives bidirectional sync: issues are pulled from the `todo` column,\npushed to `doing` when a ticket is claimed, to `done` when completed, and\nback to `todo` when requeued. Unset fields fall back per-transition\n(`doing` → \"In Progress\", `done` → \"Done\"); requeue only pushes when\n`todo` is explicitly mapped.",
+      "description": "Explicit mapping from operator's strict todo/doing/done states to the\nexternal board's column/status names.\n\nDrives bidirectional sync: issues are pulled from the `todo` column,\npushed to `doing` when a ticket is claimed, to `done` when completed, and\nback to `todo` when requeued. Unset fields fall back per-transition\n(`doing` -> \"In Progress\", `done` -> \"Done\"); requeue only pushes when\n`todo` is explicitly mapped.",
       "type": "object",
       "properties": {
         "todo": {
@@ -2282,7 +2281,7 @@
           "default": null
         },
         "model_server": {
-          "description": "Name of a declared `ModelServer` (from `Config.model_servers`).\n`None` means use the `llm_tool`'s implicit vendor default\n(claude : anthropic-api, codex : openai-api, gemini → google-api).",
+          "description": "Name of a declared `ModelServer` (from `Config.model_servers`).\n`None` means use the `llm_tool`'s implicit vendor default\n(claude : anthropic-api, codex : openai-api, gemini : google-api).",
           "type": [
             "string",
             "null"
@@ -2500,7 +2499,7 @@
           "type": "string"
         },
         "id": {
-          "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id).",
+          "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_` id).",
           "type": "string"
         }
       },

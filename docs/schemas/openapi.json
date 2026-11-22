@@ -10,7 +10,7 @@
     "license": {
       "name": "MIT"
     },
-    "version": "0.2.16"
+    "version": "0.2.17"
   },
   "paths": {
     "/.well-known/oauth-protected-resource": {
@@ -139,8 +139,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}/approve": {
@@ -347,8 +347,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:focus",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "agents:focus"
       }
     },
     "/api/v1/agents/{agent_id}/reject": {
@@ -1696,8 +1696,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "campaigns:read"
       },
       "post": {
         "tags": [
@@ -1761,8 +1761,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "campaigns:create"
       }
     },
     "/api/v1/campaigns/{id}": {
@@ -1817,8 +1817,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "campaigns:read"
+        "x-operator-capability": "campaigns:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/campaigns/{id}/launch": {
@@ -1903,8 +1903,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "campaigns:launch"
+        "x-operator-capability": "campaigns:launch",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/campaigns/{id}/pause": {
@@ -1969,8 +1969,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:pause",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "campaigns:pause"
       }
     },
     "/api/v1/campaigns/{id}/status": {
@@ -2065,8 +2065,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "collections:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/active": {
@@ -2112,8 +2112,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "collections:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/{name}": {
@@ -2170,8 +2170,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "collections:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/{name}/activate": {
@@ -2273,8 +2273,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "configuration:read"
+        "x-operator-capability": "configuration:read",
+        "x-operator-scope": "admin"
       },
       "patch": {
         "tags": [
@@ -2338,8 +2338,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "configuration:update"
+        "x-operator-capability": "configuration:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/connections": {
@@ -2413,8 +2413,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "connections:read"
+        "x-operator-capability": "connections:read",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators": {
@@ -2450,8 +2450,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       },
       "post": {
         "tags": [
@@ -2595,8 +2595,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/import-profile": {
@@ -2664,8 +2664,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/{name}": {
@@ -2862,8 +2862,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "delegators:delete"
+        "x-operator-capability": "delegators:delete",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators/{name}/profile": {
@@ -2925,6 +2925,277 @@
         "x-operator-capability": "delegators:read"
       }
     },
+    "/api/v1/endpoints": {
+      "get": {
+        "tags": [
+          "Endpoints"
+        ],
+        "summary": "List paired endpoints",
+        "operationId": "endpoints_list",
+        "responses": {
+          "200": {
+            "description": "Paired, unrevoked endpoints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "endpoints:read"
+      }
+    },
+    "/api/v1/endpoints/uplink": {
+      "get": {
+        "tags": [
+          "Endpoints"
+        ],
+        "summary": "Open the endpoint uplink (WebSocket)",
+        "operationId": "endpoints_uplink",
+        "responses": {
+          "101": {
+            "description": "Switching to the endpoint uplink WebSocket protocol"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Caller is not a paired endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-operator-scope": "opr8r-endpoint"
+      }
+    },
+    "/api/v1/endpoints/{id}": {
+      "get": {
+        "tags": [
+          "Endpoints"
+        ],
+        "summary": "Get one endpoint",
+        "operationId": "endpoints_get_one",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Endpoint id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Endpoint detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Unknown or revoked endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-capability": "endpoints:read",
+        "x-operator-scope": "read"
+      },
+      "delete": {
+        "tags": [
+          "Endpoints"
+        ],
+        "summary": "Revoke an endpoint",
+        "operationId": "endpoints_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Endpoint id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked; its uplink is closed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Unknown or already revoked endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin",
+        "x-operator-capability": "endpoints:delete"
+      },
+      "patch": {
+        "tags": [
+          "Endpoints"
+        ],
+        "summary": "Rename an endpoint or toggle launching on it",
+        "operationId": "endpoints_update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Endpoint id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEndpointRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Unknown or revoked endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "admin",
+        "x-operator-capability": "endpoints:update"
+      }
+    },
     "/api/v1/execution-targets": {
       "get": {
         "tags": [
@@ -2957,8 +3228,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "execution-targets:read"
+        "x-operator-capability": "execution-targets:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/git/config": {
@@ -3014,8 +3285,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "git:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:update"
       }
     },
     "/api/v1/git/providers": {
@@ -3245,8 +3516,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "integrations:read"
+        "x-operator-capability": "integrations:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/issuetypes": {
@@ -3309,8 +3580,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "issuetypes:read"
+        "x-operator-capability": "issuetypes:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -3385,8 +3656,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "issuetypes:create"
+        "x-operator-capability": "issuetypes:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/issuetypes/{key}": {
@@ -3742,8 +4013,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "issuetypes:read"
+        "x-operator-capability": "issuetypes:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/issuetypes/{key}/steps/{step_name}": {
@@ -3910,8 +4181,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:update",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:update"
       }
     },
     "/api/v1/issuetypes/{key}/workflow-preview": {
@@ -4137,8 +4408,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "kanban:read"
+        "x-operator-capability": "kanban:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/kanban/session-env": {
@@ -4196,8 +4467,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "kanban:create"
+        "x-operator-capability": "kanban:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/kanban/statuses": {
@@ -4780,8 +5051,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "llm-tools:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "llm-tools:read"
       },
       "put": {
         "tags": [
@@ -4846,8 +5117,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "llm-tools:update"
+        "x-operator-capability": "llm-tools:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/mcp/descriptor": {
@@ -4884,8 +5155,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "mcp:read"
+        "x-operator-capability": "mcp:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/mcp/message": {
@@ -4997,8 +5268,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "mcp:connect"
+        "x-operator-capability": "mcp:connect",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/model-servers": {
@@ -5034,8 +5305,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -5100,8 +5371,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "model-servers:create"
+        "x-operator-capability": "model-servers:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/model-servers/kinds": {
@@ -5199,8 +5470,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/model-servers/{name}": {
@@ -5257,8 +5528,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       },
       "put": {
         "tags": [
@@ -5342,8 +5613,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "model-servers:update"
+        "x-operator-capability": "model-servers:update",
+        "x-operator-scope": "admin"
       },
       "delete": {
         "tags": [
@@ -5516,8 +5787,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "profiles:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "profiles:read"
       },
       "post": {
         "tags": [
@@ -5581,8 +5852,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "profiles:create"
+        "x-operator-capability": "profiles:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/profiles/{profile_id}": {
@@ -5734,8 +6005,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "projects:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "projects:read"
       }
     },
     "/api/v1/projects/{name}/assess": {
@@ -5801,8 +6072,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "projects:create"
+        "x-operator-capability": "projects:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/queue/kanban": {
@@ -5975,8 +6246,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "queue:read"
+        "x-operator-capability": "queue:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/queue/sync": {
@@ -6024,8 +6295,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "queue:sync"
+        "x-operator-capability": "queue:sync",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/queue/sync/{provider}/{project_key}": {
@@ -6091,8 +6362,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "queue:execute"
+        "x-operator-capability": "queue:execute",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/sections": {
@@ -6132,8 +6403,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "sections:read"
+        "x-operator-capability": "sections:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/setup/collections": {
@@ -6171,8 +6442,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "setup:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "setup:read"
       }
     },
     "/api/v1/setup/initialize": {
@@ -6248,8 +6519,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "setup:create"
+        "x-operator-capability": "setup:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/setup/status": {
@@ -6284,8 +6555,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "setup:read"
+        "x-operator-capability": "setup:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/setup/steps": {
@@ -6360,8 +6631,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "skills:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "skills:read"
       }
     },
     "/api/v1/status": {
@@ -6397,8 +6668,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "status:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "status:read"
       }
     },
     "/api/v1/targets": {
@@ -6496,8 +6767,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "targets:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:create"
       }
     },
     "/api/v1/targets/{name}": {
@@ -6569,8 +6840,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "targets:update"
+        "x-operator-capability": "targets:update",
+        "x-operator-scope": "admin"
       },
       "delete": {
         "tags": [
@@ -6824,8 +7095,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:create"
       }
     },
     "/api/v1/tickets/batch": {
@@ -6892,8 +7163,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "tickets:create"
+        "x-operator-capability": "tickets:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/tickets/batch/preview": {
@@ -7270,8 +7541,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:launch",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "tickets:launch"
       }
     },
     "/api/v1/tickets/{id}/status": {
@@ -7358,8 +7629,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "tickets:update"
+        "x-operator-capability": "tickets:update",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/tickets/{id}/steps/{step}/complete": {
@@ -9005,7 +9276,7 @@
           },
           "gates": {
             "type": "object",
-            "description": "Member id → local tickets outside the campaign it waits on.",
+            "description": "Member id - local tickets outside the campaign it waits on.",
             "additionalProperties": {
               "type": "array",
               "items": {
@@ -9030,7 +9301,7 @@
           },
           "unsynced": {
             "type": "object",
-            "description": "Member id → unsynced upstream refs it waits on.",
+            "description": "Member id - unsynced upstream refs it waits on.",
             "additionalProperties": {
               "type": "array",
               "items": {
@@ -9281,6 +9552,58 @@
           }
         ],
         "description": "One execution environment shared by every ticket in a campaign."
+      },
+      "Capabilities": {
+        "type": "object",
+        "description": "What the endpoint can do. `hash` is an opaque version tag the client\nchooses (it changes whenever anything else here changes); heartbeats echo\nit so the server notices a change it was not sent, without either side\nhaving to hash JSON identically.",
+        "required": [
+          "hash",
+          "hostname",
+          "os",
+          "arch",
+          "launch_enabled"
+        ],
+        "properties": {
+          "arch": {
+            "type": "string"
+          },
+          "gpus": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpuInfo"
+            }
+          },
+          "hash": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "launch_enabled": {
+            "type": "boolean"
+          },
+          "llm_tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmToolInfo"
+            }
+          },
+          "model_servers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelServerInfo"
+            }
+          },
+          "os": {
+            "type": "string"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectInfo"
+            }
+          }
+        }
       },
       "CapabilityDescription": {
         "type": "object",
@@ -10799,6 +11122,96 @@
           }
         }
       },
+      "EndpointDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EndpointSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "capabilities_stale"
+            ],
+            "properties": {
+              "capabilities": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Capabilities",
+                    "description": "Live while connected, otherwise the last reported."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "capabilities_stale": {
+                "type": "boolean",
+                "description": "The endpoint's heartbeats announce capabilities it has not sent."
+              }
+            }
+          }
+        ]
+      },
+      "EndpointSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "liveness",
+          "created_at",
+          "gpu_count",
+          "launch_enabled"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gpu_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_seen_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "launch_enabled": {
+            "type": "boolean",
+            "description": "Admin switch; launches also need the endpoint's own opt-in."
+          },
+          "liveness": {
+            "$ref": "#/components/schemas/Liveness"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "EndpointsResponse": {
+        "type": "object",
+        "required": [
+          "endpoints",
+          "total"
+        ],
+        "properties": {
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EndpointSummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "ErrorResponse": {
         "type": "object",
         "description": "Error response body",
@@ -11452,6 +11865,51 @@
           }
         }
       },
+      "GpuInfo": {
+        "type": "object",
+        "required": [
+          "name",
+          "vendor",
+          "vram_total_mb"
+        ],
+        "properties": {
+          "driver": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "vendor": {
+            "$ref": "#/components/schemas/GpuVendor"
+          },
+          "vram_total_mb": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "vram_used_mb": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "GpuVendor": {
+        "type": "string",
+        "enum": [
+          "nvidia",
+          "amd",
+          "intel",
+          "apple",
+          "other"
+        ]
+      },
       "HealthResponse": {
         "type": "object",
         "description": "Health check response",
@@ -12035,7 +12493,7 @@
       },
       "KanbanStatusMapping": {
         "type": "object",
-        "description": "Explicit mapping from operator's strict todo/doing/done states to the\nexternal board's column/status names.\n\nDrives bidirectional sync: issues are pulled from the `todo` column,\npushed to `doing` when a ticket is claimed, to `done` when completed, and\nback to `todo` when requeued. Unset fields fall back per-transition\n(`doing` → \"In Progress\", `done` → \"Done\"); requeue only pushes when\n`todo` is explicitly mapped.",
+        "description": "Explicit mapping from operator's strict todo/doing/done states to the\nexternal board's column/status names.\n\nDrives bidirectional sync: issues are pulled from the `todo` column,\npushed to `doing` when a ticket is claimed, to `done` when completed, and\nback to `todo` when requeued. Unset fields fall back per-transition\n(`doing` -> \"In Progress\", `done` -> \"Done\"); requeue only pushes when\n`todo` is explicitly mapped.",
         "properties": {
           "doing": {
             "type": [
@@ -12816,6 +13274,14 @@
           }
         }
       },
+      "Liveness": {
+        "type": "string",
+        "enum": [
+          "live",
+          "stale",
+          "offline"
+        ]
+      },
       "LlmTask": {
         "type": "object",
         "description": "LLM task metadata for delegate mode integration",
@@ -12840,6 +13306,23 @@
               "null"
             ],
             "description": "LLM task status: \"open\" or \"resolved\""
+          }
+        }
+      },
+      "LlmToolInfo": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -13042,6 +13525,38 @@
           "id": {
             "type": "string",
             "description": "Model id passed to `--model`"
+          }
+        }
+      },
+      "ModelServerInfo": {
+        "type": "object",
+        "description": "A local inference server the endpoint found. `kind` is a\n`ModelServerKind` slug; only `exposed` servers accept tunnel requests.",
+        "required": [
+          "name",
+          "kind",
+          "port",
+          "exposed"
+        ],
+        "properties": {
+          "exposed": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
@@ -13328,7 +13843,7 @@
       },
       "OAuthErrorResponse": {
         "type": "object",
-        "description": "Standardized OAuth error, shaped per RFC 6749 §5.2 so stock clients can\ninterpret it - notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
+        "description": "Standardized OAuth error, shaped per RFC 6749 so stock clients can\ninterpret it - notably `authorization_pending` and `slow_down`, which a\ndevice-flow client polls against.",
         "required": [
           "error"
         ],
@@ -13698,7 +14213,8 @@
           "oidc_token",
           "local_process",
           "agent_callback",
-          "telemetry_ingest"
+          "telemetry_ingest",
+          "endpoint"
         ]
       },
       "ProbeStatus": {
@@ -13743,6 +14259,21 @@
             "type": "boolean"
           },
           "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ProjectInfo": {
+        "type": "object",
+        "required": [
+          "name",
+          "path"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
             "type": "string"
           }
         }
@@ -14048,7 +14579,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_…` id)."
+            "description": "Platform-native agent identifier (e.g. an AGNT agent UUID, an `OpenAI` `asst_` id)."
           },
           "platform": {
             "type": "string",
@@ -14141,7 +14672,7 @@
       },
       "Scope": {
         "type": "string",
-        "description": "A typed authorization scope.\n\nScopes are **not hierarchical**: `Write` does not imply `Read`. A credential\nis granted each scope it needs explicitly, so an integration's authority is\nlegible from its scope list alone rather than requiring the reader to reason\nabout implication.",
+        "description": "A typed authorization scope.\n\nScopes are **not hierarchical**: `Write` does not imply `Read`.\nA credential is granted each scope it needs explicitly, so an integration's authority is legible from its scope list.",
         "enum": [
           "read",
           "write",
@@ -14225,7 +14756,7 @@
           "depth": {
             "type": "integer",
             "format": "int32",
-            "description": "Nesting depth within the section (1 = direct child, 2 = grandchild).\nLets clients rebuild the tree (e.g. LLM tools → model aliases).",
+            "description": "Nesting depth within the section (1 = direct child, 2 = grandchild).\nLets clients rebuild the tree (e.g. LLM tools to model aliases).",
             "minimum": 0
           },
           "description": {
@@ -16058,6 +16589,23 @@
         },
         "additionalProperties": false
       },
+      "UpdateEndpointRequest": {
+        "type": "object",
+        "properties": {
+          "launch_enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "UpdateIssueTypeRequest": {
         "type": "object",
         "description": "Request to update an issue type",
@@ -17079,6 +17627,10 @@
     {
       "name": "ModelServers",
       "description": "Model server (ollama, openai-compat, etc.) CRUD operations"
+    },
+    {
+      "name": "Endpoints",
+      "description": "Paired endpoint machines and their uplink"
     },
     {
       "name": "MCP",

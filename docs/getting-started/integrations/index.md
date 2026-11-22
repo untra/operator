@@ -46,6 +46,11 @@ Operator already ships:
 > Write/launch tools mutate your repositories. Only connect platforms you trust,
 > and gate Operator's MCP write tools with `[mcp].expose_ticket_write_tools`.
 
+## Identity providers
+
+- [Keycloak](/getting-started/integrations/keycloak/) supports Premium OIDC sign-in and remote MCP authentication.
+- [Authentik](/getting-started/integrations/authentik/) supports Premium OIDC sign-in.
+
 ## Connect from the web interface
 
 Open **Connections** in Operator's web interface to copy API addresses, open

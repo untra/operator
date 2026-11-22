@@ -1,3 +1,4 @@
+import { rejects } from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { testMcpConnection } from "./mcp-check";
 
@@ -11,9 +12,10 @@ test("refuses to send credentials to an unexpected SSE message URL", async () =>
       }),
     );
   };
-  await expect(
+  await rejects(
     testMcpConnection("https://operator.test/api/v1/mcp/sse", send, new AbortController().signal),
-  ).rejects.toThrow("unexpected message endpoint");
+    /unexpected message endpoint/,
+  );
   expect(sent).toEqual(["https://operator.test/api/v1/mcp/sse"]);
 });
 

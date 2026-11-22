@@ -89,11 +89,9 @@ import type { WriteKanbanConfigResponse } from "@operator/bindings/WriteKanbanCo
 import type { SetKanbanSessionEnvRequest } from "@operator/bindings/SetKanbanSessionEnvRequest";
 import type { SetKanbanSessionEnvResponse } from "@operator/bindings/SetKanbanSessionEnvResponse";
 
-import type { AccessKeyListResponse } from "@operator/bindings/AccessKeyListResponse";
 import type { BootstrapStatusResponse } from "@operator/bindings/BootstrapStatusResponse";
 import type { BootstrapSubmitRequest } from "@operator/bindings/BootstrapSubmitRequest";
 import type { BootstrapSubmitResponse } from "@operator/bindings/BootstrapSubmitResponse";
-import type { CreateAccessKeyResponse } from "@operator/bindings/CreateAccessKeyResponse";
 import type { CsrfTokenResponse } from "@operator/bindings/CsrfTokenResponse";
 import type { CurrentSessionResponse } from "@operator/bindings/CurrentSessionResponse";
 import type { DeviceApprovalRequest } from "@operator/bindings/DeviceApprovalRequest";
@@ -110,9 +108,7 @@ import type { SessionListResponse } from "@operator/bindings/SessionListResponse
 export type { ProfileSummary, LicenseResponse, TargetResponse, TargetsResponse };
 
 export type {
-  AccessKeyListResponse,
   BootstrapStatusResponse,
-  CreateAccessKeyResponse,
   CurrentSessionResponse,
   LoginResponse,
   SessionListResponse,

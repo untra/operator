@@ -222,7 +222,7 @@ is what GitHub and GitLab already went through):
    `GitProviderConfig` (`src/config/git_config.rs`), plus the
    `From<GitProviderConfig> for GitProvider` arm.
 2. **Catalog entry** - add a row in `src/integrations/catalog.rs`'s
-   `all_integrations()` under `Vertical::Git`. `tests/vertical_parity.rs`
+   `all_integrations()` under `Vertical::Git`. `tests/it/suites/vertical_parity.rs`
    enforces the tier rules: `Alpha`+ needs a `docs_path` pointing at a real
    docs page; `Beta`+ additionally needs `readme_badge: true` (and a matching
    README badge).
@@ -239,7 +239,7 @@ is what GitHub and GitLab already went through):
    a `meta_for` arm) in `src/app/git_onboarding.rs` so the TUI's onboarding
    flow can walk a user through CLI install / token setup for it.
 7. **Live test row** - add a `ProviderCase` to `PROVIDER_CASES` in
-   `tests/gitprovider_integration.rs` (a template comment there shows the
+   `tests/it/suites/gitprovider_integration.rs` (a template comment there shows the
    shape) plus a `#[tokio::test]` calling `run_provider_case` for it.
 8. **Docs page + nav** - a `docs/getting-started/git/<provider>/index.md`
    page, added to `navigation.yml`.
@@ -260,14 +260,14 @@ extend it for new provider support - follow the checklist above instead.
 
 ## Testing
 
-`tests/gitprovider_integration.rs` drives the live `PrService` stack
+`tests/it/suites/gitprovider_integration.rs` drives the live `PrService` stack
 (`gh`/`glab`) against real, external test repositories. It's strictly
 read-only - no create/write operations against any provider. Table-shape
 invariants (env-var name uniqueness, slug/provider matching) run under plain
 `cargo test`, no setup required:
 
 ```bash
-cargo test --test gitprovider_integration provider_case_table
+cargo test --test it suites::gitprovider_integration::provider_case_table
 ```
 
 The live per-provider tests are opt-in and gated on:
@@ -293,7 +293,7 @@ OPERATOR_GITPROVIDER_TEST_ENABLED=true \
     OPERATOR_GITPROVIDER_TEST_PR_GITHUB=1 \
     OPERATOR_GITPROVIDER_TEST_REPO_GITLAB=https://gitlab.com/owner/repo \
     OPERATOR_GITPROVIDER_TEST_PR_GITLAB=1 \
-    cargo test --test gitprovider_integration -- --nocapture
+    cargo test --test it suites::gitprovider_integration:: -- --nocapture
 ```
 
 The comment requirement matters: `get_all_comments` is asserted non-empty, so

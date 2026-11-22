@@ -109,6 +109,9 @@ pub async fn resolve_principal(
             if claims.credential_version != 1 {
                 return Ok(None);
             }
+            if let Some(id) = claims.endpoint_id.clone() {
+                return endpoint_principal(state, id, &claims).await;
+            }
             if let Some(id) = claims.key_id.clone() {
                 let store = state.auth.store.clone();
                 let Some((authority, expiry)) =
@@ -146,6 +149,7 @@ pub async fn resolve_principal(
                 ticket_id: None,
                 step: None,
                 agent_session_id: None,
+                endpoint_id: None,
                 authority: None,
             }));
         }
@@ -194,6 +198,32 @@ pub async fn resolve_principal(
     Ok(None)
 }
 
+/// A paired endpoint, re-checked against the store so revocation is immediate.
+async fn endpoint_principal(
+    state: &ApiState,
+    endpoint_id: String,
+    claims: &Claims,
+) -> Result<Option<Principal>, ApiError> {
+    let store = state.auth.store.clone();
+    let id = endpoint_id.clone();
+    let live = tokio::task::spawn_blocking(move || store.endpoint_authority(&id))
+        .await
+        .map_err(|_| ApiError::Unavailable("Credential validation unavailable".into()))?
+        .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()))?;
+    Ok(live.map(|_| Principal {
+        subject: claims.sub.clone(),
+        scopes: vec![],
+        kind: PrincipalKind::Endpoint,
+        expires_at: chrono::DateTime::from_timestamp(claims.exp, 0),
+        session_id: None,
+        ticket_id: None,
+        step: None,
+        agent_session_id: None,
+        endpoint_id: Some(endpoint_id),
+        authority: None,
+    }))
+}
+
 /// A principal for a pinned agent token, rejected when minted for another profile.
 fn agent_principal(state: &ApiState, claims: Claims, kind: PrincipalKind) -> Option<Principal> {
     let profile = state.config().profile.id;
@@ -209,6 +239,7 @@ fn agent_principal(state: &ApiState, claims: Claims, kind: PrincipalKind) -> Opt
         ticket_id: claims.ticket_id,
         step: claims.step,
         agent_session_id: claims.session_id,
+        endpoint_id: None,
         authority: None,
     })
 }
@@ -265,6 +296,9 @@ fn origin_is_acceptable(headers: &HeaderMap, allowed: &[String]) -> bool {
 ///
 /// A `401` on an API path names the protected-resource metadata when OIDC discovery is active.
 pub async fn authorize(State(state): State<ApiState>, request: Request, next: Next) -> Response {
+    if state.is_stopping() {
+        return (StatusCode::SERVICE_UNAVAILABLE, "Operator is stopping").into_response();
+    }
     let api = request.uri().path().starts_with("/api/");
     let mut response = decide(state.clone(), request, next).await.into_response();
     if api && response.status() == StatusCode::UNAUTHORIZED {
@@ -313,7 +347,7 @@ async fn decide(state: ApiState, request: Request, next: Next) -> Result<Respons
         .or_else(|| unmatched_access(&path));
 
     let Some(access) = access else {
-        // Unknown or unclassified: deny. `tests/route_scope_parity.rs` makes
+        // Unknown or unclassified: deny. `tests/it/suites/route_scope_parity.rs` makes
         // this unreachable for mounted routes.
         return Err(
             ApiError::Unauthorized("this endpoint requires authentication".to_string()).into(),
@@ -354,7 +388,7 @@ async fn decide(state: ApiState, request: Request, next: Next) -> Result<Respons
             return Ok(response);
         }
         Access::Scoped(scope) => Some(scope),
-        Access::TelemetryIngest => None,
+        Access::TelemetryIngest | Access::Endpoint => None,
     };
 
     let Some(principal) = resolve_principal(&state, &headers).await? else {
@@ -385,6 +419,19 @@ async fn decide(state: ApiState, request: Request, next: Next) -> Result<Respons
                 return Err(rate_limited(retry).into());
             }
         }
+    }
+
+    if access == Access::Endpoint {
+        if !principal.is_paired_endpoint() {
+            state.auth.store.limits.record_denial(Denial::Authorization);
+            return Err(ApiError::Forbidden(
+                "this endpoint requires a paired endpoint credential".to_string(),
+            )
+            .into());
+        }
+        let mut request = request;
+        request.extensions_mut().insert(principal);
+        return Ok(next.run(request).await);
     }
 
     let Some(required) = required else {
@@ -517,6 +564,7 @@ where
                     ticket_id: None,
                     step: None,
                     agent_session_id: None,
+                    endpoint_id: None,
                     authority: None,
                 }),
         )))
@@ -546,6 +594,112 @@ mod tests {
             );
         }
         h
+    }
+
+    mod endpoint_tokens {
+        use super::*;
+        use crate::auth::scope::ROUTE_RULES;
+        use crate::auth::tokens::{api_claims, endpoint_claims, ENDPOINT_CLIENT_ID};
+        use crate::config::Config;
+
+        fn state() -> (tempfile::TempDir, ApiState) {
+            let dir = tempfile::tempdir().unwrap();
+            let mut config = Config::default();
+            config.paths.state = dir.path().to_string_lossy().into_owned();
+            let state = ApiState::new(config, dir.path().join("tickets"));
+            (dir, state)
+        }
+
+        fn bearer(state: &ApiState, claims: &Claims) -> HeaderMap {
+            let token = state.auth.signing_key.sign(claims).unwrap();
+            headers(&[("authorization", &format!("Bearer {token}"))])
+        }
+
+        fn paired(state: &ApiState) -> String {
+            state
+                .auth
+                .store
+                .create_endpoint_family(ENDPOINT_CLIENT_ID)
+                .unwrap()
+                .0
+        }
+
+        #[tokio::test]
+        async fn an_endpoint_token_resolves_to_its_endpoint_only() {
+            let (_dir, state) = state();
+            let id = paired(&state);
+            let h = bearer(
+                &state,
+                &endpoint_claims(&id, chrono::Utc::now(), "j".into()),
+            );
+            let p = resolve_principal(&state, &h)
+                .await
+                .unwrap()
+                .expect("principal");
+            assert_eq!(p.kind, PrincipalKind::Endpoint);
+            assert!(p.scopes.is_empty());
+            assert!(p.is_paired_endpoint());
+            assert_eq!(p.endpoint_id.as_deref(), Some(id.as_str()));
+        }
+
+        #[tokio::test]
+        async fn revocation_takes_effect_before_the_token_expires() {
+            let (_dir, state) = state();
+            let id = paired(&state);
+            let h = bearer(
+                &state,
+                &endpoint_claims(&id, chrono::Utc::now(), "j".into()),
+            );
+            assert!(state.auth.store.revoke_endpoint(&id, "test").unwrap());
+            assert!(resolve_principal(&state, &h).await.unwrap().is_none());
+        }
+
+        #[tokio::test]
+        async fn an_unknown_endpoint_is_rejected() {
+            let (_dir, state) = state();
+            let h = bearer(
+                &state,
+                &endpoint_claims("nope", chrono::Utc::now(), "j".into()),
+            );
+            assert!(resolve_principal(&state, &h).await.unwrap().is_none());
+        }
+
+        #[tokio::test]
+        async fn a_legacy_endpoint_scope_claim_grants_nothing() {
+            let (_dir, state) = state();
+            let mut claims = api_claims("admin", &[Scope::Read], chrono::Utc::now(), "j".into());
+            claims.scope = "read endpoint".into();
+            let p = resolve_principal(&state, &bearer(&state, &claims))
+                .await
+                .unwrap()
+                .expect("principal");
+            assert_eq!(p.scopes, vec![Scope::Read]);
+            assert_eq!(p.kind, PrincipalKind::AccessToken);
+            assert!(!p.is_paired_endpoint());
+        }
+
+        #[tokio::test]
+        async fn an_endpoint_principal_satisfies_no_other_route() {
+            let (_dir, state) = state();
+            let id = paired(&state);
+            let h = bearer(
+                &state,
+                &endpoint_claims(&id, chrono::Utc::now(), "j".into()),
+            );
+            let p = resolve_principal(&state, &h).await.unwrap().unwrap();
+            for rule in ROUTE_RULES {
+                match rule.access {
+                    Access::Endpoint | Access::Public => {}
+                    Access::Scoped(scope) => assert!(
+                        !p.has_scope(scope),
+                        "{} {} must deny an endpoint",
+                        rule.method,
+                        rule.path
+                    ),
+                    Access::TelemetryIngest => assert!(!p.may_ingest_telemetry()),
+                }
+            }
+        }
     }
 
     #[test]

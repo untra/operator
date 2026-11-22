@@ -198,8 +198,6 @@ impl KanbanBidirectionalSync {
         }
     }
 
-    // ─── Private helpers ─────────────────────────────────────────────────────
-
     /// Find the provider instance and sync config for a ticket's external issue.
     fn resolve(&self, ticket: &Ticket) -> Option<(Box<dyn KanbanProvider>, ProjectSyncConfig)> {
         let provider_name = ticket.external_provider.as_deref()?;

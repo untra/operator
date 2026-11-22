@@ -320,8 +320,6 @@ struct LinearLabel {
     color: Option<String>,
 }
 
-// ─── Team Members Response ───────────────────────────────────────────────────
-
 #[derive(Debug, Deserialize)]
 struct TeamMembersResponse {
     team: TeamWithMembers,
@@ -346,8 +344,6 @@ struct LinearUser {
     avatar_url: Option<String>,
 }
 
-// ─── Team States (Workflow Statuses) Response ────────────────────────────────
-
 #[derive(Debug, Deserialize)]
 struct TeamStatesResponse {
     team: TeamWithStates,
@@ -368,8 +364,6 @@ struct LinearState {
     name: String,
     position: f64,
 }
-
-// ─── Issues Query Response ───────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
 struct IssuesResponse {
@@ -571,8 +565,6 @@ struct LinearStateRef {
     name: String,
 }
 
-// ─── Mutation Response Types ─────────────────────────────────────────────────
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct IssueCreateResponse {
@@ -596,8 +588,6 @@ struct IssueUpdateResult {
     success: bool,
     issue: Option<LinearIssue>,
 }
-
-// ─── Helper Query Response Types ─────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
 struct IssueQueryResponse {

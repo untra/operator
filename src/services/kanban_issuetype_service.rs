@@ -220,8 +220,6 @@ impl KanbanIssueTypeService {
     }
 }
 
-// ─── Mapping-Status Utilities ───────────────────────────────────────────────
-
 /// Per-issue-type mapping status for display.
 #[derive(Debug, Clone)]
 pub struct IssueTypeMappingStatus {

@@ -85,16 +85,13 @@ impl StatusSection for ConnectionsSection {
                 label: "Operator API".into(),
                 description: match &snapshot.api_status {
                     RestApiStatus::Running { port } => format!(":{port}"),
-                    RestApiStatus::RunningExternal { port } => format!(":{port} (external)"),
                     RestApiStatus::Starting => "Starting...".into(),
                     RestApiStatus::Stopping => "Stopping...".into(),
                     RestApiStatus::Stopped => "Stopped".into(),
                     RestApiStatus::Error(e) => format!("Error: {e}"),
                 },
                 icon: match &snapshot.api_status {
-                    RestApiStatus::Running { .. } | RestApiStatus::RunningExternal { .. } => {
-                        StatusIcon::Check
-                    }
+                    RestApiStatus::Running { .. } => StatusIcon::Check,
                     RestApiStatus::Starting => StatusIcon::Warning,
                     _ => StatusIcon::Cross,
                 },
@@ -102,8 +99,7 @@ impl StatusSection for ConnectionsSection {
                 is_header: false,
                 actions: ActionSet {
                     primary: match &snapshot.api_status {
-                        RestApiStatus::Running { port }
-                        | RestApiStatus::RunningExternal { port } => {
+                        RestApiStatus::Running { port } => {
                             StatusAction::OpenSwagger { port: *port }
                         }
                         RestApiStatus::Stopped | RestApiStatus::Error(_) => StatusAction::StartApi,
@@ -111,8 +107,7 @@ impl StatusSection for ConnectionsSection {
                     },
                     back: StatusAction::None,
                     special: match &snapshot.api_status {
-                        RestApiStatus::Running { port }
-                        | RestApiStatus::RunningExternal { port } => {
+                        RestApiStatus::Running { port } => {
                             StatusAction::OpenSwagger { port: *port }
                         }
                         _ => StatusAction::None,
@@ -140,14 +135,11 @@ impl StatusSection for ConnectionsSection {
                 label: "Web UI".into(),
                 description: match &snapshot.api_status {
                     RestApiStatus::Running { port } => format!(":{port}"),
-                    RestApiStatus::RunningExternal { port } => format!(":{port} (external)"),
                     RestApiStatus::Starting => "Starting...".into(),
                     _ => "API stopped".into(),
                 },
                 icon: match &snapshot.api_status {
-                    RestApiStatus::Running { .. } | RestApiStatus::RunningExternal { .. } => {
-                        StatusIcon::Check
-                    }
+                    RestApiStatus::Running { .. } => StatusIcon::Check,
                     RestApiStatus::Starting => StatusIcon::Warning,
                     _ => StatusIcon::Cross,
                 },
@@ -155,10 +147,7 @@ impl StatusSection for ConnectionsSection {
                 is_header: false,
                 actions: ActionSet {
                     primary: match &snapshot.api_status {
-                        RestApiStatus::Running { port }
-                        | RestApiStatus::RunningExternal { port } => {
-                            StatusAction::OpenWebUi { port: *port }
-                        }
+                        RestApiStatus::Running { port } => StatusAction::OpenWebUi { port: *port },
                         RestApiStatus::Stopped | RestApiStatus::Error(_) => StatusAction::StartApi,
                         _ => StatusAction::None,
                     },

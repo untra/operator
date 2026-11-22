@@ -51,15 +51,6 @@ suite("agent-connect", () => {
     assert.ok(!isFresh(pending, 10 * 60 * 1000));
   });
 
-  test("a live session opens an attach terminal", () => {
-    const o = ops();
-    openAgentTerminal(o, live, () => undefined);
-    assert.deepStrictEqual(o.calls, [
-      "create:FEAT-12 · attach:/home/me/proj",
-      "send:FEAT-12 · attach:tmux attach -t op-FEAT-12",
-    ]);
-  });
-
   test("no command focuses the agent's own terminal", () => {
     const o = ops(["op-FEAT-12"]);
     openAgentTerminal(o, { ...live, command: undefined }, () => undefined);

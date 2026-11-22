@@ -43,22 +43,22 @@ done
 
 section() {
   echo ""
-  echo -e "${CYAN}${BOLD}════════════════════════════════════════════════════════════${RESET}"
+  echo -e "${CYAN}${BOLD}------------------------------------------------------------${RESET}"
   echo -e "${CYAN}${BOLD}  $1${RESET}"
-  echo -e "${CYAN}${BOLD}════════════════════════════════════════════════════════════${RESET}"
+  echo -e "${CYAN}${BOLD}------------------------------------------------------------${RESET}"
 }
 
 step() {
-  echo -e "\n${BOLD}▸ $1${RESET}"
+  echo -e "\n${BOLD}> $1${RESET}"
 }
 
 pass() {
-  echo -e "  ${GREEN}✓ $1${RESET}"
+  echo -e "  ${GREEN}PASS: $1${RESET}"
   PASSES+=("$1")
 }
 
 fail() {
-  echo -e "  ${RED}✗ $1${RESET}"
+  echo -e "  ${RED}FAIL: $1${RESET}"
   FAILURES+=("$1")
   if [ "$CONTINUE_ON_FAIL" = false ]; then
     echo -e "\n${RED}${BOLD}FAILED: $1${RESET}"
@@ -68,7 +68,7 @@ fail() {
 }
 
 skip() {
-  echo -e "  ${YELLOW}⊘ $1 (skipped - no changes)${RESET}"
+  echo -e "  ${YELLOW}SKIP: $1 (no changes)${RESET}"
   SKIPPED+=("$1")
 }
 
@@ -329,9 +329,6 @@ else
 fi
 
 # --- 5. crates/relay ---
-#
-# relay is a standalone crate (its own Cargo.lock), not a workspace member, so
-# the root cargo fmt/clippy never reach it despite its strict [lints.clippy].
 
 if needs_relay; then
   section "crates/relay"
@@ -473,21 +470,21 @@ section "Summary"
 if [ ${#PASSES[@]} -gt 0 ]; then
   echo -e "\n${GREEN}${BOLD}Passed (${#PASSES[@]}):${RESET}"
   for p in "${PASSES[@]}"; do
-    echo -e "  ${GREEN}✓${RESET} $p"
+    echo -e "  ${GREEN}-${RESET} $p"
   done
 fi
 
 if [ ${#SKIPPED[@]} -gt 0 ]; then
   echo -e "\n${YELLOW}${BOLD}Skipped (${#SKIPPED[@]}):${RESET}"
   for s in "${SKIPPED[@]}"; do
-    echo -e "  ${YELLOW}⊘${RESET} $s"
+    echo -e "  ${YELLOW}-${RESET} $s"
   done
 fi
 
 if [ ${#FAILURES[@]} -gt 0 ]; then
   echo -e "\n${RED}${BOLD}Failed (${#FAILURES[@]}):${RESET}"
   for f in "${FAILURES[@]}"; do
-    echo -e "  ${RED}✗${RESET} $f"
+    echo -e "  ${RED}-${RESET} $f"
   done
   echo ""
   echo -e "${RED}${BOLD}CI would fail. Fix the above issues before creating a PR.${RESET}"

@@ -54,7 +54,7 @@ export function LoginPage() {
   }
 
   if (bootstrap.isLoading) {
-    return <AuthCard title="Sign in to Operator">Checking server status…</AuthCard>;
+    return <AuthCard title="Sign in to Operator">Checking server status...</AuthCard>;
   }
 
   if (bootstrap.error) {

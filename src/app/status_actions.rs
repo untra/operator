@@ -228,7 +228,7 @@ impl App {
                 self.dashboard
                     .set_status("Config reset requires confirmation - not yet implemented");
             }
-            StatusAction::ReloadConfig => match crate::config::Config::load(None) {
+            StatusAction::ReloadConfig => match self.config.reload_owned() {
                 Ok(new_config) => {
                     self.config = new_config;
                     self.dashboard.update_config(&self.config);

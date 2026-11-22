@@ -122,7 +122,7 @@ test.each(LIVE_REGION_CASES)(
 );
 
 const ASYNC_TRANSITIONS = [
-  { button: "Load", status: "Loading…", alert: "" },
+  { button: "Load", status: "Loading...", alert: "" },
   { button: "Fail", status: "", alert: "Request failed" },
   { button: "Recover", status: "", alert: "" },
 ];

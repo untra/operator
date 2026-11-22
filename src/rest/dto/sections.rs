@@ -42,7 +42,7 @@ pub struct SectionRowDto {
     /// static rows carry a fixed slug (e.g. "git-token").
     pub id: String,
     /// Nesting depth within the section (1 = direct child, 2 = grandchild).
-    /// Lets clients rebuild the tree (e.g. LLM tools → model aliases).
+    /// Lets clients rebuild the tree (e.g. LLM tools to model aliases).
     pub depth: u16,
     pub label: String,
     pub description: String,

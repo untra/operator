@@ -2,7 +2,7 @@
 //!
 //! Emits `docs/maturity/index.md` from the vertical catalog
 //! ([`crate::integrations::catalog::all_integrations`]) - a human-facing
-//! companion to the machine-checked `tests/vertical_parity.rs`. Because it is
+//! companion to the machine-checked `tests/it/suites/vertical_parity.rs`. Because it is
 //! derived from the same source of truth as the REST `/api/v1/integrations`
 //! endpoint and the README badges, the page can never drift from reality.
 
@@ -52,7 +52,7 @@ impl DocGenerator for MaturityDocGenerator {
              ## Support levels\n\n",
         );
 
-        // Legend - one colored badge + blurb per level, most→least mature.
+        // Legend - one colored badge + blurb per level, most -> least mature.
         for status in [
             SupportStatus::Ga,
             SupportStatus::Beta,
@@ -186,10 +186,10 @@ fn compat_matrix_section() -> String {
         .collect();
 
     let mut out = String::from(
-        "\n## LLM tool × model provider\n\n\
-         **Native** — the CLI speaks this provider's protocol. \
-         **Bridge** — a protocol-preserving front (claude-code-router, litellm, …) is required. \
-         **Incompatible** — this first-party API is the wrong protocol for the CLI.\n\n\
+        "\n## LLM tool X model provider\n\n\
+         **Native** - the CLI speaks this provider's protocol. \
+         **Bridge** - a protocol-preserving front (claude-code-router, litellm, etc) is required. \
+         **Incompatible** - this first-party API is the wrong protocol for the CLI.\n\n\
          Operator does not currently block incompatible delegators at launch; \
          this matrix is the catalog fact.\n\n| Tool |",
     );
@@ -257,7 +257,7 @@ mod tests {
         assert!(content.contains("[Jira](https://operator.untra.io/getting-started/kanban/jira/)"));
         assert!(content.contains("## LLM tool capabilities"));
         assert!(content.contains("## Model provider capabilities"));
-        assert!(content.contains("## LLM tool × model provider"));
+        assert!(content.contains("## LLM tool X model provider"));
         assert!(content.contains("path-version"));
         assert!(content.contains("| Claude |"));
         assert!(content.contains("Native"));

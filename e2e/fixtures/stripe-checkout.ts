@@ -9,7 +9,7 @@ const TEST_CARD = "4242 4242 4242 4242";
 const TEST_CVC = "424";
 const TEST_POSTAL = "94103";
 const PAGE_TIMEOUT_MS = 30_000;
-/** Stripe → stripe listen → webhook inbox → license issuance → pickup poll (2 s ticks). */
+/** Covers Stripe webhook delivery and license issuance, with pickup polled every 2 seconds. */
 const LICENSE_ISSUED_TIMEOUT_MS = 90_000;
 const STRIPE_REDIRECT_TIMEOUT_MS = 60_000;
 

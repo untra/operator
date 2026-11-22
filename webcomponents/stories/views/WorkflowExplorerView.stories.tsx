@@ -32,8 +32,7 @@ export const LoadingWorkflow: Story = { args: { selected: "RELEASE", document: n
 export const LoadingCollection: Story = { args: { entries: null, document: null } };
 
 /**
- * A manifest with no issue types. Previously rendered an empty rail reading
- * "Loading workflow…" indefinitely.
+ * A manifest with no issue types.
  */
 export const EmptyCollection: Story = { args: { entries: [], document: null } };
 

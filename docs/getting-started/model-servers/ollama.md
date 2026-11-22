@@ -4,7 +4,7 @@ description: "Run local open models with Ollama as an Operator model provider."
 layout: doc
 ---
 
-[**Ollama**](https://ollama.com/) runs open models (Llama, Qwen, Mistral, …) locally and serves them over an OpenAI-compatible API. Declare it as a
+[**Ollama**](https://ollama.com/) runs open models (Llama, Qwen, Mistral, etc) locally and serves them over an OpenAI-compatible API. Declare it as a
 [model server](/getting-started/model-servers/) to drive agents against models on your own machine - no cloud key required.
 
 ## Prerequisites

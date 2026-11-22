@@ -2,8 +2,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-// ─── Kanban Provider Configuration ─────────────────────────────────────────
-
 /// Kanban provider configuration for syncing issues from external systems
 /// Providers are keyed by domain/workspace:
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, Default)]
@@ -340,7 +338,7 @@ impl KanbanConfig {
 /// Drives bidirectional sync: issues are pulled from the `todo` column,
 /// pushed to `doing` when a ticket is claimed, to `done` when completed, and
 /// back to `todo` when requeued. Unset fields fall back per-transition
-/// (`doing` → "In Progress", `done` → "Done"); requeue only pushes when
+/// (`doing` -> "In Progress", `done` -> "Done"); requeue only pushes when
 /// `todo` is explicitly mapped.
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS, utoipa::ToSchema,
@@ -390,12 +388,12 @@ pub struct ProjectSyncConfig {
     /// Not required for kanban onboarding or sync.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub collection_name: Option<String>,
-    /// Explicit mapping: kanban issue type ID → operator issue type key (e.g., TASK, FEAT, FIX).
+    /// Explicit mapping: kanban issue type ID to operator issue type key (e.g., TASK, FEAT, FIX).
     /// Multiple kanban types can map to the same operator template.
     #[serde(default)]
     pub type_mappings: std::collections::HashMap<String, String>,
     /// When true, operator pushes status changes and activity logs back to this kanban project.
-    /// Ticket state changes (todo→doing, doing→done) and step completions with delegator info
+    /// Ticket state changes (todo->doing, doing->done) and step completions with delegator info
     /// are reflected upstream. Default: false.
     #[serde(default)]
     pub bidirectional: bool,

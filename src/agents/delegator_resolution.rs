@@ -35,11 +35,7 @@ pub enum ResolutionError {
         "Unknown llm_tool '{0}' (no implicit model server; set model_server on the delegator or use a shipped tool)"
     )]
     UnknownLlmTool(String),
-    /// The delegator declaratively references a remote, named agent on another
-    /// platform (AGNT, `OpenAI`, ...). Operator has no runtime client for those
-    /// platforms, so such a delegator is export-only and cannot be resolved into a
-    /// launchable provider.
-    #[error("Delegator '{name}' references {platform} agent '{agent_id}' and is export-only; it cannot be launched locally (Operator has no {platform} runtime client)")]
+    #[error("Delegator '{name}' references {platform} agent '{agent_id}' and is export-only; it cannot launch locally (Operator has no {platform} runtime client)")]
     RemoteOnlyDelegator {
         name: String,
         platform: String,

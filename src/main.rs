@@ -9,10 +9,12 @@ mod campaigns;
 mod collections;
 mod config;
 mod editors;
+mod endpoint;
 mod git;
 mod http_client;
 mod issuetypes;
 mod licensing;
+mod ownership;
 mod profiles;
 #[allow(dead_code)] // generated; the bin reaches it through licensing
 mod trust_verify;
@@ -41,7 +43,6 @@ pub mod env_vars;
 mod mcp;
 mod notifications;
 mod queue;
-mod relay;
 mod rest;
 mod setup;
 mod startup;
@@ -52,6 +53,7 @@ mod workflow_gen;
 use agents::tmux::{SystemTmuxClient, TmuxClient, TmuxError};
 use app::App;
 use config::Config;
+use operator::relay;
 use templates::glyph_for_key;
 
 /// Detect installed LLM tools from the loaded tool configs
@@ -368,14 +370,6 @@ enum CampaignAction {
     },
 }
 
-impl Commands {
-    /// Stdio protocol servers are spawned by editors, often sandboxed away from
-    /// the user config directory. They serve unregistered rather than not at all.
-    fn tolerates_unregistered(&self) -> bool {
-        matches!(self, Commands::Acp | Commands::Mcp)
-    }
-}
-
 #[derive(Subcommand)]
 enum AuthAction {
     /// Reset the admin password, revoking every issued credential.
@@ -439,23 +433,27 @@ async fn main() -> Result<()> {
     } else {
         Config::load(cli.config.as_deref())?
     };
-    let mut registration_error = None;
-    if !matches!(cli.command, Some(Commands::Docs { .. })) && cli.profile.is_none() {
+    let client_only = matches!(
+        cli.command,
+        Some(
+            Commands::Docs { .. }
+                | Commands::Auth {
+                    action: AuthAction::Bootstrap { .. }
+                }
+        )
+    );
+    if !client_only {
+        if config.profile_registry.is_none() {
+            config.profile_registry = Some(profiles::registry_path()?);
+        }
+        config.acquire_ownership()?;
+    }
+    if !client_only && cli.profile.is_none() {
         // Registration mutates as it goes; adopt it only whole, so a failure
         // midway never leaves a half-registered config behind.
         let mut registered = config.clone();
-        match profiles::register_legacy(&mut registered) {
-            Ok(()) => config = registered,
-            Err(error)
-                if cli
-                    .command
-                    .as_ref()
-                    .is_some_and(Commands::tolerates_unregistered) =>
-            {
-                registration_error = Some(error);
-            }
-            Err(error) => return Err(error),
-        }
+        profiles::register_legacy(&mut registered)?;
+        config = registered;
     }
 
     // Determine if we're running in TUI mode (no subcommand)
@@ -463,12 +461,6 @@ async fn main() -> Result<()> {
 
     // Initialize logging (file-based for TUI, stderr for CLI)
     let logging_handle = logging::init_logging(&config, is_tui_mode, cli.debug)?;
-    if let Some(error) = registration_error {
-        tracing::warn!(
-            error = format!("{error:#}"),
-            "Profile registry unavailable; continuing as an unregistered configuration"
-        );
-    }
 
     // Inject the status-section provider into the REST layer. The section logic
     // lives in `ui` (which `rest` can't depend on - see rest::dto::sections), so
@@ -636,6 +628,7 @@ async fn run_tui(
     // when the user selects tmux as their session wrapper
     let mut app = Box::pin(App::new(config, start_web, open_ui)).await?;
     let result = app.run().await;
+    app.shutdown().await;
 
     // Print log file path on exit if logs were written
     if let Some(log_path) = log_file_path {
@@ -722,7 +715,7 @@ async fn cmd_launch(
 
     // Resolve launch options from the CLI overrides (a named delegator, or the
     // ad-hoc --llm-tool/--model/--model-server trio). The chosen model server's
-    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, …) are threaded into
+    // env vars (OPENAI_BASE_URL, ANTHROPIC_BASE_URL, etc) are threaded into
     // LaunchOptions.provider.env and exported before the agent CLI spawns.
     let launch_options = crate::agents::delegator_resolution::resolve_launch_options(
         config,
@@ -1370,44 +1363,14 @@ async fn cmd_api(config: &Config, port: Option<u16>, open: bool) -> Result<()> {
     println!("    GET  /api/v1/collections      List collections");
     println!();
 
-    if open {
-        let url = format!("http://localhost:{port}/");
-        tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            let opener = if cfg!(target_os = "macos") {
-                "open"
-            } else if cfg!(target_os = "windows") {
-                "cmd"
-            } else {
-                "xdg-open"
-            };
-            if cfg!(target_os = "windows") {
-                let _ = std::process::Command::new(opener)
-                    .args(["/C", "start", &url])
-                    .spawn();
-            } else {
-                let _ = std::process::Command::new(opener).arg(&url).spawn();
-            }
-        });
-    }
-
-    // Settle what the last shutdown left behind before the API can admit work
-    match startup::recovery::reconcile(&config) {
-        Ok(0) => {}
-        Ok(count) => println!("Reconciled {count} agent(s) interrupted by a previous shutdown"),
-        Err(error) => eprintln!("Warning: shutdown recovery reconciliation failed: {error}"),
-    }
-
-    let state = rest::ApiState::new(config.clone(), config.tickets_path());
-    let runner_state = state.clone();
-    services::campaign_runner::spawn_campaign_runner(move || runner_state.config());
-    rest::serve(state, port).await?;
+    let state = rest::ApiState::try_new(config.clone(), config.tickets_path())?;
+    rest::serve(state, port, open).await?;
 
     Ok(())
 }
 
 async fn cmd_mcp(config: &Config) -> Result<()> {
-    let state = rest::ApiState::new(config.clone(), config.tickets_path());
+    let state = rest::ApiState::try_new(config.clone(), config.tickets_path())?;
     tracing::info!("Starting MCP stdio server");
     Box::pin(mcp::stdio::run(
         state,

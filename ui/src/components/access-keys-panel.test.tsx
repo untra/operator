@@ -6,7 +6,7 @@ import { HostContext, type Host } from "../host";
 import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 const { AccessKeysPanel } = await import("./AccessKeysPanel");
 
 const NOW = Date.parse("2026-10-14T12:00:00Z");
@@ -29,7 +29,7 @@ const key = {
   name: "CI",
   grants,
   profile_id: grants.profile_id,
-  display_prefix: "opk_v1_key-1_…",
+  display_prefix: "opk_v1_key-1_",
   created_at: "2026-10-01T00:00:00Z",
   expires_at: "2026-11-01T00:00:00Z",
   revoked_at: null,

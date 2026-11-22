@@ -18,7 +18,7 @@ import { CLIENT_ID, TOKEN_PATH, secondsToMs } from "./credentials";
 import type { TokenStore } from "./token-store";
 
 export const DEVICE_CODE_PATH = "/api/v1/auth/device/code";
-/** RFC 8628 §3.5: on `slow_down` the client adds 5 seconds to its interval. */
+/** RFC 8628 : on `slow_down` the client adds 5 seconds to its interval. */
 export const SLOW_DOWN_INCREMENT_SECS = 5;
 /** IDE clients act as the human admin, so they request every scope. */
 export const IDE_SCOPES: Scope[] = ["read", "write", "execute", "admin"];

@@ -456,7 +456,7 @@ mod tests {
             anthropic.default_api_key_env.as_deref(),
             Some("ANTHROPIC_API_KEY")
         );
-        // Gateways (ollama, openrouter, …) are not builtins.
+        // Gateways (ollama, openrouter, etc) are not builtins.
         let ollama = resp.0.iter().find(|k| k.slug == "ollama").unwrap();
         assert!(!ollama.is_builtin);
         assert_eq!(ollama.category, "gateway");

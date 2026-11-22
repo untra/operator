@@ -37,6 +37,9 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct Config {
+    #[serde(skip)]
+    #[ts(skip)]
+    pub ownership: Option<std::sync::Arc<crate::ownership::Ownership>>,
     /// Active configuration profile (id and name).
     #[serde(default)]
     pub profile: crate::profiles::ProfileIdentity,
@@ -207,7 +210,12 @@ pub struct PathsConfig {
     pub state: String,
     /// Base directory for per-ticket worktrees (default: ~/.operator/worktrees)
     #[serde(default = "default_worktrees_dir")]
+    #[schemars(transform = omit_worktrees_schema_default)]
     pub worktrees: String,
+}
+
+fn omit_worktrees_schema_default(schema: &mut schemars::Schema) {
+    schema.remove("default");
 }
 
 fn default_worktrees_dir() -> String {
@@ -834,6 +842,32 @@ fn env_source() -> config::Environment {
 }
 
 impl Config {
+    pub fn reload_owned(&self) -> Result<Self> {
+        let mut config = Self::load(self.config_file.as_deref().and_then(|path| path.to_str()))?;
+        config.profile = self.profile.clone();
+        config.profile_registry = self.profile_registry.clone();
+        config.server_auth_path = self.server_auth_path.clone();
+        config.ownership = self.ownership.clone();
+        config.acquire_ownership()?;
+        Ok(config)
+    }
+
+    pub(crate) fn acquire_ownership(&mut self) -> Result<()> {
+        if let Some(ownership) = &self.ownership {
+            ownership.validate(self)?;
+        } else {
+            let registry = self
+                .profile_registry
+                .clone()
+                .unwrap_or_else(|| self.state_path().join(crate::profiles::REGISTRY_FILE));
+            let _registry_guard = crate::ownership::registry_guard(&registry)?;
+            if self.server_auth_path.is_none() {
+                self.server_auth_path = crate::profiles::auth_path_read_only(&registry)?;
+            }
+            self.ownership = Some(crate::ownership::Ownership::acquire(self)?);
+        }
+        Ok(())
+    }
     /// Where the auth database lives.
     ///
     /// Authentication is server-scoped, not per configuration: one login serves
@@ -938,6 +972,12 @@ impl Config {
 
     /// Save config to `paths.state`/config.toml.
     pub fn save(&self) -> Result<()> {
+        let ownership = self
+            .ownership
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| crate::ownership::Ownership::acquire(self))?;
+        ownership.validate(self)?;
         self.egress.private_networks()?;
         validate_targets(self)?;
         self.kanban.validate_forge_projects()?;
@@ -1048,6 +1088,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            ownership: None,
             profile: crate::profiles::ProfileIdentity::default(),
             config_file: None,
             profile_registry: None,
@@ -1186,6 +1227,19 @@ mod tests {
     fn test_default_worktrees_dir_contains_worktrees() {
         let dir = default_worktrees_dir();
         assert!(dir.contains("worktrees"));
+    }
+
+    #[test]
+    fn test_worktrees_schema_is_optional_without_a_literal_default() {
+        let schema = serde_json::to_value(schemars::schema_for!(PathsConfig)).unwrap();
+        let worktrees = &schema["properties"]["worktrees"];
+        assert_eq!(worktrees["type"], "string");
+        assert!(worktrees.get("default").is_none());
+        assert!(!schema["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|field| field == "worktrees"));
     }
 
     // --- Environment override mapping ---

@@ -18,6 +18,9 @@ ignore = [
   { id = "RUSTSEC-2026-0370", reason = "zvariant via notify-rust/zbus 5; no upstream upgrade path" },
   { id = "RUSTSEC-2026-0371", reason = "zbus_names via notify-rust/zbus 5; no upstream upgrade path" },
   { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via notify-rust/zbus 5; no upstream upgrade path" },
+  # chrono unmaintained: also required by oauth2/openidconnect, schemars, ts-rs and utoipa,
+  # so dropping our direct use would not remove it. Revisit when those offer jiff/time.
+  { id = "RUSTSEC-2026-0543", reason = "chrono via openidconnect/schemars/ts-rs; no upstream upgrade path" },
 ]
 
 [licenses]

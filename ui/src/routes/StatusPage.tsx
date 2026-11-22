@@ -40,7 +40,7 @@ export function StatusPage() {
       />
 
       {error && <div className={styles.error}>API: {error}</div>}
-      {!sections && !error && <div className={styles.loading}>Loading sections…</div>}
+      {!sections && !error && <div className={styles.loading}>Loading sections...</div>}
       {sections && sections.length === 0 && !error && (
         <div className={styles.loading}>No sections available.</div>
       )}

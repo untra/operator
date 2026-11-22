@@ -582,8 +582,6 @@ export class OperatorApiClient {
     );
   }
 
-  // ─── Kanban Onboarding ────────────────────────────────────────────────
-
   /**
    * Validate kanban provider credentials against the live provider API.
    *

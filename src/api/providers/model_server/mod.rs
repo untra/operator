@@ -237,7 +237,7 @@ pub fn resolve_api_key(server: &ModelServer, kind: ModelServerKind) -> Option<St
 /// A model-server protocol kind.
 ///
 /// `OpenAiCompat` is the explicit catch-all for any OpenAI-API-compatible server
-/// (vllm, groq, together.ai, …). Distinct from a *server instance*, which is
+/// (vllm, groq, together.ai, etc). Distinct from a *server instance*, which is
 /// open and user-named (`ModelServer.name`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModelServerKind {
@@ -359,7 +359,7 @@ impl ModelServerKind {
             ModelServerKind::OpenRouter => {
                 "Hosted gateway to 300+ models (one OpenAI-compatible key)"
             }
-            ModelServerKind::OpenAiCompat => "Any OpenAI-compatible server (vllm, groq, …)",
+            ModelServerKind::OpenAiCompat => "Any OpenAI-compatible server (vllm, groq, etc)",
             ModelServerKind::LmStudio => "LM Studio's local server",
         }
     }

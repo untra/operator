@@ -625,6 +625,30 @@ pub const OPERATIONS: &[Operation] = &[
     },
     Operation {
         method: "GET",
+        path: "/api/v1/endpoints",
+        capability: "endpoints:read",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "GET",
+        path: "/api/v1/endpoints/{id}",
+        capability: "endpoints:read",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "PATCH",
+        path: "/api/v1/endpoints/{id}",
+        capability: "endpoints:update",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "DELETE",
+        path: "/api/v1/endpoints/{id}",
+        capability: "endpoints:delete",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "GET",
         path: "/api/v1/configuration",
         capability: "configuration:read",
         boundary: Boundary::Instance,

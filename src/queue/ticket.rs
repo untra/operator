@@ -208,7 +208,7 @@ pub struct Ticket {
     pub external_provider: Option<String>,
     /// Issuetype collection this ticket's type resolves within
     pub collection: Option<String>,
-    /// Delegator name used per completed step (`step_name` → `delegator_name`).
+    /// Delegator name used per completed step (`step_name` to `delegator_name`).
     /// Populated when a step is launched; used for bidirectional kanban activity logs.
     pub step_delegators: HashMap<String, String>,
     /// Tickets that must complete first: local ids or `provider:key` refs.

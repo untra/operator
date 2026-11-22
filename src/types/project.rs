@@ -29,9 +29,7 @@ pub struct Project {
     #[ts(type = "string")]
     pub path: PathBuf,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Git integration (from vibe-kanban)
-    // ─────────────────────────────────────────────────────────────────────
     /// Associated git repositories (can be multiple for monorepos)
     #[serde(default)]
     pub repos: Vec<ProjectRepo>,
@@ -40,9 +38,7 @@ pub struct Project {
     #[serde(default)]
     pub default_branch: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // AI configuration (from Operator)
-    // ─────────────────────────────────────────────────────────────────────
     /// Path to the AI context file (CLAUDE.md, GEMINI.md, etc.)
     #[serde(default)]
     #[ts(type = "string | null")]
@@ -56,9 +52,7 @@ pub struct Project {
     #[serde(default)]
     pub tags: Vec<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Execution configuration (both systems)
-    // ─────────────────────────────────────────────────────────────────────
     /// Development server startup command
     #[serde(default)]
     pub dev_script: Option<String>,
@@ -81,16 +75,12 @@ pub struct Project {
     #[serde(default)]
     pub cleanup_script: Option<String>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Remote integration (from vibe-kanban)
-    // ─────────────────────────────────────────────────────────────────────
     /// Link to shared organizational project
     #[serde(default)]
     pub remote_project_id: Option<Uuid>,
 
-    // ─────────────────────────────────────────────────────────────────────
     // Timestamps
-    // ─────────────────────────────────────────────────────────────────────
     #[ts(type = "string")]
     pub created_at: DateTime<Utc>,
 

@@ -25,7 +25,7 @@ pub enum WorkflowFormat {
 
 impl WorkflowFormat {
     /// Every format, in catalog/display order. Source of truth cross-checked by
-    /// `tests/vertical_parity.rs` against the `Workflows` catalog vertical.
+    /// `tests/it/suites/vertical_parity.rs` against the `Workflows` catalog vertical.
     pub const ALL: [WorkflowFormat; 2] = [WorkflowFormat::Claude, WorkflowFormat::Agnt];
 
     /// Stable lowercase slug - must equal the `Workflows` catalog entry slug.

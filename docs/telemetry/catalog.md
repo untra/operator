@@ -261,6 +261,14 @@ Source: `telemetry/model/events/auth.yaml`.
 
 Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
 
+### `operator.auth.endpoint_revoked`
+
+Operator auth endpoint revoked.
+
+Source: `telemetry/model/events/auth.yaml`.
+
+Attributes: `operator.auth.succeeded`, `operator.auth.detail`.
+
 ### `operator.auth.login`
 
 Operator auth login.

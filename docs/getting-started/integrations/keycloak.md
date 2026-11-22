@@ -14,7 +14,7 @@ Users sign in from the login page. Their first sign-in creates a pending user id
 
 Remote MCP clients such as AGNT authenticate with a Keycloak access token instead of an Operator key. Operator publishes `/.well-known/oauth-protected-resource` when `[rest_api].public_url` is set and this connection is enabled.
 
-- **Dynamic client registration.** MCP clients register themselves. In the realm, allow anonymous registration from the client's host under **Clients → Client registration → Anonymous access policies → Trusted Hosts**.
+- **Dynamic client registration.** MCP clients register themselves. In the realm, allow anonymous registration from the client's host under **Clients -> Client registration -> Anonymous access policies -> Trusted Hosts**.
 - **Audience.** Keycloak ignores the OAuth `resource` parameter. Add an **Audience** mapper to a default client scope with *Included Custom Audience* set to the Operator public URL, for example `https://operator.example.com`. Tokens without that audience are rejected.
 - **Signing.** Operator accepts RS256 and ES256 tokens and verifies them against the realm JWKS.
 - **Users.** Only users who have signed in to Operator and been approved are accepted. A token never provisions a user.

@@ -386,7 +386,7 @@ function CreateDelegatorForm({
         </SelectInput>
 
         <SelectInput label="Provider" value={provider} onChange={handleProviderChange}>
-          <option value="">Select…</option>
+          <option value="">Select...</option>
           {kinds.map((k) => (
             <option key={k.slug} value={k.slug}>
               {k.display_name} {probes[k.slug]?.reachable ? "●" : "○"}
@@ -396,7 +396,7 @@ function CreateDelegatorForm({
 
         {liveModels.length > 0 ? (
           <SelectInput label="Model" value={model} onChange={handleModelChange}>
-            <option value="">Select…</option>
+            <option value="">Select...</option>
             {liveModels.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.display_name ?? m.id}

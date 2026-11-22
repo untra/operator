@@ -7,7 +7,7 @@
  * Drives bidirectional sync: issues are pulled from the `todo` column,
  * pushed to `doing` when a ticket is claimed, to `done` when completed, and
  * back to `todo` when requeued. Unset fields fall back per-transition
- * (`doing` → "In Progress", `done` → "Done"); requeue only pushes when
+ * (`doing` -> "In Progress", `done` -> "Done"); requeue only pushes when
  * `todo` is explicitly mapped.
  */
 export type KanbanStatusMapping = { 

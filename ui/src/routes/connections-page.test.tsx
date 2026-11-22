@@ -6,7 +6,7 @@ import { mockFetch, requestPath, restoreFetch } from "../test-fetch";
 import { setCsrfToken } from "../api-client";
 import * as webcomponentMocks from "../test-webcomponents";
 
-mock.module("@operator/webcomponents", () => webcomponentMocks);
+await mock.module("@operator/webcomponents", () => webcomponentMocks);
 const { ConnectionsPage } = await import("./ConnectionsPage");
 const HOST: Host = {
   baseUrl: () => "https://operator.test",

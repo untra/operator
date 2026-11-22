@@ -44,7 +44,7 @@ RUN cargo build --profile opr8r-release --locked -p opr8r
 
 # Mirrors Dockerfile; only the operator/opr8r binary source differs.
 # glibc 2.41 >= the ubuntu-24.04 build runners' 2.39, so the GNU binary runs.
-FROM ${BASE_REGISTRY}debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
+FROM ${BASE_REGISTRY}debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 LABEL org.opencontainers.image.title="Operator" \
       org.opencontainers.image.description="Agent orchestration server and CLI (local build)" \
       org.opencontainers.image.url="https://operator.untra.io" \

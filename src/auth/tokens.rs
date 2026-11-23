@@ -291,39 +291,6 @@ pub fn telemetry_claims(
     }
 }
 
-/// Build the claims for an agent session's OTLP ingest token.
-///
-/// Pinned like a callback token, but it carries **no** scopes, so it fails
-/// every ordinary route; only `/otlp/v1/*` accepts its audience. The pinned
-/// ticket, step and session become the trusted correlation attributes that
-/// overwrite whatever the client claimed.
-#[allow(dead_code)]
-pub fn telemetry_claims(
-    subject: &str,
-    ticket_id: &str,
-    step: &str,
-    session_id: &str,
-    ttl: Duration,
-    now: DateTime<Utc>,
-    jti: String,
-) -> Claims {
-    Claims {
-        credential_version: 1,
-        key_id: None,
-        profile_id: None,
-        iss: ISSUER.to_string(),
-        aud: AUDIENCE_TELEMETRY.to_string(),
-        sub: subject.to_string(),
-        scope: String::new(),
-        exp: (now + ttl).timestamp(),
-        iat: now.timestamp(),
-        jti,
-        ticket_id: Some(ticket_id.to_string()),
-        step: Some(step.to_string()),
-        session_id: Some(session_id.to_string()),
-    }
-}
-
 #[cfg(test)]
 pub(crate) mod test_support {
     use super::SigningKey;

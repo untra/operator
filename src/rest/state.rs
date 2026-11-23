@@ -214,24 +214,6 @@ impl ApiState {
         Self::with_auth(config, tickets_path, Arc::new(auth))
     }
 
-    /// State over an in-memory auth store and a throwaway tickets directory.
-    #[cfg(test)]
-    pub fn in_memory(config: Config) -> Self {
-        let store = AuthStore::in_memory().expect("in-memory auth store");
-        let signing_key = store
-            .load_or_create_signing_key()
-            .expect("in-memory signing key");
-        let auth = AuthContext {
-            store,
-            signing_key,
-            local_token: None,
-        };
-        let tickets_path = tempfile::TempDir::new()
-            .expect("temporary tickets directory")
-            .keep();
-        Self::with_auth(config, tickets_path, Arc::new(auth))
-    }
-
     /// Build with a caller-supplied auth context, so tests and the TUI can share
     /// one already-open store instead of racing to open the same database file.
     fn with_auth(config: Config, tickets_path: PathBuf, auth: Arc<AuthContext>) -> Self {

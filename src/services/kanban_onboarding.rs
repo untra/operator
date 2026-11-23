@@ -635,14 +635,6 @@ fn gitea_provider(
         .map_err(|e| ApiError::BadRequest(e.to_string()))
 }
 
-fn gitea_provider(
-    creds: Option<crate::rest::dto::GiteaCredentials>,
-) -> Result<GiteaProjectsProvider, ApiError> {
-    let creds = creds.ok_or_else(|| ApiError::BadRequest("Missing gitea credentials".into()))?;
-    GiteaProjectsProvider::new(&creds.base_url, creds.repositories, creds.token)
-        .map_err(|e| ApiError::BadRequest(e.to_string()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

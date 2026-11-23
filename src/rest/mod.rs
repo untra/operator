@@ -385,7 +385,6 @@ pub fn build_router(state: ApiState) -> Result<Router> {
 }
 
 pub(crate) fn build_profile_router(state: ApiState) -> Router {
-    state.auth.store.start_usage_tracking();
     let config = state.config();
     let cors = cors_layer(&config);
 

@@ -1,3 +1,9 @@
+import type { BoardScope } from "@operator/bindings/BoardScope";
+import type { BoardMapping } from "@operator/bindings/BoardMapping";
+import type { RecordImport } from "@operator/bindings/RecordImport";
+import type { BatchRequest } from "@operator/bindings/BatchRequest";
+import type { WorkflowSample } from "@operator/bindings/WorkflowSample";
+import type { WorkflowRecipe } from "@operator/bindings/WorkflowRecipe";
 import type { CreateOidcConnection } from "@operator/bindings/CreateOidcConnection";
 import type { UpdateOperatorUser } from "@operator/bindings/UpdateOperatorUser";
 import type { CreateUserKey } from "@operator/bindings/CreateUserKey";
@@ -639,4 +645,58 @@ export const updateOperatorUserMutation: MutationDefinition<
   key: "update-operator-user",
   affected: [QUERY_KEYS.operatorUsers, QUERY_KEYS.identityCapabilities],
   run: (api, variables) => api.updateOperatorUser(variables.id, variables.body),
+};
+
+export const workflowRecipesQuery = staticRead(QUERY_KEYS.recipes, (api) => api.workflowRecipes());
+export const selectedWorkflowQuery = memoizeDefinition((id: string) => {
+  const [collection, key] = id.split("/");
+  return readWith(QUERY_KEYS.issueType, { key, collection }, (api, params) =>
+    api.getIssueType(params.key, params.collection),
+  );
+});
+export const sampleWorkflowMutation: MutationDefinition<string, WorkflowSample> = {
+  key: "sample-workflow",
+  affected: [],
+  run: (api, sample) => api.workflowSample(sample),
+};
+export const saveRecipeMutation: MutationDefinition<
+  string,
+  { name: string; recipe: WorkflowRecipe }
+> = {
+  key: "save-recipe",
+  affected: [QUERY_KEYS.recipes],
+  run: (api, { name, recipe }) => api.saveRecipe(name, recipe),
+};
+export const batchPreviewMutation: MutationDefinition<ApiResult<"batchPreview">, BatchRequest> = {
+  key: "batch-preview",
+  affected: [],
+  run: (api, req) => api.batchPreview(req),
+};
+export const batchCreateMutation: MutationDefinition<ApiResult<"batchCreate">, BatchRequest> = {
+  key: "batch-create",
+  affected: [...TICKET_QUERY_KEYS],
+  run: (api, req) => api.batchCreate(req),
+};
+
+export const parseRecordsMutation: MutationDefinition<
+  ApiResult<"parseWorkflowRecords">,
+  RecordImport
+> = {
+  key: "parse-workflow-records",
+  affected: [],
+  run: (api, input) => api.parseWorkflowRecords(input),
+};
+
+export const workflowBoardsQuery = staticRead(QUERY_KEYS.workflowBoards, (api) =>
+  api.workflowBoards(),
+);
+export const boardRecordsMutation: MutationDefinition<ApiResult<"boardRecords">, BoardScope> = {
+  key: "workflow-board-records",
+  affected: [],
+  run: (api, scope) => api.boardRecords(scope),
+};
+export const boardMappingMutation: MutationDefinition<string, BoardMapping> = {
+  key: "workflow-board-mapping",
+  affected: [],
+  run: (api, mapping) => api.saveBoardMapping(mapping),
 };

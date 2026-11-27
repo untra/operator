@@ -8,6 +8,7 @@ mod ticket;
 mod watcher;
 
 pub use creator::TicketCreator;
+pub(crate) use ticket::parse_frontmatter_mapping;
 pub use ticket::{LlmTask, StepAdvanceResult, Ticket, TicketPriority, TicketStatus};
 pub use watcher::QueueWatcher;
 

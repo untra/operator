@@ -12,6 +12,8 @@ use super::{App, AppTerminal};
 pub(super) enum TerminalKeyOp {
     None,
     CreateTicket(CreateDialogResult),
+    ImportRecords,
+    NewWorkflow,
     ViewTicket,
     EditTicket,
     AttachSession,
@@ -27,6 +29,8 @@ impl App {
         match self.dispatch_key(key).await? {
             TerminalKeyOp::None => Ok(()),
             TerminalKeyOp::CreateTicket(result) => self.create_ticket(result, terminal),
+            TerminalKeyOp::NewWorkflow => self.new_workflow(terminal).await,
+            TerminalKeyOp::ImportRecords => self.import_records(terminal),
             TerminalKeyOp::ViewTicket => self.view_ticket(terminal),
             TerminalKeyOp::EditTicket => self.edit_ticket(terminal),
             TerminalKeyOp::AttachSession => self.attach_to_session(terminal),
@@ -322,6 +326,18 @@ impl App {
 
         // Create dialog handling
         if self.create_dialog.visible {
+            if self.create_dialog.step == crate::ui::create_dialog::CreateDialogStep::Template
+                && code == KeyCode::Char('w')
+            {
+                self.create_dialog.hide();
+                return Ok(TerminalKeyOp::NewWorkflow);
+            }
+            if self.create_dialog.step == crate::ui::create_dialog::CreateDialogStep::Template
+                && code == KeyCode::Char('r')
+            {
+                self.create_dialog.hide();
+                return Ok(TerminalKeyOp::ImportRecords);
+            }
             if let Some(result) = self.create_dialog.handle_key(code) {
                 return Ok(TerminalKeyOp::CreateTicket(result));
             }

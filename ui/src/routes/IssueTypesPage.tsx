@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Link } from "react-router-dom";
 import { IssueTypesView } from "@operator/webcomponents";
 import { useApiQuery } from "../api";
 import { issueTypeDocumentQuery, issueTypeQuery, issueTypesQuery } from "../api/definitions";
@@ -23,30 +24,42 @@ export function IssueTypesPage() {
   }, []);
 
   return (
-    <IssueTypesView
-      header={{
-        title: ISSUE_TYPES.label,
-        summary: ISSUE_TYPES.summary,
-        docsUrl: ISSUE_TYPES.docsUrl,
-        icon: ISSUE_TYPES.icon,
-      }}
-      issueTypes={
-        list.isLoading
-          ? { status: "loading", message: "Loading issue types..." }
-          : issueTypes.length > 0
-            ? { status: "ready", data: issueTypes }
-            : { status: "empty", message: "No issue types available." }
-      }
-      selected={selected}
-      workflow={
-        document.data && selected && document.data.key === selected.key
-          ? { status: "ready", data: document.data }
-          : { status: "loading", message: "Loading workflow graph…" }
-      }
-      mode={view}
-      error={error}
-      onSelect={selectIssueType}
-      onModeChange={setView}
-    />
+    <>
+      <nav>
+        <Link to="/workflows/new">New workflow</Link>{" "}
+        {selected && (
+          <Link
+            to={`/tickets/create?workflow=${encodeURIComponent(`${selected.collection ?? ""}/${selected.key}`)}`}
+          >
+            Create tickets with this workflow
+          </Link>
+        )}
+      </nav>
+      <IssueTypesView
+        header={{
+          title: ISSUE_TYPES.label,
+          summary: ISSUE_TYPES.summary,
+          docsUrl: ISSUE_TYPES.docsUrl,
+          icon: ISSUE_TYPES.icon,
+        }}
+        issueTypes={
+          list.isLoading
+            ? { status: "loading", message: "Loading issue types..." }
+            : issueTypes.length > 0
+              ? { status: "ready", data: issueTypes }
+              : { status: "empty", message: "No issue types available." }
+        }
+        selected={selected}
+        workflow={
+          document.data && selected && document.data.key === selected.key
+            ? { status: "ready", data: document.data }
+            : { status: "loading", message: "Loading workflow graph…" }
+        }
+        mode={view}
+        error={error}
+        onSelect={selectIssueType}
+        onModeChange={setView}
+      />
+    </>
   );
 }

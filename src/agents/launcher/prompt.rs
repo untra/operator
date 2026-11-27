@@ -8,7 +8,6 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::queue::Ticket;
-use crate::templates::{schema::TemplateSchema, TemplateType};
 
 /// Environment variables injected into operator-spawned agent command scripts
 /// for branding (status line, pane title, UI deep-links).
@@ -172,18 +171,11 @@ When done, move the ticket to completed.",
     }
 }
 
-/// Get the `agent_prompt` from a template if it exists
-pub fn get_agent_prompt(ticket_type: &str) -> Option<String> {
-    TemplateType::from_key(ticket_type)
-        .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok())
-        .and_then(|schema| schema.agent_prompt)
-}
-
-/// Get the top-level prompt from a template if it exists
-pub fn get_template_prompt(ticket_type: &str) -> Option<String> {
-    TemplateType::from_key(ticket_type)
-        .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok())
-        .and_then(|schema| schema.prompt)
+pub fn uses_step_prompt(ticket: &Ticket) -> bool {
+    ticket.workflow_inputs().is_some()
+        || ticket
+            .template_schema()
+            .is_some_and(|schema| schema.prompt.is_some())
 }
 
 /// Generate a UUID for the claude --session-id flag

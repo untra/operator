@@ -20,7 +20,7 @@ use crate::auth::tokens::SigningKey;
 use crate::config::Config;
 use crate::issuetypes::IssueTypeRegistry;
 use crate::rest::error::ApiError;
-use crate::startup::templates::load_registry;
+use crate::startup::templates::load_active_registry;
 
 /// Shared state for the REST API
 #[derive(Clone)]
@@ -245,7 +245,8 @@ impl ApiState {
     /// one already-open store instead of racing to open the same database file.
     fn with_auth(config: Config, tickets_path: PathBuf, auth: Arc<AuthContext>) -> Self {
         // Shared loader; keeps the API's issue-type resolution identical to the CLI/TUI `workflow export` produces the same output on every surface.
-        let registry = load_registry(&tickets_path);
+        let registry =
+            load_active_registry(&tickets_path, config.templates.active_collection.as_deref());
 
         let mcp_http_mounted = config.mcp.http_enabled;
         let config_arc = Arc::new(config);

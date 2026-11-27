@@ -52,9 +52,7 @@ use self::llm_command::{
     apply_yolo_flags, build_llm_command_with_permissions_for_tool, get_default_model,
     wrap_for_target,
 };
-use self::prompt::{
-    generate_session_uuid, get_agent_prompt, get_template_prompt, write_prompt_file,
-};
+use self::prompt::{generate_session_uuid, uses_step_prompt, write_prompt_file};
 
 /// Session name prefix for operator-managed tmux sessions
 pub const SESSION_PREFIX: &str = "op-";
@@ -1189,7 +1187,7 @@ impl Launcher {
         // Build the full prompt using the interpolation engine
         let initial_prompt = generate_prompt(&self.config, &ticket);
         let initial_prompt = apply_prompt_wrapping(initial_prompt, &options);
-        let full_prompt = if get_template_prompt(&ticket.ticket_type).is_some() {
+        let full_prompt = if uses_step_prompt(&ticket) {
             let interpolator = PromptInterpolator::new();
             match interpolator.build_launch_prompt(&self.config, &ticket, &working_dir_str) {
                 Ok(prompt) => prompt,
@@ -1202,7 +1200,10 @@ impl Launcher {
                     initial_prompt
                 }
             }
-        } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
+        } else if let Some(agent_prompt) = ticket
+            .template_schema()
+            .and_then(|schema| schema.agent_prompt)
+        {
             let ticket_path = format!("../.tickets/in-progress/{}", ticket.filename);
             let message = format!(
                 "use the {} agent to implement the ticket at {}",
@@ -1511,7 +1512,7 @@ impl Launcher {
         // Build the full prompt using the interpolation engine
         let initial_prompt = generate_prompt(&self.config, &ticket);
         let initial_prompt = apply_prompt_wrapping(initial_prompt, &options.launch_options);
-        let mut full_prompt = if get_template_prompt(&ticket.ticket_type).is_some() {
+        let mut full_prompt = if uses_step_prompt(&ticket) {
             let interpolator = PromptInterpolator::new();
             match interpolator.build_launch_prompt(&self.config, &ticket, &working_dir_str) {
                 Ok(prompt) => prompt,
@@ -1524,7 +1525,10 @@ impl Launcher {
                     initial_prompt
                 }
             }
-        } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
+        } else if let Some(agent_prompt) = ticket
+            .template_schema()
+            .and_then(|schema| schema.agent_prompt)
+        {
             let ticket_path = format!("../.tickets/in-progress/{}", ticket.filename);
             let message = format!(
                 "use the {} agent to implement the ticket at {}",

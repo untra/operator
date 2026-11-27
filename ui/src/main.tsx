@@ -9,6 +9,8 @@ import { Layout } from "./Layout";
 import { DashboardPage } from "./routes/DashboardPage";
 import { ConfigPage } from "./routes/ConfigPage";
 import { IssueTypesPage } from "./routes/IssueTypesPage";
+import { NewWorkflowPage } from "./routes/NewWorkflowPage";
+import { CreateTicketsPage } from "./routes/CreateTicketsPage";
 import { QueuePage } from "./routes/QueuePage";
 import { StatusPage } from "./routes/StatusPage";
 import { ConnectionsPage } from "./routes/ConnectionsPage";
@@ -71,6 +73,8 @@ createRoot(document.getElementById("root")!).render(
                   <Route path="delegators" element={<SectionPage conceptKey="delegators" />} />
                   <Route path="projects" element={<SectionPage conceptKey="projects" />} />
                   <Route path="workflows" element={<SectionPage conceptKey="workflows" />} />
+                  <Route path="workflows/new" element={<NewWorkflowPage />} />
+                  <Route path="tickets/create" element={<CreateTicketsPage />} />
                   <Route path="queue" element={<QueuePage />} />
                   <Route path="status" element={<StatusPage />} />
                   <Route path="agent/:id" element={<AgentDetailPage />} />

@@ -45,7 +45,7 @@ impl KanbanBidirectionalSync {
 
     /// Called when a ticket is claimed (todo -> doing). Pushes "doing" status to provider.
     pub async fn on_ticket_claimed(&self, ticket: &Ticket) {
-        if let Some((provider, sync_cfg)) = self.resolve(ticket) {
+        if let Some((provider, sync_cfg)) = self.resolve(ticket).await {
             let status = doing_status(&sync_cfg).to_string();
             self.push_status(ticket, &*provider, &status).await;
         }
@@ -53,7 +53,7 @@ impl KanbanBidirectionalSync {
 
     /// Called when a ticket is completed (doing -> done). Pushes "done" status to provider.
     pub async fn on_ticket_completed(&self, ticket: &Ticket) {
-        if let Some((provider, sync_cfg)) = self.resolve(ticket) {
+        if let Some((provider, sync_cfg)) = self.resolve(ticket).await {
             let status = done_status(&sync_cfg).to_string();
             self.push_status(ticket, &*provider, &status).await;
         }
@@ -63,7 +63,7 @@ impl KanbanBidirectionalSync {
     /// mapped "todo" status to the provider - no-op unless `status_mapping.todo`
     /// is explicitly configured (there is no safe universal default column).
     pub async fn on_ticket_requeued(&self, ticket: &Ticket) {
-        if let Some((provider, sync_cfg)) = self.resolve(ticket) {
+        if let Some((provider, sync_cfg)) = self.resolve(ticket).await {
             if let Some(status) = todo_status(&sync_cfg) {
                 let status = status.to_string();
                 self.push_status(ticket, &*provider, &status).await;
@@ -79,7 +79,7 @@ impl KanbanBidirectionalSync {
         delegator_name: &str,
         summary: Option<&str>,
     ) {
-        let Some((provider, _)) = self.resolve(ticket) else {
+        let Some((provider, _)) = self.resolve(ticket).await else {
             return;
         };
         let Some(external_id) = ticket.external_id.as_deref() else {
@@ -199,7 +199,34 @@ impl KanbanBidirectionalSync {
     }
 
     /// Find the provider instance and sync config for a ticket's external issue.
-    fn resolve(&self, ticket: &Ticket) -> Option<(Box<dyn KanbanProvider>, ProjectSyncConfig)> {
+    async fn resolve(
+        &self,
+        ticket: &Ticket,
+    ) -> Option<(Box<dyn KanbanProvider>, ProjectSyncConfig)> {
+        if let Some(source) = crate::queue::parse_frontmatter_mapping(&ticket.content)
+            .and_then(|(map, _)| map.get("board_source").cloned())
+        {
+            let source: crate::campaigns::board::SourceIssue =
+                serde_json::from_value(source).ok()?;
+            let settings = source.scope.config(&self.config)?;
+            if !source.status_writer || !settings.bidirectional {
+                return None;
+            }
+            if source.scope.provider == "github" {
+                let cfg = self.config.kanban.github.get(&source.scope.instance)?;
+                let provider =
+                    GithubProjectsProvider::from_config(&source.scope.instance, cfg).ok()?;
+                if let Err(error) = provider
+                    .restore_item_lookup(&source.scope.project, &source.id, &source.key)
+                    .await
+                {
+                    warn!(ticket_id=%ticket.id,%error,"Could not restore board item for status writer");
+                    return None;
+                }
+                return Some((Box::new(provider), settings.clone()));
+            }
+            return Some((source.scope.provider(&self.config).ok()?, settings.clone()));
+        }
         let provider_name = ticket.external_provider.as_deref()?;
         let external_id = ticket.external_id.as_deref()?;
 

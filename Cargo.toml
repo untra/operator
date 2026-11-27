@@ -152,6 +152,8 @@ rust-embed = { version = "8", optional = true }
 mime_guess = { version = "2", optional = true }
 utoipa-axum = "0.3"
 openidconnect = { version = "4", default-features = false, features = ["reqwest", "rustls-tls"] }
+csv = "1.3"
+tempfile = "3"
 
 [features]
 default = ["embed-ui"]
@@ -161,7 +163,6 @@ embed-ui = ["dep:rust-embed", "dep:mime_guess"]
 [dev-dependencies]
 operator-relay = { path = "crates/relay" }
 tokio = { version = "1", features = ["test-util"] }
-tempfile = "3"
 tokio-tungstenite = "0.29"
 
 [lints.rust]

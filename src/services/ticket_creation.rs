@@ -79,6 +79,7 @@ impl From<CreationError> for ApiError {
 #[derive(Debug, Clone)]
 pub struct TicketDraft {
     pub issue_type: IssueType,
+    pub collection: String,
     /// Handlebars template the ticket renders from.
     pub template: String,
     /// User values plus schema defaults, keyed by field name.
@@ -105,6 +106,15 @@ pub fn prepare(
     };
     let collection = registry.collection_of(&key).unwrap_or_default().to_string();
 
+    prepare_definition(config, issue_type, &collection, request)
+}
+
+pub(crate) fn prepare_definition(
+    config: &Config,
+    issue_type: &IssueType,
+    collection: &str,
+    request: CreateTicketRequest,
+) -> Result<TicketDraft, CreationError> {
     let mut values = request.values;
     if let Some(project) = request.project {
         values.insert(PROJECT_KEY.to_string(), project);
@@ -127,7 +137,8 @@ pub fn prepare(
     values.insert(PROJECT_KEY.to_string(), project.clone());
 
     Ok(TicketDraft {
-        template: template_markdown(&config.tickets_path(), &collection, issue_type),
+        template: template_markdown(&config.tickets_path(), collection, issue_type),
+        collection: collection.to_owned(),
         issue_type: issue_type.clone(),
         values,
         project,
@@ -144,7 +155,7 @@ pub fn render_preview(config: &Config, draft: &TicketDraft) -> Result<String, Cr
         format!("{}-{PREVIEW_ID_SUFFIX}", draft.issue_type.key),
     );
     values.extend(draft.values.clone());
-    render(&draft.template, &values)
+    render_draft(draft, &values)
 }
 
 /// Number, render and write `draft` to the queue under the creation lock.
@@ -154,19 +165,39 @@ pub fn write(config: &Config, draft: &TicketDraft) -> Result<PathBuf, CreationEr
         .map_err(|e| CreationError::Write(e.to_string()))?;
     let mut values = generated_values(&creator, draft);
     values.extend(draft.values.clone());
-    let content = render(&draft.template, &values)?;
-    let content = match config.templates.active_collection.as_deref() {
-        Some(collection) => creator::stamp_frontmatter_field(&content, "collection", collection),
-        None => content,
+    let content = render_draft(draft, &values)?;
+    creator
+        .write_rendered(&draft.issue_type.key, &values, &content)
+        .map_err(|e| CreationError::Write(e.to_string()))
+}
+
+fn render_draft(
+    draft: &TicketDraft,
+    values: &HashMap<String, String>,
+) -> Result<String, CreationError> {
+    let content = render(&draft.template, values)?;
+    let content = if draft.collection.is_empty() {
+        content
+    } else {
+        creator::stamp_frontmatter_field(&content, "collection", &draft.collection)
     };
     let content = if draft.project.is_empty() {
         content
     } else {
         creator::stamp_frontmatter_field(&content, PROJECT_KEY, &draft.project)
     };
-    creator
-        .write_rendered(&draft.issue_type.key, &values, &content)
-        .map_err(|e| CreationError::Write(e.to_string()))
+    let inputs = serde_json::to_string(
+        &draft
+            .values
+            .iter()
+            .collect::<std::collections::BTreeMap<_, _>>(),
+    )
+    .map_err(|e| CreationError::Write(e.to_string()))?;
+    Ok(creator::stamp_frontmatter_field(
+        &content,
+        "workflow_inputs",
+        &inputs,
+    ))
 }
 
 /// Create a ticket and mirror it to its kanban board.
@@ -441,7 +472,11 @@ fn field_error(field: &str, message: &str) -> FieldError {
 /// embedded collection, then generated from its fields - with a section
 /// appended for every user field the template never references, so no value
 /// a user enters is silently dropped.
-fn template_markdown(tickets_path: &Path, collection: &str, issue_type: &IssueType) -> String {
+pub(crate) fn template_markdown(
+    tickets_path: &Path,
+    collection: &str,
+    issue_type: &IssueType,
+) -> String {
     let key = issue_type.key.as_str();
     let on_disk = fs::read_to_string(
         tickets_path

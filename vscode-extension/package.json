@@ -279,6 +279,11 @@
         "title": "Operator: Connect GitLab"
       },
       {
+        "command": "operator.createTicketsFromSelection",
+        "title": "Create Tickets from Selection or File",
+        "category": "Operator"
+      },
+      {
         "command": "operator.showCreateMenu",
         "title": "Operator: Create New..."
       },

@@ -11,7 +11,7 @@ ref: string,
 /**
  * Template key (FEAT, FIX, TASK, SPIKE, INV, ...).
  */
-template: string, project: string | null, summary: string | null, 
+template: string, collection?: string, project: string | null, summary: string | null, 
 /**
  * Extra Handlebars values; `project`/`summary` above take precedence.
  */

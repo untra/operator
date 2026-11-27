@@ -208,6 +208,8 @@ pub enum ValidationError {
     MissingEnumOptions(String),
     /// Step references non-existent step
     InvalidStepRef(String),
+    DuplicateInput(String),
+    DuplicateStep(String),
     /// No steps defined
     NoSteps,
 }
@@ -236,6 +238,8 @@ impl std::fmt::Display for ValidationError {
             ValidationError::InvalidStepRef(step) => {
                 write!(f, "References unknown step '{step}'")
             }
+            ValidationError::DuplicateInput(name) => write!(f, "Duplicate input name {name}"),
+            ValidationError::DuplicateStep(name) => write!(f, "Duplicate step name {name}"),
             ValidationError::NoSteps => {
                 write!(f, "Issue type must have at least one step")
             }
@@ -275,9 +279,13 @@ impl IssueType {
             errors.push(ValidationError::NoSteps);
         }
 
-        // Check that all required fields (except 'id' with auto=id) have defaults
+        let mut names = std::collections::HashSet::new();
         for field in &self.fields {
+            if !names.insert(&field.name) {
+                errors.push(ValidationError::DuplicateInput(field.name.clone()));
+            }
             if field.required
+                && !field.user_editable
                 && field.auto.is_none()
                 && field.name != "id"
                 && field.default.is_none()
@@ -295,7 +303,11 @@ impl IssueType {
         let step_names: std::collections::HashSet<&str> =
             self.steps.iter().map(|s| s.name.as_str()).collect();
 
+        names.clear();
         for step in &self.steps {
+            if !names.insert(&step.name) {
+                errors.push(ValidationError::DuplicateStep(step.name.clone()));
+            }
             if let Some(ref next) = step.next_step {
                 if !step_names.contains(next.as_str()) {
                     errors.push(ValidationError::InvalidStepRef(next.clone()));

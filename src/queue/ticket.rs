@@ -486,6 +486,36 @@ impl Ticket {
 
     /// Get the `TemplateSchema` for this ticket's type
     pub fn template_schema(&self) -> Option<TemplateSchema> {
+        if let Some(collection) = &self.collection {
+            let key = &self.ticket_type;
+            let safe_component = |name: &str| {
+                !name.is_empty()
+                    && name
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+            };
+            if !safe_component(collection) || !safe_component(key) {
+                return None;
+            }
+            let root = Path::new(&self.filepath).parent()?.parent()?;
+            let path = root
+                .join("templates")
+                .join(collection)
+                .join(format!("{key}.json"));
+            match fs::read_to_string(path) {
+                Ok(schema) => return TemplateSchema::from_json(&schema).ok(),
+                Err(error) if error.kind() != std::io::ErrorKind::NotFound => return None,
+                Err(_) => {}
+            }
+            if let Some(entry) = crate::collections::get_embedded_collection(collection)
+                .and_then(|c| c.issuetypes.iter().find(|entry| entry.key == key))
+            {
+                return TemplateSchema::from_json(entry.schema_json).ok();
+            }
+            if self.workflow_inputs().is_some() {
+                return None;
+            }
+        }
         TemplateType::from_key(&self.ticket_type)
             .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok())
     }
@@ -494,6 +524,12 @@ impl Ticket {
     pub fn current_step_schema(&self) -> Option<crate::templates::schema::StepSchema> {
         let schema = self.template_schema()?;
         schema.steps.into_iter().find(|s| s.name == self.step)
+    }
+
+    pub fn workflow_inputs(&self) -> Option<Value> {
+        parse_frontmatter_mapping(&self.content)?
+            .0
+            .shift_remove("workflow_inputs")
     }
 
     /// Markdown after the frontmatter.
@@ -856,7 +892,7 @@ fn extract_llm_task_from_yaml(frontmatter: &HashMap<String, Value>) -> LlmTask {
 }
 
 /// Split content into its frontmatter mapping and the body after the closing `---`.
-fn parse_frontmatter_mapping(content: &str) -> Option<(YamlMap, &str)> {
+pub(crate) fn parse_frontmatter_mapping(content: &str) -> Option<(YamlMap, &str)> {
     let after_open = content.trim_start().strip_prefix("---")?;
     let end_idx = after_open.find("\n---")?;
     let map = serde_saphyr::from_str(after_open[..end_idx].trim()).ok()?;

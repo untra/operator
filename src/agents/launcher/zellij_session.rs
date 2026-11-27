@@ -19,8 +19,7 @@ use super::llm_command::{
 };
 use super::options::{LaunchOptions, RelaunchOptions};
 use super::prompt::{
-    generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
-    write_prompt_file, OperatorEnvVars,
+    generate_session_uuid, uses_step_prompt, write_command_file, write_prompt_file, OperatorEnvVars,
 };
 use super::step_command;
 /// Result of launching in zellij - includes tab name for state tracking
@@ -393,7 +392,7 @@ fn build_full_prompt(
     project_path: &str,
     initial_prompt: &str,
 ) -> String {
-    if get_template_prompt(&ticket.ticket_type).is_some() {
+    if uses_step_prompt(ticket) {
         let interpolator = PromptInterpolator::new();
         match interpolator.build_launch_prompt(config, ticket, project_path) {
             Ok(prompt) => prompt,
@@ -406,7 +405,10 @@ fn build_full_prompt(
                 initial_prompt.to_string()
             }
         }
-    } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
+    } else if let Some(agent_prompt) = ticket
+        .template_schema()
+        .and_then(|schema| schema.agent_prompt)
+    {
         let ticket_path = format!("../.tickets/in-progress/{}", ticket.filename);
         let message = format!(
             "use the {} agent to implement the ticket at {}",

@@ -1,3 +1,12 @@
+import type { BoardScope } from "@operator/bindings/BoardScope";
+import type { BoardMapping } from "@operator/bindings/BoardMapping";
+import type { RecordImport } from "@operator/bindings/RecordImport";
+import type { WorkflowDataset } from "@operator/bindings/WorkflowDataset";
+import type { WorkflowRecipe } from "@operator/bindings/WorkflowRecipe";
+import type { WorkflowSample } from "@operator/bindings/WorkflowSample";
+import type { BatchPreview } from "@operator/bindings/BatchPreview";
+import type { BatchRequest } from "@operator/bindings/BatchRequest";
+import type { BatchCreated } from "@operator/bindings/BatchCreated";
 import type { CreateOidcConnection } from "@operator/bindings/CreateOidcConnection";
 import type { OidcConnection } from "@operator/bindings/OidcConnection";
 import type { OperatorUser } from "@operator/bindings/OperatorUser";
@@ -947,6 +956,68 @@ export class OperatorApi {
     });
   }
 
+  workflowBoards(): Promise<BoardScope[]> {
+    return request(this.base, "/api/v1/workflows/boards");
+  }
+  boardRecords(scope: BoardScope): Promise<WorkflowDataset["rows"]> {
+    return request(this.base, "/api/v1/workflows/boards/records", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(scope),
+    });
+  }
+  saveBoardMapping(mapping: BoardMapping): Promise<string> {
+    return request(this.base, "/api/v1/workflows/boards/mapping", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(mapping),
+    });
+  }
+
+  parseWorkflowRecords(input: RecordImport): Promise<WorkflowDataset["rows"]> {
+    return request(this.base, "/api/v1/workflows/records", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(input),
+    });
+  }
+
+  workflowSample(req: WorkflowSample): Promise<string> {
+    return request(this.base, "/api/v1/workflows/sample", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(req),
+    });
+  }
+
+  workflowRecipes(): Promise<Record<string, WorkflowRecipe>> {
+    return request(this.base, "/api/v1/workflows/recipes");
+  }
+
+  saveRecipe(name: string, recipe: WorkflowRecipe): Promise<string> {
+    return request(this.base, `/api/v1/workflows/recipes/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(recipe),
+    });
+  }
+
+  batchPreview(req: BatchRequest): Promise<BatchPreview> {
+    return request(this.base, "/api/v1/tickets/batch/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(req),
+    });
+  }
+
+  batchCreate(req: BatchRequest): Promise<BatchCreated> {
+    return request(this.base, "/api/v1/tickets/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: toJson(req),
+    });
+  }
+
   createTicket(req: CreateTicketRequest): Promise<CreateTicketResponse> {
     return request(this.base, "/api/v1/tickets", {
       method: "POST",
@@ -967,8 +1038,11 @@ export class OperatorApi {
     return request(this.base, "/api/v1/issuetypes");
   }
 
-  getIssueType(key: string): Promise<IssueTypeResponse> {
-    return request(this.base, `/api/v1/issuetypes/${encodeURIComponent(key)}`);
+  getIssueType(key: string, collection?: string): Promise<IssueTypeResponse> {
+    return request(
+      this.base,
+      `/api/v1/issuetypes/${encodeURIComponent(key)}${collection ? `?collection=${encodeURIComponent(collection)}` : ""}`,
+    );
   }
 
   createIssueType(req: CreateIssueTypeRequest): Promise<IssueTypeResponse> {

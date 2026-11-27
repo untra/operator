@@ -18,6 +18,8 @@ import { isLoopbackUrl } from "./auth/credentials";
 /** Sections of the hosted UI we can deep-link to (hash routes from ui/src/main.tsx). */
 export type OperatorUiRoute =
   | "dashboard"
+  | "new-workflow"
+  | "create-tickets"
   | "issuetypes"
   | "projects"
   | "kanban"
@@ -35,6 +37,8 @@ export type OperatorUiRoute =
 
 const ROUTE_HASH: Record<OperatorUiRoute, string> = {
   dashboard: "#/",
+  "new-workflow": "#/workflows/new",
+  "create-tickets": "#/tickets/create",
   issuetypes: "#/issuetypes",
   projects: "#/projects",
   kanban: "#/kanban",

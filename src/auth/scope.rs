@@ -148,6 +148,13 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/setup/collections"),
     admin("POST", "/api/v1/setup/initialize"),
     // --- Issue types --------------------------------------------------------
+    write("PUT", "/api/v1/workflows/boards/mapping"),
+    read("GET", "/api/v1/workflows/boards"),
+    read("POST", "/api/v1/workflows/boards/records"),
+    read("POST", "/api/v1/workflows/records"),
+    read("POST", "/api/v1/workflows/sample"),
+    read("GET", "/api/v1/workflows/recipes"),
+    write("PUT", "/api/v1/workflows/recipes/{name}"),
     read("GET", "/api/v1/issuetypes"),
     write("POST", "/api/v1/issuetypes"),
     read("GET", "/api/v1/issuetypes/{key}"),

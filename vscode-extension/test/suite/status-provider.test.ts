@@ -340,7 +340,12 @@ suite("Status Provider Test Suite", () => {
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
-      assert.deepStrictEqual(labels, ["Configuration", "Workflows", "Remote Targets", "License"]);
+      assert.deepStrictEqual(labels, [
+        "Configuration",
+        "Workflow exports",
+        "Remote Targets",
+        "License",
+      ]);
     });
 
     test("tier 1: Configuration + Connections when config ready but no connections", async () => {
@@ -356,7 +361,7 @@ suite("Status Provider Test Suite", () => {
       assert.deepStrictEqual(labels, [
         "Configuration",
         "Connections",
-        "Workflows",
+        "Workflow exports",
         "Remote Targets",
         "License",
       ]);
@@ -396,7 +401,7 @@ suite("Status Provider Test Suite", () => {
         "Git",
         "Issue Types",
         "Delegators",
-        "Workflows",
+        "Workflow exports",
         "Remote Targets",
         "License",
       ]);
@@ -522,7 +527,7 @@ suite("Status Provider Test Suite", () => {
         "Issue Types",
         "Delegators",
         "Managed Projects",
-        "Workflows",
+        "Workflow exports",
         "Remote Targets",
         "License",
       ]);
@@ -547,7 +552,7 @@ suite("Status Provider Test Suite", () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(
         labels,
-        ["Configuration", "Connections", "Workflows", "Remote Targets", "License"],
+        ["Configuration", "Connections", "Workflow exports", "Remote Targets", "License"],
         "Should only show tier 0+1 plus the prerequisite-free sections when connections not ready",
       );
     });

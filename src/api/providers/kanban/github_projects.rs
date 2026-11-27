@@ -1762,6 +1762,44 @@ impl KanbanProvider for GithubProjectsProvider {
 }
 
 impl GithubProjectsProvider {
+    pub(crate) async fn restore_item_lookup(
+        &self,
+        project: &str,
+        issue_id: &str,
+        key: &str,
+    ) -> Result<(), ApiError> {
+        let mut cursor = None;
+        loop {
+            let page = self.fetch_items_page(project, cursor.as_deref()).await?;
+            for item in page.nodes {
+                if let Some(content) = item.content {
+                    let issue = content_to_issue(content, &item.id, String::new());
+                    if issue.id == issue_id && issue.key == key {
+                        self.item_lookup.write().await.insert(
+                            key.to_owned(),
+                            ItemLookup {
+                                project_id: project.to_owned(),
+                                item_id: item.id,
+                            },
+                        );
+                        return Ok(());
+                    }
+                }
+            }
+            cursor = page
+                .page_info
+                .filter(|p| p.has_next_page)
+                .and_then(|p| p.end_cursor);
+            if cursor.is_none() {
+                return Err(ApiError::http(
+                    PROVIDER_NAME,
+                    404,
+                    format!("Issue {key} is no longer on the selected project"),
+                ));
+            }
+        }
+    }
+
     /// Fetch a single page of project items. Helper used by both
     /// `list_issues` and `list_users`.
     async fn fetch_items_page(

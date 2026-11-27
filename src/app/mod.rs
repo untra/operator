@@ -40,6 +40,7 @@ mod review;
 mod session;
 mod status_actions;
 mod tickets;
+mod workflow_import;
 
 #[cfg(test)]
 mod tests;

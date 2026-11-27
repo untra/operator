@@ -80,6 +80,7 @@ import {
 } from "./walkthrough";
 import { startGitOnboarding, onboardGitHub, onboardGitLab } from "./git-onboarding";
 import { ConfigPanel } from "./config-panel";
+import { createTicketsFromSelection } from "./workflow-import";
 import { openOperatorUi } from "./open-operator-ui";
 import { CampaignTreeProvider, type CampaignNode } from "./campaign-provider";
 import { routeOperatorUri } from "./uri-handler";
@@ -990,9 +991,14 @@ async function showCreateMenu(ctx: CommandContext): Promise<void> {
         description: "Create a tool+model pairing for autonomous launches",
       },
       {
-        label: "$(list-tree) New Issue Type",
+        label: "$(list-tree) New workflow",
         detail: "issuetype",
         description: "Define a custom issue type with steps",
+      },
+      {
+        label: "$(checklist) Create tickets",
+        detail: "create-tickets",
+        description: "Plan tickets from a workflow and records",
       },
       {
         label: "$(project) New Managed Project",
@@ -1017,8 +1023,10 @@ async function showCreateMenu(ctx: CommandContext): Promise<void> {
       }
       break;
     case "issuetype":
-      // Issue types are managed in the hosted Operator UI.
-      await openOperatorUi(ctx.getCurrentTicketsDir(), "issuetypes");
+      await openOperatorUi(ctx.getCurrentTicketsDir(), "new-workflow");
+      break;
+    case "create-tickets":
+      await openOperatorUi(ctx.getCurrentTicketsDir(), "create-tickets");
       break;
     case "project":
       // Projects are browsed/assessed in the hosted Operator UI.
@@ -1590,6 +1598,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     vscode.commands.registerCommand("operator.configureGitLab", () =>
       onboardGitLab().then(() => ctx.refreshAllProviders()),
+    ),
+    vscode.commands.registerCommand("operator.createTicketsFromSelection", () =>
+      createTicketsFromSelection(ctx.getCurrentTicketsDir()),
     ),
     vscode.commands.registerCommand("operator.showCreateMenu", () => showCreateMenu(ctx)),
     vscode.commands.registerCommand(

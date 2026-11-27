@@ -15,4 +15,4 @@ filename_stem: string,
 /**
  * Dependencies with batch refs resolved to allocated ids.
  */
-depends_on: Array<string>, errors: Array<string>, };
+depends_on: Array<string>, source_record?: string, markdown: string, values: { [key in string]: string }, errors: Array<string>, };

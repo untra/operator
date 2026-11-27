@@ -15,7 +15,6 @@ use serde_json::{json, Value};
 
 use crate::config::Config;
 use crate::queue::Ticket;
-use crate::templates::{schema::TemplateSchema, TemplateType};
 
 /// Standard operator output instructions appended to all prompts.
 /// This instructs agents to output a status block for progress tracking.
@@ -91,8 +90,7 @@ impl PromptInterpolator {
         previous_recommendation: Option<&str>,
     ) -> Result<Value> {
         // Load the template schema for step information
-        let schema = TemplateType::from_key(&ticket.ticket_type)
-            .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok());
+        let schema = ticket.template_schema();
 
         // Build step information
         let (step_count, step_names) = if let Some(ref schema) = schema {
@@ -152,6 +150,11 @@ impl PromptInterpolator {
 
         // Add branch name if available
         if let Value::Object(ref mut map) = context {
+            if let Some(Value::Object(inputs)) = ticket.workflow_inputs() {
+                for (name, value) in inputs {
+                    map.entry(name).or_insert(value);
+                }
+            }
             map.insert("branch".to_string(), json!(ticket.branch_name()));
         }
 
@@ -197,8 +200,7 @@ impl PromptInterpolator {
         )?;
 
         // Load the template schema
-        let schema = TemplateType::from_key(&ticket.ticket_type)
-            .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok());
+        let schema = ticket.template_schema();
 
         let mut parts = Vec::new();
 

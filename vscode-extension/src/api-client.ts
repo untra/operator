@@ -8,6 +8,13 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
+import type {
+  BatchPreview,
+  BatchCreated,
+  BatchRequest,
+  WorkflowRecipe,
+  WorkflowDataset,
+} from "./generated";
 import { credentialProvider, isLoopbackUrl } from "./auth/credentials";
 import { ApiError, AuthRequiredError } from "./auth/errors";
 import { currentConnection } from "./connection";
@@ -503,6 +510,22 @@ export class OperatorApiClient {
   /**
    * List all issue types from the registry
    */
+  parseWorkflowRecords(text: string): Promise<WorkflowDataset["rows"]> {
+    return this.request("/api/v1/workflows/records", jsonInit("POST", { text }));
+  }
+
+  workflowRecipes(): Promise<Record<string, WorkflowRecipe>> {
+    return this.request("/api/v1/workflows/recipes");
+  }
+
+  previewWorkflowBatch(request: BatchRequest): Promise<BatchPreview> {
+    return this.request("/api/v1/tickets/batch/preview", jsonInit("POST", request));
+  }
+
+  createWorkflowBatch(request: BatchRequest): Promise<BatchCreated> {
+    return this.request("/api/v1/tickets/batch", jsonInit("POST", request));
+  }
+
   async listIssueTypes(): Promise<IssueTypeSummary[]> {
     return this.request("/api/v1/issuetypes");
   }
@@ -510,8 +533,10 @@ export class OperatorApiClient {
   /**
    * Get a single issue type by key
    */
-  async getIssueType(key: string): Promise<IssueTypeResponse> {
-    return this.request(`/api/v1/issuetypes/${encodeURIComponent(key)}`);
+  async getIssueType(key: string, collection?: string): Promise<IssueTypeResponse> {
+    return this.request(
+      `/api/v1/issuetypes/${encodeURIComponent(key)}${collection ? `?collection=${encodeURIComponent(collection)}` : ""}`,
+    );
   }
 
   /**

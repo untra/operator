@@ -533,7 +533,7 @@ impl CreateDialog {
 
         // Instructions
         let instructions = Paragraph::new(Line::from(vec![Span::styled(
-            "Select template type:",
+            "w New workflow / r Create tickets from records",
             Style::default().fg(Color::Gray),
         )]));
         frame.render_widget(instructions, chunks[0]);

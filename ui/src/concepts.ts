@@ -121,7 +121,7 @@ export const CONCEPTS: Record<string, Concept> = {
   workflows: {
     key: "workflows",
     icon: "type-hierarchy",
-    label: "Workflows",
+    label: "Workflow exports",
     route: "/workflows",
     docsUrl: `${DOCS_BASE}/getting-started/workflows/`,
     summary: "Export formats a ticket + issue type can be rendered into for other tools.",

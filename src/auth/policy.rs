@@ -18,6 +18,48 @@ pub struct Operation {
 
 pub const OPERATIONS: &[Operation] = &[
     Operation {
+        method: "PUT",
+        path: "/api/v1/workflows/boards/mapping",
+        capability: "kanban:update",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "GET",
+        path: "/api/v1/workflows/boards",
+        capability: "tickets:read",
+        boundary: Boundary::Project,
+    },
+    Operation {
+        method: "POST",
+        path: "/api/v1/workflows/boards/records",
+        capability: "tickets:read",
+        boundary: Boundary::Project,
+    },
+    Operation {
+        method: "POST",
+        path: "/api/v1/workflows/records",
+        capability: "issuetypes:read",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "POST",
+        path: "/api/v1/workflows/sample",
+        capability: "issuetypes:read",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "GET",
+        path: "/api/v1/workflows/recipes",
+        capability: "issuetypes:read",
+        boundary: Boundary::Instance,
+    },
+    Operation {
+        method: "PUT",
+        path: "/api/v1/workflows/recipes/{name}",
+        capability: "issuetypes:create",
+        boundary: Boundary::Instance,
+    },
+    Operation {
         method: "GET",
         path: "/api/v1/license",
         capability: "license:read",

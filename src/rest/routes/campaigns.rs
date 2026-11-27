@@ -1,7 +1,10 @@
 //! Ticket batches (free) and campaigns (Premium).
 
+use crate::campaigns::board::{BoardMapping, BoardScope};
+use crate::campaigns::recipe::WorkflowRecipe;
 use crate::rest::state::RequestState as State;
 use axum::{extract::Path, Json};
+use std::collections::BTreeMap;
 
 use crate::campaigns::batch::{self, BatchCreated, BatchError, BatchPreview, BatchRequest};
 use crate::campaigns::model::Campaign;
@@ -105,7 +108,12 @@ fn require_batch(state: &ApiState, request: &BatchRequest) -> Result<(), ApiErro
         require_campaign(state, id)?;
     }
     for item in &request.tickets {
-        state.require_project(item.project.as_deref().unwrap_or_default())?;
+        state.require_project(
+            item.project
+                .as_ref()
+                .or_else(|| item.values.get("project"))
+                .map_or("", String::as_str),
+        )?;
         require_dependencies(state, &tickets, &item.depends_on, &local)?;
     }
     Ok(())
@@ -118,7 +126,9 @@ pub async fn batch_preview(
     State(state): State<ApiState>,
     Json(request): Json<BatchRequest>,
 ) -> Result<Json<BatchPreview>, ApiError> {
+    let request = expand_request(&state, request).await?;
     require_batch(&state, &request)?;
+    let registry = std::sync::Arc::clone(&state.registry).read_owned().await;
     let config = (*state.config()).clone();
     blocking(move || {
         let existing = all_tickets(&config)?;
@@ -126,8 +136,9 @@ pub async fn batch_preview(
             .campaign
             .as_deref()
             .is_some_and(|id| CampaignStore::new(&config).get(id).is_some());
-        Ok(Json(batch::preview(
+        Ok(Json(batch::preview_with_registry(
             &config,
+            &registry,
             &existing,
             &request,
             campaign_exists,
@@ -144,15 +155,19 @@ pub async fn batch_create(
     State(state): State<ApiState>,
     Json(request): Json<BatchRequest>,
 ) -> Result<Json<BatchCreated>, ApiError> {
+    let request = expand_request(&state, request).await?;
     require_batch(&state, &request)?;
+    let registry = std::sync::Arc::clone(&state.registry).read_owned().await;
     let config = (*state.config()).clone();
-    blocking(move || match batch::create(&config, &request) {
-        Ok(created) => Ok(Json(created)),
-        Err(BatchError::Invalid(preview)) => Err(ApiError::ValidationError(
-            serde_json::to_string(&preview).unwrap_or_else(|_| "batch is invalid".into()),
-        )),
-        Err(e @ BatchError::Write(_)) => Err(ApiError::InternalError(e.to_string())),
-    })
+    blocking(
+        move || match batch::create_with_registry(&config, &registry, &request) {
+            Ok(created) => Ok(Json(created)),
+            Err(BatchError::Invalid(preview)) => Err(ApiError::ValidationError(
+                serde_json::to_string(&preview).unwrap_or_else(|_| "batch is invalid".into()),
+            )),
+            Err(e @ BatchError::Write(_)) => Err(ApiError::InternalError(e.to_string())),
+        },
+    )
     .await
 }
 
@@ -312,4 +327,155 @@ pub async fn status(
             .map_err(campaign_error)
     })
     .await
+}
+
+#[utoipa::path(get, path="/api/v1/workflows/recipes", operation_id="workflow_recipes", tag="Tickets", responses((status=200, body=BTreeMap<String, WorkflowRecipe>)))]
+pub async fn recipes(
+    State(state): State<ApiState>,
+) -> Result<Json<BTreeMap<String, WorkflowRecipe>>, ApiError> {
+    Ok(Json(crate::campaigns::recipe::saved(&state.config())?))
+}
+
+#[utoipa::path(put, path="/api/v1/workflows/recipes/{name}", operation_id="workflow_recipe_save", tag="Tickets", params(("name"=String, Path)), request_body=WorkflowRecipe, responses((status=200, body=String)))]
+pub async fn save_recipe(
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+    Json(recipe): Json<WorkflowRecipe>,
+) -> Result<Json<String>, ApiError> {
+    crate::campaigns::recipe::save(&state.config(), &name, &recipe)
+        .map_err(|e| ApiError::ValidationError(e.to_string()))?;
+    Ok(Json(name))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[ts(export)]
+pub struct RecordImport {
+    pub text: String,
+}
+
+#[utoipa::path(post, path="/api/v1/workflows/records", operation_id="workflow_parse_records", tag="Tickets", request_body=RecordImport, responses((status=200, body=Vec<BTreeMap<String,String>>)))]
+pub async fn parse_records(
+    Json(input): Json<RecordImport>,
+) -> Result<Json<Vec<crate::campaigns::recipe::Record>>, ApiError> {
+    blocking(move || {
+        crate::campaigns::recipe::parse_records(&input.text)
+            .map(Json)
+            .map_err(|e| ApiError::ValidationError(e.to_string()))
+    })
+    .await
+}
+
+#[utoipa::path(get, path="/api/v1/workflows/boards", operation_id="workflow_boards", tag="Tickets", responses((status=200, body=Vec<BoardScope>)))]
+pub async fn boards(State(state): State<ApiState>) -> Json<Vec<BoardScope>> {
+    Json(
+        BoardScope::configured(&state.config())
+            .into_iter()
+            .filter(|board| require_board(&state, board).is_ok())
+            .collect(),
+    )
+}
+
+fn require_board(state: &ApiState, board: &BoardScope) -> Result<(), ApiError> {
+    let config = state.config();
+    let settings = board
+        .config(&config)
+        .ok_or_else(|| ApiError::NotFound("Board not found".into()))?;
+    state.require_project(&crate::services::kanban_sync::ticket_project(
+        settings,
+        &board.project,
+    ))
+}
+
+#[utoipa::path(post, path="/api/v1/workflows/boards/records", operation_id="workflow_board_records", tag="Tickets",request_body=BoardScope, responses((status=200, body=Vec<BTreeMap<String,String>>)))]
+pub async fn board_records(
+    State(state): State<ApiState>,
+    Json(board): Json<BoardScope>,
+) -> Result<Json<Vec<crate::campaigns::recipe::Record>>, ApiError> {
+    require_board(&state, &board)?;
+    let config = state.config();
+    let settings = board
+        .config(&config)
+        .ok_or_else(|| ApiError::NotFound("Board not found".into()))?;
+    Ok(Json(
+        board
+            .issues(&config)
+            .await?
+            .iter()
+            .map(|issue| crate::campaigns::board::record(issue, &settings.type_mappings))
+            .collect(),
+    ))
+}
+
+async fn expand_request(
+    state: &ApiState,
+    mut request: BatchRequest,
+) -> Result<BatchRequest, ApiError> {
+    if let Some(board) = request.board.take() {
+        require_board(state, &board.scope)?;
+        if !board.status_writers.is_empty()
+            && !board
+                .scope
+                .config(&state.config())
+                .is_some_and(|settings| settings.bidirectional)
+        {
+            return Err(ApiError::ValidationError(
+                "Enable bidirectional sync on this board to designate a status writer".into(),
+            ));
+        }
+        if request.dataset.is_some() || !request.tickets.is_empty() {
+            return Err(ApiError::ValidationError(
+                "Choose a single record source".into(),
+            ));
+        }
+        let issues = board.scope.issues(&state.config()).await?;
+        request.tickets = board
+            .expand(
+                &issues,
+                &board
+                    .scope
+                    .config(&state.config())
+                    .ok_or_else(|| ApiError::NotFound("Board not found".into()))?
+                    .type_mappings,
+            )
+            .map_err(|e| ApiError::ValidationError(e.to_string()))?;
+    }
+    request
+        .expanded()
+        .map_err(|e| ApiError::ValidationError(e.to_string()))
+}
+
+#[utoipa::path(put, path="/api/v1/workflows/boards/mapping", operation_id="workflow_board_mapping", tag="Tickets",request_body=BoardMapping, responses((status=200, body=String)))]
+pub async fn save_board_mapping(
+    State(state): State<ApiState>,
+    Json(mapping): Json<BoardMapping>,
+) -> Result<Json<String>, ApiError> {
+    require_board(&state, &mapping.scope)?;
+    if state.project_filter().is_some()
+        && (mapping.recipe.columns.contains_key("project")
+            || mapping.recipe.repeat.contains_key("project"))
+    {
+        return Err(ApiError::ValidationError(
+            "Choose a fixed local project for scheduled imports under this credential".into(),
+        ));
+    }
+    state.require_project(
+        mapping
+            .recipe
+            .shared
+            .get("project")
+            .map_or("", String::as_str),
+    )?;
+    if state
+        .registry
+        .read()
+        .await
+        .get_in(&mapping.recipe.collection, &mapping.recipe.workflow)
+        .is_none()
+    {
+        return Err(ApiError::NotFound("Workflow not found".into()));
+    }
+    mapping
+        .scope
+        .save_mapping(&state.config(), &mapping.recipe)?;
+    Ok(Json("Saved mapping for future syncs".into()))
 }

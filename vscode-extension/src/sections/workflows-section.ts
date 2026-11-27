@@ -42,7 +42,7 @@ export class WorkflowsSection implements StatusSection {
   getTopLevelItem(_ctx: SectionContext): StatusItem {
     const count = this.state.formats.length;
     return new StatusItem({
-      label: "Workflows",
+      label: "Workflow exports",
       description: this.state.apiAvailable ? `${count} export formats` : "API required",
       icon: "type-hierarchy",
       collapsibleState:

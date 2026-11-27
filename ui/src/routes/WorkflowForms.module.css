@@ -1,0 +1,40 @@
+.page {
+  display: grid;
+  gap: 1rem;
+  max-width: 65rem;
+  padding: 1.5rem;
+}
+.page label {
+  display: block;
+}
+.page input:not([type="checkbox"]),
+.page textarea,
+.page select {
+  display: block;
+  width: 100%;
+  margin-block: 0.3rem 0.6rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.45rem;
+}
+.page textarea {
+  min-height: 5rem;
+}
+.page fieldset {
+  min-width: 0;
+  border: 1px solid var(--border);
+}
+.page button {
+  justify-self: start;
+}
+.page pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+}

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { Link } from "react-router-dom";
 import { QueueView } from "@operator/webcomponents";
 import { STATUS_POLL_MS, useApiQuery } from "../api";
 import { kanbanQuery } from "../api/definitions";
@@ -28,24 +29,31 @@ export function QueuePage() {
   );
 
   return (
-    <QueueView
-      header={{
-        title: QUEUE.label,
-        summary: QUEUE.summary,
-        docsUrl: QUEUE.docsUrl,
-        icon: QUEUE.icon,
-      }}
-      board={
-        board.isLoading
-          ? { status: "loading", message: "Loading queue..." }
-          : board.data
-            ? { status: "ready", data: board.data }
-            : { status: "empty", message: "No tickets" }
-      }
-      error={board.error?.message ?? null}
-      updatedLabel={board.data ? new Date(board.data.last_updated).toLocaleTimeString() : undefined}
-      onOpenTicket={openTicket}
-      onCreateTicket={createTicket}
-    />
+    <>
+      <nav>
+        <Link to="/tickets/create">Create tickets</Link>
+      </nav>
+      <QueueView
+        header={{
+          title: QUEUE.label,
+          summary: QUEUE.summary,
+          docsUrl: QUEUE.docsUrl,
+          icon: QUEUE.icon,
+        }}
+        board={
+          board.isLoading
+            ? { status: "loading", message: "Loading queue..." }
+            : board.data
+              ? { status: "ready", data: board.data }
+              : { status: "empty", message: "No tickets" }
+        }
+        error={board.error?.message ?? null}
+        updatedLabel={
+          board.data ? new Date(board.data.last_updated).toLocaleTimeString() : undefined
+        }
+        onOpenTicket={openTicket}
+        onCreateTicket={createTicket}
+      />
+    </>
   );
 }

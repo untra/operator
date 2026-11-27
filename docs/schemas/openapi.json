@@ -80,8 +80,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "agents:read"
       }
     },
     "/api/v1/agents/{agent_id}": {
@@ -207,8 +207,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "agents:approve",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "agents:approve"
       }
     },
     "/api/v1/agents/{agent_id}/connect/attach": {
@@ -386,8 +386,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "agents:read"
+        "x-operator-capability": "agents:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/agents/{agent_id}/focus": {
@@ -467,8 +467,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "agents:focus"
+        "x-operator-capability": "agents:focus",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/agents/{agent_id}/reject": {
@@ -2020,8 +2020,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "campaigns:launch"
+        "x-operator-capability": "campaigns:launch",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/campaigns/{id}/pause": {
@@ -2182,8 +2182,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "collections:read"
+        "x-operator-capability": "collections:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/collections/active": {
@@ -2229,8 +2229,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "collections:read"
+        "x-operator-capability": "collections:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/collections/{name}": {
@@ -2287,8 +2287,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "collections:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "collections:read"
       }
     },
     "/api/v1/collections/{name}/activate": {
@@ -2354,8 +2354,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "collections:update",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "collections:update"
       }
     },
     "/api/v1/configuration": {
@@ -2390,8 +2390,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "configuration:read",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "configuration:read"
       },
       "patch": {
         "tags": [
@@ -2455,8 +2455,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "configuration:update"
+        "x-operator-capability": "configuration:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/connections": {
@@ -2491,8 +2491,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "connections:read"
+        "x-operator-capability": "connections:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/connections/mcp/clients": {
@@ -2633,8 +2633,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/from-tool": {
@@ -2712,8 +2712,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "delegators:create"
+        "x-operator-capability": "delegators:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators/import-profile": {
@@ -2781,8 +2781,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "delegators:create"
       }
     },
     "/api/v1/delegators/{name}": {
@@ -3038,8 +3038,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "delegators:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "delegators:read"
       }
     },
     "/api/v1/endpoints": {
@@ -3075,8 +3075,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "endpoints:read"
+        "x-operator-capability": "endpoints:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/endpoints/uplink": {
@@ -3309,8 +3309,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "endpoints:update"
+        "x-operator-capability": "endpoints:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/execution-targets": {
@@ -3402,8 +3402,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "git:update"
+        "x-operator-capability": "git:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/git/providers": {
@@ -3441,8 +3441,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "git:read"
+        "x-operator-capability": "git:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/git/session-env": {
@@ -3498,8 +3498,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "git:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "git:create"
       }
     },
     "/api/v1/git/validate": {
@@ -3633,8 +3633,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "integrations:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "integrations:read"
       }
     },
     "/api/v1/issuetypes": {
@@ -3773,8 +3773,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:create"
       }
     },
     "/api/v1/issuetypes/{key}": {
@@ -3843,8 +3843,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "put": {
         "tags": [
@@ -3935,8 +3935,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:update",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:update"
       },
       "delete": {
         "tags": [
@@ -4130,8 +4130,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "issuetypes:read"
+        "x-operator-capability": "issuetypes:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/issuetypes/{key}/steps/{step_name}": {
@@ -4298,8 +4298,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "issuetypes:update"
+        "x-operator-capability": "issuetypes:update",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/issuetypes/{key}/workflow-preview": {
@@ -4366,8 +4366,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "issuetypes:read"
+        "x-operator-capability": "issuetypes:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/kanban/config": {
@@ -4425,8 +4425,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "kanban:update"
+        "x-operator-capability": "kanban:update",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/kanban/projects": {
@@ -4525,8 +4525,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "kanban:read"
       }
     },
     "/api/v1/kanban/session-env": {
@@ -4702,8 +4702,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "kanban:execute"
+        "x-operator-capability": "kanban:execute",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes": {
@@ -4870,8 +4870,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "kanban:create"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/statuses": {
@@ -4984,8 +4984,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "license:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "license:read"
       },
       "put": {
         "tags": [
@@ -5049,8 +5049,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "license:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "license:update"
       },
       "delete": {
         "tags": [
@@ -5131,8 +5131,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "llm-tools:read"
+        "x-operator-capability": "llm-tools:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/llm-tools/default": {
@@ -5234,8 +5234,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "llm-tools:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "llm-tools:update"
       }
     },
     "/api/v1/mcp/descriptor": {
@@ -5347,8 +5347,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "mcp:connect"
+        "x-operator-capability": "mcp:connect",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/mcp/sse": {
@@ -5385,8 +5385,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "mcp:connect"
+        "x-operator-capability": "mcp:connect",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/model-servers": {
@@ -5422,8 +5422,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -5488,8 +5488,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "model-servers:create"
+        "x-operator-capability": "model-servers:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/model-servers/kinds": {
@@ -5587,8 +5587,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "model-servers:read"
+        "x-operator-capability": "model-servers:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/model-servers/{name}": {
@@ -5806,8 +5806,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:delete",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "model-servers:delete"
       }
     },
     "/api/v1/model-servers/{name}/models": {
@@ -5865,8 +5865,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:execute",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "model-servers:execute"
       }
     },
     "/api/v1/profiles": {
@@ -6082,8 +6082,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "profiles:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:update"
       }
     },
     "/api/v1/projects": {
@@ -6189,8 +6189,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "projects:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "projects:create"
       }
     },
     "/api/v1/queue/kanban": {
@@ -6227,8 +6227,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "queue:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/pause": {
@@ -6325,8 +6325,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "queue:create"
+        "x-operator-capability": "queue:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/queue/status": {
@@ -6412,8 +6412,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "queue:sync",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "queue:sync"
       }
     },
     "/api/v1/queue/sync/{provider}/{project_key}": {
@@ -6559,8 +6559,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "setup:read"
+        "x-operator-capability": "setup:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/setup/initialize": {
@@ -6711,8 +6711,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "setup:read"
+        "x-operator-capability": "setup:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/skills": {
@@ -6884,8 +6884,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "targets:create"
+        "x-operator-capability": "targets:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/targets/{name}": {
@@ -6957,8 +6957,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "targets:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:update"
       },
       "delete": {
         "tags": [
@@ -7020,8 +7020,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "targets:delete"
+        "x-operator-capability": "targets:delete",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/targets/{name}/probe": {
@@ -7212,8 +7212,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:create"
       }
     },
     "/api/v1/tickets/batch": {
@@ -7280,8 +7280,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "tickets:create"
+        "x-operator-capability": "tickets:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/tickets/batch/preview": {
@@ -7338,8 +7338,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "tickets:read"
+        "x-operator-capability": "tickets:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/tickets/preview": {
@@ -7465,8 +7465,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
       }
     },
     "/api/v1/tickets/{id}/campaign": {
@@ -7971,8 +7971,400 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "workflow-formats:read",
+        "x-operator-scope": "read",
+        "x-operator-capability": "workflow-formats:read"
+      }
+    },
+    "/api/v1/workflows/boards": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "workflow_boards",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BoardScope"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-capability": "tickets:read",
         "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/workflows/boards/mapping": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "workflow_board_mapping",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardMapping"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-capability": "kanban:update",
+        "x-operator-scope": "write"
+      }
+    },
+    "/api/v1/workflows/boards/records": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "workflow_board_records",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardScope"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-capability": "tickets:read",
+        "x-operator-scope": "read"
+      }
+    },
+    "/api/v1/workflows/recipes": {
+      "get": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "workflow_recipes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/WorkflowRecipe"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
+      }
+    },
+    "/api/v1/workflows/recipes/{name}": {
+      "put": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "workflow_recipe_save",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRecipe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:create"
+      }
+    },
+    "/api/v1/workflows/records": {
+      "post": {
+        "tags": [
+          "Tickets"
+        ],
+        "operationId": "workflow_parse_records",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
+      }
+    },
+    "/api/v1/workflows/sample": {
+      "post": {
+        "tags": [
+          "Issue Types"
+        ],
+        "operationId": "workflow_sample",
+        "parameters": [
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowSample"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/livez": {
@@ -8997,6 +9389,15 @@
           "idle"
         ]
       },
+      "BTreeMap": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "propertyNames": {
+          "type": "string"
+        }
+      },
       "BatchCreated": {
         "type": "object",
         "description": "Result of creating a batch.",
@@ -9030,6 +9431,12 @@
           "template"
         ],
         "properties": {
+          "collection": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "depends_on": {
             "type": "array",
             "items": {
@@ -9076,15 +9483,29 @@
           "tickets",
           "waves",
           "errors",
-          "valid"
+          "valid",
+          "confirmation",
+          "previously_created"
         ],
         "properties": {
+          "confirmation": {
+            "type": "string"
+          },
           "errors": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "description": "Batch-wide errors (cycles, unknown campaign)."
+          },
+          "previously_created": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "tickets": {
             "type": "array",
@@ -9110,14 +9531,37 @@
       "BatchRequest": {
         "type": "object",
         "description": "A batch of tickets, optionally created inside a campaign.",
-        "required": [
-          "tickets"
-        ],
         "properties": {
+          "board": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BoardSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "campaign": {
             "type": [
               "string",
               "null"
+            ]
+          },
+          "confirmation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dataset": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowDataset"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "tickets": {
@@ -9223,6 +9667,71 @@
           }
         ],
         "description": "Why a pending member is not launching."
+      },
+      "BoardMapping": {
+        "type": "object",
+        "required": [
+          "scope",
+          "recipe"
+        ],
+        "properties": {
+          "recipe": {
+            "$ref": "#/components/schemas/WorkflowRecipe"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/BoardScope"
+          }
+        }
+      },
+      "BoardScope": {
+        "type": "object",
+        "required": [
+          "provider",
+          "instance",
+          "project"
+        ],
+        "properties": {
+          "instance": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        }
+      },
+      "BoardSelection": {
+        "type": "object",
+        "required": [
+          "scope",
+          "recipe",
+          "issue_ids"
+        ],
+        "properties": {
+          "issue_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/WorkflowRecipe"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/BoardScope"
+          },
+          "status_writers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
       },
       "BootstrapState": {
         "type": "string",
@@ -12839,6 +13348,14 @@
           "permissions_required"
         ]
       },
+      "LabelPolicy": {
+        "type": "string",
+        "enum": [
+          "review",
+          "skip",
+          "use_selected"
+        ]
+      },
       "LaunchCampaignRequest": {
         "type": "object",
         "description": "Launch a campaign, or preview the launch.",
@@ -14334,6 +14851,8 @@
           "template",
           "filename_stem",
           "depends_on",
+          "markdown",
+          "values",
           "errors"
         ],
         "properties": {
@@ -14358,11 +14877,29 @@
             "type": "string",
             "description": "Allocated id; empty when the template is unknown."
           },
+          "markdown": {
+            "type": "string"
+          },
           "ref": {
             "type": "string"
           },
+          "source_record": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "template": {
             "type": "string"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
@@ -14726,6 +15263,17 @@
             "type": "integer",
             "description": "Tickets waiting in queue",
             "minimum": 0
+          }
+        }
+      },
+      "RecordImport": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
           }
         }
       },
@@ -17300,6 +17848,24 @@
           }
         }
       },
+      "WorkflowDataset": {
+        "type": "object",
+        "required": [
+          "recipe",
+          "rows"
+        ],
+        "properties": {
+          "recipe": {
+            "$ref": "#/components/schemas/WorkflowRecipe"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BTreeMap"
+            }
+          }
+        }
+      },
       "WorkflowExportResponse": {
         "type": "object",
         "description": "Response for exporting a ticket to a Claude dynamic workflow (`.js`).",
@@ -17433,6 +17999,93 @@
           "suggested_filename": {
             "type": "string",
             "description": "Suggested filename for saving the preview (`<KEY>.preview.workflow.js`)."
+          }
+        }
+      },
+      "WorkflowRecipe": {
+        "type": "object",
+        "description": "Reusable mapping from a named source to one collection-qualified workflow.",
+        "required": [
+          "source",
+          "collection",
+          "workflow",
+          "key_columns",
+          "columns",
+          "shared",
+          "repeat"
+        ],
+        "properties": {
+          "collection": {
+            "type": "string"
+          },
+          "columns": {
+            "$ref": "#/components/schemas/BTreeMap"
+          },
+          "include_legacy": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Include new variants when adopting an issue already imported by legacy sync."
+          },
+          "key_columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repeat": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "shared": {
+            "$ref": "#/components/schemas/BTreeMap"
+          },
+          "source": {
+            "type": "string"
+          },
+          "unresolved_labels": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LabelPolicy",
+                "description": "Resolve board labels when set. Unmatched or ambiguous issues follow this policy."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "workflow": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowSample": {
+        "type": "object",
+        "required": [
+          "definition",
+          "values"
+        ],
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/CreateIssueTypeRequest"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },

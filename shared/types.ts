@@ -2339,6 +2339,24 @@ export type BlockReason = { "kind": "dependencies" } | { "kind": "gate", "refs":
 
 export type TickReport = { status: CampaignStatus, launched: Array<string>, awaiting_operator: Array<string>, stalled: Array<string>, blocked: { [key in string]: BlockReason }, pause_reason: string | null, };
 
+export type LabelPolicy = "review" | "skip" | "use_selected";
+
+export type WorkflowRecipe = { source: string, 
+/**
+ * Resolve board labels when set. Unmatched or ambiguous issues follow this policy.
+ */
+unresolved_labels?: LabelPolicy, 
+/**
+ * Include new variants when adopting an issue already imported by legacy sync.
+ */
+include_legacy?: boolean, collection: string, workflow: string, key_columns: Array<string>, columns: { [key in string]: string }, shared: { [key in string]: string }, repeat: { [key in string]: Array<string> }, };
+
+export type WorkflowDataset = { recipe: WorkflowRecipe, rows: Array<{ [key in string]: string }>, };
+
+export type BoardScope = { provider: string, instance: string, project: string, };
+
+export type BoardSelection = { scope: BoardScope, recipe: WorkflowRecipe, issue_ids: Array<string>, status_writers: { [key in string]: string }, };
+
 export type BatchItem = { 
 /**
  * Batch-local name other items use in `depends_on`.
@@ -2347,7 +2365,7 @@ ref: string,
 /**
  * Template key (FEAT, FIX, TASK, SPIKE, INV, ...).
  */
-template: string, project: string | null, summary: string | null, 
+template: string, collection?: string, project: string | null, summary: string | null, 
 /**
  * Extra Handlebars values; `project`/`summary` above take precedence.
  */
@@ -2357,7 +2375,7 @@ values: { [key in string]: string },
  */
 depends_on: Array<string>, };
 
-export type BatchRequest = { campaign: string | null, tickets: Array<BatchItem>, };
+export type BatchRequest = { campaign: string | null, tickets: Array<BatchItem>, dataset?: WorkflowDataset, board?: BoardSelection, confirmation?: string, };
 
 export type PlannedTicket = { ref: string, 
 /**
@@ -2371,7 +2389,7 @@ filename_stem: string,
 /**
  * Dependencies with batch refs resolved to allocated ids.
  */
-depends_on: Array<string>, errors: Array<string>, };
+depends_on: Array<string>, source_record?: string, markdown: string, values: { [key in string]: string }, errors: Array<string>, };
 
 export type BatchPreview = { tickets: Array<PlannedTicket>, 
 /**
@@ -2381,7 +2399,7 @@ waves: Array<Array<string>>,
 /**
  * Batch-wide errors (cycles, unknown campaign).
  */
-errors: Array<string>, valid: boolean, };
+errors: Array<string>, valid: boolean, confirmation: string, previously_created: { [key in string]: string }, };
 
 export type CreatedTicket = { ref: string, id: string, filename: string, };
 

@@ -123,7 +123,14 @@ impl TicketCreator {
     ) -> Result<PathBuf> {
         let filepath = self.next_queue_path(type_key, values);
         fs::create_dir_all(self.queue_path()).context("Failed to create queue directory")?;
-        fs::write(&filepath, content).context("Failed to write ticket file")?;
+        use std::io::Write;
+        let mut draft = tempfile::NamedTempFile::new_in(self.queue_path())?;
+        draft
+            .write_all(content.as_bytes())
+            .context("Failed to write ticket file")?;
+        draft
+            .persist_noclobber(&filepath)
+            .context("Failed to publish ticket file")?;
         Ok(filepath)
     }
 
@@ -197,11 +204,20 @@ impl TicketCreator {
         first_step: &str,
         project: &str,
     ) -> HashMap<String, String> {
+        let existing = self.existing_ids();
+        let id = ids::next_ticket_id(type_key, existing.iter().map(String::as_str));
+        Self::values_for_id(type_key, first_step, project, id)
+    }
+
+    pub(crate) fn values_for_id(
+        type_key: &str,
+        first_step: &str,
+        project: &str,
+        id: String,
+    ) -> HashMap<String, String> {
         let now = Utc::now();
         let date = now.format("%Y-%m-%d").to_string();
         let datetime = now.format("%Y-%m-%d %H:%M").to_string();
-        let existing = self.existing_ids();
-        let id = ids::next_ticket_id(type_key, existing.iter().map(String::as_str));
         let branch_prefix = type_key.to_lowercase();
 
         let mut values = HashMap::new();

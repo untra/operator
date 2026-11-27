@@ -15,8 +15,7 @@ use super::llm_command::{
 };
 use super::options::{LaunchOptions, RelaunchOptions};
 use super::prompt::{
-    generate_session_uuid, get_agent_prompt, get_template_prompt, write_command_file,
-    write_prompt_file, OperatorEnvVars,
+    generate_session_uuid, uses_step_prompt, write_command_file, write_prompt_file, OperatorEnvVars,
 };
 use super::remote::launch_remote_in_session;
 use super::step_command;
@@ -132,7 +131,7 @@ pub fn launch_in_tmux_with_options(
 
     // Build the full prompt using the new interpolation engine
     // Priority: template.prompt (new) > agent_prompt (legacy) > initial_prompt (fallback)
-    let full_prompt = if get_template_prompt(&ticket.ticket_type).is_some() {
+    let full_prompt = if uses_step_prompt(ticket) {
         // New style: use interpolation engine to combine issuetype prompt + step prompt + ticket
         let interpolator = PromptInterpolator::new();
         match interpolator.build_launch_prompt(config, ticket, project_path) {
@@ -146,7 +145,10 @@ pub fn launch_in_tmux_with_options(
                 initial_prompt.to_string()
             }
         }
-    } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
+    } else if let Some(agent_prompt) = ticket
+        .template_schema()
+        .and_then(|schema| schema.agent_prompt)
+    {
         // Legacy: templates with agent_prompt (FEAT, FIX, INV, SPIKE without new prompt field)
         let ticket_path = format!("../.tickets/in-progress/{}", ticket.filename);
         let message = format!(
@@ -361,7 +363,7 @@ pub fn launch_in_tmux_with_relaunch_options(
 
             // Build the full prompt using the new interpolation engine
             // Priority: template.prompt (new) > agent_prompt (legacy) > initial_prompt (fallback)
-            let full_prompt = if get_template_prompt(&ticket.ticket_type).is_some() {
+            let full_prompt = if uses_step_prompt(ticket) {
                 // New style: use interpolation engine
                 let interpolator = PromptInterpolator::new();
                 match interpolator.build_launch_prompt(config, ticket, project_path) {
@@ -375,7 +377,10 @@ pub fn launch_in_tmux_with_relaunch_options(
                         initial_prompt.to_string()
                     }
                 }
-            } else if let Some(agent_prompt) = get_agent_prompt(&ticket.ticket_type) {
+            } else if let Some(agent_prompt) = ticket
+                .template_schema()
+                .and_then(|schema| schema.agent_prompt)
+            {
                 // Legacy: templates with agent_prompt
                 let ticket_path = format!("../.tickets/in-progress/{}", ticket.filename);
                 let message = format!(

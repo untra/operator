@@ -8,11 +8,8 @@ use anyhow::{Context, Result};
 use crate::config::Config;
 use crate::permissions::{ProjectPermissions, ProviderCliArgs, StepPermissions, ToolPattern};
 use crate::queue::Ticket;
+use crate::templates::schema::{PermissionMode, StepTypeTag};
 use crate::templates::step_type;
-use crate::templates::{
-    schema::{PermissionMode, StepTypeTag, TemplateSchema},
-    TemplateType,
-};
 
 /// Step configuration extracted from template schema
 #[derive(Debug, Default)]
@@ -27,8 +24,7 @@ pub struct StepConfig {
 /// Get step-level configuration from the template schema
 pub fn get_step_config(ticket: &Ticket) -> Result<StepConfig> {
     // Try to load template and get step configuration
-    let template = TemplateType::from_key(&ticket.ticket_type)
-        .and_then(|tt| TemplateSchema::from_json(tt.schema()).ok());
+    let template = ticket.template_schema();
 
     if let Some(schema) = template {
         // Get the step name (use first step if not specified)

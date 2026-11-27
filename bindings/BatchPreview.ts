@@ -12,4 +12,4 @@ waves: Array<Array<string>>,
 /**
  * Batch-wide errors (cycles, unknown campaign).
  */
-errors: Array<string>, valid: boolean, };
+errors: Array<string>, valid: boolean, confirmation: string, previously_created: { [key in string]: string }, };

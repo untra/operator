@@ -150,6 +150,15 @@ pub async fn create(
     State(state): State<ApiState>,
     Json(request): Json<CreateIssueTypeRequest>,
 ) -> Result<Json<IssueTypeResponse>, ApiError> {
+    let mut registry = state.registry.write().await;
+    persist_definition(&mut registry, &state.templates_path(), request).map(Json)
+}
+
+pub(crate) fn persist_definition(
+    registry: &mut crate::issuetypes::IssueTypeRegistry,
+    templates: &std::path::Path,
+    request: CreateIssueTypeRequest,
+) -> Result<IssueTypeResponse, ApiError> {
     let requested_collection = request.collection.clone();
     let issue_type = request.into_issue_type();
 
@@ -165,9 +174,15 @@ pub async fn create(
     // Resolve target collection (default: active) and check for a duplicate
     // within it - the same key in another collection is fine.
     let target = {
-        let registry = state.registry.read().await;
         let target =
             requested_collection.unwrap_or_else(|| registry.active_collection_name().to_string());
+        if target.is_empty()
+            || !target
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+        {
+            return Err(ApiError::ValidationError("Invalid collection name".into()));
+        }
         if target == IMPORTS_NAMESPACE {
             return Err(ApiError::ValidationError(
                 "The 'imports' namespace is provider-managed".to_string(),
@@ -183,22 +198,30 @@ pub async fn create(
     };
 
     // Persist to the collection-scoped store
-    let dir = state.templates_path().join(&target);
-    tokio::fs::create_dir_all(&dir).await?;
+    let dir = templates.join(&target);
+    std::fs::create_dir_all(&dir)?;
     let filepath = dir.join(format!("{}.json", issue_type.key));
     let json = issue_type.to_json()?;
-    tokio::fs::write(&filepath, json).await?;
+    use std::io::Write;
+    let mut file = tempfile::NamedTempFile::new_in(dir)?;
+    file.write_all(json.as_bytes())?;
+    file.persist_noclobber(&filepath).map_err(|error| {
+        if error.error.kind() == std::io::ErrorKind::AlreadyExists {
+            ApiError::Conflict(format!("Workflow {} already exists", issue_type.key))
+        } else {
+            error.error.into()
+        }
+    })?;
 
     // Register in memory
-    let mut registry = state.registry.write().await;
     registry
         .register_in(&target, issue_type.clone())
         .map_err(|e| ApiError::InternalError(format!("Failed to register issue type: {e}")))?;
 
-    Ok(Json(IssueTypeResponse::with_collection(
+    Ok(IssueTypeResponse::with_collection(
         &issue_type,
         Some(&target),
-    )))
+    ))
 }
 
 /// Update an existing issue type
@@ -539,4 +562,53 @@ mod tests {
         let registry = state.registry.read().await;
         assert!(registry.get_in("mine", "NEWT").is_none());
     }
+}
+
+#[derive(serde::Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[ts(export)]
+pub struct WorkflowSample {
+    pub definition: CreateIssueTypeRequest,
+    pub values: std::collections::HashMap<String, String>,
+}
+
+#[utoipa::path(post, path="/api/v1/workflows/sample", operation_id="workflow_sample", tag="Issue Types", request_body=WorkflowSample, responses((status=200, body=String)))]
+pub async fn sample(
+    State(state): State<ApiState>,
+    Json(sample): Json<WorkflowSample>,
+) -> Result<Json<String>, ApiError> {
+    state.require_project(sample.values.get("project").map_or("", String::as_str))?;
+    render_sample(&state.config(), sample).map(Json)
+}
+
+pub(crate) fn render_sample(
+    config: &crate::config::Config,
+    sample: WorkflowSample,
+) -> Result<String, ApiError> {
+    let definition = sample.definition.into_issue_type();
+    definition.validate().map_err(|errors| {
+        ApiError::ValidationError(
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", "),
+        )
+    })?;
+    let request = crate::rest::dto::CreateTicketRequest {
+        issue_type: definition.key.clone(),
+        project: None,
+        summary: None,
+        values: sample.values,
+        sync_to_kanban: Some(false),
+    };
+    let draft =
+        crate::services::ticket_creation::prepare_definition(config, &definition, "", request)?;
+    let mut parts = vec![crate::services::ticket_creation::render_preview(
+        config, &draft,
+    )?];
+    for step in &definition.steps {
+        let prompt = crate::queue::creator::render_template(&step.prompt, &draft.values)?;
+        parts.push(format!("## {}\n\n{prompt}", step.name));
+    }
+    Ok(parts.join("\n\n"))
 }

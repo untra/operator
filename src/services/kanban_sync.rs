@@ -195,6 +195,46 @@ impl KanbanSyncService {
                     "Project '{project_key}' not configured for provider '{provider_name}'"
                 )
             })?;
+        let boards = crate::campaigns::board::BoardScope::configured(&self.config);
+        let mut mapped = None;
+        for board in boards
+            .iter()
+            .filter(|board| board.provider == provider_name && board.project == project_key)
+        {
+            if let Some(recipe) = board.saved_mapping(&self.config)? {
+                let result = mapped.get_or_insert_with(SyncResult::default);
+                let issues = board.issues(&self.config).await?;
+                if issues.is_empty() {
+                    continue;
+                }
+                let selection = crate::campaigns::board::BoardSelection {
+                    scope: board.clone(),
+                    recipe,
+                    issue_ids: issues.iter().map(|issue| issue.id.clone()).collect(),
+                    status_writers: std::collections::BTreeMap::new(),
+                };
+                let request = crate::campaigns::batch::BatchRequest {
+                    tickets: selection.expand(
+                        &issues,
+                        &board
+                            .config(&self.config)
+                            .context("Board no longer configured")?
+                            .type_mappings,
+                    )?,
+                    ..Default::default()
+                };
+                result.total_processed += issues.len();
+                if !request.tickets.is_empty() {
+                    let batch = crate::campaigns::batch::create(&self.config, &request)?;
+                    result
+                        .created
+                        .extend(batch.tickets.into_iter().map(|ticket| ticket.filename));
+                }
+            }
+        }
+        if let Some(result) = mapped {
+            return Ok(result);
+        }
         if let Some(scope) = project_config.scope.clone() {
             return self.sync_scope(provider_name, project_key, &scope).await;
         }
@@ -515,8 +555,22 @@ impl KanbanSyncService {
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
 
-        let mut frontmatter =
-            ticket_frontmatter(ticket_type, issue, provider, needs_mapping, collection);
+        let registry = crate::startup::templates::load_active_registry(
+            &self.config.tickets_path(),
+            self.config.templates.active_collection.as_deref(),
+        );
+        let first_step = registry
+            .resolve(collection, ticket_type)
+            .and_then(|workflow| workflow.steps.first())
+            .map_or("", |step| step.name.as_str());
+        let mut frontmatter = ticket_frontmatter(
+            ticket_type,
+            issue,
+            provider,
+            needs_mapping,
+            collection,
+            first_step,
+        );
         let (depends_on, external_parent) = relationship_refs(provider, issue);
         frontmatter = frontmatter.trim_end_matches("---").to_string()
             + &relationship_yaml(&depends_on, external_parent.as_deref(), campaign)
@@ -559,6 +613,7 @@ fn ticket_frontmatter(
     provider: &str,
     needs_mapping: bool,
     collection: Option<&str>,
+    first_step: &str,
 ) -> String {
     let needs_mapping_line = if needs_mapping {
         "\nneeds_issuetype_mapping: true"
@@ -573,7 +628,7 @@ fn ticket_frontmatter(
 id: {}-{}
 status: queued
 priority: {}
-step: plan{}
+step: {first_step}{}
 external_id: {}
 external_url: {}
 external_provider: {}{}
@@ -791,14 +846,22 @@ mod tests {
 
     #[test]
     fn test_frontmatter_stamps_sync_collection() {
-        let fm = ticket_frontmatter("FIX", &sample_issue(), "jira", false, Some("devops_kanban"));
+        let fm = ticket_frontmatter(
+            "FIX",
+            &sample_issue(),
+            "jira",
+            false,
+            Some("devops_kanban"),
+            "read",
+        );
+        assert!(fm.contains("step: read"));
         assert!(fm.contains("collection: devops_kanban"));
         assert!(fm.contains("external_provider: jira"));
     }
 
     #[test]
     fn test_frontmatter_omits_collection_when_unset() {
-        let fm = ticket_frontmatter("FIX", &sample_issue(), "jira", true, None);
+        let fm = ticket_frontmatter("FIX", &sample_issue(), "jira", true, None, "execute");
         assert!(!fm.contains("collection:"));
         assert!(fm.contains("needs_issuetype_mapping: true"));
     }

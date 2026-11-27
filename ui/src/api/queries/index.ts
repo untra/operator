@@ -19,6 +19,8 @@ export const QUERY_KEYS = {
   configuration: "configuration",
   executionTargets: "execution-targets",
   llmTools: "llm-tools",
+  workflowBoards: "workflow-boards",
+  recipes: "workflow-recipes",
   issueTypes: "issue-types",
   issueType: "issue-type",
   issueTypeDocument: "issue-type-document",

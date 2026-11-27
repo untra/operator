@@ -23,7 +23,7 @@ impl StatusSection for WorkflowsSection {
     }
 
     fn label(&self) -> &'static str {
-        "Workflows"
+        "Workflow exports"
     }
 
     fn prerequisites(&self) -> &[SectionId] {

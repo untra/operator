@@ -10,7 +10,7 @@ For trust boundaries and residual risks, see [Security](/security/).
 
 ## Operator identities
 
-The local `admin` account provides bootstrap, configuration, and recovery. Keycloak and Authentik provide additional operator identities through Premium OIDC connections. Users are identified by the immutable `(issuer, subject)` pair. The first sign-in creates a pending account with no permissions; an administrator must approve it and assign profile capabilities and projects.
+Local mode uses the OS account for the IDE and an optional password for browser access. Hosted Premium uses Keycloak or Authentik for interactive access. Users are identified by the immutable `(issuer, subject)` pair. The first sign-in creates a pending account with no permissions; an administrator must approve it and assign profile capabilities and projects.
 
 API keys belong to an approved OIDC user and exactly one profile. Only a browser session authenticated with OIDC within five minutes may create or rotate them. Local passwords, device tokens, callback tokens, and API keys cannot issue API keys. Identity management also requires a browser session. Cookie mutations require an allowed origin and the session CSRF header.
 
@@ -32,33 +32,30 @@ Legacy local and device credentials retain four typed scopes, checked per route:
 Scopes are not hierarchical. A credential holding `write` does not implicitly hold `read`; it is granted both, or neither.
 This makes an integration's grant legible in one glance rather than requiring you to reason about implication.
 
-IDE clients receive all four, because an IDE client *is* the human admin working through a different surface. User-owned API keys use the fine-grained capabilities described below.
+A hosted IDE device grant carries its approving user, profile, and requested scopes. Server-side checks apply the user’s current capabilities and projects on subsequent requests. User-owned API keys use the fine-grained capabilities described below.
 
-## Bootstrap
+## Provision a hosted server
 
-On first start the authentication database does not exist, and Operator is in
-the `Uninitialized` state. Only the bootstrap and probe endpoints respond;
-everything else returns `401`.
+Set `deployment_mode = "hosted"` and `public_url` to the external HTTPS origin in `[rest_api]`, including when the server listens on loopback behind a proxy. Install the Premium license issued for this profile in its state directory as `license.key`. The host administrator provisions the first account before starting the listener.
 
-The state machine:
+Create a connection definition using the immutable issuer and the redirect URI registered with your IdP. A confidential client can set `client_secret_file` to the path of its mounted client secret.
 
+```json
+{
+  "provider": "keycloak",
+  "issuer": "https://identity.example.com/realms/operator",
+  "client_id": "operator",
+  "redirect_uri": "https://operator.example.com/api/v1/auth/oidc/callback"
+}
 ```
-Uninitialized ──► AwaitingPassword ──► Complete
-     │                   │                 │
-     │                   │                 └─ normal operation; login required
-     │                   └─ temporary password accepted, new password required
-     └─ no admin exists; bootstrap endpoint open
+
+Run this command on the server host with the service stopped, using the same configuration and state directory as the service. Supply the administrator’s immutable OIDC subject. Repeating the command for the same identity and connection recovers administrative access.
+
+```sh
+operator --config /path/to/config.toml auth provision-hosted-admin --connection connection.json --subject "$ADMIN_SUBJECT"
 ```
 
-Admin creation is **atomic**. The account row is constrained to a single identity.
-
-### Bootstrap in a container
-
-Supply a temporary password out of band and mount it as a read-only file. While the database is uninitialized, Operator reads it and requires the visitor to set a new admin password before anything else works.
-
-### Bootstrap locally
-
-A local run needs none of this. See [local access](#local-access) below.
+## Local browser setup
 
 The first-run setup wizard offers a **Web UI password** step as a shortcut. It is optional and skippable: the terminal and the CLI authenticate without it, and it exists only so the web dashboard is reachable. Skipping it leaves the deployment uninitialized. The step is hidden once an admin account exists.
 
@@ -114,7 +111,7 @@ Each key has explicit capabilities, selected projects, an immutable profile ID, 
 
 Exchange the key at `/api/v1/auth/token` with `grant_type: "operator:access-key"`. The returned JWT carries owner, key, and profile provenance; it has no refresh token and expires within 15 minutes or at key expiry, whichever comes first. Every key-derived request checks authoritative database state. This costs a database read per request but eliminates stale authorization caches and propagates revocation across processes on the next authorization check. Already executing operations may finish. MCP sessions bind the originating credential, check before delivery, and close revoked idle streams within the 15-second keepalive interval.
 
-Expiry is required: the UI defaults to 90 days and the maximum is 365 days. Rotation atomically inserts a replacement, revokes the old key, and records an audit event; only one concurrent rotation succeeds, and permissions cannot expand. For overlap, create a separate replacement, switch clients, then revoke the original. Expired Premium leaves existing keys working and permits revocation, but blocks new keys, rotation, new connections, and permission expansion.
+Expiry is required: the UI defaults to 90 days and the maximum is 365 days. Rotation atomically inserts a replacement, revokes the old key, and records an audit event; only one concurrent rotation succeeds, and permissions cannot expand. For overlap, create a separate replacement, switch clients, then revoke the original. Premium expiry blocks new keys, rotation, key exchange, and use of key-derived credentials. An authorized administrator can still reduce access and revoke existing credentials.
 
 Last-used timestamps record successful credential authentication, including requests later denied authorization. Internal MCP validity checks do not count as use. Timestamps are approximate. Observations coalesce by credential with a maximum timestamp, flush every 60 seconds, and never move the stored value backwards. The buffer is bounded at 10,000 credentials; failed flushes merge observations back subject to that bound. Shutdown makes a best-effort flush. This avoids a write per request; crashes and capacity pressure can lose usage observations, which are never used for authorization.
 
@@ -148,21 +145,18 @@ can fix it: an attacker who can guess wrong repeatedly could otherwise lock the 
 
 A local `operator` run - the TUI, the CLI, and the agent wrapper talking to loopback - requires no login and no bootstrap.
 
-The VS Code extension host runs as the same user, so when it talks to a loopback daemon it reads the same file and needs no sign-in either; this holds under Remote-SSH too, where the extension host runs on the remote machine. The daemon advertises the state directory in its session file so a non-default `paths.state` is still found. The token is only ever presented to a loopback address.
+The local daemon writes `local-registration.json` in the workspace's `.tickets/operator/` directory after it binds its listener. The registration contains its exact origin, tickets directory, process ID, and bearer. The extension checks the owner and permissions, workspace path, origin, and running process before using the bearer. Restarting the daemon rotates the credential.
 
-When Operator binds loopback, it issues itself a local admin credential and writes it to the state directory with **owner-only permissions**. Only the user
-account running Operator can read it, which is the same trust boundary a local login would establish.
-
-This is not an authentication bypass. The credential is a real one, checked the same way as any other; it is simply issued automatically to a caller who has already proven, through file ownership, that they are the user who started the process.
+On Unix the daemon creates credential files with mode `0600`. On Windows it sets an owner-only access control list. VS Code and Operator must run as the same OS user on the same host for this flow, including in a Remote-SSH workspace.
 
 ## Recovery
 
-Run `operator auth reset-admin-password` only **locally**, against the database file.
+For a local deployment, run `operator auth reset-admin-password` on the host against the database file.
 It sets a new admin password and revokes every session, refresh-token family, issued token record, and access key.
 
 The dashboard's password-change form also revokes all credentials.
 
-In Kubernetes that means `kubectl exec`, which is itself an audited, RBAC-gated action.
+Hosted recovery uses the host provisioning command above.
 
 ## Audit records
 

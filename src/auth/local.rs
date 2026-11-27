@@ -11,7 +11,7 @@
 //! Operator listens on TCP, where they do not apply; mode `0600` establishes
 //! the same boundary - only the owning uid (and root, which can bypass any
 //! check anyway) can read the token - and works identically on Windows, where
-//! the file inherits the user profile's ACL.
+//! the file receives an explicit owner-only ACL.
 //!
 //! Two conditions must both hold before a token is written:
 //!
@@ -30,6 +30,28 @@ use crate::auth::secret::{generate_secret, hash_secret, hashes_equal};
 
 /// Filename of the local-unlock token inside the state directory.
 pub const LOCAL_TOKEN_FILENAME: &str = "local-token";
+pub const LOCAL_REGISTRATION_FILENAME: &str = "local-registration.json";
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct LocalRegistration {
+    pub origin: String,
+    pub token: String,
+    pub tickets: PathBuf,
+    pub pid: u32,
+}
+
+pub fn registered_token(config: &crate::config::Config, origin: &str) -> Option<String> {
+    let tickets_path = config.tickets_path();
+    let path = tickets_path
+        .join("operator")
+        .join(LOCAL_REGISTRATION_FILENAME);
+    let registration: LocalRegistration =
+        serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
+    (registration.origin == origin
+        && registration.tickets == tickets_path.canonicalize().ok()?
+        && matches(&registration.token, &read(&config.auth_state_path())?))
+    .then_some(registration.token)
+}
 
 /// Create (or replace) a file containing `contents`, readable only by its owner.
 ///
@@ -38,7 +60,7 @@ pub const LOCAL_TOKEN_FILENAME: &str = "local-token";
 /// world-readable, and - as the test suite found - it also fails outright if
 /// anything removes the file in between.
 #[cfg(unix)]
-fn write_owner_only(path: &Path, contents: &str) -> std::io::Result<()> {
+pub(crate) fn write_owner_only(path: &Path, contents: &str) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
 
@@ -75,11 +97,24 @@ fn write_owner_only(path: &Path, contents: &str) -> std::io::Result<()> {
     result
 }
 
-/// On Windows the file inherits the user profile's ACL, which already excludes
-/// other users; there is no portable mode bit to set at creation.
-#[cfg(not(unix))]
-fn write_owner_only(path: &Path, contents: &str) -> std::io::Result<()> {
-    std::fs::write(path, contents)
+/// Protect the temporary file before writing credential bytes.
+#[cfg(windows)]
+pub(crate) fn write_owner_only(path: &Path, contents: &str) -> std::io::Result<()> {
+    use std::io::Write;
+
+    let temp = path.with_extension(format!("tmp.{}", uuid::Uuid::new_v4()));
+    let mut file = crate::windows_files::CurrentUser::new()?.create_private_file(&temp)?;
+    let result = (|| {
+        file.write_all(contents.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(&temp, path)
+    })();
+
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    result
 }
 
 /// A loopback bind is the precondition for issuing a local credential.
@@ -165,6 +200,27 @@ mod tests {
         let second = issue(dir.path()).unwrap();
         assert_ne!(first, second);
         assert!(!matches(&second, &first));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_windows_local_token_replacement_keeps_the_file_private() {
+        use crate::windows_files::{CurrentUser, RegistrationObject};
+        use std::io::Read;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = local_token_path(dir.path());
+        let first = issue(dir.path()).unwrap();
+        let second = issue(dir.path()).unwrap();
+        let mut file = CurrentUser::new()
+            .unwrap()
+            .open_registration(&path, RegistrationObject::File)
+            .unwrap()
+            .unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(contents, second);
     }
 
     #[cfg(unix)]

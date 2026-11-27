@@ -27,6 +27,7 @@ mod logging;
 mod permissions;
 mod pr_config;
 mod projects;
+mod runtime_scripts;
 mod services;
 mod state;
 mod steps;
@@ -35,6 +36,8 @@ mod taxonomy;
 mod telemetry;
 mod templates;
 mod types;
+#[cfg(windows)]
+mod windows_files;
 
 mod acp;
 mod agents;
@@ -372,6 +375,15 @@ enum CampaignAction {
 
 #[derive(Subcommand)]
 enum AuthAction {
+    /// Provision or recover a hosted administrator by immutable OIDC subject on the server host.
+    ProvisionHostedAdmin {
+        /// JSON OIDC connection definition containing provider, issuer, client_id and redirect_uri.
+        #[arg(long)]
+        connection: PathBuf,
+        /// Immutable subject from the identity provider.
+        #[arg(long)]
+        subject: String,
+    },
     /// Reset the admin password, revoking every issued credential.
     ///
     /// Local only, by design. A network-reachable password reset on a single-admin system has no compensating control.
@@ -1108,6 +1120,32 @@ async fn cmd_auth(config: &Config, action: AuthAction) -> Result<()> {
     use crate::auth::store::AuthStore;
 
     match action {
+        AuthAction::ProvisionHostedAdmin {
+            connection,
+            subject,
+        } => {
+            anyhow::ensure!(
+                config.rest_api.deployment_mode == config::DeploymentMode::Hosted,
+                "Set rest_api.deployment_mode to hosted before provisioning"
+            );
+            config.rest_api.validate_deployment()?;
+            licensing::require_premium(config, licensing::PremiumFeature::OidcConnections)?;
+            let request: auth::identity::CreateOidcConnection =
+                serde_json::from_reader(std::fs::File::open(connection)?)?;
+            let origin = config
+                .rest_api
+                .public_base_url()
+                .ok_or_else(|| anyhow::anyhow!("Hosted mode requires a public HTTPS origin"))?;
+            let expected = format!("{}/api/v1/auth/oidc/callback", origin.trim_end_matches('/'));
+            anyhow::ensure!(
+                request.redirect_uri == expected,
+                "Redirect URI must be {expected}"
+            );
+            let store = AuthStore::open(&config.auth_state_path())?;
+            let id = store.provision_hosted_admin(&request, &subject)?;
+            println!("Provisioned hosted OIDC administrator {id}.");
+            Ok(())
+        }
         AuthAction::ResetAdminPassword { password } => {
             let password = match password {
                 Some(p) => p,

@@ -61,7 +61,10 @@ export class TerminalManager {
   /**
    * Create a new terminal with Operator styling
    */
-  create(options: TerminalCreateOptions): vscode.Terminal {
+  create(
+    options: TerminalCreateOptions,
+    program?: Pick<vscode.TerminalOptions, "shellPath" | "shellArgs">,
+  ): vscode.Terminal {
     const { name, workingDir, env } = options;
 
     // Dispose existing terminal with same name if present
@@ -71,8 +74,14 @@ export class TerminalManager {
 
     // Use ticket-specific colors and icons
     const terminalOptions: vscode.TerminalOptions = {
+      ...program,
       name,
-      cwd: workingDir,
+      cwd:
+        program && workingDir
+          ? (vscode.workspace.workspaceFolders?.find(
+              (f) => f.uri.scheme === "vscode-remote" && f.uri.path === workingDir,
+            )?.uri ?? workingDir)
+          : workingDir,
       color: this.getColorForName(name),
       iconPath: this.getIconForName(name),
       env: {

@@ -25,6 +25,7 @@ use crate::startup::templates::load_registry;
 /// Shared state for the REST API
 #[derive(Clone)]
 pub struct ApiState {
+    pub(crate) attachments: Arc<Mutex<crate::rest::routes::terminal_attach::AttachRegistry>>,
     pub authorization: Option<Arc<crate::auth::identity::UserAuthority>>,
     /// Issue type registry (thread-safe read-write access)
     pub registry: Arc<RwLock<IssueTypeRegistry>>,
@@ -111,6 +112,7 @@ impl McpSession {
 
 /// Authentication state shared by every surface.
 pub struct AuthContext {
+    pub deployment_mode: crate::config::DeploymentMode,
     /// The credential database.
     pub store: AuthStore,
     /// Active token signing key.
@@ -120,15 +122,39 @@ pub struct AuthContext {
 }
 
 impl AuthContext {
-    /// Open the auth database and load or create the signing key.
-    ///
-    /// `bind_addr` decides whether a local-unlock token is issued: loopback
-    /// gets one, anything else does not and must bootstrap.
-    pub fn initialize(state_path: PathBuf, bind_addr: std::net::IpAddr) -> anyhow::Result<Self> {
+    pub(crate) fn validate_listener(
+        config: &Config,
+        mode: crate::config::DeploymentMode,
+    ) -> anyhow::Result<()> {
+        config.rest_api.validate_deployment()?;
+        anyhow::ensure!(
+            mode == config.rest_api.deployment_mode,
+            "Restart Operator to change deployment mode"
+        );
+        if mode == crate::config::DeploymentMode::Hosted {
+            crate::licensing::require_premium(
+                config,
+                crate::licensing::PremiumFeature::HostedServer,
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn initialize(config: &Config) -> anyhow::Result<Self> {
+        use crate::config::DeploymentMode;
+        Self::validate_listener(config, config.rest_api.deployment_mode)?;
+        let deployment_mode = config.rest_api.deployment_mode;
+        let state_path = config.auth_state_path();
         let store = AuthStore::open(&state_path)?;
+        if deployment_mode == DeploymentMode::Hosted {
+            anyhow::ensure!(
+                store.has_hosted_administrator()?,
+                "provision a hosted OIDC administrator on the server before startup"
+            );
+        }
         let signing_key = store.load_or_create_signing_key()?;
 
-        let local_token = if crate::auth::local::is_loopback(bind_addr) {
+        let local_token = if deployment_mode == DeploymentMode::Local {
             Some(crate::auth::local::issue(&state_path)?)
         } else {
             // Leaving a stale token behind would hand a local credential to a
@@ -138,6 +164,7 @@ impl AuthContext {
         };
 
         Ok(Self {
+            deployment_mode,
             store,
             signing_key,
             local_token,
@@ -174,9 +201,7 @@ impl ApiState {
     /// 3. Fallback to embedded builtins if filesystem loading fails
     pub fn try_new(mut config: Config, tickets_path: PathBuf) -> anyhow::Result<Self> {
         config.acquire_ownership()?;
-        let state_path = config.auth_state_path();
-        let bind_addr = config.rest_api.host_ip();
-        let mut auth = AuthContext::initialize(state_path, bind_addr)?;
+        let mut auth = AuthContext::initialize(&config)?;
         auth.store.retain_ownership(config.ownership.clone());
         Self::try_with_auth(config, tickets_path, Arc::new(auth))
     }
@@ -186,6 +211,7 @@ impl ApiState {
         tickets_path: PathBuf,
         auth: Arc<AuthContext>,
     ) -> anyhow::Result<Self> {
+        config.rest_api.deployment_mode = auth.deployment_mode;
         config.acquire_ownership()?;
         crate::startup::recovery::reconcile(&config)?;
         Ok(Self::with_auth(config, tickets_path, auth))
@@ -204,6 +230,7 @@ impl ApiState {
             .load_or_create_signing_key()
             .expect("in-memory signing key");
         let auth = AuthContext {
+            deployment_mode: config.rest_api.deployment_mode,
             store,
             signing_key,
             local_token: None,
@@ -233,6 +260,7 @@ impl ApiState {
 
         let config = Arc::new(StdRwLock::new(config_arc));
         Self {
+            attachments: Arc::default(),
             authorization: None,
             registry: Arc::new(RwLock::new(registry)),
             config: Arc::clone(&config),
@@ -352,6 +380,7 @@ impl ApiState {
     /// `config.toml` without calling this leaves every handler reading the
     /// values the process started with.
     pub fn replace_config(&self, mut config: Config) -> Result<(), ApiError> {
+        self.check_deployment_mode(&config)?;
         if let Some(ownership) = &self.config().ownership {
             ownership
                 .validate(&config)
@@ -366,6 +395,15 @@ impl ApiState {
         Ok(())
     }
 
+    fn check_deployment_mode(&self, config: &Config) -> Result<(), ApiError> {
+        if config.rest_api.deployment_mode != self.auth.deployment_mode {
+            return Err(ApiError::Conflict(
+                "Deployment mode changes require a server restart".into(),
+            ));
+        }
+        Ok(())
+    }
+
     /// Mutate and persist the latest live configuration as one serialized operation.
     pub async fn mutate_config<T>(
         &self,
@@ -375,6 +413,7 @@ impl ApiState {
         let _guard = self.config_update.lock().await;
         let mut config = (*self.config()).clone();
         let result = mutate(&mut config)?;
+        self.check_deployment_mode(&config)?;
         if let Some(ownership) = &config.ownership {
             ownership
                 .validate(&config)

@@ -71,8 +71,15 @@ export async function signIn(
   apiUrl: string,
   credentials: CredentialProvider,
   store: TokenStore,
+  signal?: AbortSignal,
 ): Promise<DeviceFlowOutcome | undefined> {
+  if (!apiUrl || signal?.aborted) {
+    return undefined;
+  }
   if (await alreadyAuthenticated(apiUrl, credentials)) {
+    if (signal?.aborted) {
+      return undefined;
+    }
     void vscode.window.showInformationMessage(
       `Already authenticated with Operator at ${apiUrl}; no sign-in needed.`,
     );
@@ -108,7 +115,7 @@ export async function signIn(
                 return undefined;
               });
           },
-          isCancelled: () => token.isCancellationRequested,
+          isCancelled: () => token.isCancellationRequested || !!signal?.aborted,
           sleep,
           now: Date.now,
         }),
@@ -120,6 +127,9 @@ export async function signIn(
     throw err;
   }
 
+  if (signal?.aborted) {
+    return undefined;
+  }
   const message = describeOutcome(apiUrl, outcome);
   if (outcome.status === "approved") {
     void vscode.window.showInformationMessage(message);

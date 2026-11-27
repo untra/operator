@@ -45,6 +45,7 @@
     "onCommand:operator.chooseConnection"
   ],
   "main": "./out/src/extension.js",
+  "extensionKind": ["workspace", "ui"],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -121,7 +122,7 @@
         "operator.apiUrl": {
           "type": "string",
           "default": "http://localhost:7008",
-          "description": "Operator REST API origin. In remote mode this is saved in User settings as an https origin. In local mode leave it unset so the extension follows .tickets/operator/api-session.json."
+          "description": "Operator REST API origin. Use an HTTPS origin in User settings for hosted Operator. A workspace URL suggests a server and requires confirmation. For local discovery, leave this unset."
         },
         "operator.opr8rPath": {
           "type": "string",
@@ -204,8 +205,20 @@
         "title": "Operator: Download Operator"
       },
       {
+        "command": "operator.attachAgent",
+        "title": "Operator: Attach to Agent Terminal"
+      },
+      {
         "command": "operator.chooseConnection",
         "title": "Operator: Choose Connection"
+      },
+      {
+        "command": "operator.chooseLocalConnection",
+        "title": "Operator: Use Operator on this computer"
+      },
+      {
+        "command": "operator.chooseHostedConnection",
+        "title": "Operator: Connect to my organization’s server"
       },
       {
         "command": "operator.pauseQueue",
@@ -490,8 +503,7 @@
       {
         "id": "operator-setup",
         "title": "Operator! Setup",
-        "when": "!operator.connectionChosen",
-        "description": "Use a free local Operator, or connect to a server you already run.",
+        "description": "Use Operator on this computer or connect to your organization’s server.",
         "icon": "images/operator-icon-128.png",
         "featuredFor": [
           "CLAUDE.md",
@@ -501,7 +513,7 @@
           {
             "id": "choose-connection",
             "title": "Choose how to connect",
-            "description": "Use Operator already running on this machine, run it for this folder, or connect to a server you operate.\n\n[Choose Connection](command:operator.chooseConnection)",
+            "description": "Use Operator on this computer or connect to your organization’s server.\n\n[Use Operator on this computer](command:operator.chooseLocalConnection)\n[Connect to my organization’s server](command:operator.chooseHostedConnection)",
             "media": {
               "markdown": "walkthrough/welcome.md"
             },
@@ -512,7 +524,7 @@
           {
             "id": "download-operator",
             "title": "Download Operator",
-            "when": "operator.connectionMode != 'remote'",
+            "when": "operator.connectionMode == 'local'",
             "description": "Download the Operator server binary to orchestrate LLM coding agents. This step is for a local install.\n\n[Download Operator](command:operator.downloadOperator)",
             "media": {
               "markdown": "walkthrough/welcome.md"
@@ -524,7 +536,7 @@
           {
             "id": "select-working-directory",
             "title": "Select Working Directory",
-            "when": "operator.connectionMode != 'remote'",
+            "when": "operator.connectionMode == 'local'",
             "description": "Choose a parent directory for your repositories.\n\n[Select Directory](command:operator.selectWorkingDirectory)",
             "media": {
               "markdown": "walkthrough/select-directory.md"
@@ -535,6 +547,7 @@
           },
           {
             "id": "connect-kanban",
+            "when": "operator.connectionMode == 'local'",
             "title": "Connect Kanban Provider",
             "description": "Connect to Jira Cloud or Linear.\n\n[Configure Now](command:operator.startKanbanOnboarding)",
             "media": {
@@ -546,6 +559,7 @@
           },
           {
             "id": "install-llm-tool",
+            "when": "operator.connectionMode == 'local'",
             "title": "Detect LLM Tools",
             "description": "Install a [Supported Coding Agent](https://operator.untra.io/getting-started/agents/), such as **Claude Code**.\n\n[Detect Tools](command:operator.detectLlmTools)",
             "media": {
@@ -690,7 +704,8 @@
     "lint": "oxlint --type-aware src test webview-ui",
     "fmt": "oxfmt --write \"src/**/*.ts\" \"test/**/*.ts\" \"webview-ui/**/*.{ts,tsx}\" \"scripts/**/*.js\"",
     "fmt:check": "oxfmt --check \"src/**/*.ts\" \"test/**/*.ts\" \"webview-ui/**/*.{ts,tsx}\" \"scripts/**/*.js\"",
-    "test": "vscode-test",
+    "test": "node out/test/runTest.js --cli",
+    "test:e2e": "tsc -p test/e2e && node out/test/e2e/run.js",
     "test:coverage": "node out/test/runTest.js",
     "package": "vsce package",
     "publish": "vsce publish",

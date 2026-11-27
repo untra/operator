@@ -5,18 +5,18 @@
  * attaches the credential from `auth/credentials`, retries once after a refresh on 401, and normalizes errors into `ApiError`.
  */
 
-import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { credentialProvider } from "./auth/credentials";
+import { credentialProvider, isLoopbackUrl } from "./auth/credentials";
 import { ApiError, AuthRequiredError } from "./auth/errors";
-import { CONNECTION_MODE_REMOTE, readConnectionSettings } from "./connection";
+import { currentConnection } from "./connection";
 
 // Import generated types from Rust bindings (source of truth)
 import type {
   ActiveAgentsResponse,
   ConnectTerminal,
+  AttachReference,
   CurrentSessionResponse,
   KanbanBoardResponse,
   LaunchTicketRequest,
@@ -173,6 +173,7 @@ export interface RejectReviewRequest {
  * API session info written by Operator when running in API mode
  */
 export interface ApiSessionInfo {
+  origin?: string;
   port: number;
   pid: number;
   started_at: string;
@@ -213,23 +214,28 @@ export function toJson(value: unknown): string {
   return JSON.stringify(value, (_key, v: unknown) => (typeof v === "bigint" ? Number(v) : v));
 }
 
-function stripTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, "");
-}
-
 /**
  * Port advertised by a local daemon in `.tickets/operator/api-session.json`.
  * Remote mode does not consult this file.
  */
 export async function discoverLocalApiUrl(ticketsDir: string | undefined): Promise<string> {
+  PROFILE_BY_URL.delete(DEFAULT_API_URL);
   if (ticketsDir) {
     const sessionFile = path.join(ticketsDir, "operator", "api-session.json");
     try {
       const content = await fs.readFile(sessionFile, "utf-8");
       const session = JSON.parse(content) as ApiSessionInfo;
-      const url = `http://localhost:${session.port}`;
+      if (!Number.isInteger(session.port) || session.port < 1 || session.port > 65_535) {
+        return DEFAULT_API_URL;
+      }
+      const url = session.origin ?? `http://localhost:${session.port}`;
+      if (!isLoopbackUrl(url) || new URL(url).origin !== url) {
+        return DEFAULT_API_URL;
+      }
       if (session.profile_id) {
         PROFILE_BY_URL.set(url, session.profile_id);
+      } else {
+        PROFILE_BY_URL.delete(url);
       }
       return url;
     } catch {
@@ -239,25 +245,9 @@ export async function discoverLocalApiUrl(ticketsDir: string | undefined): Promi
   return DEFAULT_API_URL;
 }
 
-/**
- * Discover Operator API URL.
- *
- * Remote mode returns only the saved `operator.apiUrl`. Local mode checks:
- * 1. Explicitly-set operator.apiUrl (config.inspect distinguishes a user
- *    setting from the default value)
- * 2. .tickets/operator/api-session.json (written by a running Operator)
- * 3. The default http://localhost:7008
- */
-export async function discoverApiUrl(ticketsDir: string | undefined): Promise<string> {
-  const config = vscode.workspace.getConfiguration("operator");
-  const settings = readConnectionSettings(config);
-  if (settings.mode === CONNECTION_MODE_REMOTE) {
-    return settings.explicitApiUrl ? stripTrailingSlash(settings.explicitApiUrl) : "";
-  }
-  if (settings.explicitApiUrl) {
-    return stripTrailingSlash(settings.explicitApiUrl);
-  }
-  return discoverLocalApiUrl(ticketsDir);
+// Keep existing callers asynchronous while routing all requests through the selected origin.
+export function discoverApiUrl(_ticketsDir: string | undefined): Promise<string> {
+  return Promise.resolve(currentConnection().origin);
 }
 
 function withBearer(init: RequestInit, token: string | undefined): RequestInit {
@@ -285,11 +275,11 @@ function jsonInit(method: string, body: unknown): RequestInit {
  * Client for the Operator REST API
  */
 export class OperatorApiClient {
-  private baseUrl: string;
+  private readonly signal: AbortSignal | undefined;
 
-  constructor(baseUrl?: string) {
-    const config = vscode.workspace.getConfiguration("operator");
-    this.baseUrl = baseUrl || config.get("apiUrl", DEFAULT_API_URL);
+  constructor(private readonly baseUrl: string) {
+    const current = currentConnection();
+    this.signal = baseUrl === current.origin ? current.signal : undefined;
   }
 
   /**
@@ -300,16 +290,25 @@ export class OperatorApiClient {
    * it, and repeating the request would only repeat the rejection.
    */
   private async send(apiPath: string, init: RequestInit = {}): Promise<Response> {
+    if (!this.baseUrl) {
+      throw new Error("Choose an Operator connection first.");
+    }
+    this.signal?.throwIfAborted();
     const provider = credentialProvider();
     const url = `${this.baseUrl}${profileApiPath(apiPath, PROFILE_BY_URL.get(this.baseUrl))}`;
 
     const token = await provider.bearer(this.baseUrl);
-    let response = await fetch(url, withBearer(init, token));
+    const request = { ...init, signal: this.signal, redirect: "error" } as const;
+    this.signal?.throwIfAborted();
+    let response = await fetch(url, withBearer(request, token));
+    this.signal?.throwIfAborted();
 
     if (response.status === 401) {
       const refreshed = await provider.refresh(this.baseUrl);
       if (refreshed && refreshed !== token) {
-        response = await fetch(url, withBearer(init, refreshed));
+        this.signal?.throwIfAborted();
+        response = await fetch(url, withBearer(request, refreshed));
+        this.signal?.throwIfAborted();
       }
     }
 
@@ -341,7 +340,10 @@ export class OperatorApiClient {
    */
   async isReachable(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}${LIVEZ_PATH}`);
+      const response = await fetch(`${this.baseUrl}${LIVEZ_PATH}`, {
+        signal: this.signal,
+        redirect: "error",
+      });
       return response.ok;
     } catch {
       return false;
@@ -400,6 +402,19 @@ export class OperatorApiClient {
   /** Agents currently running, for the review pickers. */
   async listActiveAgents(): Promise<ActiveAgentsResponse> {
     return this.request("/api/v1/agents/active");
+  }
+
+  issueAttach(agent: string): Promise<AttachReference> {
+    return this.request(`/api/v1/agents/${encodeURIComponent(agent)}/connect/attach`, {
+      method: "POST",
+    });
+  }
+
+  redeemAttach(agent: string, attach: AttachReference): Promise<ConnectTerminal> {
+    return this.request(
+      `/api/v1/agents/${encodeURIComponent(agent)}/connect/redeem`,
+      jsonInit("POST", attach),
+    );
   }
 
   /** What to run after opening an agent's workspace: attach while live, resume once gone. */

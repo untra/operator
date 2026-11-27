@@ -18,6 +18,8 @@ use crate::rest::{build_router, ApiState};
 pub struct ApiSessionInfo {
     pub port: u16,
     #[serde(default)]
+    pub origin: Option<String>,
+    #[serde(default)]
     pub profile_id: uuid::Uuid,
     pub pid: u32,
     pub started_at: String,
@@ -29,18 +31,38 @@ pub struct ApiSessionInfo {
 }
 
 /// Write API session file for client discovery
-fn write_session_file(
+pub(super) fn write_session_file(
     tickets_path: &Path,
     state_path: &Path,
-    port: u16,
+    addr: std::net::SocketAddr,
     profile_id: uuid::Uuid,
+    local_token: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let operator_dir = tickets_path.join("operator");
     std::fs::create_dir_all(&operator_dir)?;
 
     let session_file = operator_dir.join("api-session.json");
-    let session = ApiSessionInfo {
-        port,
+    let origin = format!("http://{addr}");
+    let registration_path = operator_dir.join(crate::auth::local::LOCAL_REGISTRATION_FILENAME);
+    if let Some(token) = local_token {
+        let registration = crate::auth::local::LocalRegistration {
+            origin: origin.clone(),
+            token: token.to_string(),
+            tickets: tickets_path.canonicalize()?,
+            pid: std::process::id(),
+        };
+        crate::auth::local::write_owner_only(
+            &registration_path,
+            &serde_json::to_string(&registration)?,
+        )?;
+    } else if let Err(error) = std::fs::remove_file(&registration_path) {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            return Err(error);
+        }
+    }
+    let session = super::ApiSessionInfo {
+        port: addr.port(),
+        origin: local_token.map(|_| origin),
         profile_id,
         pid: std::process::id(),
         started_at: chrono::Utc::now().to_rfc3339(),
@@ -49,14 +71,19 @@ fn write_session_file(
     };
 
     let json = serde_json::to_string_pretty(&session)?;
-    std::fs::write(&session_file, json)?;
+    crate::auth::local::write_owner_only(&session_file, &json)?;
 
     tracing::debug!(path = %session_file.display(), "Wrote API session file");
     Ok(session_file)
 }
 
 /// Remove API session file on shutdown
-fn remove_session_file(tickets_path: &Path) {
+pub(super) fn remove_session_file(tickets_path: &Path) {
+    let _ = std::fs::remove_file(
+        tickets_path
+            .join("operator")
+            .join(crate::auth::local::LOCAL_REGISTRATION_FILENAME),
+    );
     let session_file = tickets_path.join("operator").join("api-session.json");
     if session_file.exists() {
         if let Err(e) = std::fs::remove_file(&session_file) {
@@ -212,8 +239,14 @@ impl RestApiServer {
     /// it is a same-version operator serving this project (safe to adopt) or a
     /// conflict we should report. Always connects over loopback.
     pub async fn probe_external(&self) -> ExternalApiProbe {
-        let url = format!("http://127.0.0.1:{}/api/v1/health", self.port);
+        let origin = format!(
+            "http://{}",
+            std::net::SocketAddr::new(self.config.rest_api.host_ip(), self.port)
+        );
+        let url = format!("{origin}/api/v1/health");
         let client = match crate::http_client::client_builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
             .timeout(std::time::Duration::from_secs(2))
             .build()
         {
@@ -224,7 +257,7 @@ impl RestApiServer {
         // `/api/v1/health` now requires a credential, so the probe presents the
         // local-unlock token from *this* project's state directory.
         let mut request = client.get(&url);
-        if let Some(token) = crate::auth::local::read(&self.config.auth_state_path()) {
+        if let Some(token) = crate::auth::local::registered_token(&self.config, &origin) {
             request = request.bearer_auth(token);
         }
 
@@ -284,6 +317,11 @@ impl RestApiServer {
             None => ApiState::try_new(self.config.clone(), self.config.tickets_path()),
         }
         .map_err(|error| error.to_string())?;
+        crate::rest::state::AuthContext::validate_listener(
+            &self.config,
+            state.auth.deployment_mode,
+        )
+        .map_err(|e| e.to_string())?;
         let router = build_router(state.clone()).map_err(|error| error.to_string())?;
         let addr = std::net::SocketAddr::new(self.config.rest_api.host_ip(), self.port);
         let listener = std::net::TcpListener::bind(addr).map_err(|error| {
@@ -295,23 +333,24 @@ impl RestApiServer {
             .map_err(|error| error.to_string())?;
         let listener =
             tokio::net::TcpListener::from_std(listener).map_err(|error| error.to_string())?;
+        let bound_addr = listener.local_addr().map_err(|error| error.to_string())?;
+        write_session_file(
+            &self.tickets_path,
+            &state.config().auth_state_path(),
+            bound_addr,
+            state.config().profile.id,
+            state.auth.local_token.as_deref(),
+        )
+        .map_err(|error| error.to_string())?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         *self.shutdown_tx.lock().unwrap() = Some(shutdown_tx);
         *self.api_state.lock().unwrap() = Some(state.clone());
         let status = Arc::clone(&self.status);
         let tickets_path = self.tickets_path.clone();
-        let port = self.port;
+        let port = bound_addr.port();
         let api_state_handle = Arc::clone(&self.api_state);
         *status.lock().unwrap() = RestApiStatus::Running { port };
         let handle = tokio::spawn(async move {
-            if let Err(error) = write_session_file(
-                &tickets_path,
-                &state.config().auth_state_path(),
-                port,
-                state.config().profile.id,
-            ) {
-                tracing::warn!(%error, "Failed to write API session file");
-            }
             state.auth.store.start_usage_tracking();
             let shutdown_state = state.clone();
             let result = axum::serve(
@@ -474,6 +513,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_both_listeners_reject_invalid_deployment_before_registration() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = Config::default();
+        config.paths.state = dir.path().join("state").to_string_lossy().into_owned();
+        config.paths.tickets = dir.path().join("tickets").to_string_lossy().into_owned();
+        config.profile_registry = Some(dir.path().join("profiles.sqlite"));
+        config.rest_api.host = "0.0.0.0".to_string();
+        for mode in [
+            crate::config::DeploymentMode::Local,
+            crate::config::DeploymentMode::Hosted,
+        ] {
+            config.rest_api.deployment_mode = mode;
+            let state = ApiState::in_memory(config.clone());
+            assert!(crate::rest::serve(state, 0, false).await.is_err());
+            let server = RestApiServer::new(config.clone(), 0);
+            assert!(server.start().is_err());
+            assert!(!server.is_running());
+            assert!(!config
+                .tickets_path()
+                .join("operator/api-session.json")
+                .exists());
+            assert!(!crate::auth::local::local_token_path(&config.state_path()).exists());
+        }
+    }
+
+    #[tokio::test]
     async fn test_start_exposes_api_state() {
         // Use port 0 to let the OS pick a free port (avoids collisions).
         let config = Config::default();
@@ -559,7 +624,13 @@ mod tests {
 
         let state_dir = temp_dir.path().join("custom-state");
         let profile_id = uuid::Uuid::new_v4();
-        let result = write_session_file(temp_dir.path(), &state_dir, port, profile_id);
+        let result = write_session_file(
+            temp_dir.path(),
+            &state_dir,
+            ([127, 0, 0, 1], port).into(),
+            profile_id,
+            None,
+        );
         assert!(result.is_ok());
 
         let session_file = temp_dir.path().join("operator").join("api-session.json");
@@ -586,7 +657,13 @@ mod tests {
         let operator_dir = temp_dir.path().join("operator");
         assert!(!operator_dir.exists());
 
-        let result = write_session_file(temp_dir.path(), &operator_dir, 7008, uuid::Uuid::nil());
+        let result = write_session_file(
+            temp_dir.path(),
+            &operator_dir,
+            ([127, 0, 0, 1], 7008).into(),
+            uuid::Uuid::nil(),
+            None,
+        );
         assert!(result.is_ok());
 
         // Should have created the operator directory

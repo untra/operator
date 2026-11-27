@@ -22,6 +22,7 @@ pub mod terminal_wrapper;
 pub mod tmux;
 pub mod tmux_config;
 mod visual_review;
+pub mod vscode_focus;
 pub mod vscode_types;
 pub mod zellij;
 

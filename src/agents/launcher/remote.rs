@@ -14,6 +14,7 @@ use anyhow::{Context, Result};
 
 use crate::config::{Config, RemoteHost};
 use crate::llm::tool_config::{load_all_tool_configs, user_tools_dir};
+use crate::runtime_scripts::{body, render};
 
 use super::prompt::shell_escape;
 
@@ -33,7 +34,12 @@ pub(crate) fn reconcile_git_runtime(config: &Config, host: &RemoteHost) {
             continue;
         }
         let target = shell_escape(&path.to_string_lossy());
-        let script = format!("if [ -L {target} ]; then exit 1; fi; if [ -f {target}/pid ]; then read -r pid < {target}/pid; case \"$pid\" in ''|*[!0-9]*|0) exit 1;; esac; if kill -0 \"$pid\" 2>/dev/null; then exit 1; fi; fi; rm -rf -- {target}");
+        let script = render(
+            body(include_str!(
+                "../../../scripts/runtime/shell/ssh-reconcile-git-runtime.sh"
+            )),
+            &[("TARGET", &target)],
+        );
         let mut command = std::process::Command::new("ssh");
         if let Some(config) = &host.ssh_config_path {
             command.args(["-F", config]);
@@ -83,9 +89,11 @@ pub(crate) fn transfer_git_runtime(host: &RemoteHost, path: &Path) -> Result<()>
     fn copy(host: &RemoteHost, path: &Path) -> Result<()> {
         send(
             host,
-            &format!(
-                "umask 077; mkdir -- {}",
-                shell_escape(&path.to_string_lossy())
+            &render(
+                body(include_str!(
+                    "../../../scripts/runtime/shell/ssh-create-private-dir.sh"
+                )),
+                &[("TARGET", &shell_escape(&path.to_string_lossy()))],
             ),
             &[],
         )?;
@@ -106,7 +114,12 @@ pub(crate) fn transfer_git_runtime(host: &RemoteHost, path: &Path) -> Result<()>
                 let target = shell_escape(&entry.path().to_string_lossy());
                 send(
                     host,
-                    &format!("umask 077; set -C; cat > {target} && chmod {mode} {target}"),
+                    &render(
+                        body(include_str!(
+                            "../../../scripts/runtime/shell/ssh-copy-private-file.sh"
+                        )),
+                        &[("TARGET", &target), ("MODE", mode)],
+                    ),
                     &std::fs::read(entry.path())?,
                 )?;
             }
@@ -288,33 +301,41 @@ pub(crate) fn build_remote_wrapper_script(
         )),
     );
 
-    let env_ship = local_env
-        .map(|path| {
-            format!(
-                "ssh {f}{alias} {cat_env} < {local_env}\n",
-                f = f_flag,
-                alias = alias,
-                cat_env = shell_escape(&format!(
+    let env_file =
+        local_env.map_or_else(|| shell_escape(""), |p| shell_escape(&p.to_string_lossy()));
+    render(
+        include_str!("../../../scripts/runtime/shell/ssh-launch.sh"),
+        &[
+            ("CONFIG", &f_flag),
+            ("ALIAS", &alias),
+            ("MKDIR", &shell_escape(&mkdir_cmd)),
+            (
+                "CAT_PROMPT",
+                &shell_escape(&format!("cat > {}", shell_escape(&r_prompt))),
+            ),
+            (
+                "CAT_PAYLOAD",
+                &shell_escape(&format!("cat > {}", shell_escape(&r_payload))),
+            ),
+            (
+                "CAT_ENV",
+                &shell_escape(&format!(
                     "cat > {}",
                     shell_escape(&format!("{r_payload}.env"))
                 )),
-                local_env = shell_escape(&path.display().to_string()),
-            )
-        })
-        .unwrap_or_default();
-
-    format!(
-        "#!/bin/bash\nset -e\nssh {f}{alias} {mkdir}\nssh {f}{alias} {cat_prompt} < {local_prompt}\nssh {f}{alias} {cat_payload} < {local_payload}\n{env_ship}exec ssh -t {f}-R {remote_port}:localhost:{port} -o ExitOnForwardFailure=yes {alias} {tmux}\n",
-        f = f_flag,
-        alias = alias,
-        mkdir = shell_escape(&mkdir_cmd),
-        cat_prompt = shell_escape(&format!("cat > {}", shell_escape(&r_prompt))),
-        cat_payload = shell_escape(&format!("cat > {}", shell_escape(&r_payload))),
-        local_prompt = shell_escape(&local_prompt.display().to_string()),
-        local_payload = shell_escape(&local_payload.display().to_string()),
-        port = api_port,
-        remote_port = remote_port,
-        tmux = shell_escape(&tmux_cmd),
+            ),
+            (
+                "LOCAL_PROMPT",
+                &shell_escape(&local_prompt.to_string_lossy()),
+            ),
+            (
+                "LOCAL_PAYLOAD",
+                &shell_escape(&local_payload.to_string_lossy()),
+            ),
+            ("ENV_FILE", &env_file),
+            ("TUNNEL", &format!("{remote_port}:localhost:{api_port}")),
+            ("TMUX", &shell_escape(&tmux_cmd)),
+        ],
     )
 }
 
@@ -475,18 +496,26 @@ fn preflight_script(
     tool_name: &str,
     provider: Option<crate::types::pr::GitProvider>,
 ) -> String {
-    let mut checks = format!(
-        "command -v tmux >/dev/null || exit {PREFLIGHT_NO_TMUX}; command -v {tool} >/dev/null || exit {PREFLIGHT_NO_TOOL}; test -d {workdir} || exit {PREFLIGHT_NO_WORKDIR}; command -v git >/dev/null || exit {PREFLIGHT_NO_GIT}",
-        tool = shell_escape(tool_name),
-        workdir = shell_escape(&host.workdir),
-    );
-    if let Some(provider) = provider {
-        checks.push_str(&format!(
-            "; command -v {cli} >/dev/null || exit {PREFLIGHT_NO_PROVIDER_CLI}",
-            cli = shell_escape(crate::api::cli_detection::binary_for(provider)),
-        ));
-    }
-    checks
+    let provider_check = provider.map_or_else(String::new, |provider| {
+        format!(
+            "command -v {} >/dev/null || exit {PREFLIGHT_NO_PROVIDER_CLI}",
+            shell_escape(crate::api::cli_detection::binary_for(provider)),
+        )
+    });
+    render(
+        body(include_str!(
+            "../../../scripts/runtime/shell/ssh-preflight.sh"
+        )),
+        &[
+            ("TOOL", &shell_escape(tool_name)),
+            ("WORKDIR", &shell_escape(&host.workdir)),
+            ("NO_TMUX", &PREFLIGHT_NO_TMUX.to_string()),
+            ("NO_TOOL", &PREFLIGHT_NO_TOOL.to_string()),
+            ("NO_WORKDIR", &PREFLIGHT_NO_WORKDIR.to_string()),
+            ("NO_GIT", &PREFLIGHT_NO_GIT.to_string()),
+            ("PROVIDER_CHECK", &provider_check),
+        ],
+    )
 }
 
 /// Budget for the whole preflight probe, handshake included.
@@ -686,6 +715,38 @@ mod tests {
         let exec_pos = script.find("exec ssh").unwrap();
         let last_cat = script.rfind("cat > ").unwrap();
         assert!(last_cat < exec_pos, "files ship before exec");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_wrapper_with_quoted_paths_parses_as_bash() {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+
+        let mut host = host();
+        host.workdir = "/remote/it's a workspace".into();
+        host.ssh_config_path = Some("/config/it's a config".into());
+        let script = build_remote_wrapper_script(
+            &host,
+            "agent's session",
+            "uuid",
+            Path::new("/local/it's a prompt"),
+            Path::new("/local/it's a payload"),
+            7008,
+            7008,
+            Some(Path::new("/local/it's a sidecar")),
+        );
+        let mut bash = Command::new("bash")
+            .args(["-n", "-s"])
+            .stdin(Stdio::piped())
+            .spawn()
+            .unwrap();
+        bash.stdin
+            .take()
+            .unwrap()
+            .write_all(script.as_bytes())
+            .unwrap();
+        assert!(bash.wait().unwrap().success());
     }
 
     #[test]

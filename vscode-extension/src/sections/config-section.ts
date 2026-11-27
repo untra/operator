@@ -4,12 +4,7 @@ import { StatusItem } from "../status-item";
 import type { SectionContext, StatusSection, ConfigState } from "./types";
 import type { SectionId, SectionHealth } from "../generated";
 import { resolveWorkingDirectory, configFileExists, getResolvedConfigPath } from "../config-paths";
-import {
-  CHOOSE_CONNECTION_COMMAND,
-  DOWNLOADS_PAGE,
-  readConnectionSettings,
-  usingRemoteServer,
-} from "../connection";
+import { CHOOSE_CONNECTION_COMMAND, DOWNLOADS_PAGE, currentConnection } from "../connection";
 import { headerCommand } from "../command-policy";
 import { getOperatorPath, getOperatorVersion } from "../operator-binary";
 
@@ -50,9 +45,13 @@ export class ConfigSection implements StatusSection {
   }
 
   async check(ctx: SectionContext): Promise<void> {
-    const settings = readConnectionSettings(vscode.workspace.getConfiguration("operator"));
-    this.remote = usingRemoteServer(settings);
-    const remoteReady = this.remote && !!settings.explicitApiUrl;
+    const { selection } = currentConnection();
+    this.remote = selection.kind !== "local";
+    if (selection.kind !== "local") {
+      this.state.remoteReady = selection.kind === "hosted";
+      this.state.remoteUrl = selection.kind === "hosted" ? selection.origin : undefined;
+      return;
+    }
     const workingDir =
       ctx.extensionContext.globalState.get<string>("operator.workingDirectory") ||
       resolveWorkingDirectory();
@@ -90,8 +89,6 @@ export class ConfigSection implements StatusSection {
       configPath: configPath || "",
       wrapperType,
       operatorVersion,
-      remoteReady,
-      remoteUrl: settings.explicitApiUrl,
       editorVar: process.env.EDITOR || "vim",
       visualVar: process.env.VISUAL || "code --wait",
     };

@@ -306,6 +306,7 @@ detection_complete = false
 [llm_tools.skill_directory_overrides]
 
 [rest_api]
+deployment_mode = "local"
 enabled = true
 host = "127.0.0.1"
 port = 7008

@@ -7,7 +7,6 @@ mod campaign_service;
 mod community_collections;
 mod distribution_bundling;
 mod docs_structure;
-mod endpoint_uplink;
 mod feature_parity_test;
 mod forge_providers;
 mod git_integration;

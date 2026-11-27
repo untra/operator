@@ -21,11 +21,8 @@ function ops(existing: string[] = []): TerminalOps & { calls: string[] } {
     focus: (name) => {
       calls.push(`focus:${name}`);
     },
-    create: (o) => {
-      calls.push(`create:${o.name}:${o.workingDir ?? ""}`);
-    },
-    send: (name, command) => {
-      calls.push(`send:${name}:${command}`);
+    create: (o, program) => {
+      calls.push(`create:${o.name}:${JSON.stringify(program)}`);
     },
   };
 }
@@ -35,6 +32,7 @@ const live: ConnectTerminal = {
   ticket_id: "FEAT-12",
   terminal_name: "op-FEAT-12",
   cwd: "/home/me/proj",
+  action: { kind: "tmux", session: "op-FEAT-12", socket: null },
   command: "tmux attach -t op-FEAT-12",
 };
 
@@ -46,14 +44,31 @@ suite("agent-connect", () => {
   });
 
   test("pending connects expire", () => {
-    const pending: PendingConnect = { agent: "a", path: "/p", terminal: live, at: 0 };
+    const pending: PendingConnect = {
+      agent: "a",
+      attach: { reference: "ref", destination: { path: "/p", authority: null } },
+      origin: "https://example.test",
+      at: 0,
+    };
     assert.ok(isFresh(pending, 1000));
     assert.ok(!isFresh(pending, 10 * 60 * 1000));
   });
 
+  test("attaches via structured tmux arguments", () => {
+    const o = ops();
+    openAgentTerminal(o, live, assert.fail);
+    assert.deepStrictEqual(o.calls, [
+      'create:FEAT-12 \u00b7 attach:{"shellPath":"tmux","shellArgs":["attach-session","-t","=op-FEAT-12"]}',
+    ]);
+  });
+
   test("no command focuses the agent's own terminal", () => {
     const o = ops(["op-FEAT-12"]);
-    openAgentTerminal(o, { ...live, command: undefined }, () => undefined);
+    openAgentTerminal(
+      o,
+      { ...live, action: { kind: "focus" }, command: undefined },
+      () => undefined,
+    );
     assert.deepStrictEqual(o.calls, ["focus:op-FEAT-12"]);
   });
 });

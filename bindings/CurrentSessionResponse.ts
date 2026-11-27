@@ -7,7 +7,7 @@ import type { Scope } from "./Scope";
  */
 export type CurrentSessionResponse = { 
 /**
- * Account name - always `admin`, the single human account.
+ * Authenticated subject in the current deployment.
  */
 subject: string, 
 /**

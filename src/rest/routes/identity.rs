@@ -42,10 +42,10 @@ pub fn administrator(principal: &Principal) -> Result<(), ApiError> {
             "Use an administrator browser session".into(),
         ));
     }
-    if principal
+    if !principal
         .authority
         .as_ref()
-        .is_some_and(|a| !a.user.administrator)
+        .is_some_and(|a| a.user.administrator)
     {
         return Err(ApiError::Forbidden("Administrator access required".into()));
     }
@@ -102,6 +102,9 @@ pub struct OidcLoginProvider {
 
 #[utoipa::path(get, path = "/api/v1/auth/oidc/providers", tag = "Auth", responses((status = 200, body = Vec<OidcLoginProvider>)))]
 pub async fn providers(State(state): State<ApiState>) -> Result<Response, ApiError> {
+    if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+        return Ok(no_store(Vec::<OidcLoginProvider>::new()));
+    }
     let store = state.auth.store.clone();
     let connections = blocking(move || store.oidc_connections()).await?;
     Ok(no_store(
@@ -171,11 +174,20 @@ pub async fn disable_connection(
     Ok(no_store(()))
 }
 
+#[derive(Deserialize)]
+pub struct LoginQuery {
+    user_code: Option<String>,
+}
+
 #[utoipa::path(get, path = "/api/v1/auth/oidc/login/{id}", tag = "Auth", params(("id" = String, Path)), responses((status = 303)))]
 pub async fn login(
     State(state): State<ApiState>,
+    Query(query): Query<LoginQuery>,
     Path(id): Path<String>,
 ) -> Result<Response, ApiError> {
+    if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+        return Err(ApiError::Forbidden("Hosted deployment required".into()));
+    }
     let store = state.auth.store.clone();
     let connections = blocking(move || store.oidc_connections()).await?;
     let connection = connections
@@ -183,7 +195,7 @@ pub async fn login(
         .find(|c| c.id == id && !c.disabled)
         .ok_or_else(|| ApiError::NotFound("Unknown connection".into()))?;
     let cookie = crate::auth::secret::generate_secret().map_err(failure)?;
-    let url = crate::auth::oidc::start(&state.auth.store, connection, &cookie)
+    let url = crate::auth::oidc::start(&state.auth.store, connection, &cookie, query.user_code)
         .await
         .map_err(failure)?;
     Ok((
@@ -213,6 +225,9 @@ pub async fn callback(
     headers: HeaderMap,
     Query(query): Query<CallbackQuery>,
 ) -> Result<Response, ApiError> {
+    if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+        return Err(ApiError::Forbidden("Hosted deployment required".into()));
+    }
     let cookie = headers
         .get(header::COOKIE)
         .and_then(|h| h.to_str().ok())
@@ -223,7 +238,7 @@ pub async fn callback(
                 .map(|(_, v)| v)
         })
         .ok_or_else(|| ApiError::Unauthorized("Missing login cookie".into()))?;
-    let (session, _, _) =
+    let (session, user_code) =
         crate::auth::oidc::complete(&state.auth.store, &query.state, cookie, query.code)
             .await
             .map_err(|_| {
@@ -231,7 +246,11 @@ pub async fn callback(
                     "OIDC sign-in failed or the account awaits administrator approval".into(),
                 )
             })?;
-    let mut response = Redirect::to("/#/connections").into_response();
+    let target = user_code.map_or_else(
+        || "/#/connections".into(),
+        |code| format!("/#/device?user_code={code}"),
+    );
+    let mut response = Redirect::to(&target).into_response();
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
@@ -465,6 +484,10 @@ pub async fn exchange_key(
     state: &ApiState,
     secret: String,
 ) -> Result<Json<crate::rest::dto::auth::TokenResponse>, ApiError> {
+    if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+        return Err(ApiError::Forbidden("Hosted deployment required".into()));
+    }
+    require_premium(&state.config(), PremiumFeature::ApiKeys)?;
     let store = state.auth.store.clone();
     let (authority, expires) =
         tokio::task::spawn_blocking(move || store.exchange_user_key(&secret))
@@ -472,6 +495,12 @@ pub async fn exchange_key(
             .map_err(|_| ApiError::Unavailable("Credential validation unavailable".into()))?
             .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()))?
             .ok_or_else(|| ApiError::Unauthorized("Invalid, expired, or revoked key".into()))?;
+    let profile = state
+        .runtime_configs()
+        .into_iter()
+        .find(|c| c.profile.id == authority.grants.profile_id)
+        .ok_or_else(|| ApiError::Unauthorized("Unknown key profile".into()))?;
+    require_premium(&profile, PremiumFeature::ApiKeys)?;
     let now = chrono::Utc::now();
     let mut claims = crate::auth::tokens::api_claims(
         &authority.user.id,
@@ -545,6 +574,15 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_free_key_exchange_is_denied_even_for_a_live_owner() {
+        let state = ApiState::in_memory(crate::config::Config::default());
+        let (store, owner, request) =
+            crate::auth::identity::tests::fixture_in(state.auth.store.clone());
+        let issued = store.create_user_key(&owner, &request, None).unwrap();
+        assert!(exchange_key(&state, issued.secret).await.is_err());
+    }
+
+    #[tokio::test]
     async fn test_keys_reject_raw_keys_and_non_browser_admin_tokens() {
         let state = ApiState::in_memory(crate::config::Config::default());
         let (_, authority, request) =
@@ -591,7 +629,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_key_mutations_require_csrf_and_allowed_origin() {
-        let state = ApiState::in_memory(crate::config::Config::default());
+        let mut config = crate::config::Config::default();
+        config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+        let state = ApiState::in_memory(config);
         let (_, authority, _) = crate::auth::identity::tests::fixture_in(state.auth.store.clone());
         let (session, csrf, _) = state
             .auth
@@ -661,6 +701,12 @@ mod tests {
             projects: vec!["allowed".into(), "hidden".into()],
             ..Default::default()
         };
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = config;
+        config.paths.state = dir.path().display().to_string();
+        config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+        config.profile.id = uuid::Uuid::new_v4();
+        crate::licensing::tests::install_test_license(&config);
         let state = ApiState::in_memory(config);
         let (_, mut owner, mut request) =
             crate::auth::identity::tests::fixture_in(state.auth.store.clone());
@@ -692,7 +738,7 @@ mod tests {
             .store
             .create_user_key(&owner, &request, None)
             .unwrap();
-        let token = exchange_key(&state, issued.secret)
+        let token = exchange_key(&state, issued.secret.clone())
             .await
             .unwrap()
             .0
@@ -787,6 +833,21 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        crate::licensing::remove(&state.config()).unwrap();
+        assert!(exchange_key(&state, issued.secret).await.is_err());
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/projects")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        crate::licensing::tests::install_test_license(&state.config());
         state
             .auth
             .store

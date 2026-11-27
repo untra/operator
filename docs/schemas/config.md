@@ -492,6 +492,7 @@ REST API server configuration.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
+| `deployment_mode` | → `DeploymentMode` | No | Local runs for one OS user. Hosted requires Premium and provisioned OIDC. |
 | `enabled` | `boolean` | No | Whether the REST API is enabled |
 | `host` | `string` | No | Address the REST API binds to. Defaults to `127.0.0.1` (local only) so the server is not reachable from other hosts. Set to `0.0.0.0` to expose it on all interfaces. |
 | `port` | `integer` | No | Port for the REST API server |
@@ -499,6 +500,10 @@ REST API server configuration.
 | `public_url` | `string` \| `null` | No | Externally reachable base URL (e.g. `https://operator.example.com`). Defaults to request host. |
 | `shutdown_drain_seconds` | `integer` | No | Maximum time to wait for active agents before shutdown cleanup begins. |
 | `shutdown_cleanup_seconds` | `integer` | No | Maximum time reserved for final callbacks and persistent cleanup. |
+
+### DeploymentMode
+
+Security boundary for the Operator server.
 
 ### EgressConfig
 

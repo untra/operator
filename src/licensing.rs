@@ -22,6 +22,7 @@ static LICENSE_UPDATE: Mutex<()> = Mutex::new(());
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum PremiumFeature {
+    HostedServer,
     RemoteTargets,
     Campaigns,
     OidcConnections,
@@ -31,6 +32,7 @@ pub enum PremiumFeature {
 impl std::fmt::Display for PremiumFeature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::HostedServer => f.write_str("hosted_server"),
             Self::RemoteTargets => f.write_str("remote_targets"),
             Self::Campaigns => f.write_str("campaigns"),
             Self::OidcConnections => f.write_str("oidc_connections"),
@@ -232,13 +234,10 @@ pub struct Entitlements {
 }
 
 impl Entitlements {
-    pub fn allows(&self, feature: PremiumFeature) -> bool {
-        match feature {
-            PremiumFeature::RemoteTargets
-            | PremiumFeature::Campaigns
-            | PremiumFeature::OidcConnections
-            | PremiumFeature::ApiKeys => self.premium,
-        }
+    pub fn allows(&self, mode: crate::config::DeploymentMode, feature: PremiumFeature) -> bool {
+        self.premium
+            && (feature == PremiumFeature::Campaigns
+                || mode == crate::config::DeploymentMode::Hosted)
     }
 }
 
@@ -270,10 +269,8 @@ type Cache = std::collections::HashMap<CacheKey, (FileStamp, Verified)>;
 
 static CACHE: std::sync::RwLock<Option<Cache>> = std::sync::RwLock::new(None);
 
-/// Decodes performed rather than served from cache; the memoisation is not
-/// otherwise observable.
 #[cfg(test)]
-static DECODES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+thread_local! { static DECODES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 
 fn cached(key: &CacheKey, stamp: &FileStamp) -> Option<Verified> {
     let guard = CACHE.read().ok()?;
@@ -318,6 +315,17 @@ fn entitlements_from(response: &LicenseResponse) -> Entitlements {
 }
 
 pub fn status(config: &Config) -> LicenseResponse {
+    #[cfg(test)]
+    if config.state_path().join(LICENSE_FILE).is_file() {
+        let signed = status_with(
+            config,
+            &tests::test_issuer().verifier,
+            chrono::Utc::now().timestamp(),
+        );
+        if signed.status != LicenseStatus::Invalid {
+            return signed;
+        }
+    }
     match Verifier::bundled() {
         Ok(verifier) => status_with(config, &verifier, chrono::Utc::now().timestamp()),
         // No bundled keys means no licence can ever verify; report that as
@@ -348,7 +356,7 @@ pub fn status_with(config: &Config, verifier: &Verifier, now: i64) -> LicenseRes
         Some(verified) => verified,
         None => {
             #[cfg(test)]
-            DECODES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            DECODES.set(DECODES.get() + 1);
             let verified = match std::fs::read_to_string(&path) {
                 Ok(key) => match verifier.decode(&key, config.profile.id) {
                     Ok(decoded) => Verified::Terms(Box::new(decoded)),
@@ -483,7 +491,7 @@ pub fn remove(config: &Config) -> Result<LicenseResponse> {
 }
 
 pub fn require_premium(config: &Config, feature: PremiumFeature) -> Result<(), NotEntitled> {
-    if entitlements(config).allows(feature) {
+    if entitlements(config).allows(config.rest_api.deployment_mode, feature) {
         Ok(())
     } else {
         Err(NotEntitled { feature })
@@ -500,7 +508,7 @@ pub fn require_target(config: &Config, target: &TargetDef) -> Result<(), NotEnti
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// The verification cache and its decode counter are process-wide, so the
@@ -522,8 +530,8 @@ mod tests {
     const ATTESTATION_EXP: i64 = 3_000;
     const NOW: i64 = 2_500;
 
-    struct Fixture {
-        verifier: Verifier,
+    pub(super) struct Fixture {
+        pub(super) verifier: Verifier,
         license_key: EncodingKey,
         attestation: String,
         terms: LicenseTerms,
@@ -536,7 +544,26 @@ mod tests {
         (pair, bytes)
     }
 
+    pub(super) fn test_issuer() -> &'static Fixture {
+        static ISSUER: std::sync::OnceLock<Fixture> = std::sync::OnceLock::new();
+        ISSUER.get_or_init(|| {
+            let now = chrono::Utc::now().timestamp();
+            mint_for_window(now - 60, now + 86_400)
+        })
+    }
+
+    pub(crate) fn install_test_license(config: &Config) {
+        let issuer = test_issuer();
+        let mut terms = issuer.terms.clone();
+        terms.profile_id = config.profile.id;
+        persist(config, &sign(issuer, &terms)).unwrap();
+    }
+
     fn mint() -> Fixture {
+        mint_for_window(ATTESTATION_NBF, ATTESTATION_EXP)
+    }
+
+    fn mint_for_window(nbf: i64, exp: i64) -> Fixture {
         let (root, root_pkcs8) = generate_ed25519();
         let (signing, signing_pkcs8) = generate_ed25519();
         let root_b64 = STANDARD.encode(root.public_key().as_ref());
@@ -545,7 +572,7 @@ mod tests {
         ))
         .unwrap();
         let verifier = Verifier::from_keys(roots, "test-issuer".into());
-        let attestation = sign_attestation(&root_pkcs8, signing.public_key().as_ref());
+        let attestation = sign_attestation(&root_pkcs8, signing.public_key().as_ref(), nbf, exp);
         let terms = LicenseTerms {
             version: LICENSE_VERSION,
             iss: verifier.issuer.clone(),
@@ -554,9 +581,9 @@ mod tests {
             jti: Uuid::new_v4().to_string(),
             profile_id: Uuid::new_v4(),
             tier: PREMIUM_TIER.into(),
-            iat: ATTESTATION_NBF,
-            nbf: ATTESTATION_NBF,
-            exp: ATTESTATION_EXP,
+            iat: nbf,
+            nbf,
+            exp,
         };
         Fixture {
             verifier,
@@ -566,7 +593,7 @@ mod tests {
         }
     }
 
-    fn sign_attestation(root_pkcs8: &[u8], signing_public: &[u8]) -> String {
+    fn sign_attestation(root_pkcs8: &[u8], signing_public: &[u8], nbf: i64, exp: i64) -> String {
         let claims = crate::trust_verify::AttestationClaims {
             version: crate::trust_verify::ATTESTATION_VERSION,
             iss: crate::trust_verify::ATTESTATION_ISSUER.into(),
@@ -575,9 +602,9 @@ mod tests {
             purpose: crate::trust_verify::PURPOSE_LICENSE_SIGNING.into(),
             kid: SIGNING_KID.into(),
             public_key: STANDARD.encode(signing_public),
-            iat: ATTESTATION_NBF,
-            nbf: ATTESTATION_NBF,
-            exp: ATTESTATION_EXP,
+            iat: nbf,
+            nbf,
+            exp,
         };
         let mut header = Header::new(Algorithm::EdDSA);
         header.kid = Some(ROOT_KID.into());
@@ -592,6 +619,22 @@ mod tests {
     }
 
     #[test]
+    fn test_local_license_does_not_authorize_hosted_features() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut config = Config::default();
+        config.paths.state = directory.path().to_string_lossy().into_owned();
+        config.profile.id = Uuid::new_v4();
+        install_test_license(&config);
+        for feature in [
+            PremiumFeature::RemoteTargets,
+            PremiumFeature::ApiKeys,
+            PremiumFeature::OidcConnections,
+        ] {
+            assert!(require_premium(&config, feature).is_err());
+        }
+    }
+
+    #[test]
     fn premium_features_follow_the_premium_flag() {
         for feature in [PremiumFeature::RemoteTargets, PremiumFeature::Campaigns] {
             let free = Entitlements {
@@ -602,8 +645,8 @@ mod tests {
                 status: LicenseStatus::Valid,
                 premium: true,
             };
-            assert!(!free.allows(feature));
-            assert!(premium.allows(feature));
+            assert!(!free.allows(crate::config::DeploymentMode::Hosted, feature));
+            assert!(premium.allows(crate::config::DeploymentMode::Hosted, feature));
         }
         assert_eq!(PremiumFeature::Campaigns.to_string(), "campaigns");
     }
@@ -794,7 +837,6 @@ mod tests {
     /// signature must be verified once, not seven times.
     #[test]
     fn repeated_reads_verify_the_signature_once() {
-        use std::sync::atomic::Ordering;
         let _serial = serial();
 
         let fixture = mint();
@@ -811,12 +853,12 @@ mod tests {
         .unwrap();
 
         invalidate();
-        let before = DECODES.load(Ordering::Relaxed);
+        let before = DECODES.get();
         for _ in 0..8 {
             assert!(entitlements_with(&config, &fixture.verifier, fixture.terms.nbf).premium);
         }
         assert_eq!(
-            DECODES.load(Ordering::Relaxed) - before,
+            DECODES.get() - before,
             1,
             "eight reads must decode the licence once"
         );
@@ -895,7 +937,6 @@ mod tests {
 
     #[test]
     fn a_rotated_root_keyring_is_not_served_from_the_memo_cache() {
-        use std::sync::atomic::Ordering;
         let _serial = serial();
         let fixture = mint();
         let directory = tempfile::tempdir().unwrap();
@@ -905,20 +946,16 @@ mod tests {
         let key = sign(&fixture, &fixture.terms);
         install_with(&config, &fixture.verifier, fixture.terms.nbf, &key).unwrap();
         invalidate();
-        let before = DECODES.load(Ordering::Relaxed);
+        let before = DECODES.get();
         assert!(entitlements_with(&config, &fixture.verifier, fixture.terms.nbf).premium);
-        assert_eq!(DECODES.load(Ordering::Relaxed) - before, 1);
+        assert_eq!(DECODES.get() - before, 1);
 
         let rotated = mint();
-        let after = DECODES.load(Ordering::Relaxed);
+        let after = DECODES.get();
         let again = status_with(&config, &rotated.verifier, fixture.terms.nbf);
         assert_eq!(again.status, LicenseStatus::Invalid);
         assert!(!again.premium);
-        assert_eq!(
-            DECODES.load(Ordering::Relaxed) - after,
-            1,
-            "rotated roots must recompute"
-        );
+        assert_eq!(DECODES.get() - after, 1, "rotated roots must recompute");
     }
 
     const TEST_PROFILE: Uuid = Uuid::from_u128(0x3fa8_5f64_5717_4562_b3fc_2c96_3f66_afa6);

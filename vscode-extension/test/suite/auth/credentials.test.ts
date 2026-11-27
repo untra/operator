@@ -4,6 +4,8 @@
  * Group 2: Service Logic - fetch and the filesystem are faked.
  */
 
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import * as assert from "node:assert";
 import * as sinon from "sinon";
 import * as fs from "node:fs/promises";
@@ -12,9 +14,8 @@ import * as path from "node:path";
 import {
   CLIENT_ID,
   EXPIRY_SKEW_MS,
-  LOCAL_TOKEN_FILENAME,
+  LOCAL_REGISTRATION_FILENAME,
   OperatorCredentials,
-  SESSION_FILENAME,
   clearCredentialProvider,
   credentialProvider,
   isLoopbackUrl,
@@ -68,7 +69,32 @@ suite("Credentials Test Suite", () => {
 
   async function writeLocalToken(token: string, stateDir = path.join(ticketsDir, "operator")) {
     await fs.mkdir(stateDir, { recursive: true });
-    await fs.writeFile(path.join(stateDir, LOCAL_TOKEN_FILENAME), `${token}\n`);
+    await fs.writeFile(
+      path.join(stateDir, LOCAL_REGISTRATION_FILENAME),
+      JSON.stringify({
+        token,
+        origin: API_URL,
+        pid: process.pid,
+        tickets: await fs.realpath(ticketsDir),
+      }),
+      { mode: 0o600 },
+    );
+    if (process.platform === "win32") {
+      const file = path.join(stateDir, LOCAL_REGISTRATION_FILENAME);
+      await promisify(execFile)(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          await fs.readFile(
+            path.resolve(__dirname, "../../../../test/fixtures/protect-credential.ps1"),
+            "utf8",
+          ),
+        ],
+        { env: { ...process.env, OPERATOR_PRIVATE_FILE: file } },
+      );
+    }
   }
 
   async function storeCredential(expiresInMs: number, accessToken = "stored-access") {
@@ -116,30 +142,43 @@ suite("Credentials Test Suite", () => {
   suite("local token discovery", () => {
     test("reads the token from the default state dir next to the session file", async () => {
       await writeLocalToken("local-secret");
-      assert.strictEqual(await readLocalToken(ticketsDir), "local-secret");
+      assert.strictEqual(await readLocalToken(ticketsDir, API_URL), "local-secret");
     });
 
-    test("follows state_dir advertised in api-session.json", async () => {
-      const customState = path.join(ticketsDir, "elsewhere");
-      await writeLocalToken("custom-secret", customState);
-      await fs.mkdir(path.join(ticketsDir, "operator"), { recursive: true });
+    test("ignores a workspace state_dir pointing at another daemon", async () => {
+      const elsewhere = path.join(ticketsDir, "elsewhere");
+      await writeLocalToken("another-daemon", elsewhere);
+      await fs.mkdir(path.join(ticketsDir, "operator"));
       await fs.writeFile(
-        path.join(ticketsDir, "operator", SESSION_FILENAME),
-        JSON.stringify({
-          port: 7008,
-          pid: 1,
-          started_at: "",
-          version: "0",
-          state_dir: customState,
-        }),
+        path.join(ticketsDir, "operator", "api-session.json"),
+        JSON.stringify({ state_dir: elsewhere }),
       );
-      assert.strictEqual(await readLocalToken(ticketsDir), "custom-secret");
+      assert.strictEqual(await readLocalToken(ticketsDir, API_URL), undefined);
+    });
+
+    test("rejects an insecure registration", async () => {
+      await fs.mkdir(path.join(ticketsDir, "operator"));
+      const file = path.join(ticketsDir, "operator", LOCAL_REGISTRATION_FILENAME);
+      await fs.writeFile(
+        file,
+        JSON.stringify({
+          origin: API_URL,
+          tickets: await fs.realpath(ticketsDir),
+          pid: process.pid,
+          token: "untrusted",
+        }),
+        { mode: 0o644 },
+      );
+      if (process.platform !== "win32") {
+        await fs.chmod(file, 0o644);
+      }
+      assert.equal(await readLocalToken(ticketsDir, API_URL), undefined);
     });
 
     test("is absent when the file is missing or blank", async () => {
-      assert.strictEqual(await readLocalToken(ticketsDir), undefined);
+      assert.strictEqual(await readLocalToken(ticketsDir, API_URL), undefined);
       await writeLocalToken("   ");
-      assert.strictEqual(await readLocalToken(ticketsDir), undefined);
+      assert.strictEqual(await readLocalToken(ticketsDir, API_URL), undefined);
     });
   });
 
@@ -149,6 +188,11 @@ suite("Credentials Test Suite", () => {
       await storeCredential(60_000);
       assert.strictEqual(await credentials.bearer(API_URL), "local-secret");
       assert.ok(fetchStub.notCalled);
+    });
+
+    test("never sends the local token to a different loopback port", async () => {
+      await writeLocalToken("local-secret");
+      assert.strictEqual(await credentials.bearer("http://localhost:7009"), undefined);
     });
 
     test("never sends the local token to a non-loopback daemon", async () => {

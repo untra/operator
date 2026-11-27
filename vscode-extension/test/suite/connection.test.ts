@@ -4,15 +4,11 @@ import * as vscode from "vscode";
 import { openApprovalPage } from "../../src/auth/sign-in";
 import {
   approvalTarget,
-  connectionModeFromInspect,
-  downloadsApply,
-  effectiveMode,
   gateRemoteMcp,
   localAdoptMismatch,
   normalizeFailureMessage,
   normalizeRemoteOrigin,
-  shouldStartWebhook,
-  startupAction,
+  resolveConnection,
   swaggerUrl,
 } from "../../src/connection";
 
@@ -63,120 +59,54 @@ suite("connection", () => {
     });
   });
 
-  suite("mode", () => {
-    test("an unset mode is local", () => {
-      assert.strictEqual(connectionModeFromInspect(undefined), "local");
-      assert.strictEqual(connectionModeFromInspect({ globalValue: "local" }), "local");
+  suite("resolveConnection()", () => {
+    const hosted = "https://operator.example.com";
+    const suggested = "https://workspace.example.com";
+
+    test("requires an explicit choice and honors User local mode", () => {
+      assert.deepStrictEqual(resolveConnection({}), { kind: "undecided" });
+      assert.deepStrictEqual(resolveConnection({ userMode: "local" }), { kind: "local" });
     });
 
-    test("workspace remote wins over a global local value", () => {
-      assert.strictEqual(
-        connectionModeFromInspect({ globalValue: "local", workspaceValue: "remote" }),
-        "remote",
-      );
+    test("uses a valid User origin regardless of the local mode default", () => {
+      assert.deepStrictEqual(resolveConnection({ userMode: "local", userUrl: `${hosted}/` }), {
+        kind: "hosted",
+        origin: hosted,
+      });
+      assert.deepStrictEqual(resolveConnection({ userUrl: "http://operator.example.com" }), {
+        kind: "invalid",
+        reason: "http",
+      });
     });
 
-    test("a non-loopback URL is remote even when the mode setting is local", () => {
-      assert.strictEqual(effectiveMode("local", "https://operator.kube.untra.casa"), "remote");
-      assert.strictEqual(effectiveMode("local", "http://localhost:7008"), "local");
-      assert.strictEqual(effectiveMode("remote", "http://localhost:7008"), "remote");
-    });
-
-    test("downloads apply only to a local connection", () => {
-      assert.strictEqual(
-        downloadsApply({ mode: "local", explicitApiUrl: "http://127.0.0.1:7008" }),
-        true,
+    test("uses the approved repository origin only while it matches", () => {
+      assert.deepStrictEqual(resolveConnection({ userUrl: hosted, suggestion: suggested }), {
+        kind: "hosted",
+        origin: hosted,
+      });
+      assert.deepStrictEqual(
+        resolveConnection({
+          userUrl: hosted,
+          suggestion: `${suggested}/`,
+          approvedOrigin: suggested,
+        }),
+        { kind: "hosted", origin: suggested },
       );
-      assert.strictEqual(
-        downloadsApply({ mode: "remote", explicitApiUrl: "https://operator.kube.untra.casa" }),
-        false,
-      );
-      assert.strictEqual(
-        downloadsApply({ mode: "local", explicitApiUrl: "https://operator.kube.untra.casa" }),
-        false,
+      assert.deepStrictEqual(
+        resolveConnection({
+          suggestion: "https://changed.example.com",
+          approvedOrigin: suggested,
+        }),
+        { kind: "undecided" },
       );
     });
   });
 
-  suite("startupAction()", () => {
-    test("a reachable authenticated server attaches", () => {
-      assert.strictEqual(
-        startupAction({
-          mode: "remote",
-          apiUrl: "https://operator.kube.untra.casa",
-          reachable: true,
-          authenticated: true,
-          autoStart: true,
-          hasConfig: true,
-        }),
-        "attach",
-      );
-    });
-
-    test("remote auth failure does not start a local server", () => {
-      assert.strictEqual(
-        startupAction({
-          mode: "remote",
-          apiUrl: "https://operator.kube.untra.casa",
-          reachable: true,
-          authenticated: false,
-          autoStart: true,
-          hasConfig: true,
-        }),
-        "sign-in",
-      );
-    });
-
-    test("an unreachable remote host is reported and autoStart does not run", () => {
-      assert.strictEqual(
-        startupAction({
-          mode: "remote",
-          apiUrl: "https://operator.kube.untra.casa",
-          reachable: false,
-          authenticated: false,
-          autoStart: true,
-          hasConfig: true,
-        }),
-        "report-unreachable",
-      );
-    });
-
-    test("local autoStart still starts a server when nothing is listening", () => {
-      assert.strictEqual(
-        startupAction({
-          mode: "local",
-          apiUrl: "http://localhost:7008",
-          reachable: false,
-          authenticated: false,
-          autoStart: true,
-          hasConfig: true,
-        }),
-        "start-local",
-      );
-    });
-
-    test("a non-loopback URL stored while mode is local does not auto-start", () => {
-      assert.strictEqual(
-        startupAction({
-          mode: "local",
-          apiUrl: "https://operator.kube.untra.casa",
-          reachable: false,
-          authenticated: false,
-          autoStart: true,
-          hasConfig: true,
-        }),
-        "report-unreachable",
-      );
-    });
-
-    test("webhook starts only for a local connection that has config", () => {
-      assert.strictEqual(shouldStartWebhook("local", "http://localhost:7008", true), true);
-      assert.strictEqual(
-        shouldStartWebhook("remote", "https://operator.kube.untra.casa", true),
-        false,
-      );
-      assert.strictEqual(shouldStartWebhook("local", "http://localhost:7008", false), false);
-    });
+  test("rejects a local URL for a hosted connection", () => {
+    assert.deepStrictEqual(
+      resolveConnection({ userMode: "remote", userUrl: "http://localhost:7008" }),
+      { kind: "invalid", reason: "loopback" },
+    );
   });
 
   suite("adopt and links", () => {

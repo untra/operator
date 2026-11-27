@@ -12,10 +12,6 @@ publicUrl: ""
 egress:
   allowPrivateCidrs: []
 
-bootstrap:
-  existingSecret: ""
-  passwordKey: password
-
 serviceAccount:
   name: ""
   annotations: {}

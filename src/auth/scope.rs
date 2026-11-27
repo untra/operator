@@ -176,6 +176,8 @@ pub static ROUTE_RULES: &[RouteRule] = &[
     read("GET", "/api/v1/agents/active"),
     read("GET", "/api/v1/agents/{agent_id}"),
     read("GET", "/api/v1/agents/{agent_id}/connect/terminal"),
+    execute("POST", "/api/v1/agents/{agent_id}/connect/attach"),
+    execute("POST", "/api/v1/agents/{agent_id}/connect/redeem"),
     write("POST", "/api/v1/agents/{agent_id}/approve"),
     write("POST", "/api/v1/agents/{agent_id}/reject"),
     // Focus shells out to the session multiplexer binary.
@@ -321,6 +323,7 @@ impl Principal {
             PrincipalKind::TelemetryIngest => true,
             PrincipalKind::AccessToken | PrincipalKind::LocalProcess => {
                 self.has_scope(Scope::Admin)
+                    && self.authority.as_ref().is_none_or(|a| a.user.administrator)
             }
             PrincipalKind::Session
             | PrincipalKind::Endpoint

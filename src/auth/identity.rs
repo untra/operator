@@ -34,6 +34,15 @@ pub enum OidcProvider {
     Authentik,
 }
 
+impl OidcProvider {
+    pub(super) const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Keycloak => "keycloak",
+            Self::Authentik => "authentik",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct OidcConnection {
@@ -116,6 +125,7 @@ pub struct IssuedUserKey {
 
 #[derive(Debug, Clone)]
 pub struct UserAuthority {
+    pub device_family: Option<String>,
     pub user: OperatorUser,
     pub key_id: Option<String>,
     pub grants: PermissionGrant,
@@ -280,6 +290,7 @@ fn authority(
     }
     let grants = read_grants(conn, user_id, profile, false)?;
     Ok(Some(UserAuthority {
+        device_family: None,
         user,
         key_id: None,
         grants,
@@ -287,7 +298,7 @@ fn authority(
     }))
 }
 
-fn record_audit(
+pub(super) fn record_audit(
     conn: &rusqlite::Connection,
     actor: &str,
     action: AuditAction,
@@ -305,6 +316,20 @@ fn export_audit(actor: &str, action: AuditAction, target: &str) {
     crate::telemetry::events::audit_event(action, true, Some(&detail));
 }
 
+pub(super) fn insert_connection(
+    tx: &rusqlite::Transaction<'_>,
+    actor: &str,
+    id: &str,
+    request: &CreateOidcConnection,
+) -> Result<()> {
+    let issuer = request.issuer.trim();
+    super::oidc::validate_url(issuer)?;
+    let provider = request.provider.as_str();
+    tx.execute("INSERT INTO oidc_connection (id, provider, issuer, client_id, client_secret_file, redirect_uri, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![id, provider, issuer, request.client_id, request.client_secret_file, request.redirect_uri, Utc::now().timestamp()])?;
+    record_audit(tx, actor, AuditAction::OidcConnectionCreated, id)?;
+    Ok(())
+}
+
 impl AuthStore {
     pub fn oidc_connections(&self) -> Result<Vec<OidcConnection>> {
         self.with_conn(|conn| Ok(conn.prepare("SELECT id, provider, issuer, client_id, redirect_uri, disabled FROM oidc_connection ORDER BY created_at")?.query_map([], |r| {
@@ -318,14 +343,10 @@ impl AuthStore {
         actor: &str,
         request: &CreateOidcConnection,
     ) -> Result<String> {
-        let issuer = request.issuer.trim();
-        super::oidc::validate_url(issuer)?;
         let id = Uuid::new_v4().to_string();
         self.with_conn(|conn| {
             let tx = conn.transaction()?;
-            let provider = match request.provider { OidcProvider::Keycloak => "keycloak", OidcProvider::Authentik => "authentik" };
-            tx.execute("INSERT INTO oidc_connection (id, provider, issuer, client_id, client_secret_file, redirect_uri, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![id, provider, issuer, request.client_id, request.client_secret_file, request.redirect_uri, Utc::now().timestamp()])?;
-            record_audit(&tx, actor, AuditAction::OidcConnectionCreated, &id)?;
+            insert_connection(&tx, actor, &id, request)?;
             tx.commit()?;
             Ok(())
         })?;
@@ -558,6 +579,21 @@ impl AuthStore {
         })
     }
 
+    pub fn device_authority(&self, family: &str, profile: Uuid) -> Result<Option<UserAuthority>> {
+        self.with_conn(|conn| {
+            let tx = conn.transaction()?;
+            let user: Option<String> = tx.query_row(
+                "SELECT user_id FROM refresh_family WHERE id=?1 AND user_id IS NOT NULL AND profile_id=?2 AND revoked_at IS NULL AND absolute_expires_at>?3",
+                params![family, profile.to_string(), Utc::now().to_rfc3339()], |row| row.get(0),
+            ).optional()?;
+            let Some(user) = user else { return Ok(None) };
+            Ok(authority(&tx, &user, profile)?.filter(|a| a.user.administrator || !a.grants.capabilities.is_empty()).map(|mut a| {
+                a.device_family = Some(family.to_owned());
+                a
+            }))
+        })
+    }
+
     pub fn key_authority(&self, id: &str) -> Result<Option<(UserAuthority, DateTime<Utc>)>> {
         let result = self.with_conn(|conn| {
             let tx = conn.transaction()?;
@@ -713,11 +749,46 @@ impl UserAuthority {
 pub(crate) mod tests {
     use super::*;
 
+    pub(crate) fn device_admin(
+        state: &crate::rest::state::ApiState,
+    ) -> crate::auth::scope::Principal {
+        let (store, owner, request) = fixture_in(state.auth.store.clone());
+        let mut grants = request.grants;
+        grants.profile_id = state.config().profile.id;
+        store
+            .update_operator_user(
+                "host",
+                &owner.user.id,
+                &UpdateOperatorUser {
+                    enabled: true,
+                    administrator: true,
+                    grants: grants.clone(),
+                },
+                true,
+            )
+            .unwrap();
+        store
+            .user_authority(&owner.user.id, grants.profile_id)
+            .unwrap()
+            .unwrap()
+            .principal(
+                Utc::now() + chrono::Duration::hours(1),
+                Some("browser".into()),
+            )
+    }
+
     fn fixture() -> (AuthStore, UserAuthority, CreateUserKey) {
         fixture_in(AuthStore::in_memory().unwrap())
     }
 
     pub(crate) fn fixture_in(store: AuthStore) -> (AuthStore, UserAuthority, CreateUserKey) {
+        fixture_for_profile(store, Uuid::new_v4())
+    }
+
+    pub(crate) fn fixture_for_profile(
+        store: AuthStore,
+        profile_id: Uuid,
+    ) -> (AuthStore, UserAuthority, CreateUserKey) {
         store
             .add_oidc_connection(
                 "admin",
@@ -733,7 +804,7 @@ pub(crate) mod tests {
         let connection = store.oidc_connections().unwrap().remove(0);
         let id = store.provision_oidc_user(&connection, "subject").unwrap();
         let grants = PermissionGrant {
-            profile_id: Uuid::new_v4(),
+            profile_id,
             instance_wide: false,
             capabilities: vec!["tickets:read".into()],
             projects: vec!["operator".into()],
@@ -866,7 +937,13 @@ pub(crate) mod tests {
         };
         use http_body_util::BodyExt;
         use tower::ServiceExt;
-        let state = crate::rest::state::ApiState::in_memory(crate::config::Config::default());
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = crate::config::Config::default();
+        config.paths.state = dir.path().display().to_string();
+        config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+        config.profile.id = uuid::Uuid::new_v4();
+        crate::licensing::tests::install_test_license(&config);
+        let state = crate::rest::state::ApiState::in_memory(config);
         let (store, owner, request) = fixture_in(state.auth.store.clone());
         let issued = store.create_user_key(&owner, &request, None).unwrap();
         store

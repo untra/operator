@@ -22,6 +22,7 @@ export class TicketTreeProvider implements vscode.TreeDataProvider<TicketItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<TicketItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  private revision = 0;
   private tickets: TicketInfo[] = [];
   private ticketsDir: string | undefined;
   private apiClient: OperatorApiClient | undefined;
@@ -37,6 +38,14 @@ export class TicketTreeProvider implements vscode.TreeDataProvider<TicketItem> {
   }
 
   /** Attach an API client: the tree becomes API-backed (disk is the fallback). */
+  clearConnection(): void {
+    this.revision++;
+    this.apiClient = undefined;
+    this.ticketsDir = undefined;
+    this.tickets = [];
+    this._onDidChangeTreeData.fire(undefined);
+  }
+
   setApiClient(client: OperatorApiClient | undefined): void {
     this.apiClient = client;
   }
@@ -47,12 +56,17 @@ export class TicketTreeProvider implements vscode.TreeDataProvider<TicketItem> {
   }
 
   async refresh(): Promise<void> {
+    const revision = ++this.revision;
+    const ticketsDir = this.ticketsDir;
     // API-backed first: against a genuinely remote server, disk reads would
     // show an empty tree despite a healthy connection. Disk remains the
     // fallback when no server is reachable.
     if (this.apiClient) {
       try {
         const board = await this.apiClient.getKanban();
+        if (revision !== this.revision) {
+          return;
+        }
         const cards =
           this.status === "queue"
             ? board.queue
@@ -68,18 +82,22 @@ export class TicketTreeProvider implements vscode.TreeDataProvider<TicketItem> {
       }
     }
 
-    if (!this.ticketsDir) {
+    if (revision !== this.revision) {
+      return;
+    }
+    if (!ticketsDir) {
       this.tickets = [];
       this._onDidChangeTreeData.fire(undefined);
       return;
     }
 
-    const subDir = path.join(this.ticketsDir, this.status);
+    const subDir = path.join(ticketsDir, this.status);
+    let tickets: TicketInfo[];
     try {
       const files = await fs.readdir(subDir);
       const mdFiles = files.filter((f) => f.endsWith(".md"));
 
-      this.tickets = await Promise.all(
+      tickets = await Promise.all(
         mdFiles.map(async (file) => {
           const filePath = path.join(subDir, file);
           const content = await fs.readFile(filePath, "utf-8");
@@ -88,10 +106,14 @@ export class TicketTreeProvider implements vscode.TreeDataProvider<TicketItem> {
       );
 
       // Sort by ticket ID
-      this.tickets.sort((a, b) => a.id.localeCompare(b.id));
+      tickets.sort((a, b) => a.id.localeCompare(b.id));
     } catch {
-      this.tickets = [];
+      tickets = [];
     }
+    if (revision !== this.revision) {
+      return;
+    }
+    this.tickets = tickets;
 
     this._onDidChangeTreeData.fire(undefined);
   }

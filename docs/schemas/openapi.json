@@ -211,6 +211,126 @@
         "x-operator-scope": "write"
       }
     },
+    "/api/v1/agents/{agent_id}/connect/attach": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "operationId": "issue",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachReference"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-scope": "execute",
+        "x-operator-capability": "agents:focus"
+      }
+    },
+    "/api/v1/agents/{agent_id}/connect/redeem": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "operationId": "redeem",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-operator-csrf",
+            "in": "header",
+            "description": "Required for cookie-authenticated mutations; omit when using bearer authentication.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachReference"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectTerminal"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-operator-capability": "agents:focus",
+        "x-operator-scope": "execute"
+      }
+    },
     "/api/v1/agents/{agent_id}/connect/terminal": {
       "get": {
         "tags": [
@@ -494,8 +614,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "alerts:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "alerts:create"
       }
     },
     "/api/v1/auth/bootstrap": {
@@ -706,9 +826,6 @@
           }
         },
         "security": [
-          {
-            "bearerAuth": []
-          },
           {
             "sessionCookie": []
           }
@@ -1696,8 +1813,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "campaigns:read"
+        "x-operator-capability": "campaigns:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -1903,8 +2020,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "campaigns:launch",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "campaigns:launch"
       }
     },
     "/api/v1/campaigns/{id}/pause": {
@@ -2170,8 +2287,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "collections:read"
+        "x-operator-capability": "collections:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/collections/{name}/activate": {
@@ -2338,8 +2455,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "configuration:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "configuration:update"
       }
     },
     "/api/v1/connections": {
@@ -2664,8 +2781,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "delegators:create"
+        "x-operator-capability": "delegators:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/delegators/{name}": {
@@ -2921,8 +3038,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "delegators:read"
+        "x-operator-capability": "delegators:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/endpoints": {
@@ -3049,8 +3166,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "endpoints:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "endpoints:read"
       },
       "delete": {
         "tags": [
@@ -3107,8 +3224,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "endpoints:delete"
+        "x-operator-capability": "endpoints:delete",
+        "x-operator-scope": "admin"
       },
       "patch": {
         "tags": [
@@ -3228,8 +3345,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "execution-targets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "execution-targets:read"
       }
     },
     "/api/v1/git/config": {
@@ -3381,8 +3498,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "git:create"
+        "x-operator-capability": "git:create",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/git/validate": {
@@ -3438,8 +3555,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "git:execute",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "git:execute"
       }
     },
     "/api/v1/health": {
@@ -3580,8 +3697,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       },
       "post": {
         "tags": [
@@ -3818,8 +3935,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "issuetypes:update"
+        "x-operator-capability": "issuetypes:update",
+        "x-operator-scope": "write"
       },
       "delete": {
         "tags": [
@@ -3883,8 +4000,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:delete",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "issuetypes:delete"
       }
     },
     "/api/v1/issuetypes/{key}/document": {
@@ -3952,8 +4069,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/issuetypes/{key}/steps": {
@@ -4013,8 +4130,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "issuetypes:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "issuetypes:read"
       }
     },
     "/api/v1/issuetypes/{key}/steps/{step_name}": {
@@ -4367,8 +4484,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "kanban:execute"
+        "x-operator-capability": "kanban:execute",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/kanban/providers": {
@@ -4467,8 +4584,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "kanban:create"
       }
     },
     "/api/v1/kanban/statuses": {
@@ -4585,8 +4702,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "kanban:execute",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "kanban:execute"
       }
     },
     "/api/v1/kanban/{provider}/{project_key}/issuetypes": {
@@ -4831,8 +4948,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "kanban:read"
+        "x-operator-capability": "kanban:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/license": {
@@ -5155,8 +5272,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "mcp:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "mcp:read"
       }
     },
     "/api/v1/mcp/message": {
@@ -5268,8 +5385,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "mcp:connect",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "mcp:connect"
       }
     },
     "/api/v1/model-servers": {
@@ -5305,8 +5422,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       },
       "post": {
         "tags": [
@@ -5371,8 +5488,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "model-servers:create"
       }
     },
     "/api/v1/model-servers/kinds": {
@@ -5470,8 +5587,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       }
     },
     "/api/v1/model-servers/{name}": {
@@ -5528,8 +5645,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "model-servers:read"
       },
       "put": {
         "tags": [
@@ -5613,8 +5730,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "model-servers:update",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "model-servers:update"
       },
       "delete": {
         "tags": [
@@ -5689,8 +5806,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "admin",
-        "x-operator-capability": "model-servers:delete"
+        "x-operator-capability": "model-servers:delete",
+        "x-operator-scope": "admin"
       }
     },
     "/api/v1/model-servers/{name}/models": {
@@ -5748,8 +5865,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "execute",
-        "x-operator-capability": "model-servers:execute"
+        "x-operator-capability": "model-servers:execute",
+        "x-operator-scope": "execute"
       }
     },
     "/api/v1/profiles": {
@@ -5787,8 +5904,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "profiles:read"
+        "x-operator-capability": "profiles:read",
+        "x-operator-scope": "read"
       },
       "post": {
         "tags": [
@@ -5852,8 +5969,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "profiles:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "profiles:create"
       }
     },
     "/api/v1/profiles/{profile_id}": {
@@ -6110,8 +6227,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "queue:read"
+        "x-operator-capability": "queue:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/queue/pause": {
@@ -6246,8 +6363,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "queue:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "queue:read"
       }
     },
     "/api/v1/queue/sync": {
@@ -6362,8 +6479,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "queue:execute",
-        "x-operator-scope": "execute"
+        "x-operator-scope": "execute",
+        "x-operator-capability": "queue:execute"
       }
     },
     "/api/v1/sections": {
@@ -6519,8 +6636,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "setup:create",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "setup:create"
       }
     },
     "/api/v1/setup/status": {
@@ -6555,8 +6672,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "setup:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "setup:read"
       }
     },
     "/api/v1/setup/steps": {
@@ -6704,8 +6821,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "targets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "targets:read"
       },
       "post": {
         "tags": [
@@ -6903,8 +7020,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "targets:delete",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "targets:delete"
       }
     },
     "/api/v1/targets/{name}/probe": {
@@ -7026,8 +7143,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "telemetry:read",
-        "x-operator-scope": "admin"
+        "x-operator-scope": "admin",
+        "x-operator-capability": "telemetry:read"
       }
     },
     "/api/v1/tickets": {
@@ -7095,8 +7212,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "write",
-        "x-operator-capability": "tickets:create"
+        "x-operator-capability": "tickets:create",
+        "x-operator-scope": "write"
       }
     },
     "/api/v1/tickets/batch": {
@@ -7163,8 +7280,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:create",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:create"
       }
     },
     "/api/v1/tickets/batch/preview": {
@@ -7289,8 +7406,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:read",
-        "x-operator-scope": "read"
+        "x-operator-scope": "read",
+        "x-operator-capability": "tickets:read"
       }
     },
     "/api/v1/tickets/{id}": {
@@ -7348,8 +7465,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "tickets:read"
+        "x-operator-capability": "tickets:read",
+        "x-operator-scope": "read"
       }
     },
     "/api/v1/tickets/{id}/campaign": {
@@ -7629,8 +7746,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-capability": "tickets:update",
-        "x-operator-scope": "write"
+        "x-operator-scope": "write",
+        "x-operator-capability": "tickets:update"
       }
     },
     "/api/v1/tickets/{id}/steps/{step}/complete": {
@@ -7854,8 +7971,8 @@
             "sessionCookie": []
           }
         ],
-        "x-operator-scope": "read",
-        "x-operator-capability": "workflow-formats:read"
+        "x-operator-capability": "workflow-formats:read",
+        "x-operator-scope": "read"
       }
     },
     "/livez": {
@@ -8812,6 +8929,39 @@
           }
         }
       },
+      "AttachDestination": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "authority": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "AttachReference": {
+        "type": "object",
+        "required": [
+          "reference",
+          "destination"
+        ],
+        "properties": {
+          "destination": {
+            "$ref": "#/components/schemas/AttachDestination"
+          },
+          "reference": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "Attention": {
         "type": "object",
         "description": "Attention nudge for an agent",
@@ -9091,6 +9241,10 @@
           "requires_temporary_password"
         ],
         "properties": {
+          "oidc_only": {
+            "type": "boolean",
+            "description": "Hosted interactive sign-in requires an assigned OIDC account."
+          },
           "requires_temporary_password": {
             "type": "boolean",
             "description": "Whether a temporary password was supplied out of band (a mounted\nbootstrap secret). When true, submission must present it."
@@ -9945,6 +10099,24 @@
           "terminal_name"
         ],
         "properties": {
+          "action": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TerminalAction",
+                "description": "Structured operation understood by the editor."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authority": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Remote workspace authority for this agent."
+          },
           "command": {
             "type": [
               "string",
@@ -10620,7 +10792,7 @@
           },
           "subject": {
             "type": "string",
-            "description": "Account name - always `admin`, the single human account."
+            "description": "Authenticated subject in the current deployment."
           }
         }
       },
@@ -11012,7 +11184,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "description": "Scopes requested. IDE clients request all four, because such a client\nacts as the human admin."
+            "description": "Requested scopes. Hosted clients also require the approving account grants."
           }
         }
       },
@@ -14197,6 +14369,7 @@
       "PremiumFeature": {
         "type": "string",
         "enum": [
+          "hosted_server",
           "remote_targets",
           "campaigns",
           "oidc_connections",
@@ -14628,6 +14801,14 @@
             "type": "boolean"
           }
         }
+      },
+      "ResumeTool": {
+        "type": "string",
+        "enum": [
+          "claude",
+          "codex",
+          "gemini"
+        ]
       },
       "ReviewResponse": {
         "type": "object",
@@ -15823,6 +16004,89 @@
           "metrics",
           "logs"
         ]
+      },
+      "TerminalAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "focus"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "session",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "tmux"
+                ]
+              },
+              "session": {
+                "type": "string"
+              },
+              "socket": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "session",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "zellij"
+                ]
+              },
+              "session": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "tool",
+              "session",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "resume"
+                ]
+              },
+              "session": {
+                "type": "string"
+              },
+              "tool": {
+                "$ref": "#/components/schemas/ResumeTool"
+              }
+            }
+          }
+        ],
+        "description": "A terminal operation with fixed executable and argument positions."
       },
       "TickReport": {
         "type": "object",

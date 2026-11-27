@@ -47,8 +47,14 @@ export function getResolvedConfigPath(): string {
 }
 
 /** Check whether config.toml exists and is readable */
-export async function configFileExists(): Promise<boolean> {
-  const configPath = getResolvedConfigPath();
+export async function configFileExists(ticketsDir?: string): Promise<boolean> {
+  const explicitWorkingDir = vscode.workspace
+    .getConfiguration("operator")
+    .get<string>("workingDirectory");
+  const configPath =
+    ticketsDir && !explicitWorkingDir
+      ? path.join(ticketsDir, "operator", "config.toml")
+      : getResolvedConfigPath();
   if (!configPath) {
     return false;
   }

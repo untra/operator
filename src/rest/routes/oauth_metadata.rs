@@ -26,6 +26,9 @@ pub async fn protected_resource(
     State(state): State<ApiState>,
 ) -> Result<Json<ProtectedResourceMetadata>, ApiError> {
     let unavailable = || ApiError::NotFound("OIDC discovery is not configured".into());
+    if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+        return Err(unavailable());
+    }
     let public = state
         .config()
         .rest_api

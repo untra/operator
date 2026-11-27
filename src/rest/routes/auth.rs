@@ -12,7 +12,7 @@ use axum::Json;
 use chrono::Utc;
 
 use crate::auth::store::{
-    AuthStore, DevicePollOutcome, RefreshOutcome, ADMIN_SUBJECT, DEVICE_CODE_TTL_SECS,
+    AuthStore, DeviceOwner, DevicePollOutcome, RefreshOutcome, ADMIN_SUBJECT, DEVICE_CODE_TTL_SECS,
     DEVICE_POLL_INTERVAL_SECS,
 };
 use crate::auth::tokens::{api_claims, endpoint_claims, ACCESS_TOKEN_TTL, ENDPOINT_CLIENT_ID};
@@ -126,9 +126,17 @@ fn valid_username(username: &str) -> bool {
 pub async fn bootstrap_status(
     State(state): State<ApiState>,
 ) -> Result<Json<BootstrapStatusResponse>, ApiError> {
+    if state.auth.deployment_mode == crate::config::DeploymentMode::Hosted {
+        return Ok(Json(BootstrapStatusResponse {
+            oidc_only: true,
+            state: BootstrapState::Complete,
+            requires_temporary_password: false,
+        }));
+    }
     let s = store(&state);
     let bootstrap_state = blocking(move || s.bootstrap_state()).await?;
     Ok(Json(BootstrapStatusResponse {
+        oidc_only: false,
         state: bootstrap_state,
         requires_temporary_password: mounted_bootstrap_password().is_some(),
     }))
@@ -659,11 +667,37 @@ pub async fn device_code(
 )]
 pub async fn device_approve(
     State(state): State<ApiState>,
+    Authenticated(principal): Authenticated,
     Json(req): Json<DeviceApprovalRequest>,
 ) -> Result<Json<DeviceApprovalResponse>, ApiError> {
     let user_code = req.user_code.trim().to_uppercase();
     let s = store(&state);
-    let approved = blocking(move || s.approve_device(&user_code)).await?;
+    let hosted = state.auth.deployment_mode == crate::config::DeploymentMode::Hosted;
+    let owner = if hosted {
+        let authority = principal
+            .authority
+            .as_ref()
+            .filter(|a| {
+                principal.kind == crate::rest::dto::auth::PrincipalKind::Session
+                    && (a.user.administrator || !a.grants.capabilities.is_empty())
+            })
+            .ok_or_else(|| {
+                ApiError::Forbidden("An approved OIDC browser session is required".into())
+            })?;
+        Some(DeviceOwner {
+            user_id: authority.user.id.clone(),
+            profile_id: authority.grants.profile_id,
+        })
+    } else {
+        None
+    };
+    let allow_endpoint = owner.is_some()
+        && principal
+            .authority
+            .as_ref()
+            .is_some_and(|a| a.user.administrator);
+    let approved =
+        blocking(move || s.approve_device_for(&user_code, owner.as_ref(), allow_endpoint)).await?;
 
     let Some((client_id, scopes)) = approved else {
         return Err(ApiError::NotFound(
@@ -710,7 +744,15 @@ pub async fn token(
         return Err(limited.into());
     }
 
-    let (scopes, refresh_token, endpoint_id) = match req {
+    let hosted = state.auth.deployment_mode == crate::config::DeploymentMode::Hosted;
+    if hosted {
+        crate::licensing::require_premium(
+            &state.config(),
+            crate::licensing::PremiumFeature::HostedServer,
+        )
+        .map_err(ApiError::from)?;
+    }
+    let (scopes, refresh_token, endpoint_id, device_family) = match req {
         TokenRequest::DeviceCode {
             device_code: code,
             client_id,
@@ -728,17 +770,35 @@ pub async fn token(
             let outcome = blocking(move || s.poll_device(&code, &client_id)).await?;
 
             match outcome {
-                DevicePollOutcome::Approved { client_id, scopes } => {
+                DevicePollOutcome::Approved {
+                    client_id,
+                    scopes,
+                    owner,
+                } => {
+                    if hosted != owner.is_some()
+                        || (client_id == ENDPOINT_CLIENT_ID && owner.is_none())
+                    {
+                        return Err(oauth_error(
+                            StatusCode::BAD_REQUEST,
+                            OAuthErrorCode::InvalidGrant,
+                            "Device approval must be renewed",
+                        )
+                        .into());
+                    }
                     let s = store(&state);
                     if client_id == ENDPOINT_CLIENT_ID {
-                        let (endpoint_id, refresh) =
-                            blocking(move || s.create_endpoint_family(&client_id)).await?;
-                        (scopes, Some(refresh), Some(endpoint_id))
+                        let (endpoint_id, refresh) = blocking(move || {
+                            s.create_owned_endpoint_family(&client_id, owner.as_ref())
+                        })
+                        .await?;
+                        (scopes, Some(refresh), Some(endpoint_id), None)
                     } else {
                         let owned = scopes.clone();
-                        let refresh =
-                            blocking(move || s.create_refresh_family(&client_id, &owned)).await?;
-                        (scopes, Some(refresh), None)
+                        let (family_id, refresh) = blocking(move || {
+                            s.create_device_family(&client_id, &owned, owner.as_ref())
+                        })
+                        .await?;
+                        (scopes, Some(refresh), None, hosted.then_some(family_id))
                     }
                 }
                 DevicePollOutcome::Pending => {
@@ -793,7 +853,9 @@ pub async fn token(
             }
             let s = store(&state);
             let is_endpoint_client = client_id == ENDPOINT_CLIENT_ID;
-            let outcome = blocking(move || s.redeem_refresh_token(&token, &client_id)).await?;
+            let profile = hosted.then(|| state.config().profile.id);
+            let outcome =
+                blocking(move || s.redeem_device_refresh(&token, &client_id, profile)).await?;
 
             match outcome {
                 RefreshOutcome::Rotated {
@@ -801,6 +863,14 @@ pub async fn token(
                     scopes,
                     family_id,
                 } => {
+                    if !hosted && is_endpoint_client {
+                        return Err(oauth_error(
+                            StatusCode::BAD_REQUEST,
+                            OAuthErrorCode::InvalidGrant,
+                            "Endpoint enrollment requires hosted mode",
+                        )
+                        .into());
+                    }
                     if is_endpoint_client {
                         let s = store(&state);
                         let id = family_id.clone();
@@ -813,9 +883,14 @@ pub async fn token(
                             .await
                             .into());
                         }
-                        (scopes, Some(refresh_token), Some(family_id))
+                        (scopes, Some(refresh_token), Some(family_id), None)
                     } else {
-                        (scopes, Some(refresh_token), None)
+                        (
+                            scopes,
+                            Some(refresh_token),
+                            None,
+                            hosted.then_some(family_id),
+                        )
                     }
                 }
                 RefreshOutcome::Reused => {
@@ -864,9 +939,43 @@ pub async fn token(
     };
 
     let jti = uuid::Uuid::new_v4().to_string();
-    let claims = match &endpoint_id {
-        Some(id) => endpoint_claims(id, Utc::now(), jti),
-        None => api_claims(ADMIN_SUBJECT, &scopes, Utc::now(), jti),
+    if let Some(id) = endpoint_id.clone() {
+        let profile = state.config().profile.id;
+        let s = store(&state);
+        if !blocking(move || s.device_authority(&id, profile))
+            .await?
+            .is_some_and(|a| a.user.administrator)
+        {
+            return Err(oauth_error(
+                StatusCode::BAD_REQUEST,
+                OAuthErrorCode::InvalidGrant,
+                "Endpoint enrollment must be renewed",
+            )
+            .into());
+        }
+    }
+    let claims = if let Some(family) = device_family {
+        let profile = state.config().profile.id;
+        let s = store(&state);
+        let id = family.clone();
+        let Some(authority) = blocking(move || s.device_authority(&id, profile)).await? else {
+            return Err(oauth_error(
+                StatusCode::BAD_REQUEST,
+                OAuthErrorCode::InvalidGrant,
+                "Device approval must be renewed",
+            )
+            .into());
+        };
+        let mut claims = api_claims(&authority.user.id, &scopes, Utc::now(), jti);
+        claims.profile_id = Some(profile);
+        claims.credential_version = crate::auth::tokens::DEVICE_CREDENTIAL_VERSION;
+        claims.device_family = Some(family);
+        claims
+    } else {
+        match &endpoint_id {
+            Some(id) => endpoint_claims(id, Utc::now(), jti),
+            None => api_claims(ADMIN_SUBJECT, &scopes, Utc::now(), jti),
+        }
     };
     let access_token = state
         .auth
@@ -1715,7 +1824,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_pairing_issues_endpoint_bound_tokens_until_revoked() {
-        let (dir, state) = fresh();
+        let dir = TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.paths.state = dir.path().to_string_lossy().into_owned();
+        config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+        config.profile.id = uuid::Uuid::new_v4();
+        crate::licensing::tests::install_test_license(&config);
+        let state = ApiState::in_memory(config);
+        let principal = crate::auth::identity::tests::device_admin(&state);
         let issued: DeviceAuthorizationResponse = parse(
             body_json(device(&state, ENDPOINT_CLIENT_ID, None, vec![]).await)
                 .await
@@ -1723,6 +1839,7 @@ mod tests {
         );
         let approved = device_approve(
             State(state.clone()),
+            Authenticated(principal),
             Json(DeviceApprovalRequest {
                 user_code: issued.user_code.clone(),
             }),
@@ -1731,7 +1848,6 @@ mod tests {
         .unwrap()
         .0;
         assert!(approved.scopes.is_empty());
-        rewind_device_poll(dir.path());
 
         let (status, _, value) = body_json(
             exchange(
@@ -1805,6 +1921,123 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_hosted_device_refresh_and_access_follow_approving_user() {
+        use crate::auth::identity::UpdateOperatorUser;
+        use crate::rest::middleware::auth::resolve_principal;
+        let dir = TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.profile.id = uuid::Uuid::new_v4();
+        config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+        config.paths.state = dir.path().display().to_string();
+        crate::licensing::tests::install_test_license(&config);
+        let state = ApiState::in_memory(config);
+        let (store, owner, request) =
+            crate::auth::identity::tests::fixture_in(state.auth.store.clone());
+        let mut grants = request.grants;
+        grants.profile_id = state.config().profile.id;
+        let mut update = UpdateOperatorUser {
+            enabled: true,
+            administrator: false,
+            grants,
+        };
+        store
+            .update_operator_user("host", &owner.user.id, &update, true)
+            .unwrap();
+        let owner = store
+            .user_authority(&owner.user.id, update.grants.profile_id)
+            .unwrap()
+            .unwrap();
+        let approved = owner.principal(
+            chrono::Utc::now() + chrono::Duration::hours(1),
+            Some("browser".into()),
+        );
+        let (device_code, user_code) = store
+            .create_device_authorization("vscode", &[Scope::Read])
+            .unwrap();
+        let _ = device_approve(
+            State(state.clone()),
+            Authenticated(approved),
+            Json(DeviceApprovalRequest { user_code }),
+        )
+        .await
+        .unwrap();
+        let access: TokenResponse = parse(
+            body_json(
+                exchange(
+                    &state,
+                    TokenRequest::DeviceCode {
+                        device_code,
+                        client_id: "vscode".into(),
+                    },
+                )
+                .await,
+            )
+            .await
+            .2,
+        );
+        let refresh: TokenResponse = parse(
+            body_json(
+                exchange(
+                    &state,
+                    TokenRequest::RefreshToken {
+                        refresh_token: access.refresh_token.unwrap(),
+                        client_id: "vscode".into(),
+                    },
+                )
+                .await,
+            )
+            .await
+            .2,
+        );
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            format!("Bearer {}", refresh.access_token).parse().unwrap(),
+        );
+        let principal = resolve_principal(&state, &headers).await.unwrap().unwrap();
+        assert_eq!(principal.subject, owner.user.id);
+        assert_eq!(principal.scopes, vec![Scope::Read]);
+        assert_eq!(principal.authority.unwrap().grants, update.grants);
+        update.grants.projects.clear();
+        store
+            .update_operator_user("host", &owner.user.id, &update, false)
+            .unwrap();
+        assert!(resolve_principal(&state, &headers)
+            .await
+            .unwrap()
+            .unwrap()
+            .authority
+            .unwrap()
+            .grants
+            .projects
+            .is_empty());
+        update.enabled = false;
+        store
+            .update_operator_user("host", &owner.user.id, &update, false)
+            .unwrap();
+        assert!(resolve_principal(&state, &headers).await.unwrap().is_none());
+        assert!(token(
+            State(state.clone()),
+            Json(TokenRequest::RefreshToken {
+                refresh_token: refresh.refresh_token.unwrap(),
+                client_id: "vscode".into()
+            })
+        )
+        .await
+        .is_err());
+        let legacy = store.create_refresh_family("vscode", &Scope::ALL).unwrap();
+        assert!(token(
+            State(state),
+            Json(TokenRequest::RefreshToken {
+                refresh_token: legacy,
+                client_id: "vscode".into()
+            })
+        )
+        .await
+        .is_err());
+    }
+
+    #[tokio::test]
     async fn test_human_device_tokens_carry_no_endpoint_binding() {
         let (dir, state) = fresh();
         let issued: DeviceAuthorizationResponse = parse(
@@ -1814,6 +2047,7 @@ mod tests {
         );
         let _approved = device_approve(
             State(state.clone()),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(DeviceApprovalRequest {
                 user_code: issued.user_code.clone(),
             }),
@@ -1850,6 +2084,7 @@ mod tests {
         let (status, _, value) = body_json(settle_api(
             device_approve(
                 State(state.clone()),
+                Authenticated(crate::auth::scope::Principal::local("admin")),
                 Json(DeviceApprovalRequest {
                     user_code: "0000-0000".into(),
                 }),
@@ -1869,6 +2104,7 @@ mod tests {
             body_json(settle_api(
                 device_approve(
                     State(state.clone()),
+                    Authenticated(crate::auth::scope::Principal::local("admin")),
                     Json(DeviceApprovalRequest {
                         user_code: issued.user_code.to_lowercase(),
                     }),
@@ -1891,6 +2127,7 @@ mod tests {
             body_json(settle_api(
                 device_approve(
                     State(state),
+                    Authenticated(crate::auth::scope::Principal::local("admin")),
                     Json(DeviceApprovalRequest {
                         user_code: all.user_code,
                     }),
@@ -1948,6 +2185,7 @@ mod tests {
 
         let approved = device_approve(
             State(state.clone()),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(DeviceApprovalRequest {
                 user_code: issued.user_code.clone(),
             }),
@@ -2212,9 +2450,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_access_key_is_returned_once_and_exchanges_without_a_refresh_token() {
-        let (_dir, state) = fresh();
-        let (_, owner, request) =
-            crate::auth::identity::tests::fixture_in(state.auth.store.clone());
+        let dir = TempDir::new().unwrap();
+        let mut config = Config::default();
+        config.paths.state = dir.path().display().to_string();
+        config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+        config.profile.id = uuid::Uuid::new_v4();
+        crate::licensing::tests::install_test_license(&config);
+        let state = ApiState::in_memory(config);
+        let (_, owner, request) = crate::auth::identity::tests::fixture_for_profile(
+            state.auth.store.clone(),
+            state.config().profile.id,
+        );
         let created = state
             .auth
             .store
@@ -2540,6 +2786,7 @@ mod tests {
         );
         let approved = device_approve(
             State(state.clone()),
+            Authenticated(crate::auth::scope::Principal::local("admin")),
             Json(DeviceApprovalRequest {
                 user_code: issued.user_code,
             }),

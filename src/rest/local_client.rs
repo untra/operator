@@ -14,7 +14,6 @@ use crate::config::Config;
 use crate::rest::dto::{CreateTicketRequest, CreateTicketResponse};
 use crate::rest::error::ErrorResponse;
 
-const LOOPBACK_HOST: &str = "127.0.0.1";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, thiserror::Error)]
@@ -38,8 +37,13 @@ pub struct LocalApiClient {
 
 impl LocalApiClient {
     pub fn for_config(config: &Config) -> Result<Self, LocalApiError> {
-        let base_url = format!("http://{LOOPBACK_HOST}:{}", config.rest_api.port);
+        let base_url = format!(
+            "http://{}",
+            std::net::SocketAddr::new(config.rest_api.host_ip(), config.rest_api.port)
+        );
         let http = crate::http_client::client_builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
             .timeout(REQUEST_TIMEOUT)
             .build()
             .map_err(|e| LocalApiError::Unreachable {
@@ -47,7 +51,7 @@ impl LocalApiClient {
                 message: e.to_string(),
             })?;
         Ok(Self {
-            token: crate::auth::local::read(&config.auth_state_path()),
+            token: crate::auth::local::registered_token(config, &base_url),
             base_url,
             http,
         })

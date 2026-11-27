@@ -4,7 +4,8 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Embedded operator status line script, deployed per-session for Claude Code.
-const STATUSLINE_SCRIPT: &str = include_str!("../../../scripts/operator-statusline.sh");
+const STATUSLINE_SCRIPT: &str =
+    include_str!("../../../scripts/runtime/shell/operator-statusline.sh");
 
 /// TEMPORARILY DISABLED: JSON schema support causes command line length issues.
 /// Even when writing schemas to files (rather than inline), the --json-schema flag
@@ -319,7 +320,12 @@ pub fn build_docker_command(
     docker_args.push("sh".to_string());
     docker_args.push("-c".to_string());
     let inner_cmd = if git_enabled {
-        format!("if [ -n \"${{OPERATOR_GIT_RUNTIME:-}}\" ]; then . \"$OPERATOR_GIT_RUNTIME/env.sh\"; fi; {inner_cmd}")
+        crate::runtime_scripts::render(
+            crate::runtime_scripts::body(include_str!(
+                "../../../scripts/runtime/shell/docker-git-launch.sh"
+            )),
+            &[("COMMAND", inner_cmd)],
+        )
     } else {
         inner_cmd.to_string()
     };

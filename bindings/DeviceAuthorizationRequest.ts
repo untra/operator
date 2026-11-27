@@ -10,7 +10,6 @@ export type DeviceAuthorizationRequest = {
  */
 client_id: string, 
 /**
- * Scopes requested. IDE clients request all four, because such a client
- * acts as the human admin.
+ * Requested scopes. Hosted clients also require the approving account grants.
  */
 scopes: Array<Scope>, };

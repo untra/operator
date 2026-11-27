@@ -40,11 +40,13 @@ pub async fn status(State(state): State<ApiState>) -> Result<Json<SetupStatusRes
     let config = state.config();
     let projects_path = config.projects_path();
     let store = state.auth.store.clone();
+    let hosted = state.auth.deployment_mode == crate::config::DeploymentMode::Hosted;
     let (projects_by_tool, admin_configured) = tokio::task::spawn_blocking(move || {
         let projects = crate::projects::discover_projects_by_tool(&projects_path);
-        let configured = store
-            .bootstrap_state()
-            .is_ok_and(|status| status != crate::rest::dto::BootstrapState::Uninitialized);
+        let configured = hosted
+            || store
+                .bootstrap_state()
+                .is_ok_and(|status| status != crate::rest::dto::BootstrapState::Uninitialized);
         (projects, configured)
     })
     .await

@@ -597,7 +597,13 @@ export type TmuxConfig = {
  */
 config_generated: boolean, };
 
+export type DeploymentMode = "local" | "hosted";
+
 export type RestApiConfig = { 
+/**
+ * Local runs for one OS user. Hosted requires Premium and provisioned OIDC.
+ */
+deployment_mode: DeploymentMode, 
 /**
  * Whether the REST API is enabled
  */
@@ -2867,6 +2873,10 @@ export type JiraStatus = {
 name: string, };
 
 export type VsCodeSessionInfo = { 
+/**
+ * Window-specific terminal-control credential.
+ */
+bearer: string, 
 /**
  * Wrapper type identifier (always "vscode")
  */

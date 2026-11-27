@@ -7,6 +7,10 @@ import type { BootstrapState } from "./BootstrapState";
  */
 export type BootstrapStatusResponse = { 
 /**
+ * Hosted interactive sign-in requires an assigned OIDC account.
+ */
+oidc_only: boolean, 
+/**
  * The state this deployment is in.
  */
 state: BootstrapState, 

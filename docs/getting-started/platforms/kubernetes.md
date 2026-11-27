@@ -26,38 +26,18 @@ Operator in a kubernetes cluster is an application with a volume and a port. It 
 
 The chart's `appVersion` is the image tag. It is pinned to an exact release - the chart never deploys `latest`.
 
-### Bootstrap the admin account
+### Provision the hosted administrator
 
-Operator's API is [always authenticated](/security/authentication/). Before installing, create the namespace and bootstrap Secret holding a temporary password:
+Before the pod starts, provision the workspace PVC from a maintenance pod running the Operator image as the service user. Mount the PVC at `/op`, use the service configuration, and set `OPERATOR_PROFILE_REGISTRY=/op/.tickets/operator/profiles.sqlite`. Register the profile with `operator auth status`, then install its matching Premium license in the profile state directory. Set `OPERATOR_REST_API__DEPLOYMENT_MODE=hosted` and `OPERATOR_REST_API__PUBLIC_URL` to the HTTPS origin. Run `operator auth provision-hosted-admin --connection connection.json --subject "$ADMIN_SUBJECT"` on the mounted state. The connection file format is documented in [Authentication](https://operator.untra.io/security/authentication/).
 
-```bash
-kubectl create namespace operator
-kubectl -n operator create secret generic operator-bootstrap \
-  --from-literal=password="$(openssl rand -base64 24)"
-```
-
-Then reference it:
+For an upgrade, stop the old service and preserve its existing profile registry, auth database, and license before switching to the chart's PVC-backed registry path. The OIDC provider must be reachable from the pod and its certificate trusted.
 
 ```bash
 helm install operator oci://ghcr.io/untra/charts/operator \
-  --namespace operator \
-  --set publicUrl=https://operator.example.com \
-  --set bootstrap.existingSecret=operator-bootstrap
+  --namespace operator --set publicUrl=https://operator.example.com
 ```
 
-The Secret is mounted read-only and is read **only while the authentication database is uninitialized**.
-Once you have set the admin password at `/setup`, it is ignored. Delete it afterward:
-
-```bash
-kubectl -n operator delete secret operator-bootstrap
-```
-
-> **Kubernetes Secrets are not encrypted in etcd by default.** Anyone who can
-> read etcd, restore an etcd backup, or `get` Secrets in this namespace can read
-> the bootstrap password. Enable
-> [encryption at rest](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/)
-> for Secrets and restrict `get`/`list` on them before using this pattern. See
-> [Security](/security/#secrets-are-not-encrypted-by-default).
+Connect VS Code to that HTTPS origin and sign in with the provisioned account.
 
 ## DNS and TLS
 
@@ -339,26 +319,13 @@ spec:
 Apply that, then `helm install` as normal. The requested size and StorageClass
 must match the chart's `persistence` values, or the StatefulSet will reject the existing claim.
 
-Restoring an **old** authentication database resurrects credentials revoked
-after the snapshot. If the database is lost or stale, prefer re-bootstrapping:
-delete `auth.sqlite3`, supply a fresh bootstrap Secret, and re-issue integration
-access keys. That generates a new signing key and invalidates everything issued
-previously, which is the safe direction. See [Backup and recovery](/security/#backup-and-recovery).
-
-If you are locked out but the volume is intact, recover locally:
-
-```bash
-kubectl -n operator exec -it statefulset/operator -- operator auth reset-admin-password
-```
-
-There is no HTTP password-reset route by design.
+Restoring an older authentication database can restore credentials revoked after the snapshot. Review restored accounts and revoke affected keys and device grants. Recover administrative access by stopping the service and repeating host-side OIDC provisioning on its PVC.
 
 ## Troubleshooting
 
-### The pod starts but every request returns 401
+### The pod will not start
 
-Expected before bootstrap. Visit `/setup` to set the admin password, or confirm
-the bootstrap Secret is mounted if you expected it to be consumed.
+Verify the configured public HTTPS origin, the profile registry, its matching Premium license, and an enabled OIDC administrator. Startup reports the missing prerequisite before opening the listener.
 
 ### Probes fail while the API works
 

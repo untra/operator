@@ -59,7 +59,7 @@ pub enum RefreshOutcome {
         family_id: String,
     },
     /// The token was valid once but has already been redeemed. The family is
-    /// now revoked - see [`AuthStore::redeem_refresh_token`].
+    /// now revoked - see [`AuthStore::redeem_device_refresh`].
     Reused,
     /// No such token, or it is expired or revoked.
     Invalid,
@@ -67,7 +67,7 @@ pub enum RefreshOutcome {
 
 /// A `device_authorization` row as read during polling:
 /// `(id, client_id, scopes, expires_at, approved_at, denied_at, consumed_at,
-/// last_polled_at)`.
+/// last_polled_at, user_id, profile_id)`.
 type DeviceAuthorizationRow = (
     String,
     String,
@@ -77,13 +77,22 @@ type DeviceAuthorizationRow = (
     Option<String>,
     Option<String>,
     Option<String>,
+    Option<String>,
+    Option<String>,
 );
+
+#[derive(Debug, Clone)]
+pub struct DeviceOwner {
+    pub user_id: String,
+    pub profile_id: Uuid,
+}
 
 /// Outcome of polling a device authorization.
 #[derive(Debug)]
 pub enum DevicePollOutcome {
     /// Approved; the caller may mint tokens with these scopes.
     Approved {
+        owner: Option<DeviceOwner>,
         client_id: String,
         scopes: Vec<Scope>,
     },
@@ -631,15 +640,26 @@ impl AuthStore {
     // =========================================================================
 
     /// Start a refresh-token family and issue its first token.
+    #[cfg(test)]
     pub fn create_refresh_family(&self, client_id: &str, scopes: &[Scope]) -> Result<String> {
+        self.create_device_family(client_id, scopes, None)
+            .map(|(_, token)| token)
+    }
+
+    pub fn create_device_family(
+        &self,
+        client_id: &str,
+        scopes: &[Scope],
+        owner: Option<&DeviceOwner>,
+    ) -> Result<(String, String)> {
         let token = generate_secret()?;
-        self.with_conn(|conn| {
+        let id = self.with_conn(|conn| {
             let tx = conn.transaction()?;
-            insert_refresh_family(&tx, client_id, scopes, &token, Utc::now())?;
+            let id = insert_refresh_family(&tx, client_id, scopes, &token, Utc::now(), owner)?;
             tx.commit()?;
-            Ok(())
-        })
-        .map(|()| token)
+            Ok(id)
+        })?;
+        Ok((id, token))
     }
 
     /// Redeem a refresh token, rotating it.
@@ -649,7 +669,17 @@ impl AuthStore {
     /// tell which is calling. The whole family is revoked rather than guessing:
     /// a forced re-authentication is a far better outcome than silently serving
     /// an attacker.
+    #[cfg(test)]
     pub fn redeem_refresh_token(&self, token: &str, client_id: &str) -> Result<RefreshOutcome> {
+        self.redeem_device_refresh(token, client_id, None)
+    }
+
+    pub fn redeem_device_refresh(
+        &self,
+        token: &str,
+        client_id: &str,
+        profile: Option<Uuid>,
+    ) -> Result<RefreshOutcome> {
         let hash = hash_secret(token);
         let now = Utc::now();
         let replacement = generate_secret()?;
@@ -659,9 +689,10 @@ impl AuthStore {
 
             let row: Option<(String, String, Option<String>, String)> = tx
                 .query_row(
-                    "SELECT id, family_id, consumed_at, expires_at FROM refresh_token \
-                     WHERE token_hash = ?1",
-                    [&hash],
+                    "SELECT t.id, t.family_id, t.consumed_at, t.expires_at FROM refresh_token t \
+                     JOIN refresh_family f ON f.id = t.family_id \
+                     WHERE t.token_hash = ?1 AND f.client_id = ?2 AND f.profile_id IS ?3",
+                    rusqlite::params![hash, client_id, profile.map(|id| id.to_string())],
                     |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
                 )
                 .optional()?;
@@ -742,12 +773,21 @@ impl AuthStore {
     /// Pair an endpoint: one transaction creates its scopeless refresh family,
     /// the family's first token, and the endpoint row. The endpoint id *is* the family id, so revoking either ends both.
     /// Returns `(endpoint_id, refresh_token)`.
+    #[cfg(test)]
     pub fn create_endpoint_family(&self, client_id: &str) -> Result<(String, String)> {
+        self.create_owned_endpoint_family(client_id, None)
+    }
+
+    pub fn create_owned_endpoint_family(
+        &self,
+        client_id: &str,
+        owner: Option<&DeviceOwner>,
+    ) -> Result<(String, String)> {
         let token = generate_secret()?;
         let now = Utc::now();
         let id = self.with_conn(|conn| {
             let tx = conn.transaction()?;
-            let id = insert_refresh_family(&tx, client_id, &[], &token, now)?;
+            let id = insert_refresh_family(&tx, client_id, &[], &token, now, owner)?;
             let name: String = format!("{ENDPOINT_NAME_PREFIX}{}", &id[..ENDPOINT_NAME_ID_CHARS]);
             tx.execute(
                 "INSERT INTO endpoint (id, name, created_at) VALUES (?1, ?2, ?3)",
@@ -973,10 +1013,21 @@ impl AuthStore {
     }
 
     /// Approve a pending device authorization by its user code.
+    #[cfg(test)]
     pub fn approve_device(&self, user_code: &str) -> Result<Option<(String, Vec<Scope>)>> {
+        self.approve_device_for(user_code, None, true)
+    }
+
+    pub fn approve_device_for(
+        &self,
+        user_code: &str,
+        owner: Option<&DeviceOwner>,
+        allow_endpoint: bool,
+    ) -> Result<Option<(String, Vec<Scope>)>> {
         let now = Utc::now();
         self.with_conn(|conn| {
-            let row: Option<(String, String, String, String)> = conn
+            let tx = conn.transaction()?;
+            let row: Option<(String, String, String, String)> = tx
                 .query_row(
                     "SELECT id, client_id, scopes, expires_at FROM device_authorization \
                      WHERE user_code = ?1 AND approved_at IS NULL AND denied_at IS NULL",
@@ -992,10 +1043,14 @@ impl AuthStore {
                 return Ok(None);
             }
 
-            conn.execute(
-                "UPDATE device_authorization SET approved_at = ?1 WHERE id = ?2",
-                rusqlite::params![now.to_rfc3339(), id],
+            if client_id == crate::auth::tokens::ENDPOINT_CLIENT_ID && !allow_endpoint {
+                return Ok(None);
+            }
+            tx.execute(
+                "UPDATE device_authorization SET approved_at=?1, user_id=?2, profile_id=?3 WHERE id=?4",
+                rusqlite::params![now.to_rfc3339(), owner.map(|o| &o.user_id), owner.map(|o| o.profile_id.to_string()), id],
             )?;
+            tx.commit()?;
             Ok(Some((client_id, decode_scopes(&scopes))))
         })
     }
@@ -1017,7 +1072,7 @@ impl AuthStore {
             let row: Option<DeviceAuthorizationRow> = tx
                 .query_row(
                     "SELECT id, client_id, scopes, expires_at, approved_at, denied_at, \
-                            consumed_at, last_polled_at \
+                            consumed_at, last_polled_at, user_id, profile_id \
                      FROM device_authorization WHERE device_code_hash = ?1",
                     [&hash],
                     |r| {
@@ -1030,6 +1085,8 @@ impl AuthStore {
                             r.get(5)?,
                             r.get(6)?,
                             r.get(7)?,
+                            r.get(8)?,
+                            r.get(9)?,
                         ))
                     },
                 )
@@ -1044,6 +1101,8 @@ impl AuthStore {
                 denied_at,
                 consumed_at,
                 last_polled_at,
+                user_id,
+                profile_id,
             )) = row
             else {
                 return Ok(DevicePollOutcome::Expired);
@@ -1075,6 +1134,15 @@ impl AuthStore {
                 return Ok(DevicePollOutcome::Pending);
             }
 
+            let owner = user_id
+                .zip(profile_id)
+                .map(|(user_id, profile_id)| {
+                    Uuid::parse_str(&profile_id).map(|profile_id| DeviceOwner {
+                        user_id,
+                        profile_id,
+                    })
+                })
+                .transpose()?;
             // Consume on success so a device code is single-use.
             tx.execute(
                 "UPDATE device_authorization SET consumed_at = ?1 WHERE id = ?2",
@@ -1083,6 +1151,7 @@ impl AuthStore {
             tx.commit()?;
 
             Ok(DevicePollOutcome::Approved {
+                owner,
                 client_id,
                 scopes: decode_scopes(&scopes),
             })
@@ -1464,18 +1533,21 @@ fn insert_refresh_family(
     scopes: &[Scope],
     token: &str,
     now: DateTime<Utc>,
+    owner: Option<&DeviceOwner>,
 ) -> Result<String> {
     let family_id = Uuid::new_v4().to_string();
     tx.execute(
         "INSERT INTO refresh_family \
-         (id, client_id, scopes, created_at, absolute_expires_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+         (id, client_id, scopes, created_at, absolute_expires_at, user_id, profile_id) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         rusqlite::params![
             family_id,
             client_id,
             encode_scopes(scopes),
             now.to_rfc3339(),
             (now + REFRESH_ABSOLUTE_TTL).to_rfc3339(),
+            owner.map(|o| &o.user_id),
+            owner.map(|o| o.profile_id.to_string()),
         ],
     )?;
     tx.execute(

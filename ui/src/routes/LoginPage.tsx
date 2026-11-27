@@ -1,9 +1,5 @@
-// Password login. Rendered outside the app Layout: an unauthenticated visitor
-// has no sections to show in the sidebar, and every API call the shell makes
-// would 401.
-
 import { useState, useCallback } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useHost } from "../host";
 import { ApiError } from "../api-client";
 import { useApiMutation, useApiQuery, useResetSession } from "../api";
@@ -18,6 +14,8 @@ import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const userCode = params.get("user_code");
   const host = useHost();
   const providers = useApiQuery(oidcProvidersQuery());
   const [username, setUsername] = useState("");
@@ -65,6 +63,28 @@ export function LoginPage() {
     );
   }
 
+  if (bootstrap.data?.oidc_only) {
+    const query = userCode ? `?${new URLSearchParams({ user_code: userCode }).toString()}` : "";
+    return (
+      <AuthCard title="Sign in to Operator" error={providers.error?.message}>
+        {providers.isLoading
+          ? "Loading sign-in providers..."
+          : providers.data?.length
+            ? providers.data.map((provider) => (
+                <a
+                  key={provider.id}
+                  href={`${host.baseUrl()}/api/v1/auth/oidc/login/${encodeURIComponent(
+                    provider.id,
+                  )}${query}`}
+                >
+                  Sign in with {provider.provider}
+                </a>
+              ))
+            : "Contact your administrator to configure a sign-in provider."}
+      </AuthCard>
+    );
+  }
+
   return (
     <AuthCard
       title="Sign in to Operator"
@@ -82,14 +102,6 @@ export function LoginPage() {
       }
       links={
         <>
-          {providers.data?.map((provider) => (
-            <a
-              key={provider.id}
-              href={`${host.baseUrl()}/api/v1/auth/oidc/login/${encodeURIComponent(provider.id)}`}
-            >
-              Sign in with {provider.provider}
-            </a>
-          ))}
           <Link to="/forgot-password">Forgot password?</Link>
           <Link to="/reset-password">Change password</Link>
         </>

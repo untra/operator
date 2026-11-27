@@ -2,17 +2,16 @@
 
 This chart installs Operator as a single-replica StatefulSet with a persistent workspace volume and authenticated HTTP API.
 
+Before the pod starts, provision the workspace PVC from a maintenance pod running the Operator image as the service user. Mount the PVC at `/op`, use the service configuration, and set `OPERATOR_PROFILE_REGISTRY=/op/.tickets/operator/profiles.sqlite`. Register the profile with `operator auth status`, then install its matching Premium license in the profile state directory. Set `OPERATOR_REST_API__DEPLOYMENT_MODE=hosted` and `OPERATOR_REST_API__PUBLIC_URL` to the HTTPS origin. Run `operator auth provision-hosted-admin --connection connection.json --subject "$ADMIN_SUBJECT"` on the mounted state. The connection file format is documented in [Authentication](https://operator.untra.io/security/authentication/).
+
+For an upgrade, stop the old service and preserve its existing profile registry, auth database, and license before switching to the chart's PVC-backed registry path. The OIDC provider must be reachable from the pod and its certificate trusted.
+
 ```bash
-kubectl create namespace operator
-kubectl -n operator create secret generic operator-bootstrap \
-  --from-literal=password="$(openssl rand -base64 24)"
 helm install operator oci://ghcr.io/untra/charts/operator \
-  --namespace operator \
-  --set bootstrap.existingSecret=operator-bootstrap
-kubectl -n operator port-forward service/operator 7008:7008
+  --namespace operator --set publicUrl=https://operator.example.com
 ```
 
-Open `http://127.0.0.1:7008/setup`, set the admin password, and complete the workspace wizard. Delete the temporary bootstrap Secret afterward. The wizard writes `/op/.tickets/operator/config.toml`; the chart does not project or override that file. Back up the workspace PVC.
+Connect VS Code to that HTTPS origin and sign in with the provisioned account.
 
 ## Common values
 

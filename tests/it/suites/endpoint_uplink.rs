@@ -10,15 +10,16 @@ use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-use operator::auth::tokens::{api_claims, ENDPOINT_CLIENT_ID};
-use operator::config::Config;
-use operator::endpoint::protocol::{
+use crate::auth::store::DeviceOwner;
+use crate::auth::tokens::{api_claims, ENDPOINT_CLIENT_ID};
+use crate::config::Config;
+use crate::endpoint::protocol::{
     Capabilities, DownlinkFrame, Heartbeat, Hello, UplinkFrame, PROTOCOL_VERSION,
 };
-use operator::endpoint::registry::{INCOMPATIBLE_VERSION, REVOKED, SUPERSEDED};
-use operator::rest::dto::auth::Scope;
-use operator::rest::dto::{EndpointsResponse, TokenResponse};
-use operator::rest::{build_router, state::ApiState};
+use crate::endpoint::registry::{INCOMPATIBLE_VERSION, REVOKED, SUPERSEDED};
+use crate::rest::dto::auth::Scope;
+use crate::rest::dto::{EndpointsResponse, TokenResponse};
+use crate::rest::{build_router, state::ApiState};
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -29,6 +30,7 @@ struct Server {
     state: ApiState,
     base: String,
     http: reqwest::Client,
+    owner: DeviceOwner,
     _directory: tempfile::TempDir,
 }
 
@@ -47,8 +49,15 @@ impl Server {
             .to_string_lossy()
             .into_owned();
         config.paths.projects = directory.path().to_string_lossy().into_owned();
-        let tickets = config.tickets_path();
-        let state = ApiState::try_new(config, tickets).unwrap();
+        config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+        config.profile.id = uuid::Uuid::new_v4();
+        crate::licensing::tests::install_test_license(&config);
+        let state = ApiState::in_memory(config);
+        let admin = crate::auth::identity::tests::device_admin(&state);
+        let owner = DeviceOwner {
+            user_id: admin.subject,
+            profile_id: state.config().profile.id,
+        };
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
@@ -62,20 +71,30 @@ impl Server {
             .unwrap();
         });
         Self {
+            owner,
             state,
             base: format!("http://{addr}"),
-            http: operator::http_client::client_builder().build().unwrap(),
+            http: crate::http_client::client_builder().build().unwrap(),
             _directory: directory,
         }
     }
 
     fn admin_token(&self) -> String {
-        let claims = api_claims(
-            "admin",
+        let (family, _) = self
+            .state
+            .auth
+            .store
+            .create_device_family("vscode", &Scope::ALL, Some(&self.owner))
+            .unwrap();
+        let mut claims = api_claims(
+            &self.owner.user_id,
             &Scope::ALL,
             chrono::Utc::now(),
             uuid::Uuid::new_v4().to_string(),
         );
+        claims.credential_version = crate::auth::tokens::DEVICE_CREDENTIAL_VERSION;
+        claims.device_family = Some(family);
+        claims.profile_id = Some(self.owner.profile_id);
         self.state.auth.signing_key.sign(&claims).unwrap()
     }
 
@@ -103,7 +122,7 @@ impl Server {
         self.state
             .auth
             .store
-            .approve_device(user_code)
+            .approve_device_for(user_code, Some(&self.owner), true)
             .unwrap()
             .expect("pending authorization");
         let response = self

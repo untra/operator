@@ -1,0 +1,13 @@
+{
+  "name": "secret-storage-fixture",
+  "displayName": "Operator test SecretStorage",
+  "version": "0.0.1",
+  "publisher": "operator-e2e",
+  "main": "./extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "engines": {
+    "vscode": "^1.140.0"
+  }
+}

@@ -7,9 +7,14 @@
  */
 
 import * as http from "node:http";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import * as vscode from "vscode";
+import { PROTECT_REGISTRATION_DIRECTORY_SCRIPT } from "./generated/runtime-scripts";
 import type { TerminalManager } from "./terminal-manager";
 import type {
   TerminalCreateOptions,
@@ -22,7 +27,23 @@ import type {
   SessionInfo,
 } from "./types";
 
+const TOKEN_BYTES = 32;
+const PRIVATE_DIRECTORY = 0o700;
+const PRIVATE_FILE = 0o600;
+
 const VERSION = "0.2.17";
+
+async function protectWindowsDirectory(dir: string): Promise<void> {
+  const system = process.env.SystemRoot;
+  if (!system) {
+    throw new Error("Missing Windows system directory");
+  }
+  await promisify(execFile)(
+    path.join(system, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+    ["-NoProfile", "-NonInteractive", "-Command", PROTECT_REGISTRATION_DIRECTORY_SCRIPT],
+    { env: { ...process.env, OPERATOR_TERMINAL_REGISTRATIONS: dir }, windowsHide: true },
+  );
+}
 
 /**
  * HTTP server for operator <-> extension communication
@@ -34,17 +55,21 @@ export class WebhookServer {
   private actualPort = 0;
   private sessionFilePath: string | null = null;
 
-  constructor(terminalManager: TerminalManager) {
+  private bearer?: string;
+
+  constructor(
+    terminalManager: TerminalManager,
+    private readonly registrations = path.join(os.homedir(), ".operator", "vscode-sessions"),
+  ) {
     this.terminalManager = terminalManager;
     this.configuredPort = vscode.workspace.getConfiguration("operator").get("webhookPort", 7009);
   }
 
-  /**
-   * Start the webhook server with optional session file registration
-   * @param ticketsDir Path to .tickets directory for session file
-   */
   async start(ticketsDir?: string): Promise<void> {
-    // Try configured port first, fall back to port 0 (OS assigns)
+    if (this.server) {
+      return;
+    }
+    this.bearer = randomBytes(TOKEN_BYTES).toString("base64url");
     try {
       await this.tryListen(this.configuredPort);
     } catch (err) {
@@ -56,9 +81,11 @@ export class WebhookServer {
       }
     }
 
-    // Write session file if tickets directory provided
-    if (ticketsDir) {
+    try {
       await this.writeSessionFile(ticketsDir);
+    } catch (error) {
+      await this.stop();
+      throw error;
     }
   }
 
@@ -67,14 +94,15 @@ export class WebhookServer {
    */
   private tryListen(port: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server = http.createServer((req, res) => {
+      const server = http.createServer((req, res) => {
         void this.handleRequest(req, res);
       });
 
-      this.server.on("error", reject);
+      server.once("error", reject);
 
-      this.server.listen(port, "127.0.0.1", () => {
-        const addr = this.server!.address();
+      server.listen(port, "127.0.0.1", () => {
+        this.server = server;
+        const addr = server.address();
         this.actualPort = typeof addr === "object" && addr ? addr.port : port;
         console.log(`Operator webhook server listening on port ${this.actualPort}`);
         resolve();
@@ -82,31 +110,58 @@ export class WebhookServer {
     });
   }
 
-  /**
-   * Write session info file for Operator discovery
-   */
-  private async writeSessionFile(ticketsDir: string): Promise<void> {
+  private async writeSessionFile(ticketsDir?: string): Promise<void> {
+    if (this.sessionFilePath || !this.bearer) {
+      return;
+    }
     const sessionInfo: SessionInfo = {
+      bearer: this.bearer,
       wrapper: "vscode",
       port: this.actualPort,
       pid: process.pid,
       version: VERSION,
       startedAt: new Date().toISOString(),
-      workspace: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
+      workspace: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? ticketsDir ?? process.cwd(),
     };
 
-    const operatorDir = path.join(ticketsDir, "operator");
-    await fs.mkdir(operatorDir, { recursive: true });
-
-    this.sessionFilePath = path.join(operatorDir, "vscode-session.json");
-    await fs.writeFile(this.sessionFilePath, JSON.stringify(sessionInfo, null, 2));
-    console.log(`Session file written to ${this.sessionFilePath}`);
+    await fs.mkdir(this.registrations, { recursive: true, mode: PRIVATE_DIRECTORY });
+    if (process.platform === "win32") {
+      await protectWindowsDirectory(this.registrations);
+    }
+    const info = await fs.lstat(this.registrations);
+    const expectedHome = path.join(os.homedir(), ".operator", "vscode-sessions");
+    if (this.registrations === expectedHome) {
+      const parent = await fs.lstat(path.dirname(this.registrations));
+      if (
+        !parent.isDirectory() ||
+        (process.getuid && (parent.uid !== process.getuid() || (parent.mode & 0o022) !== 0))
+      ) {
+        throw new Error(
+          "Terminal registration parent is not owned and controlled by the current user",
+        );
+      }
+    }
+    if (
+      !info.isDirectory() ||
+      (process.getuid && (info.uid !== process.getuid() || (info.mode & 0o077) !== 0))
+    ) {
+      throw new Error("Terminal registration requires an owner-private directory");
+    }
+    const file = path.join(this.registrations, `${randomUUID()}.json`);
+    const handle = await fs.open(file, "wx", PRIVATE_FILE);
+    this.sessionFilePath = file;
+    try {
+      await handle.writeFile(JSON.stringify(sessionInfo));
+    } finally {
+      await handle.close();
+    }
   }
 
   /**
    * Stop the webhook server and clean up session file
    */
   async stop(): Promise<void> {
+    this.bearer = undefined;
     // Clean up session file
     if (this.sessionFilePath) {
       try {
@@ -121,6 +176,7 @@ export class WebhookServer {
     // Stop server
     return new Promise((resolve) => {
       if (this.server) {
+        this.server.closeAllConnections();
         this.server.close(() => {
           this.server = null;
           this.actualPort = 0;
@@ -139,9 +195,10 @@ export class WebhookServer {
     return this.server !== null;
   }
 
-  /**
-   * Get the actual port number (may differ from configured if fallback used)
-   */
+  getRegistrationPath(): string | null {
+    return this.sessionFilePath;
+  }
+
   getPort(): number {
     return this.actualPort;
   }
@@ -152,6 +209,9 @@ export class WebhookServer {
   async ensureSessionFile(ticketsDir: string): Promise<void> {
     if (!this.server) {
       return;
+    }
+    if (this.sessionFilePath && !(await fs.stat(this.sessionFilePath).catch(() => undefined))) {
+      this.sessionFilePath = null;
     }
     await this.writeSessionFile(ticketsDir);
   }
@@ -167,21 +227,12 @@ export class WebhookServer {
    * Handle incoming HTTP requests
    */
   private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
-    // CORS headers for local development
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-    if (req.method === "OPTIONS") {
-      res.writeHead(200);
-      res.end();
+    if (req.headers.origin !== undefined || req.headers["sec-fetch-site"] !== undefined) {
+      res.writeHead(403).end();
       return;
     }
-
-    const url = new URL(req.url ?? "/", `http://localhost:${this.actualPort}`);
-    const urlPath = url.pathname;
-
     try {
+      const urlPath = new URL(req.url ?? "/", `http://localhost:${this.actualPort}`).pathname;
       // Health check
       if (urlPath === "/health" && req.method === "GET") {
         const response: HealthResponse = {
@@ -192,9 +243,25 @@ export class WebhookServer {
         return this.sendJson(res, response);
       }
 
+      const bearer = this.bearer;
+      const expected = Buffer.from(`Bearer ${bearer ?? ""}`);
+      const supplied = Buffer.from(req.headers.authorization ?? "");
+      if (
+        !this.bearer ||
+        expected.length !== supplied.length ||
+        !timingSafeEqual(expected, supplied)
+      ) {
+        res.writeHead(401).end();
+        return;
+      }
+
       // Create terminal
       if (urlPath === "/terminal/create" && req.method === "POST") {
         const body = await this.parseBody<TerminalCreateOptions>(req);
+        if (bearer !== this.bearer) {
+          res.writeHead(401).end();
+          return;
+        }
         this.terminalManager.create(body);
         const response: SuccessResponse = { success: true, name: body.name };
         return this.sendJson(res, response);
@@ -204,6 +271,10 @@ export class WebhookServer {
       if (urlPath.startsWith("/terminal/") && urlPath.endsWith("/send") && req.method === "POST") {
         const name = this.extractName(urlPath, "/terminal/", "/send");
         const body = await this.parseBody<SendCommandRequest>(req);
+        if (bearer !== this.bearer) {
+          res.writeHead(401).end();
+          return;
+        }
         this.terminalManager.send(name, body.command);
         const response: SuccessResponse = { success: true };
         return this.sendJson(res, response);

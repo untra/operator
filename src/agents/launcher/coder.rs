@@ -181,13 +181,33 @@ pub(crate) fn decide_workspace_action(
 /// checkout (fetch + ticket branch), otherwise clone then branch. Branch
 /// naming stays in Rust (the caller passes the `git.branch_format`-derived
 /// name) - never duplicated into a Coder template.
-pub(crate) fn checkout_script(workdir: &str, remote_url: &str, branch: &str) -> String {
-    let dir = shell_escape(workdir);
-    let url = shell_escape(remote_url);
-    let br = shell_escape(branch);
-    format!(
-        "set -e\nif [ -d {dir}/.git ] && [ \"$(git -C {dir} remote get-url origin)\" = {url} ]; then\n  git -C {dir} fetch origin\nelse\n  rm -rf {dir}\n  git clone {url} {dir}\nfi\ngit -C {dir} checkout -B {br}\n"
-    )
+fn checkout_script(
+    workdir: &str,
+    remote_url: &str,
+    branch: &str,
+    git_runtime: Option<&Path>,
+) -> String {
+    use crate::runtime_scripts::{body, render};
+
+    let mut script = git_runtime.map_or_else(String::new, |path| {
+        render(
+            body(include_str!(
+                "../../../scripts/runtime/shell/coder-checkout-env.sh"
+            )),
+            &[("GIT_RUNTIME", &shell_escape(&path.to_string_lossy()))],
+        )
+    });
+    script.push_str(&render(
+        body(include_str!(
+            "../../../scripts/runtime/shell/coder-checkout.sh"
+        )),
+        &[
+            ("DIR", &shell_escape(workdir)),
+            ("URL", &shell_escape(remote_url)),
+            ("BRANCH", &shell_escape(branch)),
+        ],
+    ));
+    script
 }
 
 /// Budget for read-only `coder` queries. Creation and stop reuse the target's
@@ -502,7 +522,6 @@ pub(crate) fn provision_workspace(
         let runtime = git
             .map(crate::git::runtime::GitRuntime::create)
             .transpose()?;
-        let mut script = checkout_script(&workdir, url, branch);
         if let Some(runtime) = &runtime {
             let host = RemoteHost {
                 name: workspace.clone(),
@@ -512,9 +531,13 @@ pub(crate) fn provision_workspace(
                 ssh_config_path: Some(fragment.to_string_lossy().into_owned()),
             };
             super::remote::transfer_git_runtime(&host, &runtime.path)?;
-            let path = super::prompt::shell_escape(&runtime.path.to_string_lossy());
-            script = format!(". {path}/env.sh\ntrap 'rm -rf -- {path}' EXIT\n{script}");
         }
+        let script = checkout_script(
+            &workdir,
+            url,
+            branch,
+            runtime.as_ref().map(|runtime| runtime.path.as_path()),
+        );
         run_ssh(
             &session,
             &fragment,
@@ -727,12 +750,16 @@ fn ensure_opr8r(
     alias: &str,
     timeout_secs: u64,
 ) -> Result<()> {
-    use super::remote::REMOTE_BIN_DIR;
     let probe = ssh_capture(
         session,
         fragment,
         alias,
-        &format!("uname -sm; PATH=\"{REMOTE_BIN_DIR}:$PATH\" command -v opr8r || true"),
+        &crate::runtime_scripts::render(
+            crate::runtime_scripts::body(include_str!(
+                "../../../scripts/runtime/shell/coder-probe.sh"
+            )),
+            &[("BIN", super::remote::REMOTE_BIN_DIR)],
+        ),
         std::process::Stdio::null(),
         timeout_secs,
     )?;
@@ -758,8 +785,11 @@ fn ensure_opr8r(
                 session,
                 fragment,
                 alias,
-                &format!(
-                    "mkdir -p \"{REMOTE_BIN_DIR}\" && cat > \"{REMOTE_BIN_DIR}/opr8r.tmp\" && chmod 700 \"{REMOTE_BIN_DIR}/opr8r.tmp\" && mv -f \"{REMOTE_BIN_DIR}/opr8r.tmp\" \"{REMOTE_BIN_DIR}/opr8r\""
+                &crate::runtime_scripts::render(
+                    crate::runtime_scripts::body(include_str!(
+                        "../../../scripts/runtime/shell/coder-upload.sh"
+                    )),
+                    &[("BIN", super::remote::REMOTE_BIN_DIR)],
                 ),
                 std::process::Stdio::from(file),
                 timeout_secs,
@@ -1266,7 +1296,12 @@ mod tests {
 
     #[test]
     fn test_checkout_script_reuses_matching_clone_and_branches_in_rust() {
-        let script = checkout_script("/home/coder/proj", "git@github.com:u/r.git", "feat/x-42");
+        let script = checkout_script(
+            "/home/coder/proj",
+            "git@github.com:u/r.git",
+            "feat/x-42",
+            None,
+        );
         assert!(script.contains("git clone 'git@github.com:u/r.git'"));
         assert!(script.contains("fetch origin"));
         assert!(script.starts_with("set -e\n"));

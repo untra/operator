@@ -237,7 +237,7 @@ if needs_shell; then
   section "Shell scripts"
   require_tool shellcheck "shell script lint"
 
-  run_step "shellcheck" bash -c 'shellcheck -S warning scripts/*.sh scripts/ci/*.sh'
+  run_step "shellcheck" make lint-shell
 else
   skip "Shell scripts"
 fi

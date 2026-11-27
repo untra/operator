@@ -115,6 +115,34 @@ pub struct Attention {
     pub since: String,
 }
 
+/// A terminal operation with fixed executable and argument positions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export)]
+pub enum TerminalAction {
+    Focus,
+    Tmux {
+        session: String,
+        socket: Option<String>,
+    },
+    Zellij {
+        session: String,
+    },
+    Resume {
+        tool: ResumeTool,
+        session: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum ResumeTool {
+    Claude,
+    Codex,
+    Gemini,
+}
+
 /// What an IDE extension runs after opening the agent's workspace
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
@@ -129,6 +157,14 @@ pub struct ConnectTerminal {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub cwd: Option<String>,
+    /// Remote workspace authority for this agent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub authority: Option<String>,
+    /// Structured operation understood by the editor.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub action: Option<TerminalAction>,
     /// Command to run inside the agent's environment; absent means focus `terminal_name`
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -292,6 +328,44 @@ pub fn terminal_invocation(template: &str, command: &str) -> String {
     )
 }
 
+fn terminal_action(ctx: &ConnectContext) -> Option<TerminalAction> {
+    let agent = ctx.agent;
+    match session_phase(agent) {
+        SessionPhase::Gone => None,
+        SessionPhase::Live => {
+            let session = agent.session_name.clone()?;
+            if ctx.remote.is_some() {
+                return Some(TerminalAction::Tmux {
+                    session,
+                    socket: None,
+                });
+            }
+            match wrapper(agent) {
+                "tmux" => Some(TerminalAction::Tmux {
+                    session,
+                    socket: ctx.tmux_socket.map(str::to_owned),
+                }),
+                "zellij" => Some(TerminalAction::Zellij { session }),
+                "vscode" => Some(TerminalAction::Focus),
+                _ => None,
+            }
+        }
+        SessionPhase::Resumable => {
+            let launch = agent.step_launch_context.as_ref()?;
+            let tool = match launch.tool.as_str() {
+                "claude" => ResumeTool::Claude,
+                "codex" => ResumeTool::Codex,
+                "gemini" => ResumeTool::Gemini,
+                _ => return None,
+            };
+            Some(TerminalAction::Resume {
+                tool,
+                session: launch.session_id.clone()?,
+            })
+        }
+    }
+}
+
 /// What the IDE extension runs once the workspace is open.
 pub fn connect_terminal(ctx: &ConnectContext) -> ConnectTerminal {
     let agent = ctx.agent;
@@ -303,26 +377,17 @@ pub fn connect_terminal(ctx: &ConnectContext) -> ConnectTerminal {
             .clone()
             .unwrap_or_else(|| agent.ticket_id.clone()),
         cwd: workdir(ctx),
+        authority: ctx
+            .remote
+            .map(|r| format!("ssh-remote+{}", r.host().ssh_alias)),
+        action: terminal_action(ctx),
         command: session_command(ctx),
     }
 }
 
-/// `{scheme}://untra.operator-terminals/connect?agent=..&authority=..&path=..`
-pub fn operator_connect_uri(
-    scheme: &str,
-    agent_id: &str,
-    authority: Option<&str>,
-    path: &str,
-) -> Option<String> {
+fn operator_connect_uri(scheme: &str, agent_id: &str) -> Option<String> {
     let mut url = Url::parse(&format!("{scheme}://{OPERATOR_EXTENSION}/connect")).ok()?;
-    {
-        let mut query = url.query_pairs_mut();
-        query.append_pair("agent", agent_id);
-        if let Some(authority) = authority {
-            query.append_pair("authority", authority);
-        }
-        query.append_pair("path", path);
-    }
+    url.query_pairs_mut().append_pair("agent", agent_id);
     Some(url.to_string())
 }
 
@@ -403,7 +468,6 @@ fn ide_options(ctx: &ConnectContext, phase: SessionPhase) -> Vec<ConnectOption> 
     }
 
     let host = ctx.remote.map(RemoteSession::host);
-    let authority = host.map(|h| format!("ssh-remote+{}", h.ssh_alias));
     let suffix = host_suffix(ctx.remote);
     let probes = ctx.probes;
     let mut out = Vec::new();
@@ -419,7 +483,7 @@ fn ide_options(ctx: &ConnectContext, phase: SessionPhase) -> Vec<ConnectOption> 
                 interface,
                 ConnectKind::Ide,
                 format!("{verb} {}{suffix}", interface.label()),
-                operator_connect_uri(scheme, &ctx.agent.id, authority.as_deref(), &path),
+                operator_connect_uri(scheme, &ctx.agent.id),
                 None,
             ));
         }
@@ -770,8 +834,8 @@ mod tests {
             .unwrap();
         let uri = vscode.uri.as_deref().unwrap();
         assert!(uri.starts_with("vscode://untra.operator-terminals/connect?"));
-        assert!(uri.contains("authority=ssh-remote%2Bdevbox"));
-        assert!(uri.contains("path=%2Fhome%2Fme%2Fproj"));
+        assert_eq!(Url::parse(uri).unwrap().query_pairs().count(), 1);
+        assert!(uri.contains("agent="));
 
         let ssh = plan
             .options
@@ -920,7 +984,14 @@ mod tests {
         let remote = ssh_remote();
         let probes = ConnectProbes::default();
         let t = connect_terminal(&ctx(&a, Some(&remote), &probes));
-        assert_eq!(t.command.as_deref(), Some("tmux attach -t op-FEAT-12"));
+        assert_eq!(
+            t.action,
+            Some(TerminalAction::Tmux {
+                session: "op-FEAT-12".into(),
+                socket: None
+            })
+        );
+        assert_eq!(t.authority.as_deref(), Some("ssh-remote+devbox"));
         assert_eq!(t.cwd.as_deref(), Some("/home/me/proj"));
     }
 

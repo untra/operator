@@ -15,5 +15,5 @@
     "moduleResolution": "Node16"
   },
   "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", ".vscode-test"]
+  "exclude": ["node_modules", ".vscode-test", "test/e2e"]
 }

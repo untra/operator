@@ -111,6 +111,9 @@ pub enum BootstrapState {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct BootstrapStatusResponse {
+    /// Hosted interactive sign-in requires an assigned OIDC account.
+    #[serde(default)]
+    pub oidc_only: bool,
     /// The state this deployment is in.
     pub state: BootstrapState,
     /// Whether a temporary password was supplied out of band (a mounted
@@ -218,7 +221,7 @@ pub struct LogoutResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, TS)]
 #[ts(export)]
 pub struct CurrentSessionResponse {
-    /// Account name - always `admin`, the single human account.
+    /// Authenticated subject in the current deployment.
     pub subject: String,
     /// Scopes this credential holds.
     pub scopes: Vec<Scope>,
@@ -283,8 +286,7 @@ pub struct DeviceAuthorizationRequest {
     /// Identifier for the requesting client (e.g. `vscode`).
     #[schema(min_length = 1, max_length = 128, pattern = "^[A-Za-z0-9._:-]+$")]
     pub client_id: String,
-    /// Scopes requested. IDE clients request all four, because such a client
-    /// acts as the human admin.
+    /// Requested scopes. Hosted clients also require the approving account grants.
     #[serde(default)]
     pub scopes: Vec<Scope>,
 }

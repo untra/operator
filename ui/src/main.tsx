@@ -44,6 +44,7 @@ createRoot(document.getElementById("root")!).render(
           <Routes>
             {/* Unauthenticated screens render outside Layout: the shell's own
               API calls would 401 for a visitor who cannot yet authenticate. */}
+            <Route path="device" element={<DevicePage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="reset-password" element={<ResetPasswordPage />} />
@@ -53,7 +54,6 @@ createRoot(document.getElementById("root")!).render(
               <Route path="license/return" element={<LicenseReturnPage />} />
               <Route element={<WorkspaceGate />}>
                 <Route element={<Layout />}>
-                  <Route path="device" element={<DevicePage />} />
                   <Route path="settings/security" element={<SecurityPage />} />
                   <Route path="settings/license" element={<LicensePage />} />
                   <Route path="settings/premium" element={<PremiumPage />} />

@@ -51,6 +51,10 @@ interface WebviewConfig {
 export class ConfigPanel {
   public static currentPanel: ConfigPanel | undefined;
 
+  public static close(): void {
+    ConfigPanel.currentPanel?._panel.dispose();
+  }
+
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
@@ -392,7 +396,7 @@ export class ConfigPanel {
           const ticketsDir = workDir ? path.join(workDir, ".tickets") : undefined;
           const apiUrl = await discoverApiUrl(ticketsDir);
           const client = new OperatorApiClient(apiUrl);
-          await client.health();
+          await client.currentSession();
           void this._panel.webview.postMessage({ type: "apiHealthResult", reachable: true });
         } catch {
           void this._panel.webview.postMessage({ type: "apiHealthResult", reachable: false });

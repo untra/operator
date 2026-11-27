@@ -19,7 +19,7 @@ use crate::rest::error::ApiError;
 use crate::rest::state::ApiState;
 use crate::state::{AgentState, State as OperatorState};
 
-fn connect_context<'a>(
+pub(super) fn connect_context<'a>(
     config: &'a Config,
     agent: &'a AgentState,
     remote: Option<&'a RemoteSession>,
@@ -191,6 +191,11 @@ pub async fn connect_terminal(
     State(state): State<ApiState>,
     Path(agent_id): Path<String>,
 ) -> Result<Json<ConnectTerminal>, ApiError> {
+    if state.auth.deployment_mode == crate::config::DeploymentMode::Hosted {
+        return Err(ApiError::Forbidden(
+            "Update the editor to use authorized workspace attachment".into(),
+        ));
+    }
     let config = state.config();
     let operator_state = OperatorState::load(&config)
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
@@ -199,6 +204,11 @@ pub async fn connect_terminal(
         .iter()
         .find(|a| a.id == agent_id && state.may_access_project(&a.project))
         .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
+    if agent.remote_host.is_some() {
+        return Err(ApiError::Forbidden(
+            "Remote terminals require hosted workspace attachment".into(),
+        ));
+    }
     let remote = connect::resolve_remote(&config, agent);
     let probes = ConnectProbes::default();
     Ok(Json(connect::connect_terminal(&connect_context(
@@ -347,6 +357,11 @@ pub async fn focus_session(
     State(state): State<ApiState>,
     Path(agent_id): Path<String>,
 ) -> Result<(), ApiError> {
+    if state.auth.deployment_mode == crate::config::DeploymentMode::Hosted {
+        return Err(ApiError::Forbidden(
+            "Use workspace attachment to reach a hosted agent".into(),
+        ));
+    }
     let operator_state = OperatorState::load(&state.config())
         .map_err(|e| ApiError::InternalError(format!("Failed to load state: {e}")))?;
 
@@ -356,7 +371,31 @@ pub async fn focus_session(
         .find(|a| a.id == agent_id && state.may_access_project(&a.project))
         .ok_or_else(|| ApiError::NotFound(format!("Agent '{agent_id}' not found")))?;
 
+    if agent.remote_host.is_some() {
+        return Err(ApiError::Forbidden(
+            "Remote terminals require hosted workspace attachment".into(),
+        ));
+    }
+
     match agent.session_wrapper.as_deref() {
+        Some("vscode") => {
+            let name = agent
+                .session_name
+                .clone()
+                .ok_or_else(|| ApiError::Conflict("Agent has no terminal".into()))?;
+            let config = state.config();
+            let mut workspaces = vec![config.projects_path().join(&agent.project)];
+            workspaces.extend(
+                config
+                    .tickets_path()
+                    .parent()
+                    .map(std::path::Path::to_owned),
+            );
+            workspaces.extend(agent.worktree_path.as_ref().map(std::path::PathBuf::from));
+            crate::agents::vscode_focus::focus(workspaces, name)
+                .await
+                .map_err(|e| ApiError::Conflict(e.to_string()))
+        }
         Some("cmux") => {
             let workspace_ref = agent.session_context_ref.clone();
             let window_ref = agent.session_window_ref.clone();

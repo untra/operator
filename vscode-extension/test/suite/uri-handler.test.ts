@@ -18,7 +18,7 @@ function recorder(): UriActions & { calls: string[] } {
       calls.push(`open:${id}`);
     },
     connect: (req) => {
-      calls.push(`connect:${req.agent}:${req.authority ?? ""}:${req.path}`);
+      calls.push(`connect:${req.agent}`);
     },
     warn: (message) => {
       calls.push(`warn:${message}`);
@@ -57,20 +57,18 @@ suite("routeOperatorUri", () => {
     assert.deepStrictEqual(actions.calls, []);
   });
 
-  test("connect passes agent, authority and path", () => {
+  test("connect uses only the agent from a link", () => {
     const actions = recorder();
     routeOperatorUri(
       uri("/connect", "agent=a1&authority=ssh-remote%2Bdevbox&path=%2Fhome%2Fme%2Fproj"),
       actions,
     );
-    assert.deepStrictEqual(actions.calls, ["connect:a1:ssh-remote+devbox:/home/me/proj"]);
+    assert.deepStrictEqual(actions.calls, ["connect:a1"]);
   });
 
-  test("connect without a path warns", () => {
+  test("connect without an agent warns", () => {
     const actions = recorder();
-    routeOperatorUri(uri("/connect", "agent=a1"), actions);
-    assert.deepStrictEqual(actions.calls, [
-      "warn:Operator: connect link is missing an agent or path",
-    ]);
+    routeOperatorUri(uri("/connect", "path=/folder"), actions);
+    assert.deepStrictEqual(actions.calls, ["warn:Operator: connect link is missing an agent"]);
   });
 });

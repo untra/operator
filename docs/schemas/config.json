@@ -145,6 +145,7 @@
       "description": "Embedded REST API server.",
       "$ref": "#/$defs/RestApiConfig",
       "default": {
+        "deployment_mode": "local",
         "enabled": true,
         "host": "127.0.0.1",
         "port": 7008,
@@ -1539,6 +1540,11 @@
       "description": "REST API server configuration.",
       "type": "object",
       "properties": {
+        "deployment_mode": {
+          "description": "Local runs for one OS user. Hosted requires Premium and provisioned OIDC.",
+          "$ref": "#/$defs/DeploymentMode",
+          "default": "local"
+        },
         "enabled": {
           "description": "Whether the REST API is enabled",
           "type": "boolean",
@@ -1588,6 +1594,14 @@
           "default": 15
         }
       }
+    },
+    "DeploymentMode": {
+      "description": "Security boundary for the Operator server.",
+      "type": "string",
+      "enum": [
+        "local",
+        "hosted"
+      ]
     },
     "EgressConfig": {
       "description": "Outbound model destination exceptions.",

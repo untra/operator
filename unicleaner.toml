@@ -178,9 +178,9 @@ allowed_ranges = [
   [0x2717, 0x2717], # BALLOT X
 ]
 
-# Narrow exception: scripts/operator-statusline.sh
+# Narrow exception: scripts/runtime/shell/operator-statusline.sh
 [[rules]]
-pattern = "{scripts/operator-statusline.sh,./scripts/operator-statusline.sh}"
+pattern = "{scripts/runtime/shell/operator-statusline.sh,./scripts/runtime/shell/operator-statusline.sh}"
 allowed_ranges = [
   [0x0009, 0x000D],
   [0x0020, 0x007E],

@@ -12,6 +12,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { embedRuntimeScripts } = require("./embed-runtime-scripts");
 
 const BINDINGS_DIR = path.resolve(__dirname, "../../bindings");
 const GENERATED_DIR = path.resolve(__dirname, "../src/generated");
@@ -71,6 +72,7 @@ export * from './serde_json/JsonValue';
 `;
 
 fs.writeFileSync(path.join(GENERATED_DIR, "index.ts"), indexContent);
+embedRuntimeScripts();
 
 console.log(`  Copied ${copiedFiles.length} type files`);
 console.log("  Generated: src/generated/index.ts");

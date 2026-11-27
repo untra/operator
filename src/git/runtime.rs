@@ -169,19 +169,13 @@ impl GitRuntime {
                 format!("username={}\npassword={}\n", credentials.username, token).as_bytes(),
                 false,
             )?;
-            let helper = format!(
-                r#"#!/bin/sh
-[ "$1" = get ] || exit 0
-protocol= host= path=
-while IFS='=' read -r key value; do
-    case "$key" in protocol) protocol=$value;; host) host=$value;; path) path=$value;; esac
-done
-[ "$protocol" = https ] && [ "$host" = {host} ] || exit 0
-case "$path" in {repo}|{repo_git}) cat "$(dirname "$0")/credential";; esac
-"#,
-                host = shell_quote(authority),
-                repo = shell_quote(repo_path),
-                repo_git = shell_quote(&format!("{repo_path}.git"))
+            let helper = crate::runtime_scripts::render(
+                include_str!("../../scripts/runtime/shell/git-credential-helper.sh"),
+                &[
+                    ("HOST", &shell_quote(authority)),
+                    ("REPO", &shell_quote(repo_path)),
+                    ("REPO_GIT", &shell_quote(&format!("{repo_path}.git"))),
+                ],
             );
             private_file(&self.path.join("helper"), helper.as_bytes(), true)?;
             settings.extend([
@@ -225,9 +219,9 @@ case "$path" in {repo}|{repo_git}) cat "$(dirname "$0")/credential";; esac
             // client binaries -- and `exec ""` would fail as an unreadable
             // `exec: : not found` that blames the shim. Say what is missing
             // instead; the launch preflight should have caught it first.
-            let tea_wrapper = format!(
-                "#!/bin/sh\nif [ -z \"${{OPERATOR_TEA_BINARY:-}}\" ]; then\n  echo \"operator: tea not found on PATH; install it on this machine to use Gitea or Forgejo\" >&2\n  exit 127\nfi\nXDG_CONFIG_HOME={} exec \"$OPERATOR_TEA_BINARY\" \"$@\"\n",
-                shell_quote(&self.path.to_string_lossy())
+            let tea_wrapper = crate::runtime_scripts::render(
+                include_str!("../../scripts/runtime/shell/tea-wrapper.sh"),
+                &[("RUNTIME", &shell_quote(&self.path.to_string_lossy()))],
             );
             private_file(&self.path.join("bin/tea"), tea_wrapper.as_bytes(), true)?;
         }
@@ -271,9 +265,14 @@ case "$path" in {repo}|{repo_git}) cat "$(dirname "$0")/credential";; esac
             writeln!(exports, "export {key}={}", shell_quote(value)).expect("writing to String");
         }
         if config.credentials.is_some() {
-            exports.push_str(&format!(
-                "export OPERATOR_TEA_BINARY=$(command -v tea || true)\nexport PATH={}:\"$PATH\"\n",
-                shell_quote(&self.path.join("bin").to_string_lossy())
+            exports.push_str(&crate::runtime_scripts::render(
+                crate::runtime_scripts::body(include_str!(
+                    "../../scripts/runtime/shell/tea-env.sh"
+                )),
+                &[(
+                    "BIN",
+                    &shell_quote(&self.path.join("bin").to_string_lossy()),
+                )],
             ));
         }
         private_file(&self.path.join("env.sh"), exports.as_bytes(), false)?;

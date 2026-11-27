@@ -10,6 +10,8 @@ import { ConnectionsSection } from "../../src/sections/connections-section";
 import type { SectionContext } from "../../src/sections/types";
 import { fakeCredentials } from "./helpers/credentials";
 
+import { resetConnection, setConnectionOrigin } from "../../src/connection";
+
 function operatorConfig(values: Record<string, string>): vscode.WorkspaceConfiguration {
   return {
     inspect: (key: string) => {
@@ -48,12 +50,15 @@ suite("ConnectionsSection", () => {
   });
 
   teardown(async () => {
+    resetConnection({ kind: "undecided" });
     sinon.restore();
     clearCredentialProvider();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
   test("local mode still refuses a different binary version and offers download", async () => {
+    resetConnection({ kind: "local" });
+    setConnectionOrigin("http://localhost:7008");
     sinon.stub(vscode.workspace, "getConfiguration").returns(operatorConfig({}));
     fetchStub.callsFake((input: unknown) => {
       const url = String(input);
@@ -89,6 +94,9 @@ suite("ConnectionsSection", () => {
   });
 
   test("remote mode adopts a different version and directory and links to that origin", async () => {
+    const origin = "https://operator.kube.untra.casa";
+    resetConnection({ kind: "hosted", origin });
+    setConnectionOrigin(origin);
     sinon
       .stub(vscode.workspace, "getConfiguration")
       .returns(
@@ -142,7 +150,26 @@ suite("ConnectionsSection", () => {
     assert.strictEqual(webhook?.description, "Local only");
   });
 
+  test("a hosted session without health permission remains connected", async () => {
+    const origin = "https://operator.example.com";
+    resetConnection({ kind: "hosted", origin });
+    setConnectionOrigin(origin);
+    fetchStub.callsFake((url: string) =>
+      Promise.resolve(
+        url.endsWith("/api/v1/health") ? new Response("{}", { status: 403 }) : new Response("{}"),
+      ),
+    );
+    const section = new ConnectionsSection();
+    await section.check(context(undefined, true));
+    const api = section.getChildren(context(undefined, true)).find((item) => item.label === "API");
+    assert.equal(api?.description, origin);
+    assert.ok(fetchStub.calledWith(`${origin}/api/v1/auth/session`));
+  });
+
   test("remote mode keeps the saved URL when the server requires sign-in", async () => {
+    const origin = "https://operator.kube.untra.casa";
+    resetConnection({ kind: "hosted", origin });
+    setConnectionOrigin(origin);
     sinon
       .stub(vscode.workspace, "getConfiguration")
       .returns(

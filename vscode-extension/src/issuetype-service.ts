@@ -115,12 +115,11 @@ export const COLOR_TO_THEME: Record<string, string> = {
 export class IssueTypeService {
   private types: Map<string, IssueTypeSummary> = new Map();
   private outputChannel: vscode.OutputChannel;
-  private baseUrl: string;
+  private client: OperatorApiClient | undefined;
 
   constructor(outputChannel: vscode.OutputChannel, baseUrl?: string) {
     this.outputChannel = outputChannel;
-    const config = vscode.workspace.getConfiguration("operator");
-    this.baseUrl = baseUrl || config.get("apiUrl", "http://localhost:7008");
+    this.client = baseUrl ? new OperatorApiClient(baseUrl) : undefined;
 
     // Initialize with defaults
     this.loadDefaults();
@@ -139,8 +138,15 @@ export class IssueTypeService {
    * Refresh issue types from the Operator REST API
    */
   async refresh(): Promise<void> {
+    const client = this.client;
+    if (!client) {
+      return;
+    }
     try {
-      const data = await new OperatorApiClient(this.baseUrl).listIssueTypes();
+      const data = await client.listIssueTypes();
+      if (client !== this.client) {
+        return;
+      }
 
       // Clear and reload
       this.types.clear();
@@ -169,7 +175,9 @@ export class IssueTypeService {
    * Update the base URL for API calls
    */
   setBaseUrl(url: string): void {
-    this.baseUrl = url;
+    this.client = url ? new OperatorApiClient(url) : undefined;
+    this.types.clear();
+    this.loadDefaults();
   }
 
   /**

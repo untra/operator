@@ -10,7 +10,6 @@ import * as sinon from "sinon";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
-import * as vscode from "vscode";
 import type {
   QueueControlResponse,
   KanbanSyncResponse,
@@ -21,10 +20,12 @@ import {
   LIVEZ_PATH,
   OperatorApiClient,
   discoverApiUrl,
+  discoverLocalApiUrl,
   profileApiPath,
   toJson,
 } from "../../src/api-client";
 import { clearCredentialProvider, setCredentialProvider } from "../../src/auth/credentials";
+import { currentConnection, resetConnection, setConnectionOrigin } from "../../src/connection";
 import type { FakeCredentials } from "./helpers/credentials";
 import { fakeCredentials } from "./helpers/credentials";
 import type {
@@ -190,7 +191,7 @@ suite("API Client Test Suite", () => {
 
       assert.strictEqual(await client.isReachable(), true);
       assert.strictEqual(fetchStub.firstCall.args[0], `http://localhost:7008${LIVEZ_PATH}`);
-      assert.strictEqual(fetchStub.firstCall.args[1], undefined);
+      assert.deepStrictEqual(fetchStub.firstCall.args[1], { redirect: "error", signal: undefined });
     });
 
     test("is false when nothing is listening", async () => {
@@ -238,13 +239,13 @@ suite("API Client Test Suite", () => {
         }),
       );
 
-      const url = await discoverApiUrl(tempDir);
+      const url = await discoverLocalApiUrl(tempDir);
       assert.strictEqual(url, "http://localhost:9999");
     });
 
     test("falls back to configured URL when session file missing", async () => {
       // No session file exists
-      const url = await discoverApiUrl(tempDir);
+      const url = await discoverLocalApiUrl(tempDir);
       // Falls back to default from vscode config (mocked to http://localhost:7008)
       assert.strictEqual(url, "http://localhost:7008");
     });
@@ -254,42 +255,26 @@ suite("API Client Test Suite", () => {
       await fs.mkdir(operatorDir, { recursive: true });
       await fs.writeFile(path.join(operatorDir, "api-session.json"), "not valid json");
 
-      const url = await discoverApiUrl(tempDir);
+      const url = await discoverLocalApiUrl(tempDir);
       assert.strictEqual(url, "http://localhost:7008");
     });
 
     test("falls back to configured URL when ticketsDir is undefined", async () => {
-      const url = await discoverApiUrl(undefined);
+      const url = await discoverLocalApiUrl(undefined);
       assert.strictEqual(url, "http://localhost:7008");
     });
 
-    test("remote mode ignores api-session.json and returns the saved origin", async () => {
-      const operatorDir = path.join(tempDir, "operator");
-      await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, "api-session.json"),
-        JSON.stringify({
-          port: 9999,
-          pid: 1,
-          started_at: "2024-01-01T00:00:00Z",
-          version: "0.0.1",
-        }),
-      );
-      sinon.stub(vscode.workspace, "getConfiguration").returns({
-        inspect: (key: string) => {
-          if (key === "connectionMode") {
-            return { globalValue: "remote" };
-          }
-          if (key === "apiUrl") {
-            return { globalValue: "https://operator.kube.untra.casa/" };
-          }
-          return {};
-        },
-        get: () => undefined,
-      } as unknown as vscode.WorkspaceConfiguration);
-
-      const url = await discoverApiUrl(tempDir);
-      assert.strictEqual(url, "https://operator.kube.untra.casa");
+    test("remote mode ignores local discovery and uses the selected origin", async () => {
+      const previous = currentConnection();
+      const origin = "https://operator.kube.untra.casa";
+      try {
+        resetConnection({ kind: "hosted", origin });
+        setConnectionOrigin(origin);
+        assert.strictEqual(await discoverApiUrl(tempDir), origin);
+      } finally {
+        resetConnection(previous.selection);
+        setConnectionOrigin(previous.origin);
+      }
     });
   });
 
@@ -309,22 +294,9 @@ suite("API Client Test Suite", () => {
       assert.ok(fetchStub.calledWith("http://custom:9000/api/v1/health"), "Should use custom URL");
     });
 
-    test("uses default URL when none provided", async () => {
-      const client = new OperatorApiClient();
-
-      fetchStub.resolves(
-        new Response(JSON.stringify({ status: "healthy", version: "1.0.0" }), {
-          status: 200,
-        }),
-      );
-
-      await client.health();
-
-      // Default is http://localhost:7008 from vscode config
-      assert.ok(
-        fetchStub.calledWith("http://localhost:7008/api/v1/health"),
-        "Should use default URL",
-      );
+    test("requires a selected destination before sending requests", async () => {
+      await assert.rejects(new OperatorApiClient("").health(), /Choose an Operator connection/);
+      sinon.assert.notCalled(fetchStub);
     });
   });
 

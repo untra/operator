@@ -361,7 +361,10 @@ impl CampaignPort for LauncherPort {
     }
 
     fn entitled(&self) -> bool {
-        licensing::entitlements(&self.config).allows(PremiumFeature::Campaigns)
+        licensing::entitlements(&self.config).allows(
+            self.config.rest_api.deployment_mode,
+            PremiumFeature::Campaigns,
+        )
     }
 
     fn live_agents(&self) -> BTreeSet<String> {

@@ -348,6 +348,18 @@ pub const OPERATIONS: &[Operation] = &[
         boundary: Boundary::Project,
     },
     Operation {
+        method: "POST",
+        path: "/api/v1/agents/{agent_id}/connect/attach",
+        capability: "agents:focus",
+        boundary: Boundary::Project,
+    },
+    Operation {
+        method: "POST",
+        path: "/api/v1/agents/{agent_id}/connect/redeem",
+        capability: "agents:focus",
+        boundary: Boundary::Project,
+    },
+    Operation {
         method: "GET",
         path: "/api/v1/projects",
         capability: "projects:read",
@@ -733,7 +745,8 @@ pub fn capability_descriptions() -> Vec<CapabilityDescription> {
 }
 
 pub fn browser_identity_route(path: &str) -> bool {
-    path.starts_with("/api/v1/auth/keys")
+    path == "/api/v1/auth/device/approve"
+        || path.starts_with("/api/v1/auth/keys")
         || path.starts_with("/api/v1/auth/users")
         || path.starts_with("/api/v1/auth/oidc/connections")
 }
@@ -757,7 +770,7 @@ pub fn authorize(authority: &UserAuthority, method: &str, path: &str) -> Result<
             return Ok(());
         }
         if path == "/api/v1/auth/device/approve" {
-            return Err(denied());
+            return Ok(());
         }
         return if authority.user.administrator {
             Ok(())

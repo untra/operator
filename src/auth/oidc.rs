@@ -21,6 +21,7 @@ const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
 pub struct PendingLogin {
+    user_code: Option<String>,
     connection: OidcConnection,
     metadata: CoreProviderMetadata,
     verifier: PkceCodeVerifier,
@@ -152,7 +153,21 @@ fn secret(store: &AuthStore, id: &str) -> Result<Option<ClientSecret>> {
         .transpose()
 }
 
-pub async fn start(store: &AuthStore, connection: OidcConnection, cookie: &str) -> Result<String> {
+pub async fn start(
+    store: &AuthStore,
+    connection: OidcConnection,
+    cookie: &str,
+    user_code: Option<String>,
+) -> Result<String> {
+    ensure!(
+        user_code.as_ref().is_none_or(|code| code.len() == 9
+            && code.as_bytes()[4] == b'-'
+            && code
+                .bytes()
+                .enumerate()
+                .all(|(i, c)| i == 4 || c.is_ascii_alphanumeric())),
+        "Invalid device user code"
+    );
     let issuer = validate_url(&connection.issuer)?;
     let http = OidcHttp(issuer);
     let metadata =
@@ -177,6 +192,7 @@ pub async fn start(store: &AuthStore, connection: OidcConnection, cookie: &str) 
     store.logins.insert(
         hash_secret(state.secret()),
         PendingLogin {
+            user_code,
             connection,
             metadata,
             verifier,
@@ -193,7 +209,7 @@ pub async fn complete(
     state: &str,
     cookie: &str,
     code: String,
-) -> Result<(String, String, chrono::DateTime<chrono::Utc>)> {
+) -> Result<(String, Option<String>)> {
     let login = store.logins.take(&hash_secret(state), cookie)?;
     let issuer = validate_url(&login.connection.issuer)?;
     let http = OidcHttp(issuer);
@@ -233,7 +249,8 @@ pub async fn complete(
         "recent login required"
     );
     let id = store.provision_oidc_user(&login.connection, claims.subject().as_str())?;
-    store.oidc_session(&id, authenticated.timestamp())
+    let (session, _, _) = store.oidc_session(&id, authenticated.timestamp())?;
+    Ok((session, login.user_code))
 }
 
 #[cfg(test)]

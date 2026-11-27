@@ -83,7 +83,13 @@ lint-ts:
 	bun run lint:e2e
 
 lint-shell:
-	shellcheck -S warning scripts/*.sh scripts/ci/*.sh
+	shellcheck -S warning scripts/*.sh scripts/ci/*.sh scripts/runtime/shell/*.sh
+	@for script in scripts/runtime/shell/*.sh; do \
+		case "$$(head -n 1 "$$script")" in \
+			'#!/bin/sh') sh -n "$$script" ;; \
+			*) bash -n "$$script" ;; \
+		esac || exit; \
+	done
 
 lint-helm:
 	helm lint charts/operator

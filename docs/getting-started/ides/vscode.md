@@ -42,20 +42,14 @@ Or install directly: [VS Code Marketplace](https://marketplace.visualstudio.com/
 
 ## Choose a connection
 
-Run **Operator: Choose Connection**. This editor is free. The choice is saved in VS Code user settings and kept across restarts.
+Run **Operator: Choose Connection** in the Command Palette.
 
-- **Running on this machine** attaches to an Operator that is already listening for this folder. The extension reads `.tickets/operator/api-session.json`, then `http://localhost:7008`. Nothing is downloaded.
-- **Run for this folder** is the free local install. It uses the `.tickets` directory in the parent of the project and can download the Operator binary.
-- **Connect to a server** saves an `https` origin, for example `https://operator.kube.untra.casa`. The sidebar, queue, and status views use that API. The extension does not download, update, or start a binary.
+- **Use Operator on this computer** selects the Free local service. The extension can attach to the local daemon or guide you through downloading and starting one. Local IDE access uses the OS account.
+- **Connect to Operator server** accepts the HTTPS origin supplied by your administrator. Sign in through your organization's identity provider. The extension uses that server for the sidebar, queue and status views.
 
-SSH, Coder, and other remote targets are entitled by the server's license, not by the extension.
+Administrators can preconfigure VS Code **User** settings before the first launch. For example, set `"operator.apiUrl": "https://operator.example.com"`. The extension opens in hosted mode and skips local installation. A URL supplied in **Workspace** settings requires the user's confirmation.
 
-A remote server must advertise its public origin:
-
-```toml
-[rest_api]
-public_url = "https://operator.kube.untra.casa"
-```
+The Premium server requires a provisioned OIDC administrator and the external HTTPS origin in its configuration. [Hosted provisioning](/security/authentication/#provision-a-hosted-server)
 
 Sign in with **Operator: Sign In**. The device-flow refresh token is stored in the editor secret store, keyed by that origin, and is not written to `settings.json`. The server keeps the session for 30 idle days and 90 days at most. The saved URL stays after that; sign in again when the session ends. TLS verification stays on.
 
@@ -116,7 +110,9 @@ The extension adds an Operator sidebar with four views:
 
 ## API Endpoints
 
-The extension exposes a local HTTP API for Operator communication:
+In local mode, each editor window registers its loopback port and a dedicated bearer under `~/.operator/vscode-sessions/`. Terminal operations require that window's bearer in the HTTP Authorization header. The registration is private to the OS user and is removed when the listener stops. Browser-origin requests are rejected.
+
+For a hosted session, use **Operator: Attach to Agent Terminal**. The signed-in account needs the `agents:focus` capability for the project and SSH access to the agent host. The server supplies its SSH alias and workspace path. VS Code opens that Remote-SSH workspace and redeems a single-use reference before attaching. Configure the server's SSH alias in your local SSH configuration. With multiple Operator replicas, route attachment and redemption to the same process. A reference expires after two minutes or when that process restarts.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|

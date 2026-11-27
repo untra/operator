@@ -8,7 +8,7 @@
  */
 
 import * as vscode from "vscode";
-import { CONNECTION_CHOSEN_STATE, effectiveMode, readConnectionSettings } from "./connection";
+import { currentConnection } from "./connection";
 import { guardRemoteCommand } from "./command-policy";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
@@ -373,42 +373,40 @@ export async function initializeTicketsDirectory(
 export async function updateWalkthroughContext(
   context: vscode.ExtensionContext,
 ): Promise<WalkthroughState> {
-  // Check working directory
-  const workingDirectory = context.globalState.get<string>("operator.workingDirectory");
+  const { selection, signal } = currentConnection();
+  const local = selection.kind === "local";
+  const workingDirectory = local
+    ? context.globalState.get<string>("operator.workingDirectory")
+    : undefined;
   const workingDirectorySet = workingDirectory
     ? await validateWorkingDirectory(workingDirectory)
     : false;
 
   // Check kanban connection
-  const kanbanWorkspaces = await getKanbanWorkspaces();
+  const kanbanWorkspaces = local ? await getKanbanWorkspaces() : [];
   const kanbanConnected = kanbanWorkspaces.length > 0;
 
   // Check LLM tools
-  const installedLlmTools = await detectInstalledLlmTools();
+  const installedLlmTools = local ? await detectInstalledLlmTools() : [];
   const llmToolInstalled = installedLlmTools.length > 0;
 
-  const settings = readConnectionSettings(vscode.workspace.getConfiguration("operator"));
-  const remote = effectiveMode(settings.mode, settings.explicitApiUrl) === "remote";
-  const storedChosen = context.globalState.get<boolean>(CONNECTION_CHOSEN_STATE) === true;
-  const connectionChosen = storedChosen || workingDirectorySet || settings.mode === "remote";
-  if (connectionChosen && !storedChosen) {
-    await context.globalState.update(CONNECTION_CHOSEN_STATE, true);
+  if (!signal.aborted) {
+    await Promise.all([
+      vscode.commands.executeCommand(
+        "setContext",
+        "operator.workingDirectorySet",
+        workingDirectorySet,
+      ),
+      vscode.commands.executeCommand(
+        "setContext",
+        "operator.connectionChosen",
+        local || selection.kind === "hosted",
+      ),
+      vscode.commands.executeCommand("setContext", "operator.connectionMode", selection.kind),
+      vscode.commands.executeCommand("setContext", "operator.kanbanConnected", kanbanConnected),
+      vscode.commands.executeCommand("setContext", "operator.llmToolInstalled", llmToolInstalled),
+    ]);
   }
-
-  // Update context keys
-  await vscode.commands.executeCommand(
-    "setContext",
-    "operator.workingDirectorySet",
-    workingDirectorySet,
-  );
-  await vscode.commands.executeCommand("setContext", "operator.connectionChosen", connectionChosen);
-  await vscode.commands.executeCommand(
-    "setContext",
-    "operator.connectionMode",
-    remote ? "remote" : "local",
-  );
-  await vscode.commands.executeCommand("setContext", "operator.kanbanConnected", kanbanConnected);
-  await vscode.commands.executeCommand("setContext", "operator.llmToolInstalled", llmToolInstalled);
 
   const state: WalkthroughState = {
     workingDirectorySet,

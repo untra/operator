@@ -30,5 +30,6 @@ pub mod skills;
 pub mod steps;
 pub mod targets;
 pub mod telemetry;
+pub mod terminal_attach;
 pub mod tickets;
 pub mod workflow;

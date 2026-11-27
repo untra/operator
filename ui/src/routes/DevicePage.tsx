@@ -1,14 +1,8 @@
-// Device-approval screen for the OAuth device flow.
-//
-// The human lands here from the URL an IDE client printed, sees which client is
-// asking, and approves. It renders inside the authenticated Layout on purpose:
-// approving a device grants a credential, so it requires an admin session.
-
 import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError } from "../api-client";
-import { useApiMutation } from "../api";
-import { approveDeviceMutation } from "../api/definitions";
+import { useApiMutation, useApiQuery } from "../api";
+import { approveDeviceMutation, currentSessionQuery } from "../api/definitions";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function DevicePage() {
@@ -16,6 +10,7 @@ export function DevicePage() {
   const [userCode, setUserCode] = useState(params.get("user_code") ?? "");
   const [approved, setApproved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const session = useApiQuery(currentSessionQuery());
   const approve = useApiMutation(approveDeviceMutation);
 
   const submit = useCallback(
@@ -37,6 +32,14 @@ export function DevicePage() {
   );
 
   const onCodeChange = useCallback((value: string) => setUserCode(value.toUpperCase()), []);
+
+  if (!session.data) {
+    return (
+      <AuthCard title="Approve a device" error={session.error?.message}>
+        Checking sign-in...
+      </AuthCard>
+    );
+  }
 
   if (approved) {
     return (

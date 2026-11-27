@@ -33,6 +33,7 @@ mod notifications;
 mod permissions;
 mod pr_config;
 pub mod projects;
+mod runtime_scripts;
 pub mod services;
 mod steps;
 #[allow(dead_code)]
@@ -40,6 +41,8 @@ pub mod taxonomy;
 pub mod telemetry;
 mod templates;
 pub mod version;
+#[cfg(windows)]
+mod windows_files;
 
 // Integration surface inventory (capability parity across surfaces)
 pub mod integrations;
@@ -63,3 +66,7 @@ pub mod workflow_gen;
 
 // Endpoint client uplink protocol (Windows/macOS tray clients)
 pub mod endpoint;
+
+#[cfg(test)]
+#[path = "../tests/it/suites/endpoint_uplink.rs"]
+mod endpoint_uplink;

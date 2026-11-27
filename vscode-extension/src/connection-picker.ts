@@ -1,105 +1,71 @@
-/**
- * First-run choice: attach to a local Operator, run one for this folder, or
- * save a remote origin. The command persists the choice; this module only
- * sequences the prompts.
- */
-
 import * as vscode from "vscode";
 import {
-  PICK_HERE,
-  PICK_REMOTE,
-  PICK_RUNNING,
-  PICKER_MESSAGE,
   normalizeFailureMessage,
   normalizeRemoteOrigin,
+  PICK_LOCAL,
+  PICK_REMOTE,
 } from "./connection";
 
-export type ProbeResult = "ok" | "auth" | "down";
-
 export interface ConnectionPickerDeps {
-  currentRemoteUrl(): string;
-  discoverLocal(): Promise<string>;
-  probe(url: string): Promise<ProbeResult>;
+  userUrl?: string;
+  suggestion?: string;
   saveLocal(): Promise<void>;
-  saveRemote(origin: string): Promise<void>;
-  markChosen(): Promise<void>;
-  signIn(url: string): Promise<void>;
-  runLocal(): Promise<void>;
+  saveRemote(origin: string, workspace: boolean): Promise<void>;
 }
 
-export async function runConnectionPicker(deps: ConnectionPickerDeps): Promise<void> {
-  const choice = await vscode.window.showInformationMessage(
-    PICKER_MESSAGE,
-    PICK_RUNNING,
-    PICK_HERE,
-    PICK_REMOTE,
-  );
-
-  if (choice === PICK_RUNNING) {
-    await attachRunningOperator(deps);
-    return;
-  }
-  if (choice === PICK_HERE) {
+export async function runConnectionPicker(
+  deps: ConnectionPickerDeps,
+  preferred?: typeof PICK_LOCAL | typeof PICK_REMOTE,
+): Promise<void> {
+  const choice =
+    preferred ??
+    (await vscode.window.showInformationMessage(
+      "Choose how this window connects to Operator.",
+      PICK_LOCAL,
+      PICK_REMOTE,
+    ));
+  if (choice === PICK_LOCAL) {
     await deps.saveLocal();
-    await deps.markChosen();
-    await deps.runLocal();
     return;
   }
-  if (choice === PICK_REMOTE) {
-    await connectRemote(deps);
+  if (choice !== PICK_REMOTE) {
+    return;
   }
-}
 
-async function attachRunningOperator(deps: ConnectionPickerDeps): Promise<void> {
-  const url = await deps.discoverLocal();
-  const probe = await deps.probe(url);
-  if (probe === "down") {
-    const again = await vscode.window.showWarningMessage(
-      `No Operator is listening at ${url}.`,
-      PICK_HERE,
+  const suggestion = normalizeRemoteOrigin(deps.suggestion ?? "");
+  if (suggestion.ok) {
+    const useSuggested = "Use This Server";
+    const enterAddress = "Enter Another Address";
+    const confirmed = await vscode.window.showInformationMessage(
+      `This workspace suggests ${suggestion.origin} as its Operator server.`,
+      { modal: true },
+      useSuggested,
+      enterAddress,
     );
-    if (again !== PICK_HERE) {
+    if (confirmed === useSuggested) {
+      await deps.saveRemote(suggestion.origin, true);
       return;
     }
-    await deps.saveLocal();
-    await deps.markChosen();
-    await deps.runLocal();
-    return;
+    if (confirmed !== enterAddress) {
+      return;
+    }
   }
-  await deps.saveLocal();
-  await deps.markChosen();
-  if (probe === "auth") {
-    await deps.signIn(url);
-    return;
-  }
-  void vscode.window.showInformationMessage(`Using the Operator already running at ${url}.`);
-}
 
-async function connectRemote(deps: ConnectionPickerDeps): Promise<void> {
   const entered = await vscode.window.showInputBox({
-    title: "Operator server",
-    prompt: "https address of the Operator you already run",
-    value: deps.currentRemoteUrl(),
+    title: PICK_REMOTE,
+    prompt: "HTTPS origin of your organization's Operator server",
+    value: deps.userUrl,
     ignoreFocusOut: true,
+    validateInput: (input) => {
+      const result = normalizeRemoteOrigin(input);
+      return result.ok ? undefined : normalizeFailureMessage(result.reason);
+    },
   });
-  if (!entered) {
+  if (entered === undefined) {
     return;
   }
-  const normalized = normalizeRemoteOrigin(entered);
-  if (!normalized.ok) {
-    void vscode.window.showErrorMessage(normalizeFailureMessage(normalized.reason));
-    return;
+  const result = normalizeRemoteOrigin(entered);
+  if (result.ok) {
+    await deps.saveRemote(result.origin, false);
   }
-  await deps.saveRemote(normalized.origin);
-  await deps.markChosen();
-  const probe = await deps.probe(normalized.origin);
-  if (probe === "down") {
-    void vscode.window.showWarningMessage(`Can't reach Operator at ${normalized.origin}.`);
-    return;
-  }
-  if (probe === "auth") {
-    await deps.signIn(normalized.origin);
-    return;
-  }
-  void vscode.window.showInformationMessage(`Connected to Operator at ${normalized.origin}.`);
 }

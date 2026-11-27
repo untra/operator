@@ -133,6 +133,7 @@ const DEFAULT_CONFIG: Config = {
     skill_directory_overrides: {},
   },
   rest_api: {
+    deployment_mode: "local",
     enabled: false,
     host: "127.0.0.1",
     port: 7008,

@@ -67,7 +67,11 @@ fn projection(
 ) -> TargetResponse {
     let premium = matches!(target.kind, TargetKind::Ssh(_) | TargetKind::Coder(_));
     TargetResponse {
-        entitled: !premium || entitlements.allows(PremiumFeature::RemoteTargets),
+        entitled: !premium
+            || entitlements.allows(
+                config.rest_api.deployment_mode,
+                PremiumFeature::RemoteTargets,
+            ),
         user_declared: config.targets.iter().any(|entry| entry.name == target.name),
         target,
         premium,

@@ -94,39 +94,24 @@ impl HookManager {
 
     /// Generate the hook script content for Claude's Stop hook
     pub fn generate_claude_hook_script(&self) -> String {
-        let signal_dir = self.signal_dir.display();
-        format!(
-            r#"#!/bin/bash
-# Operator hook for Claude Code - fires on Stop event
-# Receives JSON via stdin with session_id, hook_event_name, etc.
-
-INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id')
-TIMESTAMP=$(date +%s)
-
-mkdir -p "{signal_dir}"
-echo "{{"\"event\":\"stop\",\"timestamp\":$TIMESTAMP,\"session_id\":\"$SESSION_ID\"}}" \
-  > "{signal_dir}/$SESSION_ID.signal"
-"#
-        )
+        self.generate_stop_hook_script("Claude Code - fires on Stop event")
     }
 
-    /// Generate the hook script content for Gemini's `AfterAgent` hook
+    /// Generate the hook script content for Gemini's `AfterAgent` hook.
     pub fn generate_gemini_hook_script(&self) -> String {
-        let signal_dir = self.signal_dir.display();
-        format!(
-            r#"#!/bin/bash
-# Operator hook for Gemini CLI - fires on AfterAgent event
-# Receives JSON via stdin with session_id, hook_event_name, etc.
+        self.generate_stop_hook_script("Gemini CLI - fires on AfterAgent event")
+    }
 
-INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id')
-TIMESTAMP=$(date +%s)
-
-mkdir -p "{signal_dir}"
-echo "{{"\"event\":\"stop\",\"timestamp\":$TIMESTAMP,\"session_id\":\"$SESSION_ID\"}}" \
-  > "{signal_dir}/$SESSION_ID.signal"
-"#
+    fn generate_stop_hook_script(&self, tool: &str) -> String {
+        crate::runtime_scripts::render(
+            include_str!("../../../scripts/runtime/shell/agent-stop-hook.sh"),
+            &[
+                ("TOOL", tool),
+                (
+                    "SIGNAL_DIR",
+                    &super::launcher::prompt::shell_escape(&self.signal_dir.to_string_lossy()),
+                ),
+            ],
         )
     }
 

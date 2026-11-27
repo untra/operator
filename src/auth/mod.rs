@@ -2,8 +2,7 @@
 //!
 //! Operator's HTTP surface is authenticated always: there is no configuration
 //! flag that turns this off. What varies is how the first credential is
-//! obtained - a loopback process gets one issued automatically (see
-//! [`local`]), while any other bind must bootstrap an admin password.
+//! obtained. Local mode supports owner-only credentials, and hosted mode uses OIDC.
 //!
 //! This module lives in the library, not the binary, because `src/rest` does
 //! and depends on it. It must not reference bin-only `crate::ui`.
@@ -24,6 +23,7 @@ pub mod identity;
 pub mod oidc;
 pub mod oidc_bearer;
 pub mod policy;
+pub mod provision;
 pub mod usage;
 
 pub mod limits;

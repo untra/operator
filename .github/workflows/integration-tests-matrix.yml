@@ -9,6 +9,7 @@ on:
       - 'vscode-extension/**'
       - 'tests/**'
       - 'scripts/ci/**'
+      - 'scripts/runtime/**'
       - '.github/workflows/integration-tests-matrix.yml'
   pull_request:
     branches: [main]
@@ -18,6 +19,7 @@ on:
       - 'vscode-extension/**'
       - 'tests/**'
       - 'scripts/ci/**'
+      - 'scripts/runtime/**'
       - '.github/workflows/integration-tests-matrix.yml'
   workflow_dispatch:
     inputs:
@@ -90,6 +92,10 @@ jobs:
 
       - name: Build release
         run: cargo build --locked --release
+
+      - name: Test native Windows file security
+        if: runner.os == 'Windows'
+        run: cargo test --locked --release --lib test_windows_
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -499,6 +505,16 @@ jobs:
       - name: Compile
         run: npm run compile
 
+      - name: Install PSScriptAnalyzer (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Install-Module PSScriptAnalyzer -RequiredVersion 1.24.0 -Scope CurrentUser -Force
+
+      - name: Validate embedded PowerShell (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ../scripts/ci/test-runtime-powershell.ps1
+
       - name: Run tests (Linux with xvfb)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm test
@@ -508,3 +524,57 @@ jobs:
       - name: Run tests (macOS/Windows)
         if: runner.os != 'Linux'
         run: npm test
+
+  test-vscode-macos-keychain:
+    name: VS Code macOS SecretStorage across restarts
+    if: github.event_name != 'workflow_dispatch' || inputs.run_vscode_tests
+    runs-on: macos-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: vscode-extension
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run copy-types
+      - run: cd ../e2e && npm ci
+      - run: npm run test:e2e -- secret-storage
+      - run: node --test test/e2e/macos-keychain.test.cjs
+
+  test-vscode-security-e2e:
+    name: VS Code local and hosted journeys
+    if: github.event_name != 'workflow_dispatch' || inputs.run_vscode_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.95
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - name: Build the hosted browser UI
+        run: make ui
+      - name: Choose disposable license trust directory
+        run: echo "OPERATOR_E2E_TRUST_DIR=$RUNNER_TEMP/operator-e2e-trust" >> "$GITHUB_ENV"
+      - name: Build test-signed daemon
+        run: |
+          node vscode-extension/test/e2e/license-fixture.mjs build -- build --locked --features rust-embed/debug-embed --bin operator --target-dir "$RUNNER_TEMP/operator-e2e-target"
+          echo "OPERATOR_E2E_BINARY=$RUNNER_TEMP/operator-e2e-target/debug/operator" >> "$GITHUB_ENV"
+      - name: Prepare disposable hosted browser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3-tools
+          echo '127.0.0.1 operator.localhost' | sudo tee -a /etc/hosts
+          cd e2e
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run security journeys in VS Code
+        working-directory: vscode-extension
+        run: |
+          npm ci
+          npm run compile
+          xvfb-run -a npm run test:e2e

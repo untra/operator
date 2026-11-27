@@ -9,13 +9,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use ts_rs::TS;
 
-/// Session discovery file written to .tickets/operator/vscode-session.json
+/// Owner-private terminal registration under ~/.operator/vscode-sessions/.
 /// Used by Operator to discover the extension's webhook server.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, JsonSchema)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[ts(rename_all = "camelCase")]
 pub struct VsCodeSessionInfo {
+    /// Window-specific terminal-control credential.
+    pub bearer: String,
     /// Wrapper type identifier (always "vscode")
     pub wrapper: String,
     /// Actual port the webhook server is listening on
@@ -285,6 +287,7 @@ mod tests {
     #[test]
     fn test_session_info_serialization() {
         let info = VsCodeSessionInfo {
+            bearer: "fixture".into(),
             wrapper: "vscode".to_string(),
             port: 7009,
             pid: 12345,

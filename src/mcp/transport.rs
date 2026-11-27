@@ -117,14 +117,14 @@ pub async fn sse_handler(
     ));
 
     let stream_principal = principal.clone();
-    let stream_store = state.auth.store.clone();
+    let stream_state = state.clone();
     let message_stream = ReceiverStream::new(rx)
         .then(move |msg| {
             let _disconnect = &disconnect_tx;
-            let store = stream_store.clone();
+            let state = stream_state.clone();
             let principal = stream_principal.clone();
             async move {
-                credential_active(store, principal)
+                stream_credential_active(&state, principal)
                     .await
                     .then(|| Ok::<_, Infallible>(Event::default().event("message").data(msg)))
             }
@@ -143,7 +143,7 @@ pub async fn sse_handler(
             () = async {
                 loop {
                     tokio::time::sleep(KEEPALIVE_INTERVAL).await;
-                    if !credential_active(state.auth.store.clone(), principal.clone()).await { break; }
+                    if !stream_credential_active(&state, principal.clone()).await { break; }
                 }
             } => {},
         }
@@ -250,6 +250,13 @@ fn credential_id(principal: &crate::auth::scope::Principal) -> Option<String> {
         .map(|id| format!("key:{id}"))
         .or_else(|| {
             principal
+                .authority
+                .as_ref()
+                .and_then(|a| a.device_family.as_ref())
+                .map(|id| format!("device:{id}"))
+        })
+        .or_else(|| {
+            principal
                 .session_id
                 .as_ref()
                 .map(|id| format!("session:{id}"))
@@ -258,6 +265,25 @@ fn credential_id(principal: &crate::auth::scope::Principal) -> Option<String> {
             (principal.kind == crate::rest::dto::auth::PrincipalKind::OidcToken)
                 .then(|| format!("oidc:{}", principal.subject))
         })
+}
+
+async fn stream_credential_active(
+    state: &ApiState,
+    principal: crate::auth::scope::Principal,
+) -> bool {
+    if principal
+        .authority
+        .as_ref()
+        .is_some_and(|a| a.key_id.is_some())
+        && crate::licensing::require_premium(
+            &state.config(),
+            crate::licensing::PremiumFeature::ApiKeys,
+        )
+        .is_err()
+    {
+        return false;
+    }
+    credential_active(state.auth.store.clone(), principal).await
 }
 
 async fn credential_active(
@@ -297,6 +323,21 @@ async fn credential_active(
     let Some(authority) = principal.authority else {
         return true;
     };
+    if let Some(family) = authority.device_family.clone() {
+        return tokio::task::spawn_blocking(move || {
+            store
+                .device_authority(&family, authority.grants.profile_id)
+                .ok()
+                .flatten()
+                .is_some_and(|a| {
+                    a.user.id == authority.user.id
+                        && a.grants == authority.grants
+                        && a.user.administrator == authority.user.administrator
+                })
+        })
+        .await
+        .unwrap_or(false);
+    }
     if principal.kind == crate::rest::dto::auth::PrincipalKind::OidcToken {
         return tokio::task::spawn_blocking(move || {
             store

@@ -9,20 +9,12 @@ import { isLoopbackUrl } from "./auth/credentials";
 
 export const CONNECTION_MODE_LOCAL = "local";
 export const CONNECTION_MODE_REMOTE = "remote";
-export type ConnectionMode = typeof CONNECTION_MODE_LOCAL | typeof CONNECTION_MODE_REMOTE;
 
 export const CHOOSE_CONNECTION_COMMAND = "operator.chooseConnection";
-export const CONNECTION_CHOSEN_STATE = "operator.connectionChosen";
 export const DOWNLOADS_PAGE = "https://operator.untra.io/downloads/";
 
-export const PICKER_MESSAGE =
-  "This editor is free. Running Operator on this machine is the free local install. " +
-  "A server you connect to is one you operate; SSH, Coder, and other remote targets " +
-  "are entitled by that server's license.";
-
-export const PICK_RUNNING = "Running on this machine";
-export const PICK_HERE = "Run for this folder";
-export const PICK_REMOTE = "Connect to a server";
+export const PICK_LOCAL = "Use Operator on this computer";
+export const PICK_REMOTE = "Connect to Operator server";
 
 export type NormalizeReason =
   | "empty"
@@ -34,65 +26,6 @@ export type NormalizeReason =
   | "path"
   | "loopback";
 
-export type StartupAction =
-  | "attach"
-  | "sign-in"
-  | "start-local"
-  | "report-unreachable"
-  | "prompt-choose"
-  | "idle";
-
-interface Inspected<T> {
-  globalValue?: T;
-  workspaceValue?: T;
-  workspaceFolderValue?: T;
-}
-
-export interface OperatorConnectionSettings {
-  mode: ConnectionMode;
-  explicitApiUrl: string | undefined;
-}
-
-export function inspectedValue<T>(inspected: Inspected<T> | undefined): T | undefined {
-  return inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
-}
-
-export function connectionModeFromInspect(
-  inspected: Inspected<string> | undefined,
-): ConnectionMode {
-  return inspectedValue(inspected) === CONNECTION_MODE_REMOTE
-    ? CONNECTION_MODE_REMOTE
-    : CONNECTION_MODE_LOCAL;
-}
-
-export function readConnectionSettings(config: {
-  inspect<T>(section: string): Inspected<T> | undefined;
-}): OperatorConnectionSettings {
-  return {
-    mode: connectionModeFromInspect(config.inspect<string>("connectionMode")),
-    explicitApiUrl: inspectedValue(config.inspect<string>("apiUrl")),
-  };
-}
-
-/** Remote mode, or any saved non-loopback URL, uses the remote rules. */
-export function effectiveMode(mode: ConnectionMode, apiUrl: string | undefined): ConnectionMode {
-  if (mode === CONNECTION_MODE_REMOTE) {
-    return CONNECTION_MODE_REMOTE;
-  }
-  if (apiUrl && !isLoopbackUrl(apiUrl)) {
-    return CONNECTION_MODE_REMOTE;
-  }
-  return CONNECTION_MODE_LOCAL;
-}
-
-export function usingRemoteServer(settings: OperatorConnectionSettings): boolean {
-  return effectiveMode(settings.mode, settings.explicitApiUrl) === CONNECTION_MODE_REMOTE;
-}
-
-export function downloadsApply(settings: OperatorConnectionSettings): boolean {
-  return !usingRemoteServer(settings);
-}
-
 export function normalizeRemoteOrigin(
   input: string,
 ): { ok: true; origin: string } | { ok: false; reason: NormalizeReason } {
@@ -100,7 +33,7 @@ export function normalizeRemoteOrigin(
   if (!trimmed) {
     return { ok: false, reason: "empty" };
   }
-  const raw = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const raw = trimmed.includes("://") ? trimmed : `https://${trimmed}`;
   let url: URL;
   try {
     url = new URL(raw);
@@ -119,10 +52,10 @@ export function normalizeRemoteOrigin(
   if (url.protocol !== "https:") {
     return { ok: false, reason: "invalid" };
   }
-  if (url.search) {
+  if (raw.includes("?")) {
     return { ok: false, reason: "query" };
   }
-  if (url.hash) {
+  if (raw.includes("#")) {
     return { ok: false, reason: "fragment" };
   }
   if (url.pathname !== "/" && url.pathname !== "") {
@@ -165,41 +98,6 @@ export function serverOrigin(apiUrl: string): string | undefined {
 export function swaggerUrl(apiUrl: string): string | undefined {
   const origin = serverOrigin(apiUrl);
   return origin ? `${origin}/swagger-ui` : undefined;
-}
-
-export function startupAction(input: {
-  mode: ConnectionMode;
-  apiUrl: string;
-  reachable: boolean;
-  authenticated: boolean;
-  autoStart: boolean;
-  hasConfig: boolean;
-}): StartupAction {
-  if (input.reachable && input.authenticated) {
-    return "attach";
-  }
-  if (input.reachable && !input.authenticated) {
-    return "sign-in";
-  }
-  const remote = effectiveMode(input.mode, input.apiUrl || undefined) === CONNECTION_MODE_REMOTE;
-  if (remote) {
-    return input.apiUrl ? "report-unreachable" : "idle";
-  }
-  if (input.autoStart && input.hasConfig) {
-    return "start-local";
-  }
-  if (input.autoStart && !input.hasConfig) {
-    return "prompt-choose";
-  }
-  return "idle";
-}
-
-export function shouldStartWebhook(
-  mode: ConnectionMode,
-  apiUrl: string,
-  hasConfig: boolean,
-): boolean {
-  return effectiveMode(mode, apiUrl || undefined) === CONNECTION_MODE_LOCAL && hasConfig;
 }
 
 /** Local adopt rules. Remote servers are not compared to a laptop binary or folder name. */
@@ -296,4 +194,65 @@ export function gateRemoteMcp(
     };
   }
   return { ok: true, transportUrl };
+}
+
+export const APPROVED_WORKSPACE_ORIGIN = "operator.approvedWorkspaceOrigin";
+
+export type ConnectionSelection =
+  | { kind: "undecided" }
+  | { kind: "invalid"; reason: NormalizeReason }
+  | { kind: "local"; origin?: string }
+  | { kind: "hosted"; origin: string };
+
+export function resolveConnection(input: {
+  userMode?: string;
+  userUrl?: string;
+  suggestion?: string;
+  approvedOrigin?: string;
+}): ConnectionSelection {
+  const suggestion = normalizeRemoteOrigin(input.suggestion ?? "");
+  if (suggestion.ok && suggestion.origin === input.approvedOrigin) {
+    return { kind: "hosted", origin: suggestion.origin };
+  }
+  const userUrl = input.userUrl?.trim();
+  if (userUrl && input.userMode !== CONNECTION_MODE_REMOTE && isLoopbackUrl(userUrl)) {
+    const url = new URL(userUrl);
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    ) {
+      return { kind: "invalid", reason: "invalid" };
+    }
+    return { kind: "local", origin: url.origin };
+  }
+  if (userUrl || input.userMode === CONNECTION_MODE_REMOTE) {
+    const hosted = normalizeRemoteOrigin(userUrl ?? "");
+    return hosted.ok
+      ? { kind: "hosted", origin: hosted.origin }
+      : { kind: "invalid", reason: hosted.reason };
+  }
+  return input.userMode === CONNECTION_MODE_LOCAL ? { kind: "local" } : { kind: "undecided" };
+}
+
+let selection: ConnectionSelection = { kind: "undecided" };
+let origin = "";
+let controller = new AbortController();
+
+export function resetConnection(next: ConnectionSelection): void {
+  controller.abort();
+  controller = new AbortController();
+  selection = next;
+  origin = "";
+}
+
+export function setConnectionOrigin(url: string): void {
+  origin = url;
+}
+
+export function currentConnection() {
+  return { selection, origin, signal: controller.signal };
 }

@@ -266,14 +266,24 @@ async fn perform(
                 .await;
             }
             Action::PersistLastSeen => {
-                let live = persist(state, session.endpoint_id(), |store, id, now| {
+                let profile = state.config().profile.id;
+                let live = persist(state, session.endpoint_id(), move |store, id, now| {
                     store.touch_endpoint(id, now)?;
-                    Ok(store.endpoint_authority(id)?.is_some())
+                    Ok(store.endpoint_authority(id)?.is_some()
+                        && store
+                            .device_authority(id, profile)?
+                            .is_some_and(|a| a.user.administrator))
                 })
                 .await;
                 // Revocations that bypass the REST revoke (password reset,
                 // refresh-token reuse) are caught here, within one interval.
-                if live == Some(false) {
+                if live != Some(true)
+                    || crate::licensing::require_premium(
+                        &state.config(),
+                        crate::licensing::PremiumFeature::RemoteTargets,
+                    )
+                    .is_err()
+                {
                     let _ = tx.send(Outbound::Close(REVOKED)).await;
                     return false;
                 }

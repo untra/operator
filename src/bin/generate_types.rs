@@ -31,10 +31,10 @@ use operator::api::providers::kanban::{
 };
 use operator::config::{
     AcpConfig, AgentProfile, AgentsConfig, ApiConfig, CmuxPlacementPolicy, CoderConfig,
-    CollectionPreset, Config, Delegator, DelegatorLaunchConfig, DetectedTool, DockerConfig,
-    EgressConfig, ExternalMcpServer, ForgejoConfig, GitConfig, GitHubConfig, GitLabConfig,
-    GiteaConfig, JudgeConfig, KanbanConfig, LaunchConfig, LlmProvider, LlmToolsConfig,
-    LoggingConfig, McpConfig, ModelServer, NativeLlmConfig, NotificationsConfig,
+    CollectionPreset, Config, Delegator, DelegatorLaunchConfig, DeploymentMode, DetectedTool,
+    DockerConfig, EgressConfig, ExternalMcpServer, ForgejoConfig, GitConfig, GitHubConfig,
+    GitLabConfig, GiteaConfig, JudgeConfig, KanbanConfig, LaunchConfig, LlmProvider,
+    LlmToolsConfig, LoggingConfig, McpConfig, ModelServer, NativeLlmConfig, NotificationsConfig,
     OsNotificationConfig, OtlpCompression, OtlpProtocol, PanelNamesConfig, PathsConfig,
     QueueConfig, RelayConfig, RemoteAgentRef, RemoteHost, RestApiConfig, SessionWrapperType,
     SessionsCmuxConfig, SessionsConfig, SessionsTmuxConfig, SessionsVSCodeConfig,
@@ -133,6 +133,7 @@ fn generate_typescript() -> String {
         DockerConfig::decl(&cfg),
         YoloConfig::decl(&cfg),
         TmuxConfig::decl(&cfg),
+        DeploymentMode::decl(&cfg),
         RestApiConfig::decl(&cfg),
         EgressConfig::decl(&cfg),
         LlmToolsConfig::decl(&cfg),

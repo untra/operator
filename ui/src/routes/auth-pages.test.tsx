@@ -61,6 +61,22 @@ afterEach(() => {
 });
 
 describe("authentication routes", () => {
+  test("hosted sign-in carries the device approval code to the configured identity provider", async () => {
+    mockRequest((input) =>
+      Promise.resolve(
+        requestPath(input).endsWith("/providers")
+          ? json([{ id: "organization", provider: "keycloak" }])
+          : json({ state: "complete", requires_temporary_password: false, oidc_only: true }),
+      ),
+    );
+    renderAuth("/login?user_code=ABCD-EFGH");
+    const link = await screen.findByRole("link", { name: "Sign in with keycloak" });
+    expect(link.getAttribute("href")).toBe(
+      "http://operator.test/api/v1/auth/oidc/login/organization?user_code=ABCD-EFGH",
+    );
+    expect(screen.queryByLabelText("Password")).toBeNull();
+  });
+
   test("login redirects an uninitialized server to setup", async () => {
     mockFetch(() =>
       Promise.resolve(json({ state: "uninitialized", requires_temporary_password: false })),

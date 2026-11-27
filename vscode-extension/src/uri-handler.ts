@@ -34,7 +34,7 @@ export function routeOperatorUri(uri: vscode.Uri, actions: UriActions): void {
     if (request) {
       actions.connect(request);
     } else {
-      actions.warn("Operator: connect link is missing an agent or path");
+      actions.warn("Operator: connect link is missing an agent");
     }
   }
 }

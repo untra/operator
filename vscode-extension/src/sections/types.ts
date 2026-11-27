@@ -22,6 +22,7 @@ export interface SectionContext {
   webhookServer?: {
     isRunning: () => boolean;
     getPort: () => number;
+    getRegistrationPath?: () => string | null;
   };
 }
 

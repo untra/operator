@@ -106,13 +106,51 @@ pub async fn resolve_principal(
         }
 
         if let Ok(claims) = state.auth.signing_key.verify(&token, AUDIENCE_API) {
-            if claims.credential_version != 1 {
+            let expected_version = if claims.device_family.is_some() {
+                crate::auth::tokens::DEVICE_CREDENTIAL_VERSION
+            } else {
+                crate::auth::tokens::CREDENTIAL_VERSION
+            };
+            if claims.credential_version != expected_version {
                 return Ok(None);
             }
             if let Some(id) = claims.endpoint_id.clone() {
                 return endpoint_principal(state, id, &claims).await;
             }
+            if let Some(id) = claims.device_family.clone() {
+                let profile = state.config().profile.id;
+                if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted
+                    || claims.profile_id != Some(profile)
+                {
+                    return Ok(None);
+                }
+                let store = state.auth.store.clone();
+                let authority =
+                    tokio::task::spawn_blocking(move || store.device_authority(&id, profile))
+                        .await
+                        .map_err(|_| {
+                            ApiError::Unavailable("Credential validation unavailable".into())
+                        })?
+                        .map_err(|_| {
+                            ApiError::Unavailable("Credential storage unavailable".into())
+                        })?;
+                return Ok(authority.filter(|a| a.user.id == claims.sub).and_then(|a| {
+                    let expires = chrono::DateTime::from_timestamp(claims.exp, 0)?;
+                    Some(Principal {
+                        kind: PrincipalKind::AccessToken,
+                        scopes: claims.scopes(),
+                        ..a.principal(expires, None)
+                    })
+                }));
+            }
             if let Some(id) = claims.key_id.clone() {
+                if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+                    return Ok(None);
+                }
+                crate::licensing::require_premium(
+                    &state.config(),
+                    crate::licensing::PremiumFeature::ApiKeys,
+                )?;
                 let store = state.auth.store.clone();
                 let Some((authority, expiry)) =
                     tokio::task::spawn_blocking(move || store.key_authority(&id))
@@ -139,6 +177,9 @@ pub async fn resolve_principal(
                     state.auth.store.record_key_use(id);
                 }
                 return Ok(Some(authority.principal(expiry.min(jwt_expiry), None)));
+            }
+            if state.auth.deployment_mode == crate::config::DeploymentMode::Hosted {
+                return Ok(None);
             }
             return Ok(Some(Principal {
                 subject: claims.sub.clone(),
@@ -170,6 +211,9 @@ pub async fn resolve_principal(
                 PrincipalKind::TelemetryIngest,
             ));
         }
+        if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+            return Ok(None);
+        }
         let config = state.config();
         return crate::auth::oidc_bearer::authenticate(
             &state.auth.store,
@@ -184,11 +228,14 @@ pub async fn resolve_principal(
     if let Some(cookie) = cookie_value(headers, SESSION_COOKIE) {
         let store = state.auth.store.clone();
         let profile = state.config().profile.id;
-        return tokio::task::spawn_blocking(move || {
+        let hosted = state.auth.deployment_mode == crate::config::DeploymentMode::Hosted;
+        return tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let Some(principal) = store.authenticate_session(&cookie)? else {
                 return Ok(None);
             };
-            store.resolve_user_session(principal, profile)
+            Ok(store
+                .resolve_user_session(principal, profile)?
+                .filter(|p| hosted == p.authority.is_some()))
         })
         .await
         .map_err(|_| ApiError::Unavailable("Session validation unavailable".into()))?
@@ -204,12 +251,28 @@ async fn endpoint_principal(
     endpoint_id: String,
     claims: &Claims,
 ) -> Result<Option<Principal>, ApiError> {
+    if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+        return Ok(None);
+    }
+    crate::licensing::require_premium(
+        &state.config(),
+        crate::licensing::PremiumFeature::RemoteTargets,
+    )?;
+    let profile = state.config().profile.id;
     let store = state.auth.store.clone();
     let id = endpoint_id.clone();
-    let live = tokio::task::spawn_blocking(move || store.endpoint_authority(&id))
-        .await
-        .map_err(|_| ApiError::Unavailable("Credential validation unavailable".into()))?
-        .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()))?;
+    let live = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        if !store
+            .device_authority(&id, profile)?
+            .is_some_and(|a| a.user.administrator)
+        {
+            return Ok(None);
+        }
+        store.endpoint_authority(&id)
+    })
+    .await
+    .map_err(|_| ApiError::Unavailable("Credential validation unavailable".into()))?
+    .map_err(|_| ApiError::Unavailable("Credential storage unavailable".into()))?;
     Ok(live.map(|_| Principal {
         subject: claims.sub.clone(),
         scopes: vec![],
@@ -316,6 +379,9 @@ pub async fn authorize(State(state): State<ApiState>, request: Request, next: Ne
 
 /// The metadata URL, when a public URL and an enabled OIDC connection exist.
 pub async fn discovery_url(state: &ApiState) -> Option<String> {
+    if state.auth.deployment_mode != crate::config::DeploymentMode::Hosted {
+        return None;
+    }
     let public = state.config().rest_api.public_base_url()?;
     let store = state.auth.store.clone();
     let conns = tokio::task::spawn_blocking(move || store.oidc_connections())
@@ -329,6 +395,18 @@ async fn decide(state: ApiState, request: Request, next: Next) -> Result<Respons
     let method = request.method().clone();
     let path = request.uri().path().to_string();
     let headers = request.headers().clone();
+    if state.auth.deployment_mode == crate::config::DeploymentMode::Hosted
+        && method == axum::http::Method::POST
+        && matches!(
+            path.as_str(),
+            "/api/v1/auth/bootstrap"
+                | "/api/v1/auth/login"
+                | "/api/v1/auth/forgot-password"
+                | "/api/v1/auth/reset-password"
+        )
+    {
+        return Err(ApiError::Forbidden("Hosted deployments require OIDC".into()).into());
+    }
 
     // The route pattern axum matched (`/api/v1/tickets/{id}`), not the concrete
     // path, so the table is written once per route rather than per request.
@@ -448,6 +526,9 @@ async fn decide(state: ApiState, request: Request, next: Next) -> Result<Respons
     };
 
     if let Some(authority) = principal.authority.as_ref() {
+        if authority.device_family.is_some() && !principal.scopes.contains(&required) {
+            return Err(ApiError::Forbidden("Device did not request this scope".into()).into());
+        }
         crate::auth::policy::authorize(
             authority,
             method.as_str(),
@@ -606,7 +687,10 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let mut config = Config::default();
             config.paths.state = dir.path().to_string_lossy().into_owned();
-            let state = ApiState::new(config, dir.path().join("tickets"));
+            config.rest_api.deployment_mode = crate::config::DeploymentMode::Hosted;
+            config.profile.id = uuid::Uuid::new_v4();
+            crate::licensing::tests::install_test_license(&config);
+            let state = ApiState::in_memory(config);
             (dir, state)
         }
 
@@ -616,10 +700,15 @@ mod tests {
         }
 
         fn paired(state: &ApiState) -> String {
+            let admin = crate::auth::identity::tests::device_admin(state);
+            let owner = crate::auth::store::DeviceOwner {
+                user_id: admin.subject,
+                profile_id: state.config().profile.id,
+            };
             state
                 .auth
                 .store
-                .create_endpoint_family(ENDPOINT_CLIENT_ID)
+                .create_owned_endpoint_family(ENDPOINT_CLIENT_ID, Some(&owner))
                 .unwrap()
                 .0
         }
@@ -669,13 +758,10 @@ mod tests {
             let (_dir, state) = state();
             let mut claims = api_claims("admin", &[Scope::Read], chrono::Utc::now(), "j".into());
             claims.scope = "read endpoint".into();
-            let p = resolve_principal(&state, &bearer(&state, &claims))
+            assert!(resolve_principal(&state, &bearer(&state, &claims))
                 .await
                 .unwrap()
-                .expect("principal");
-            assert_eq!(p.scopes, vec![Scope::Read]);
-            assert_eq!(p.kind, PrincipalKind::AccessToken);
-            assert!(!p.is_paired_endpoint());
+                .is_none());
         }
 
         #[tokio::test]

@@ -15,15 +15,18 @@
  * constructor parameter threaded through every client, panel, and section.
  */
 
+import { execFile } from "node:child_process";
+import { constants } from "node:fs";
+import { promisify } from "node:util";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { TokenRequest, TokenResponse, OAuthErrorResponse } from "../generated";
+import { READ_CREDENTIAL_SCRIPT } from "../generated/runtime-scripts";
 import type { TokenStore } from "./token-store";
 
 /** The `client_id` device codes and refresh families are bound to server-side. */
 export const CLIENT_ID = "vscode";
-export const LOCAL_TOKEN_FILENAME = "local-token";
-export const SESSION_FILENAME = "api-session.json";
+export const LOCAL_REGISTRATION_FILENAME = "local-registration.json";
 /** Treat an access token as expired this long before it actually is. */
 export const EXPIRY_SKEW_MS = 30_000;
 export const TOKEN_PATH = "/api/v1/auth/token";
@@ -72,26 +75,78 @@ export function isLoopbackUrl(apiUrl: string): boolean {
   }
 }
 
-/** The state directory advertised by the running daemon, else the default next to the session file. */
-export async function resolveStateDir(ticketsDir: string): Promise<string> {
-  const operatorDir = path.join(ticketsDir, "operator");
-  try {
-    const raw = await fs.readFile(path.join(operatorDir, SESSION_FILENAME), "utf-8");
-    const session = JSON.parse(raw) as { state_dir?: string };
-    if (session.state_dir) {
-      return session.state_dir;
+async function readPrivateRegistration(file: string): Promise<string | undefined> {
+  if (process.platform === "win32") {
+    const system = process.env.SystemRoot;
+    if (!system) {
+      return undefined;
     }
-  } catch {
-    // No running daemon has written a session file; fall through.
+    const { stdout } = await promisify(execFile)(
+      path.join(system, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+      ["-NoProfile", "-NonInteractive", "-Command", READ_CREDENTIAL_SCRIPT],
+      { env: { ...process.env, OPERATOR_PRIVATE_FILE: file }, windowsHide: true },
+    );
+    return stdout;
   }
-  return operatorDir;
+  const handle = await fs.open(
+    file,
+    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  );
+  try {
+    const stat = await handle.stat();
+    if (
+      !stat.isFile() ||
+      stat.uid !== process.getuid?.() ||
+      (stat.mode & 0o077) !== 0 ||
+      stat.size > 4096
+    ) {
+      return undefined;
+    }
+    return await handle.readFile("utf8");
+  } finally {
+    await handle.close();
+  }
 }
 
-export async function readLocalToken(ticketsDir: string): Promise<string | undefined> {
+export async function readLocalToken(
+  ticketsDir: string,
+  apiUrl: string,
+): Promise<string | undefined> {
   try {
-    const stateDir = await resolveStateDir(ticketsDir);
-    const token = (await fs.readFile(path.join(stateDir, LOCAL_TOKEN_FILENAME), "utf-8")).trim();
-    return token || undefined;
+    if (!isLoopbackUrl(apiUrl)) {
+      return undefined;
+    }
+    const raw = await readPrivateRegistration(
+      path.join(ticketsDir, "operator", LOCAL_REGISTRATION_FILENAME),
+    );
+    if (!raw) {
+      return undefined;
+    }
+    const registration = JSON.parse(raw) as {
+      origin?: string;
+      token?: string;
+      pid?: number;
+      tickets?: string;
+    };
+    if (
+      registration.origin !== apiUrl ||
+      !registration.pid ||
+      !Number.isSafeInteger(registration.pid) ||
+      registration.pid < 1
+    ) {
+      return undefined;
+    }
+    if (
+      !registration.tickets ||
+      path.toNamespacedPath(registration.tickets) !==
+        path.toNamespacedPath(await fs.realpath(ticketsDir))
+    ) {
+      return undefined;
+    }
+    process.kill(registration.pid, 0);
+    return typeof registration.token === "string" && registration.token.trim()
+      ? registration.token
+      : undefined;
   } catch {
     return undefined;
   }
@@ -110,7 +165,7 @@ export class OperatorCredentials implements CredentialProvider {
 
   async bearer(apiUrl: string): Promise<string | undefined> {
     if (this.ticketsDir && isLoopbackUrl(apiUrl)) {
-      const local = await readLocalToken(this.ticketsDir);
+      const local = await readLocalToken(this.ticketsDir, apiUrl);
       if (local) {
         return local;
       }
@@ -151,6 +206,7 @@ export class OperatorCredentials implements CredentialProvider {
     try {
       response = await fetch(`${apiUrl}${TOKEN_PATH}`, {
         method: "POST",
+        redirect: "error",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });

@@ -51,59 +51,53 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   private ticketsDir: string | undefined;
   private webhookServerRef?: { isRunning: () => boolean; getPort: () => number };
 
-  // Named section references for progressive disclosure
-  private configSection: ConfigSection;
-  private connectionsSection: ConnectionsSection;
-  private kanbanSection: KanbanSection;
-  private llmSection: LlmSection;
-  private gitSection: GitSection;
-  private issueTypeSection: IssueTypeSection;
-  private delegatorSection: DelegatorSection;
-  private modelServerSection: ModelServerSection;
-  private managedProjectsSection: ManagedProjectsSection;
-  private remoteTargetsSection: RemoteTargetsSection;
-  private licenseSection: LicenseSection;
-  private workflowsSection: WorkflowsSection;
-
-  // All sections for check() and routing
-  private allSections: StatusSection[];
-  private sectionMap: Map<string, StatusSection>;
+  private sections = this.createSections();
+  private revision = 0;
   private ctx: SectionContext;
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
-    this.configSection = new ConfigSection();
-    this.connectionsSection = new ConnectionsSection();
-    this.kanbanSection = new KanbanSection();
-    this.llmSection = new LlmSection();
-    this.gitSection = new GitSection();
-    this.issueTypeSection = new IssueTypeSection();
-    this.delegatorSection = new DelegatorSection();
-    this.modelServerSection = new ModelServerSection();
-    this.managedProjectsSection = new ManagedProjectsSection();
-    this.remoteTargetsSection = new RemoteTargetsSection();
-    this.licenseSection = new LicenseSection();
-    this.workflowsSection = new WorkflowsSection();
-
-    // Canonical section order - must match the `SectionId` enum in
-    // src/ui/status_panel.rs (the single source of truth) and the TUI's
-    // section registry, so all three surfaces stay in sync.
-    this.allSections = [
-      this.configSection,
-      this.connectionsSection,
-      this.kanbanSection,
-      this.llmSection,
-      this.modelServerSection,
-      this.gitSection,
-      this.issueTypeSection,
-      this.delegatorSection,
-      this.managedProjectsSection,
-      this.workflowsSection,
-      this.remoteTargetsSection,
-      this.licenseSection,
-    ];
-    this.sectionMap = new Map(this.allSections.map((s) => [s.sectionId, s]));
     this.ctx = this.buildContext();
+  }
+
+  private createSections() {
+    const config = new ConfigSection();
+    const connections = new ConnectionsSection();
+    const kanban = new KanbanSection();
+    const llm = new LlmSection();
+    const git = new GitSection();
+    const all: StatusSection[] = [
+      config,
+      connections,
+      kanban,
+      llm,
+      new ModelServerSection(),
+      git,
+      new IssueTypeSection(),
+      new DelegatorSection(),
+      new ManagedProjectsSection(),
+      new WorkflowsSection(),
+      new RemoteTargetsSection(),
+      new LicenseSection(),
+    ];
+    return {
+      config,
+      connections,
+      kanban,
+      llm,
+      git,
+      all,
+      byId: new Map<string, StatusSection>(all.map((section) => [section.sectionId, section])),
+    };
+  }
+
+  clearConnection(): void {
+    this.revision++;
+    this.ticketsDir = undefined;
+    this.parsedConfig = null;
+    this.sections = this.createSections();
+    this.ctx = this.buildContext();
+    this._onDidChangeTreeData.fire(undefined);
   }
 
   setWebhookServer(server: { isRunning: () => boolean; getPort: () => number }): void {
@@ -119,15 +113,18 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     this.parsedConfig = null;
     const ctx = this.buildContext();
 
-    // All sections run check() regardless of visibility
-    await Promise.allSettled(this.allSections.map((s) => s.check(ctx)));
-
-    // Set readiness flags after checks complete
-    ctx.configReady = this.configSection.isReady();
-    ctx.connectionsReady = this.connectionsSection.isConfigured();
-    ctx.kanbanConfigured = this.kanbanSection.isConfigured();
-    ctx.llmConfigured = this.llmSection.isConfigured();
-    ctx.gitConfigured = this.gitSection.isConfigured();
+    const revision = ++this.revision;
+    const sections = this.createSections();
+    await Promise.allSettled(sections.all.map((section) => section.check(ctx)));
+    if (revision !== this.revision) {
+      return;
+    }
+    ctx.configReady = sections.config.isReady();
+    ctx.connectionsReady = sections.connections.isConfigured();
+    ctx.kanbanConfigured = sections.kanban.isConfigured();
+    ctx.llmConfigured = sections.llm.isConfigured();
+    ctx.gitConfigured = sections.git.isConfigured();
+    this.sections = sections;
     this.ctx = ctx;
 
     this._onDidChangeTreeData.fire(undefined);
@@ -190,7 +187,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       if (healthCache.has(sectionId)) {
         return healthCache.get(sectionId)!;
       }
-      const section = this.sectionMap.get(sectionId);
+      const section = this.sections.byId.get(sectionId);
       if (!section) {
         return "Red";
       }
@@ -202,7 +199,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     const prerequisitesMet = (section: StatusSection): boolean => {
       return section.prerequisites.every((prereqId) => {
         // Prerequisite must itself be visible (transitive) and not Red
-        const prereqSection = this.sectionMap.get(prereqId);
+        const prereqSection = this.sections.byId.get(prereqId);
         if (!prereqSection) {
           return false;
         }
@@ -210,7 +207,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       });
     };
 
-    return this.allSections.filter((s) => prerequisitesMet(s));
+    return this.sections.all.filter((s) => prerequisitesMet(s));
   }
 
   getTreeItem(element: StatusItem): vscode.TreeItem {
@@ -223,7 +220,7 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     }
 
     // Route to section by sectionId
-    const section = element.sectionId ? this.sectionMap.get(element.sectionId) : undefined;
+    const section = element.sectionId ? this.sections.byId.get(element.sectionId) : undefined;
     if (section) {
       return section.getChildren(this.ctx, element);
     }

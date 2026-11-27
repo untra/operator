@@ -32,7 +32,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{- define "operator.validatePodExtensions" -}}
-{{- $ownedVolumes := dict "workspace" true "home" true "tmp" true "bootstrap" true -}}
+{{- $ownedVolumes := dict "workspace" true "home" true "tmp" true -}}
 {{- $volumeNames := dict -}}
 {{- range .Values.extraVolumes -}}
   {{- if hasKey $ownedVolumes .name -}}
@@ -43,7 +43,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   {{- end -}}
   {{- $_ := set $volumeNames .name true -}}
 {{- end -}}
-{{- $ownedMountPaths := dict "/op" true "/home/operator" true "/tmp" true "/run/secrets/operator-bootstrap" true -}}
+{{- $ownedMountPaths := dict "/op" true "/home/operator" true "/tmp" true -}}
 {{- $mountPaths := dict -}}
 {{- range .Values.extraVolumeMounts -}}
   {{- if hasKey $ownedMountPaths .mountPath -}}

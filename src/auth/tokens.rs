@@ -21,6 +21,8 @@ use crate::rest::dto::auth::Scope;
 
 /// Lifetime of a normal access token.
 pub const ACCESS_TOKEN_TTL: Duration = Duration::minutes(15);
+pub const CREDENTIAL_VERSION: u8 = 1;
+pub const DEVICE_CREDENTIAL_VERSION: u8 = 2;
 
 /// Token issuer, and the audience for ordinary API access.
 pub const ISSUER: &str = "operator";
@@ -45,6 +47,8 @@ pub struct Claims {
     pub credential_version: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_family: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<uuid::Uuid>,
     /// Issuer.
@@ -193,8 +197,9 @@ impl SigningKey {
 /// Build the claims for an ordinary API access token.
 pub fn api_claims(subject: &str, scopes: &[Scope], now: DateTime<Utc>, jti: String) -> Claims {
     Claims {
-        credential_version: 1,
+        credential_version: CREDENTIAL_VERSION,
         key_id: None,
+        device_family: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_API.to_string(),
@@ -240,8 +245,9 @@ pub fn callback_claims(
     jti: String,
 ) -> Claims {
     Claims {
-        credential_version: 1,
+        credential_version: CREDENTIAL_VERSION,
         key_id: None,
+        device_family: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_CALLBACK.to_string(),
@@ -274,8 +280,9 @@ pub fn telemetry_claims(
     jti: String,
 ) -> Claims {
     Claims {
-        credential_version: 1,
+        credential_version: CREDENTIAL_VERSION,
         key_id: None,
+        device_family: None,
         profile_id: None,
         iss: ISSUER.to_string(),
         aud: AUDIENCE_TELEMETRY.to_string(),

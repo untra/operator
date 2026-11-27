@@ -35,6 +35,10 @@ VS Code terminal integration for [Operator](https://github.com/untra/operator) m
 
 This extension also runs in [Cursor](https://www.cursor.com). Install it from the [OpenVSX registry](https://open-vsx.org/) (Cursor's default extension search) or via the `.vsix` from GitHub releases.
 
+## Connect to Operator
+
+Run **Operator: Choose Connection**. Select **Use Operator on this computer** for the single-user Free service. For Premium, select **Connect to Operator server**, enter your administrator's HTTPS origin and run **Operator: Sign In**. Setting `operator.apiUrl` in VS Code User settings before the first launch connects directly to that server and skips the local download.
+
 ## Configuration
 
 | Setting | Default | Description |
@@ -54,7 +58,9 @@ This extension also runs in [Cursor](https://www.cursor.com). Install it from th
 
 ## API Endpoints
 
-The extension exposes a local HTTP API for Operator to manage terminals:
+In local mode, each editor window registers its loopback port and a dedicated bearer under `~/.operator/vscode-sessions/`. Terminal operations require that window's bearer in the HTTP Authorization header. The registration is private to the OS user and is removed when the listener stops. Browser-origin requests are rejected.
+
+For a hosted session, use **Operator: Attach to Agent Terminal**. The signed-in account needs the `agents:focus` capability for the project and SSH access to the agent host. The server supplies its SSH alias and workspace path. VS Code opens that Remote-SSH workspace and redeems a single-use reference before attaching. Configure the server's SSH alias in your local SSH configuration.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -94,6 +100,8 @@ npm test
 # Package extension
 npm run package
 ```
+
+Run `npm run test:e2e -- secret-storage` on macOS to check credential persistence across two editor launches. The runner creates and unlocks a keychain in a temporary home and removes it at teardown. Set `OPERATOR_E2E_VSCODE_PATH` to use an installed VS Code executable.
 
 ## License
 

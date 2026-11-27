@@ -387,10 +387,23 @@ impl EgressConfig {
     }
 }
 
+/// Security boundary for the Operator server.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum DeploymentMode {
+    #[default]
+    Local,
+    Hosted,
+}
+
 /// REST API server configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[ts(export)]
 pub struct RestApiConfig {
+    /// Local runs for one OS user. Hosted requires Premium and provisioned OIDC.
+    #[serde(default)]
+    pub deployment_mode: DeploymentMode,
     /// Whether the REST API is enabled
     #[serde(default = "default_rest_enabled")]
     pub enabled: bool,
@@ -437,6 +450,7 @@ fn default_shutdown_cleanup_seconds() -> u32 {
 impl Default for RestApiConfig {
     fn default() -> Self {
         Self {
+            deployment_mode: DeploymentMode::Local,
             enabled: default_rest_enabled(),
             host: default_rest_host(),
             port: default_rest_port(),
@@ -449,6 +463,28 @@ impl Default for RestApiConfig {
 }
 
 impl RestApiConfig {
+    pub fn validate_deployment(&self) -> anyhow::Result<()> {
+        let host: std::net::IpAddr = self
+            .host
+            .parse()
+            .context("rest_api.host must be an IP address")?;
+        match self.deployment_mode {
+            DeploymentMode::Local => anyhow::ensure!(
+                crate::auth::local::is_loopback(host),
+                "local deployment requires a loopback rest_api.host; configure rest_api.deployment_mode = \"hosted\" for remote access"
+            ),
+            DeploymentMode::Hosted => {
+                let origin = self.public_base_url()
+                    .context("hosted deployment requires rest_api.public_url")?;
+                let url = url::Url::parse(&origin)?;
+                anyhow::ensure!(url.scheme() == "https" && url.username().is_empty() && url.password().is_none()
+                    && url.path() == "/" && url.query().is_none() && url.fragment().is_none(),
+                    "hosted rest_api.public_url must be an HTTPS origin");
+            }
+        }
+        Ok(())
+    }
+
     /// Parse the configured `host` into an `IpAddr`, falling back to localhost
     /// if it is not a valid IP literal (we never bind a wider scope by accident).
     pub fn host_ip(&self) -> std::net::IpAddr {
@@ -1376,6 +1412,26 @@ mod tests {
 
         assert!(dir.path().join("state/config.toml").exists());
         assert!(!dir.path().join(".tickets/operator/config.toml").exists());
+    }
+    #[test]
+    fn test_rest_deployment_rejects_public_local_bind_and_insecure_hosted_origin() {
+        let mut config = RestApiConfig {
+            host: "0.0.0.0".into(),
+            ..Default::default()
+        };
+        assert!(config.validate_deployment().is_err());
+        config.deployment_mode = DeploymentMode::Hosted;
+        for invalid in [
+            "http://example.com",
+            "https://user@example.com",
+            "https://example.com/path",
+            "https://example.com/?token=a",
+        ] {
+            config.public_url = Some(invalid.to_string());
+            assert!(config.validate_deployment().is_err());
+        }
+        config.public_url = Some("https://example.com".into());
+        assert!(config.validate_deployment().is_ok());
     }
 }
 

@@ -61,6 +61,10 @@ spec:
             # discard every agent worktree on restart. Keep them on the PVC.
             - name: OPERATOR_PATHS__WORKTREES
               value: /op/.worktrees
+            - name: OPERATOR_PROFILE_REGISTRY
+              value: /op/.tickets/operator/profiles.sqlite
+            - name: OPERATOR_REST_API__DEPLOYMENT_MODE
+              value: hosted
             - name: OPERATOR_REST_API__HOST
               value: 0.0.0.0
             - name: OPERATOR_REST_API__PORT
@@ -76,10 +80,6 @@ spec:
             {{- with .Values.publicUrl }}
             - name: OPERATOR_REST_API__PUBLIC_URL
               value: {{ . | quote }}
-            {{- end }}
-            {{- with .Values.bootstrap.existingSecret }}
-            - name: OPERATOR_BOOTSTRAP_PASSWORD_FILE
-              value: /run/secrets/operator-bootstrap/password
             {{- end }}
             {{- include "operator.telemetryEnv" . | nindent 12 }}
             {{- with .Values.extraEnv }}
@@ -110,11 +110,6 @@ spec:
               mountPath: /home/operator
             - name: tmp
               mountPath: /tmp
-            {{- with .Values.bootstrap.existingSecret }}
-            - name: bootstrap
-              mountPath: /run/secrets/operator-bootstrap
-              readOnly: true
-            {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -123,15 +118,6 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
-        {{- with .Values.bootstrap.existingSecret }}
-        - name: bootstrap
-          secret:
-            secretName: {{ . | quote }}
-            optional: true
-            items:
-              - key: {{ $.Values.bootstrap.passwordKey | quote }}
-                path: password
-        {{- end }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

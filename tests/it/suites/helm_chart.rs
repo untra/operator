@@ -85,54 +85,25 @@ fn test_readme_is_packaged_into_the_chart_archive() {
     );
 }
 
-/// The ingress branch of NOTES dereferences `.Values.ingress.tls.secretName`
 #[test]
-fn test_notes_render_a_usable_setup_url_on_both_branches() {
+fn test_notes_require_provisioning_before_hosted_sign_in() {
     if !helm_available() {
-        eprintln!("skipping: helm not on PATH");
         return;
     }
-
-    let ingress = rendered_notes(&[
-        "--set",
-        "ingress.enabled=true",
-        "--set",
-        "ingress.host=op.example.com",
-        "--set",
-        "ingress.tls.secretName=op-tls",
-    ]);
-    assert!(
-        ingress.contains("https://op.example.com/setup"),
-        "TLS ingress NOTES must link the https /setup URL:\n{ingress}"
-    );
-
-    let forwarded = rendered_notes(&["--namespace", "ops"]);
-    assert!(
-        forwarded.contains("kubectl -n ops port-forward service/op-operator 7008:7008"),
-        "port-forward command must carry the release namespace:\n{forwarded}"
-    );
-    assert!(
-        forwarded.contains("http://127.0.0.1:7008/setup"),
-        "NOTES must give the local /setup URL when no ingress is configured:\n{forwarded}"
-    );
+    let notes = rendered_notes(&["--namespace", "ops"]);
+    assert!(notes.contains("host-side OIDC provisioning"));
+    assert!(notes.contains("kubectl -n ops rollout status statefulset/op-operator"));
+    assert!(!notes.contains("/setup"));
 }
 
-/// `publicUrl` only changes generated links; it provisions no Ingress.
 #[test]
-fn test_notes_separate_public_url_from_ingress() {
+fn test_notes_direct_vscode_to_the_configured_origin() {
     if !helm_available() {
-        eprintln!("skipping: helm not on PATH");
         return;
     }
-    let notes = rendered_notes(&["--set", "publicUrl=https://op.example.com"]);
-    assert!(
-        notes.contains("publicUrl does not create an Ingress"),
-        "NOTES must state that publicUrl creates no Ingress:\n{notes}"
-    );
-    assert!(
-        notes.contains("http://127.0.0.1:7008/setup"),
-        "the local /setup URL must still be shown alongside configured public access:\n{notes}"
-    );
+    let notes = rendered_notes(&["--set", "publicUrl=https://op.example.com/"]);
+    assert!(notes.contains("Connect to Operator server and enter https://op.example.com."));
+    assert!(!notes.contains("127.0.0.1"));
 }
 
 /// The packaged README is not Jekyll-rendered, so its value table is hand-kept

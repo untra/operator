@@ -258,28 +258,32 @@ pub fn write_command_file(
         .and_then(|e| e.git_context.as_ref())
         .map(crate::git::runtime::GitRuntime::create)
         .transpose()?;
-    let git_block = runtime
-        .as_ref()
-        .map(|r| {
-            format!(
-                "export OPERATOR_GIT_RUNTIME={}\ntrap 'rm -rf -- \"$OPERATOR_GIT_RUNTIME\"' EXIT\n. \"$OPERATOR_GIT_RUNTIME/env.sh\" || exit 1\n",
-                shell_escape(&r.path.to_string_lossy())
-            )
-        })
-        .unwrap_or_default();
+    let git_block = runtime.as_ref().map_or_else(String::new, |runtime| {
+        let template = include_str!("../../../scripts/runtime/shell/git-launch-setup.sh");
+        crate::runtime_scripts::render(
+            crate::runtime_scripts::body(template),
+            &[("RUNTIME", &shell_escape(&runtime.path.to_string_lossy()))],
+        )
+    });
     let run = if runtime.is_some() {
-        format!("printf '%s\\n' \"$$\" > \"$OPERATOR_GIT_RUNTIME/pid\"\ntrap 'rm -rf -- \"$OPERATOR_GIT_RUNTIME\"' EXIT\n( {llm_command} ) <&0 &\noperator_git_child=$!\ntrap 'kill -TERM \"$operator_git_child\" 2>/dev/null; wait \"$operator_git_child\"; exit 143' TERM\ntrap 'kill -INT \"$operator_git_child\" 2>/dev/null; wait \"$operator_git_child\"; exit 130' INT\ntrap 'kill -HUP \"$operator_git_child\" 2>/dev/null; wait \"$operator_git_child\"; exit 129' HUP\nwait \"$operator_git_child\"\n")
+        crate::runtime_scripts::render(
+            crate::runtime_scripts::body(include_str!(
+                "../../../scripts/runtime/shell/git-agent-run.sh"
+            )),
+            &[("COMMAND", llm_command)],
+        )
     } else {
         format!("exec {llm_command}\n")
     };
-
-    let secret_env_block =
-        "if [ -f \"$0.env\" ]; then set -a; . \"$0.env\"; set +a; rm -f \"$0.env\"; fi\n";
-
-    let script_content = format!(
-        "#!/bin/bash\n{secret_env_block}{env_block}{provider_block}{strip_block}{telemetry_block}{git_block}{pane_title}cd {} || exit 1\n{}",
-        shell_escape(project_path),
-        run
+    let setup =
+        format!("{env_block}{provider_block}{strip_block}{telemetry_block}{git_block}{pane_title}");
+    let script_content = crate::runtime_scripts::render(
+        include_str!("../../../scripts/runtime/shell/agent-launch.sh"),
+        &[
+            ("SETUP", setup.strip_suffix('\n').unwrap_or(&setup)),
+            ("PROJECT", &shell_escape(project_path)),
+            ("RUN", run.strip_suffix('\n').unwrap_or(&run)),
+        ],
     );
 
     fs::write(&command_file, &script_content).context("Failed to write command file")?;

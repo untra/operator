@@ -151,6 +151,18 @@ fn first_run_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::git_onboarding::set_session_env))
 }
 
+fn agent_router() -> OpenApiRouter<ApiState> {
+    OpenApiRouter::new()
+        .routes(routes!(routes::agents::active))
+        .routes(routes!(routes::agents::get_detail))
+        .routes(routes!(routes::agents::approve_review))
+        .routes(routes!(routes::agents::reject_review))
+        .routes(routes!(routes::agents::focus_session))
+        .routes(routes!(routes::agents::connect_terminal))
+        .routes(routes!(routes::terminal_attach::issue))
+        .routes(routes!(routes::terminal_attach::redeem))
+}
+
 /// Build the documented API surface as a `utoipa_axum::OpenApiRouter`.
 ///
 /// Every always-on route is mounted here via `routes!`, so mounting a route
@@ -203,13 +215,7 @@ fn documented_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(routes::queue::resume))
         .routes(routes!(routes::queue::sync))
         .routes(routes!(routes::queue::sync_collection))
-        // Agent endpoints
-        .routes(routes!(routes::agents::active))
-        .routes(routes!(routes::agents::get_detail))
-        .routes(routes!(routes::agents::approve_review))
-        .routes(routes!(routes::agents::reject_review))
-        .routes(routes!(routes::agents::focus_session))
-        .routes(routes!(routes::agents::connect_terminal))
+        .merge(agent_router())
         // Project endpoints
         .routes(routes!(routes::projects::list))
         .routes(routes!(routes::projects::assess))
@@ -433,6 +439,7 @@ pub async fn serve(state: ApiState, port: u16, open: bool) -> Result<()> {
     let tickets_path = state.tickets_path.clone();
     let state_path = state.config().auth_state_path();
     let profile_id = state.config().profile.id;
+    state::AuthContext::validate_listener(&state.config(), state.auth.deployment_mode)?;
     let host_ip = state.config().rest_api.host_ip();
     let app = build_router(state.clone())?;
     let addr = SocketAddr::new(host_ip, port);
@@ -442,7 +449,13 @@ pub async fn serve(state: ApiState, port: u16, open: bool) -> Result<()> {
     let port = addr.port();
     tracing::info!("REST API listening on http://{}", addr);
     tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
-    write_session_file(&tickets_path, &state_path, port, profile_id)?;
+    server::write_session_file(
+        &tickets_path,
+        &state_path,
+        addr,
+        profile_id,
+        state.auth.local_token.as_deref(),
+    )?;
     state.auth.store.start_usage_tracking();
     let (stop_runner, runner) =
         crate::services::campaign_runner::spawn_campaign_runner(state.clone());
@@ -478,50 +491,11 @@ pub async fn serve(state: ApiState, port: u16, open: bool) -> Result<()> {
     let flushed = state.auth.store.flush_usage();
 
     // Clean up session file on shutdown
-    remove_session_file(&tickets_path);
+    server::remove_session_file(&tickets_path);
 
     result?;
     flushed?;
     Ok(())
-}
-
-/// Write API session file for client discovery (standalone mode)
-fn write_session_file(
-    tickets_path: &std::path::Path,
-    state_path: &std::path::Path,
-    port: u16,
-    profile_id: uuid::Uuid,
-) -> Result<()> {
-    let operator_dir = tickets_path.join("operator");
-    std::fs::create_dir_all(&operator_dir)?;
-
-    let session_file = operator_dir.join("api-session.json");
-    let session = ApiSessionInfo {
-        port,
-        profile_id,
-        pid: std::process::id(),
-        started_at: chrono::Utc::now().to_rfc3339(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        state_dir: state_path.to_path_buf(),
-    };
-
-    let json = serde_json::to_string_pretty(&session)?;
-    std::fs::write(&session_file, json)?;
-
-    println!("Session file: {}", session_file.display());
-    Ok(())
-}
-
-/// Remove API session file on shutdown (standalone mode)
-fn remove_session_file(tickets_path: &std::path::Path) {
-    let session_file = tickets_path.join("operator").join("api-session.json");
-    if session_file.exists() {
-        if let Err(e) = std::fs::remove_file(&session_file) {
-            tracing::warn!(error = %e, "Failed to remove API session file");
-        } else {
-            println!("Cleaned up session file");
-        }
-    }
 }
 
 /// Shutdown signal handler for graceful termination

@@ -5,16 +5,14 @@ import { StatusItem } from "../status-item";
 import type { SectionContext, StatusSection, WebhookStatus, ApiStatus } from "./types";
 import type { SectionId, SectionHealth } from "../generated";
 import type { SessionInfo } from "../types";
-import type { ApiSessionInfo } from "../api-client";
-import { discoverApiUrl, AuthRequiredError, OperatorApiClient } from "../api-client";
+import { discoverApiUrl, ApiError, AuthRequiredError, OperatorApiClient } from "../api-client";
 import { SIGN_IN_COMMAND_TITLE } from "../auth/errors";
 import {
   CHOOSE_CONNECTION_COMMAND,
   localAdoptMismatch,
-  readConnectionSettings,
+  currentConnection,
   serverOrigin,
   swaggerUrl,
-  usingRemoteServer,
 } from "../connection";
 import { headerCommand } from "../command-policy";
 import { getOperatorPath, getOperatorVersion } from "../operator-binary";
@@ -66,21 +64,15 @@ export class ConnectionsSection implements StatusSection {
     this.localDirectoryName = ctx.ticketsDir
       ? path.basename(path.dirname(ctx.ticketsDir))
       : undefined;
-    this.remote = usingRemoteServer(
-      readConnectionSettings(vscode.workspace.getConfiguration("operator")),
-    );
-    // A local binary version is the adopt gate for a server on this machine.
-    // A remote server is identified by sign-in, not by that binary.
-    if (!this.remote) {
+    const { selection } = currentConnection();
+    this.remote = selection.kind === "hosted";
+    if (selection.kind === "local") {
       await this.checkOperatorVersion(ctx);
+      await Promise.allSettled([this.checkWebhookStatus(ctx), this.checkWrapperType(ctx)]);
     } else {
-      this.operatorVersion = undefined;
+      this.webhookStatus = { running: false };
     }
-    await Promise.allSettled([
-      this.checkWebhookStatus(ctx),
-      this.checkApiStatus(ctx),
-      this.checkWrapperType(ctx),
-    ]);
+    await this.checkApiStatus(ctx);
     this.mcpPresence = await mcpConnect.inspectMcpRegistration();
     this.workspaceStdio = mcpConnect.isVscodeWorkspaceStdio();
   }
@@ -91,7 +83,9 @@ export class ConnectionsSection implements StatusSection {
       return;
     }
 
-    const webhookSessionFile = path.join(ctx.ticketsDir, "operator", "vscode-session.json");
+    const webhookSessionFile =
+      ctx.webhookServer?.getRegistrationPath?.() ??
+      path.join(ctx.ticketsDir, "operator", "vscode-session.json");
     try {
       const content = await fs.readFile(webhookSessionFile, "utf-8");
       const session = JSON.parse(content) as SessionInfo;
@@ -117,21 +111,6 @@ export class ConnectionsSection implements StatusSection {
   }
 
   private async checkApiStatus(ctx: SectionContext): Promise<void> {
-    if (!this.remote && ctx.ticketsDir) {
-      const apiSessionFile = path.join(ctx.ticketsDir, "operator", "api-session.json");
-      try {
-        const content = await fs.readFile(apiSessionFile, "utf-8");
-        const session = JSON.parse(content) as ApiSessionInfo;
-        const apiUrl = `http://localhost:${session.port}`;
-
-        if (await this.tryHealthCheck(apiUrl, session.version)) {
-          return;
-        }
-      } catch {
-        // Fall through
-      }
-    }
-
     const apiUrl = await discoverApiUrl(ctx.ticketsDir);
     if (!apiUrl) {
       this.apiStatus = { connected: false };
@@ -172,7 +151,7 @@ export class ConnectionsSection implements StatusSection {
     }
   }
 
-  private async tryHealthCheck(apiUrl: string, sessionVersion?: string): Promise<boolean> {
+  private async tryHealthCheck(apiUrl: string): Promise<boolean> {
     const client = new OperatorApiClient(apiUrl);
     const portStr = new URL(apiUrl).port;
     const port = portStr ? Number.parseInt(portStr, 10) : 7008;
@@ -200,7 +179,7 @@ export class ConnectionsSection implements StatusSection {
 
         this.apiStatus = {
           connected: true,
-          version: found || sessionVersion,
+          version: found,
           port,
           url: apiUrl,
           directoryName: health.directory_name,
@@ -209,7 +188,18 @@ export class ConnectionsSection implements StatusSection {
         return true;
       }
     } catch (err) {
-      if (err instanceof AuthRequiredError) {
+      let needsSignIn = err instanceof AuthRequiredError;
+      if (this.remote && err instanceof ApiError && err.status === 403) {
+        try {
+          await client.currentSession();
+          this.apiStatus = { connected: true, port, url: apiUrl };
+          await this.checkWebUi(apiUrl);
+          return true;
+        } catch (sessionError) {
+          needsSignIn = sessionError instanceof AuthRequiredError;
+        }
+      }
+      if (needsSignIn) {
         // Something is listening and it is Operator, but it will not talk to us yet.
         this.apiStatus = {
           connected: false,

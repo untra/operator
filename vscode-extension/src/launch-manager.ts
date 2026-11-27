@@ -13,8 +13,8 @@ import type { TerminalManager } from "./terminal-manager";
 import type { LaunchOptions, TicketInfo } from "./types";
 import { parseTicketMetadata, getCurrentSessionId } from "./ticket-parser";
 import type { LaunchTicketResponse } from "./api-client";
-import { OperatorApiClient, discoverApiUrl } from "./api-client";
-import { readConnectionSettings, usingRemoteServer } from "./connection";
+import { OperatorApiClient } from "./api-client";
+import { currentConnection } from "./connection";
 import { launchClientAction, launchWrapper } from "./command-policy";
 import { openOperatorUi } from "./open-operator-ui";
 
@@ -35,7 +35,6 @@ function buildTerminalName(ticketId: string): string {
  */
 export class LaunchManager {
   private ticketsDir: string | undefined;
-  private apiClient: OperatorApiClient | undefined;
   private outputChannel: vscode.OutputChannel | undefined;
 
   constructor(private terminalManager: TerminalManager) {}
@@ -45,8 +44,6 @@ export class LaunchManager {
    */
   setTicketsDir(dir: string | undefined): void {
     this.ticketsDir = dir;
-    // Reset API client when tickets dir changes
-    this.apiClient = undefined;
   }
 
   /**
@@ -59,15 +56,6 @@ export class LaunchManager {
   /**
    * Initialize or refresh the API client
    */
-  private async ensureApiClient(): Promise<OperatorApiClient> {
-    if (!this.apiClient) {
-      const apiUrl = await discoverApiUrl(this.ticketsDir);
-      this.apiClient = new OperatorApiClient(apiUrl);
-      this.log(`Initialized API client with URL: ${apiUrl}`);
-    }
-    return this.apiClient;
-  }
-
   /**
    * Log a message to the output channel
    */
@@ -119,14 +107,8 @@ export class LaunchManager {
    * Launch a ticket via the Operator REST API
    */
   private async launchViaApi(ticket: TicketInfo, options: LaunchOptions): Promise<void> {
-    const apiClient = await this.ensureApiClient();
-
-    // Check API health first
-    try {
-      await apiClient.health();
-    } catch {
-      throw new Error("Operator API not available");
-    }
+    const { origin, signal } = currentConnection();
+    const apiClient = new OperatorApiClient(origin);
 
     this.log(`Launching ticket ${ticket.id} via API`);
 
@@ -150,6 +132,7 @@ export class LaunchManager {
         `serverSide=${response.executed_server_side}`,
     );
 
+    signal.throwIfAborted();
     await this.presentLaunchResponse(response);
   }
 
@@ -197,7 +180,7 @@ export class LaunchManager {
   }
 
   private remoteAttached(): boolean {
-    return usingRemoteServer(readConnectionSettings(vscode.workspace.getConfiguration("operator")));
+    return currentConnection().selection.kind !== "local";
   }
 
   /**

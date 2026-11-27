@@ -245,6 +245,11 @@ async function redirectToAuth(base: string): Promise<void> {
   } catch {
     // Unreachable server: login is still the right place to land.
   }
+  const [route, query] = window.location.hash.split("?");
+  const userCode = new URLSearchParams(query).get("user_code");
+  if (target === "#/login" && (route === "#/device" || route === "#/login") && userCode) {
+    target += `?${new URLSearchParams({ user_code: userCode }).toString()}`;
+  }
   if (window.location.hash !== target) {
     window.location.hash = target;
   }

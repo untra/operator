@@ -123,30 +123,40 @@ export class CampaignTreeProvider implements vscode.TreeDataProvider<CampaignNod
   private readonly changed = new vscode.EventEmitter<CampaignNode | undefined>();
   readonly onDidChangeTreeData = this.changed.event;
 
+  private revision = 0;
   private client: OperatorApiClient | undefined;
   private roots: CampaignNode[] = [];
   private readonly views = new Map<string, CampaignStatusView>();
 
   setApiClient(client: OperatorApiClient | undefined): void {
+    this.revision++;
     this.client = client;
-  }
-
-  async refresh(): Promise<void> {
+    this.roots = [];
     this.views.clear();
-    this.roots = await this.loadRoots();
     this.changed.fire(undefined);
   }
 
-  private async loadRoots(): Promise<CampaignNode[]> {
-    if (!this.client) {
+  async refresh(): Promise<void> {
+    const revision = ++this.revision;
+    this.views.clear();
+    const roots = await this.loadRoots(this.client);
+    if (revision !== this.revision) {
+      return;
+    }
+    this.roots = roots;
+    this.changed.fire(undefined);
+  }
+
+  private async loadRoots(client: OperatorApiClient | undefined): Promise<CampaignNode[]> {
+    if (!client) {
       return [];
     }
     try {
-      const license = await this.client.license();
+      const license = await client.license();
       if (!license.premium) {
         return [paywallNode()];
       }
-      const list = await this.client.listCampaigns();
+      const list = await client.listCampaigns();
       return list.campaigns.map(campaignNode);
     } catch (err) {
       return [messageNode(err instanceof Error ? err.message : "Campaigns unavailable")];
@@ -158,7 +168,11 @@ export class CampaignTreeProvider implements vscode.TreeDataProvider<CampaignNod
     if (cached || !this.client) {
       return cached;
     }
+    const revision = this.revision;
     const view = await this.client.campaignStatus(campaignId);
+    if (revision !== this.revision) {
+      return undefined;
+    }
     this.views.set(campaignId, view);
     return view;
   }

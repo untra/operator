@@ -20,7 +20,7 @@ import type { TokenStore } from "./token-store";
 export const DEVICE_CODE_PATH = "/api/v1/auth/device/code";
 /** RFC 8628 : on `slow_down` the client adds 5 seconds to its interval. */
 export const SLOW_DOWN_INCREMENT_SECS = 5;
-/** IDE clients act as the human admin, so they request every scope. */
+/** Hosted requests also require the signed-in user's capabilities and project grants. */
 export const IDE_SCOPES: Scope[] = ["read", "write", "execute", "admin"];
 
 export type DeviceFlowOutcome =
@@ -47,6 +47,7 @@ export async function requestDeviceCode(apiUrl: string): Promise<DeviceAuthoriza
   const body: DeviceAuthorizationRequest = { client_id: CLIENT_ID, scopes: IDE_SCOPES };
   const response = await fetch(`${apiUrl}${DEVICE_CODE_PATH}`, {
     method: "POST",
+    redirect: "error",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -95,6 +96,7 @@ export async function pollForToken(
     try {
       response = await fetch(`${apiUrl}${TOKEN_PATH}`, {
         method: "POST",
+        redirect: "error",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -102,10 +104,16 @@ export async function pollForToken(
       return { status: "error", message: err instanceof Error ? err.message : String(err) };
     }
 
+    if (hooks.isCancelled()) {
+      return { status: "cancelled" };
+    }
     if (response.ok) {
       const token = (await response.json()) as TokenResponse;
       if (!token.refresh_token) {
         return { status: "error", message: "token response did not include a refresh token" };
+      }
+      if (hooks.isCancelled()) {
+        return { status: "cancelled" };
       }
       await store.save(apiUrl, {
         access_token: token.access_token,
@@ -142,11 +150,17 @@ export async function runDeviceFlow(
   store: TokenStore,
   hooks: DeviceFlowHooks,
 ): Promise<DeviceFlowOutcome> {
+  if (hooks.isCancelled()) {
+    return { status: "cancelled" };
+  }
   let authorization: DeviceAuthorizationResponse;
   try {
     authorization = await requestDeviceCode(apiUrl);
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : String(err) };
+  }
+  if (hooks.isCancelled()) {
+    return { status: "cancelled" };
   }
   await hooks.onCode(authorization);
   return pollForToken(apiUrl, authorization, store, hooks);

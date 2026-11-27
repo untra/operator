@@ -177,6 +177,12 @@ const MIGRATIONS: &[&str] = &[
         last_seen_at      TEXT
     );
     ",
+    r"
+    ALTER TABLE device_authorization ADD COLUMN user_id TEXT REFERENCES operator_user(id);
+    ALTER TABLE device_authorization ADD COLUMN profile_id TEXT CHECK ((profile_id IS NULL) = (user_id IS NULL));
+    ALTER TABLE refresh_family ADD COLUMN user_id TEXT REFERENCES operator_user(id);
+    ALTER TABLE refresh_family ADD COLUMN profile_id TEXT CHECK ((profile_id IS NULL) = (user_id IS NULL));
+    ",
 ];
 
 /// Apply any migrations the database has not seen.

@@ -4,7 +4,7 @@
  */
 
 import * as vscode from "vscode";
-import { CHOOSE_CONNECTION_COMMAND, readConnectionSettings, usingRemoteServer } from "./connection";
+import { CHOOSE_CONNECTION_COMMAND, currentConnection } from "./connection";
 import { openOperatorUi, type OperatorUiRoute } from "./open-operator-ui";
 
 export type RemoteCommandTarget =
@@ -148,9 +148,12 @@ export async function guardRemoteCommand(
   command: string,
   ticketsDir: string | undefined,
 ): Promise<boolean> {
-  const remote = usingRemoteServer(
-    readConnectionSettings(vscode.workspace.getConfiguration("operator")),
-  );
+  const { selection } = currentConnection();
+  if (selection.kind === "undecided" || selection.kind === "invalid") {
+    await vscode.commands.executeCommand(CHOOSE_CONNECTION_COMMAND);
+    return true;
+  }
+  const remote = selection.kind === "hosted";
   return presentRemoteCommand(remoteCommandTarget(command, remote), {
     openUi: (route) => openOperatorUi(ticketsDir, route),
     inform: async (message, chooseConnection) => {

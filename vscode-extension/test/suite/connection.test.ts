@@ -1,7 +1,9 @@
 import * as assert from "node:assert";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
-import { openApprovalPage } from "../../src/auth/sign-in";
+import { fakeCredentials, MemorySecrets } from "./helpers/credentials";
+import { TokenStore } from "../../src/auth/token-store";
+import { openApprovalPage, signIn, pendingApproval } from "../../src/auth/sign-in";
 import {
   approvalTarget,
   gateRemoteMcp,
@@ -63,50 +65,36 @@ suite("connection", () => {
     const hosted = "https://operator.example.com";
     const suggested = "https://workspace.example.com";
 
-    test("requires an explicit choice and honors User local mode", () => {
+    test("user settings alone never attach a workspace", () => {
+      assert.deepStrictEqual(resolveConnection({ userUrl: hosted }), { kind: "undecided" });
       assert.deepStrictEqual(resolveConnection({}), { kind: "undecided" });
-      assert.deepStrictEqual(resolveConnection({ userMode: "local" }), { kind: "local" });
     });
 
-    test("uses a valid User origin regardless of the local mode default", () => {
-      assert.deepStrictEqual(resolveConnection({ userMode: "local", userUrl: `${hosted}/` }), {
-        kind: "hosted",
-        origin: hosted,
+    test("a configuration root attaches locally unless disconnected", () => {
+      assert.deepStrictEqual(resolveConnection({ configRoot: true, userUrl: hosted }), {
+        kind: "local",
       });
-      assert.deepStrictEqual(resolveConnection({ userUrl: "http://operator.example.com" }), {
-        kind: "invalid",
-        reason: "http",
+      assert.deepStrictEqual(resolveConnection({ configRoot: true, choice: { kind: "off" } }), {
+        kind: "undecided",
       });
     });
 
-    test("uses the approved repository origin only while it matches", () => {
-      assert.deepStrictEqual(resolveConnection({ userUrl: hosted, suggestion: suggested }), {
-        kind: "hosted",
-        origin: hosted,
-      });
+    test("approved workspace suggestions must still match", () => {
       assert.deepStrictEqual(
-        resolveConnection({
-          userUrl: hosted,
-          suggestion: `${suggested}/`,
-          approvedOrigin: suggested,
-        }),
+        resolveConnection({ suggestion: suggested, approvedOrigin: suggested }),
         { kind: "hosted", origin: suggested },
       );
+      assert.deepStrictEqual(resolveConnection({ suggestion: hosted, approvedOrigin: suggested }), {
+        kind: "undecided",
+      });
+    });
+
+    test("an explicitly entered origin belongs to the workspace", () => {
       assert.deepStrictEqual(
-        resolveConnection({
-          suggestion: "https://changed.example.com",
-          approvedOrigin: suggested,
-        }),
-        { kind: "undecided" },
+        resolveConnection({ choice: { kind: "hosted", origin: suggested }, userUrl: hosted }),
+        { kind: "hosted", origin: suggested },
       );
     });
-  });
-
-  test("rejects a local URL for a hosted connection", () => {
-    assert.deepStrictEqual(
-      resolveConnection({ userMode: "remote", userUrl: "http://localhost:7008" }),
-      { kind: "invalid", reason: "loopback" },
-    );
   });
 
   suite("adopt and links", () => {
@@ -190,6 +178,49 @@ suite("connection", () => {
         ok: true,
         transportUrl: "https://operator.kube.untra.casa/api/v1/mcp/sse",
       });
+    });
+
+    test("a declined browser launch keeps the same code available for reopening until cancelled", async () => {
+      const origin = "https://operator.example.com";
+      const credentials = fakeCredentials();
+      credentials.token = undefined;
+      const manual = `${origin}/#/device`;
+      const complete = `${manual}?user_code=ABCD-EFGH`;
+      const code = {
+        user_code: "ABCD-EFGH",
+        device_code: "private",
+        verification_uri: manual,
+        verification_uri_complete: complete,
+        interval: 0,
+        expires_in: 600,
+      };
+      const fetcher = sinon.stub(globalThis, "fetch");
+      fetcher
+        .withArgs(`${origin}/api/v1/auth/device/code`, sinon.match.any)
+        .resolves(Response.json(code));
+      fetcher
+        .withArgs(manual, sinon.match.any)
+        .resolves(new Response("<html></html>", { headers: { "content-type": "text/html" } }));
+      const open = sinon.stub(vscode.env, "openExternal").resolves(false);
+      const notified = sinon.promise<boolean>();
+      sinon.stub(vscode.window, "showWarningMessage").callsFake(() => {
+        if (notified.status === "pending") {
+          void notified.resolve(true);
+        }
+        return Promise.resolve(undefined);
+      });
+      const attempt = signIn(origin, credentials, new TokenStore(new MemorySecrets()));
+      await notified;
+      const approval = pendingApproval();
+      assert.ok(approval);
+      assert.equal(approval.code, code.user_code);
+      assert.equal(approval.address, manual);
+      await approval.reopen();
+      assert.equal(open.callCount, 2);
+      approval.cancel();
+      assert.equal((await attempt)?.status, "cancelled");
+      assert.equal(pendingApproval(), undefined);
+      assert.equal(fetcher.callCount, 2);
     });
 
     test("openApprovalPage leaves a public origin unchanged", async () => {

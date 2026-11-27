@@ -10,6 +10,7 @@ import * as webcomponentMocks from "../test-webcomponents";
 
 await mock.module("@operator/webcomponents", () => webcomponentMocks);
 
+const { DevicePage } = await import("./DevicePage");
 const { LoginPage } = await import("./LoginPage");
 const { SetupPage } = await import("./SetupPage");
 
@@ -43,6 +44,7 @@ function renderAuth(initialPath: string) {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/setup" element={<SetupPage />} />
+            <Route path="/device" element={<DevicePage />} />
             <Route path="/onboarding" element={<p>Onboarding destination</p>} />
             <Route path="/" element={<p>Workspace destination</p>} />
           </Routes>
@@ -101,7 +103,10 @@ describe("authentication routes", () => {
     expect(await screen.findByText("Too many attempts. Wait a moment and try again.")).toBeTruthy();
   });
 
-  test("successful login routes an unfinished workspace to onboarding", async () => {
+  test.each([
+    ["/login", "Onboarding destination"],
+    ["/login?user_code=ABCD-EFGH", "Approve"],
+  ])("successful login resumes %s", async (route, destination) => {
     mockFetch((input, init) => {
       const path = requestPath(input);
       if (path.endsWith("/bootstrap")) {
@@ -111,6 +116,9 @@ describe("authentication routes", () => {
         return Promise.resolve(
           json({ scopes: ["admin"], expires_at: "2030-01-01T00:00:00Z", csrf_token: "csrf" }),
         );
+      }
+      if (path.endsWith("/auth/session")) {
+        return Promise.resolve(json({ subject: "operator" }));
       }
       if (path.endsWith("/setup/status")) {
         return Promise.resolve(
@@ -126,12 +134,56 @@ describe("authentication routes", () => {
       }
       return Promise.resolve(json({ message: `Unexpected request: ${path}` }, 500));
     });
-    renderAuth("/login");
+    renderAuth(route);
     await screen.findByRole("heading", { name: "Sign in to Operator" });
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "operator" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "valid password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(await screen.findByText("Onboarding destination")).toBeTruthy();
+    expect(await screen.findByText(destination)).toBeTruthy();
+  });
+
+  test("manual verification submits the displayed code only after consent", async () => {
+    const approved: string[] = [];
+    mockFetch((input, init) => {
+      const path = requestPath(input);
+      if (path.endsWith("/approve")) {
+        if (typeof init?.body === "string") {
+          approved.push(init.body);
+        }
+        return Promise.resolve(json({ client_id: "vscode" }));
+      }
+      return Promise.resolve(json({ subject: "operator", csrf_token: "csrf" }));
+    });
+    renderAuth("/device");
+    fireEvent.change(screen.getByLabelText("Code"), { target: { value: "abcd-efgh" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    const confirm = await screen.findByRole("button", { name: "Approve" });
+    expect(approved).toEqual([]);
+    fireEvent.click(confirm);
+    await screen.findByText("Device approved");
+    expect(approved).toEqual([JSON.stringify({ user_code: "ABCD-EFGH" })]);
+  });
+
+  test("first-time setup returns to the same code for explicit consent", async () => {
+    mockFetch((input, init) => {
+      const path = requestPath(input);
+      if (path.endsWith("/bootstrap")) {
+        return Promise.resolve(
+          json(init?.method === "POST" ? { username: "operator" } : { state: "uninitialized" }),
+        );
+      }
+      return Promise.resolve(json({ subject: "operator", csrf_token: "csrf" }));
+    });
+    renderAuth("/login?user_code=ABCD-EFGH");
+    await screen.findByLabelText("New admin password");
+    for (const label of ["New admin password", "Confirm password"]) {
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: "a sufficiently long password" },
+      });
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Create admin account" }));
+    await screen.findByRole("button", { name: "Approve" });
+    expect(screen.getByDisplayValue("ABCD-EFGH")).toBeTruthy();
   });
 
   test("setup redirects complete servers and maps a rejected temporary password", async () => {

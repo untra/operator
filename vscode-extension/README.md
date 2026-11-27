@@ -37,7 +37,7 @@ This extension also runs in [Cursor](https://www.cursor.com). Install it from th
 
 ## Connect to Operator
 
-Run **Operator: Choose Connection**. Select **Use Operator on this computer** for the single-user Free service. For Premium, select **Connect to Operator server**, enter your administrator's HTTPS origin and run **Operator: Sign In**. Setting `operator.apiUrl` in VS Code User settings before the first launch connects directly to that server and skips the local download.
+Run **Operator: Choose Connection**. Select **Off** to keep Operator disabled for this workspace. Select **Local** for the single-user Free service. For Premium, select **Remote**, enter your administrator's HTTPS origin and run **Operator: Sign In**. User settings can prefill the HTTPS address. A trusted folder with its own `.tickets/operator/config.toml` connects locally. Other folders stay idle until you choose. Use **Disconnect This Workspace** to detach a project. During sign-in, **Connections** lets you reopen the browser approval page, copy the code or cancel.
 
 ## Configuration
 
@@ -46,7 +46,7 @@ Run **Operator: Choose Connection**. Select **Use Operator on this computer** fo
 | `operator.webhookPort` | `7009` | Port for webhook server |
 | `operator.autoStart` | `true` | Start the local API when none is reachable |
 | `operator.terminalPrefix` | `op-` | Deprecated. Operator assigns terminal names. |
-| `operator.connectionMode` | Unset | Prompt for local or hosted on first use |
+| `operator.connectionMode` | Unset | Preferred choice in the workspace connection picker |
 | `operator.apiUrl` | Unset | Discover the local API or use an approved HTTPS origin |
 | `operator.workingDirectory` | Unset | Working directory for the local Operator process |
 | `operator.ticketsDir` | `.tickets` | Local tickets path, absolute or relative to the working directory |

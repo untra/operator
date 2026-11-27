@@ -6,16 +6,21 @@ import { approveDeviceMutation, currentSessionQuery } from "../api/definitions";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function DevicePage() {
-  const [params] = useSearchParams();
-  const [userCode, setUserCode] = useState(params.get("user_code") ?? "");
+  const [params, setParams] = useSearchParams();
+  const suppliedCode = params.get("user_code");
+  const [userCode, setUserCode] = useState(suppliedCode ?? "");
   const [approved, setApproved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const session = useApiQuery(currentSessionQuery());
+  const session = useApiQuery(currentSessionQuery(), { enabled: !!suppliedCode });
   const approve = useApiMutation(approveDeviceMutation);
 
   const submit = useCallback(
     async (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
+      if (!suppliedCode) {
+        setParams({ user_code: userCode.trim() }, { replace: true });
+        return;
+      }
       setError(null);
       try {
         const res = await approve.mutateAsync({ userCode: userCode.trim() });
@@ -24,16 +29,18 @@ export function DevicePage() {
         setError(
           e instanceof ApiError && e.status === 404
             ? "That code is unknown or has expired. Start the connection again from your editor."
-            : "Approval failed.",
+            : e instanceof ApiError && e.status === 403
+              ? "Your account lacks device approval access. Ask your Operator administrator to approve your account and grant access to this profile."
+              : "Approval failed. Try again.",
         );
       }
     },
-    [approve, userCode],
+    [approve, userCode, suppliedCode, setParams],
   );
 
   const onCodeChange = useCallback((value: string) => setUserCode(value.toUpperCase()), []);
 
-  if (!session.data) {
+  if (suppliedCode && !session.data) {
     return (
       <AuthCard title="Approve a device" error={session.error?.message}>
         Checking sign-in...
@@ -55,12 +62,16 @@ export function DevicePage() {
   return (
     <AuthCard
       title="Approve a device"
-      subtitle="Enter the code shown in the application requesting access."
+      subtitle={
+        suppliedCode && session.data
+          ? `Signed in as ${session.data.subject}. Compare the code with the one in your editor before approving access.`
+          : "Enter the code shown in your editor to continue."
+      }
       error={error}
       onSubmit={submit}
       actions={
-        <AuthSubmit busy={approve.isPending} busyLabel="Approving..." disabled={!userCode}>
-          Approve
+        <AuthSubmit busy={approve.isPending} busyLabel="Approving..." disabled={!userCode.trim()}>
+          {suppliedCode ? "Approve" : "Continue"}
         </AuthSubmit>
       }
     >

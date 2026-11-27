@@ -1,6 +1,6 @@
 use crate::rest::state::RequestState as State;
 use axum::extract::{Path, Query};
-use axum::http::{header, HeaderMap};
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -238,14 +238,25 @@ pub async fn callback(
                 .map(|(_, v)| v)
         })
         .ok_or_else(|| ApiError::Unauthorized("Missing login cookie".into()))?;
-    let (session, user_code) =
-        crate::auth::oidc::complete(&state.auth.store, &query.state, cookie, query.code)
-            .await
-            .map_err(|_| {
-                ApiError::Unauthorized(
-                    "OIDC sign-in failed or the account awaits administrator approval".into(),
-                )
-            })?;
+    let (session, user_code) = match crate::auth::oidc::complete(
+        &state.auth.store,
+        &query.state,
+        cookie,
+        query.code,
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(error) if error.is::<identity::AccountApprovalRequired>() => {
+            return Ok((StatusCode::FORBIDDEN, [(header::CACHE_CONTROL, "no-store")],
+                "Your identity provider signed you in. Ask your Operator administrator to enable your account, then reopen the approval page from your editor.").into_response());
+        }
+        Err(_) => {
+            return Err(ApiError::Unauthorized(
+                "OIDC sign-in failed. Start sign-in again from your editor.".into(),
+            ))
+        }
+    };
     let target = user_code.map_or_else(
         || "/#/connections".into(),
         |code| format!("/#/device?user_code={code}"),

@@ -2,13 +2,18 @@ import * as vscode from "vscode";
 import {
   normalizeFailureMessage,
   normalizeRemoteOrigin,
+  CONNECTION_MODE_REMOTE,
   PICK_LOCAL,
   PICK_REMOTE,
 } from "./connection";
 
+const PICK_OFF = "Off";
+
 export interface ConnectionPickerDeps {
+  userMode?: string;
   userUrl?: string;
   suggestion?: string;
+  saveOff(): Promise<void>;
   saveLocal(): Promise<void>;
   saveRemote(origin: string, workspace: boolean): Promise<void>;
 }
@@ -17,13 +22,33 @@ export async function runConnectionPicker(
   deps: ConnectionPickerDeps,
   preferred?: typeof PICK_LOCAL | typeof PICK_REMOTE,
 ): Promise<void> {
+  const local = {
+    label: PICK_LOCAL,
+    description: "Use the Operator configuration on this computer",
+  };
+  const remote = {
+    label: PICK_REMOTE,
+    description: "Connect to a hosted Operator server",
+  };
+  const off = {
+    label: PICK_OFF,
+    description: "Keep Operator off for this workspace",
+  };
   const choice =
     preferred ??
-    (await vscode.window.showInformationMessage(
-      "Choose how this window connects to Operator.",
-      PICK_LOCAL,
-      PICK_REMOTE,
-    ));
+    (
+      await vscode.window.showQuickPick(
+        deps.userMode === CONNECTION_MODE_REMOTE ? [remote, local, off] : [local, remote, off],
+        {
+          title: `Operator connection for ${vscode.workspace.name ?? "this window"}`,
+          placeHolder: "Choose how to use Operator in this workspace",
+        },
+      )
+    )?.label;
+  if (choice === PICK_OFF) {
+    await deps.saveOff();
+    return;
+  }
   if (choice === PICK_LOCAL) {
     await deps.saveLocal();
     return;
@@ -52,7 +77,7 @@ export async function runConnectionPicker(
   }
 
   const entered = await vscode.window.showInputBox({
-    title: PICK_REMOTE,
+    title: "Connect to a remote Operator server",
     prompt: "HTTPS origin of your organization's Operator server",
     value: deps.userUrl,
     ignoreFocusOut: true,

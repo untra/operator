@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useHost } from "../host";
-import { ApiError } from "../api-client";
+import { ApiError, deviceApprovalQuery } from "../api-client";
 import { useApiMutation, useApiQuery, useResetSession } from "../api";
 import {
   bootstrapStatusQuery,
@@ -15,7 +15,7 @@ import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 export function LoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const userCode = params.get("user_code");
+  const deviceQuery = deviceApprovalQuery(params);
   const host = useHost();
   const providers = useApiQuery(oidcProvidersQuery());
   const [username, setUsername] = useState("");
@@ -32,6 +32,11 @@ export function LoginPage() {
       setError(null);
       try {
         await login.mutateAsync({ username, password });
+        if (deviceQuery) {
+          resetSession();
+          void navigate(`/device${deviceQuery}`, { replace: true });
+          return;
+        }
         const status = await setup.refetch();
         resetSession();
         void navigate(status.initialized ? "/" : "/onboarding", { replace: true });
@@ -44,11 +49,11 @@ export function LoginPage() {
         );
       }
     },
-    [login, username, password, navigate, resetSession, setup],
+    [login, username, password, navigate, resetSession, setup, deviceQuery],
   );
 
   if (bootstrap.data && bootstrap.data.state !== "complete") {
-    return <Navigate to="/setup" replace />;
+    return <Navigate to={`/setup${deviceQuery}`} replace />;
   }
 
   if (bootstrap.isLoading) {
@@ -64,7 +69,6 @@ export function LoginPage() {
   }
 
   if (bootstrap.data?.oidc_only) {
-    const query = userCode ? `?${new URLSearchParams({ user_code: userCode }).toString()}` : "";
     return (
       <AuthCard title="Sign in to Operator" error={providers.error?.message}>
         {providers.isLoading
@@ -75,7 +79,7 @@ export function LoginPage() {
                   key={provider.id}
                   href={`${host.baseUrl()}/api/v1/auth/oidc/login/${encodeURIComponent(
                     provider.id,
-                  )}${query}`}
+                  )}${deviceQuery}`}
                 >
                   Sign in with {provider.provider}
                 </a>

@@ -55,6 +55,7 @@ export interface WebhookStatus {
  * Operator REST API connection status
  */
 export interface ApiStatus {
+  subject?: string;
   reachable?: boolean;
   connected: boolean;
   version?: string;
@@ -62,7 +63,7 @@ export interface ApiStatus {
   url?: string;
   directoryName?: string;
   /** `auth`: the daemon answered but rejected every credential the extension holds. */
-  mismatch?: { kind: "version" | "project" | "auth"; detail: string };
+  mismatch?: { kind: "version" | "project" | "auth" | "forbidden"; detail: string };
 }
 
 /** Internal state for the Configuration section */

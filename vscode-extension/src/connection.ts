@@ -14,8 +14,8 @@ export const CONNECTION_MODE_REMOTE = "remote";
 export const CHOOSE_CONNECTION_COMMAND = "operator.chooseConnection";
 export const DOWNLOADS_PAGE = "https://operator.untra.io/downloads/";
 
-export const PICK_LOCAL = "Use Operator on this computer";
-export const PICK_REMOTE = "Connect to Operator server";
+export const PICK_LOCAL = "Local";
+export const PICK_REMOTE = "Remote";
 
 export type NormalizeReason =
   | "empty"
@@ -125,7 +125,7 @@ export function localAdoptMismatch(input: {
   ) {
     return {
       kind: "project",
-      detail: `serves '${input.foundDirectoryName}', this workspace is '${input.localDirectoryName}'`,
+      detail: `serves '${input.foundDirectoryName}', but the selected Operator configuration is rooted in '${input.localDirectoryName}'`,
     };
   }
   return undefined;
@@ -150,7 +150,12 @@ export function approvalTarget(
   } catch {
     return { ok: false, message: "The server sent a sign-in link that is not a URL." };
   }
-  if (verification.origin !== api.origin) {
+  if (
+    verification.username ||
+    verification.password ||
+    verification.protocol !== api.protocol ||
+    verification.origin !== api.origin
+  ) {
     return {
       ok: false,
       message:
@@ -205,21 +210,38 @@ export type ConnectionSelection =
   | { kind: "local"; origin?: string }
   | { kind: "hosted"; origin: string };
 
+export const WORKSPACE_CONNECTION = "operator.workspaceConnection";
+export type WorkspaceChoice = { kind: "off" | "local" } | { kind: "hosted"; origin: string };
+
 export function resolveConnection(input: {
-  userMode?: string;
+  choice?: WorkspaceChoice;
+  configRoot?: boolean;
   userUrl?: string;
   suggestion?: string;
   approvedOrigin?: string;
 }): ConnectionSelection {
-  const suggestion = normalizeRemoteOrigin(input.suggestion ?? "");
-  if (suggestion.ok && suggestion.origin === input.approvedOrigin) {
-    return { kind: "hosted", origin: suggestion.origin };
+  if (input.choice?.kind === "off") {
+    return { kind: "undecided" };
   }
-  const userUrl = input.userUrl?.trim();
-  if (userUrl && input.userMode !== CONNECTION_MODE_REMOTE && isLoopbackUrl(userUrl)) {
-    const url = new URL(userUrl);
+  if (input.choice?.kind === "hosted") {
+    const hosted = normalizeRemoteOrigin(input.choice.origin);
+    return hosted.ok
+      ? { kind: "hosted", origin: hosted.origin }
+      : { kind: "invalid", reason: hosted.reason };
+  }
+  if (!input.choice) {
+    const suggestion = normalizeRemoteOrigin(input.suggestion ?? "");
+    if (suggestion.ok && suggestion.origin === input.approvedOrigin) {
+      return { kind: "hosted", origin: suggestion.origin };
+    }
+    if (!input.configRoot) {
+      return { kind: "undecided" };
+    }
+  }
+  if (input.userUrl && isLoopbackUrl(input.userUrl)) {
+    const url = new URL(input.userUrl);
     if (
-      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      !["http:", "https:"].includes(url.protocol) ||
       url.username ||
       url.password ||
       url.pathname !== "/" ||
@@ -230,13 +252,7 @@ export function resolveConnection(input: {
     }
     return { kind: "local", origin: url.origin };
   }
-  if (userUrl || input.userMode === CONNECTION_MODE_REMOTE) {
-    const hosted = normalizeRemoteOrigin(userUrl ?? "");
-    return hosted.ok
-      ? { kind: "hosted", origin: hosted.origin }
-      : { kind: "invalid", reason: hosted.reason };
-  }
-  return input.userMode === CONNECTION_MODE_LOCAL ? { kind: "local" } : { kind: "undecided" };
+  return { kind: "local" };
 }
 
 let selection: ConnectionSelection = { kind: "undecided" };

@@ -14,7 +14,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import type { StatusItem } from "../../src/status-provider";
 import { StatusTreeProvider } from "../../src/status-provider";
-import { resetConnection, setConnectionOrigin } from "../../src/connection";
+import * as connection from "../../src/connection";
 import * as configPaths from "../../src/config-paths";
 import * as walkthrough from "../../src/walkthrough";
 import * as operatorBinary from "../../src/operator-binary";
@@ -74,8 +74,12 @@ suite("Status Provider Test Suite", () => {
 
   setup(async () => {
     sandbox = sinon.createSandbox();
-    resetConnection({ kind: "local" });
-    setConnectionOrigin("http://localhost:7008");
+    sandbox.stub(connection, "currentConnection").returns({
+      selection: { kind: "local" },
+      origin: "http://localhost:7008",
+      assessment: undefined,
+      signal: new AbortController().signal,
+    });
 
     // Create temp directory for session files
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "status-provider-test-"));
@@ -91,7 +95,6 @@ suite("Status Provider Test Suite", () => {
 
   teardown(async () => {
     sandbox.restore();
-    resetConnection({ kind: "undecided" });
     try {
       await fs.rm(tempDir, { recursive: true });
     } catch {

@@ -4,31 +4,59 @@
 use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::Command;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
+use tokio::process::{ChildStdout, Command};
 
+const PROCESS_TIMEOUT: Duration = Duration::from_secs(5);
 const REGISTRY_ENV: &str = "OPERATOR_PROFILE_REGISTRY";
 const REGISTRY_FILE: &str = "profiles.sqlite";
 const INITIALIZE_REQUEST: &[u8] =
     b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\n";
 
-/// Spawnable `operator mcp` pointed at `registry` instead of the developer's
-/// own profile registry, so tests neither depend on nor pollute it.
-fn operator_mcp(registry: &Path) -> Command {
+fn operator_mcp(workspace: &Path, registry: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_operator"));
+    for (key, _) in std::env::vars_os() {
+        if key.to_string_lossy().starts_with("OPERATOR_") {
+            command.env_remove(key);
+        }
+    }
     command
+        .current_dir(workspace)
+        .env("HOME", workspace)
+        .env("XDG_CONFIG_HOME", workspace)
         .env(REGISTRY_ENV, registry)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
     command
+}
+
+async fn read_response(
+    reader: &mut Lines<BufReader<ChildStdout>>,
+    method: &str,
+    stderr_path: &Path,
+) -> serde_json::Value {
+    let line = match tokio::time::timeout(PROCESS_TIMEOUT, reader.next_line()).await {
+        Ok(Ok(Some(line))) => line,
+        result => panic!(
+            "No MCP response for {method}: {result:?}\nstderr:\n{}",
+            std::fs::read_to_string(stderr_path).unwrap_or_default()
+        ),
+    };
+    serde_json::from_str(&line).unwrap_or_else(|err| {
+        panic!("Invalid MCP response for {method}: {err}\n{line}");
+    })
 }
 
 #[tokio::test]
 async fn test_operator_mcp_stdio_initialize_and_list_tools() {
-    let registry_dir = tempfile::TempDir::new().unwrap();
-    let mut child = operator_mcp(&registry_dir.path().join(REGISTRY_FILE))
+    let workspace = tempfile::TempDir::new().unwrap();
+    let stderr_path = workspace.path().join("mcp.stderr");
+    let stderr = std::fs::File::create(&stderr_path).unwrap();
+    let mut child = operator_mcp(workspace.path(), &workspace.path().join(REGISTRY_FILE))
         .arg("mcp")
+        .stderr(stderr)
         .spawn()
         .expect("spawn operator mcp");
 
@@ -43,12 +71,7 @@ async fn test_operator_mcp_stdio_initialize_and_list_tools() {
         .unwrap();
     stdin.flush().await.unwrap();
 
-    let line1 = tokio::time::timeout(Duration::from_secs(5), reader.next_line())
-        .await
-        .expect("timeout waiting for initialize response")
-        .expect("read err")
-        .expect("eof");
-    let resp1: serde_json::Value = serde_json::from_str(&line1).unwrap();
+    let resp1 = read_response(&mut reader, "initialize", &stderr_path).await;
     assert_eq!(resp1["id"], 1);
     assert_eq!(resp1["result"]["serverInfo"]["name"], "operator");
     assert!(
@@ -56,12 +79,7 @@ async fn test_operator_mcp_stdio_initialize_and_list_tools() {
         "resources capability should be advertised"
     );
 
-    let line2 = tokio::time::timeout(Duration::from_secs(5), reader.next_line())
-        .await
-        .expect("timeout waiting for tools/list response")
-        .expect("read err")
-        .expect("eof");
-    let resp2: serde_json::Value = serde_json::from_str(&line2).unwrap();
+    let resp2 = read_response(&mut reader, "tools/list", &stderr_path).await;
     assert_eq!(resp2["id"], 2);
     let tools = resp2["result"]["tools"].as_array().expect("tools array");
     assert!(
@@ -76,7 +94,15 @@ async fn test_operator_mcp_stdio_initialize_and_list_tools() {
     );
 
     drop(stdin);
-    let _ = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
+    let exit = tokio::time::timeout(PROCESS_TIMEOUT, child.wait())
+        .await
+        .expect("timeout waiting for MCP to exit after stdin closed")
+        .expect("wait for MCP to exit");
+    assert!(
+        exit.success(),
+        "MCP exited with {exit}:\n{}",
+        std::fs::read_to_string(&stderr_path).unwrap_or_default()
+    );
 }
 
 #[tokio::test]
@@ -90,19 +116,9 @@ async fn test_mcp_startup_fails_before_creating_state_when_registry_is_unwritabl
     config.paths.state = state.to_str().unwrap().to_owned();
     std::fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
 
-    let mut command = operator_mcp(&registry_parent.join(REGISTRY_FILE));
-    for (key, _) in std::env::vars_os() {
-        if key.to_string_lossy().starts_with("OPERATOR_") && key != REGISTRY_ENV {
-            command.env_remove(key);
-        }
-    }
-    command
-        .arg("--config")
-        .arg(config_path)
-        .arg("mcp")
-        .current_dir(workspace.path())
-        .kill_on_drop(true);
-    let output = tokio::time::timeout(Duration::from_secs(5), command.output())
+    let mut command = operator_mcp(workspace.path(), &registry_parent.join(REGISTRY_FILE));
+    command.arg("--config").arg(config_path).arg("mcp");
+    let output = tokio::time::timeout(PROCESS_TIMEOUT, command.output())
         .await
         .expect("timeout waiting for MCP to exit")
         .expect("run operator mcp");

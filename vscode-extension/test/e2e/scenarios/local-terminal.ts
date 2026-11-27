@@ -189,9 +189,7 @@ export async function run(): Promise<void> {
       200,
     );
     assert.equal(vscode.window.activeTerminal?.name, name);
-    await vscode.workspace
-      .getConfiguration("operator")
-      .update("apiUrl", "https://unreachable.invalid", vscode.ConfigurationTarget.Global);
+    await vscode.commands.executeCommand("operator.disconnectWorkspace");
     const timeout = Date.now() + 10000;
     while (Date.now() < timeout && (await fetch(`${control}/health`).catch(() => undefined))) {
       await delay(100);

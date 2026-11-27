@@ -13,6 +13,7 @@
 
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
+import { currentConnection } from "./connection";
 import { getResolvedConfigPath } from "./config-paths";
 import type { StatusItem } from "./status-item";
 import type { SectionContext, StatusSection } from "./sections/types";
@@ -104,6 +105,10 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       all,
       byId: new Map<string, StatusSection>(all.map((section) => [section.sectionId, section])),
     };
+  }
+
+  redraw(): void {
+    this._onDidChangeTreeData.fire(undefined);
   }
 
   clearConnection(): void {
@@ -205,6 +210,9 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 
   getChildren(element?: StatusItem): StatusItem[] {
     if (!element) {
+      if (currentConnection().selection.kind === "undecided") {
+        return this.sections.connections.getChildren(this.ctx);
+      }
       return this.getVisibleSections().map((s) => s.getTopLevelItem(this.ctx));
     }
 

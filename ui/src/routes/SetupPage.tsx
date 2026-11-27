@@ -3,14 +3,16 @@
 // used to re-claim the account.
 
 import { useState, useCallback } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { ApiError } from "../api-client";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { ApiError, deviceApprovalQuery } from "../api-client";
 import { useApiMutation, useApiQuery, useResetSession } from "../api";
 import { bootstrapMutation, bootstrapStatusQuery, loginMutation } from "../api/definitions";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "../auth-constraints";
 import { AuthCard, AuthField, AuthSubmit } from "@operator/webcomponents";
 
 export function SetupPage() {
+  const [params] = useSearchParams();
+  const deviceQuery = deviceApprovalQuery(params);
   const navigate = useNavigate();
   const [temporary, setTemporary] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +44,7 @@ export function SetupPage() {
         });
         await login.mutateAsync({ username: result.username, password });
         resetSession();
-        void navigate("/onboarding", { replace: true });
+        void navigate(deviceQuery ? `/device${deviceQuery}` : "/onboarding", { replace: true });
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) {
           setError("This server already has an admin account. Sign in instead.");
@@ -55,11 +57,20 @@ export function SetupPage() {
         }
       }
     },
-    [needsTemporary, temporary, password, navigate, submitBootstrap, login, resetSession],
+    [
+      needsTemporary,
+      temporary,
+      password,
+      navigate,
+      submitBootstrap,
+      login,
+      resetSession,
+      deviceQuery,
+    ],
   );
 
   if (bootstrap.data?.state === "complete") {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login${deviceQuery}`} replace />;
   }
 
   if (bootstrap.isLoading) {

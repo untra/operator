@@ -24,8 +24,8 @@ import { assessConnection } from "./connection-assessment";
 import {
   APPROVED_WORKSPACE_ORIGIN,
   CHOOSE_CONNECTION_COMMAND,
-  CONNECTION_MODE_LOCAL,
-  CONNECTION_MODE_REMOTE,
+  WORKSPACE_CONNECTION,
+  type WorkspaceChoice,
   DOWNLOADS_PAGE,
   PICK_LOCAL,
   PICK_REMOTE,
@@ -57,7 +57,7 @@ import {
   setCredentialProvider,
 } from "./auth/credentials";
 import { TokenStore } from "./auth/token-store";
-import { signIn, signOut } from "./auth/sign-in";
+import { pendingApproval, signIn, signOut } from "./auth/sign-in";
 import { showLaunchOptionsDialog, showTicketPicker } from "./launch-dialog";
 import { parseTicketMetadata, getCurrentSessionId } from "./ticket-parser";
 import {
@@ -94,6 +94,7 @@ import { connectMcpServer } from "./mcp-connect";
 import {
   getResolvedConfigPath,
   resolveTicketsDirectory,
+  workspaceConfigTickets,
   resolveWorkingDirectory,
   configFileExists,
 } from "./config-paths";
@@ -458,6 +459,12 @@ function showStatus(ctx: CommandContext): void {
 }
 
 function updateStatusBar(ctx: CommandContext): void {
+  if (currentConnection().selection.kind === "undecided") {
+    ctx.statusBarItem.hide();
+    ctx.createBarItem.hide();
+    return;
+  }
+  ctx.createBarItem.show();
   // Two distinct facts: which Operator server this window is attached to,
   // and whether the extension's own webhook listener is up.
   const webhook = ctx.webhookServer.isRunning()
@@ -799,6 +806,8 @@ function readConnectionInputs(context: vscode.ExtensionContext) {
   const url = config.inspect<string>("apiUrl");
   return {
     userMode: config.inspect<string>("connectionMode")?.globalValue,
+    configRoot: !!workspaceConfigTickets(),
+    choice: context.workspaceState.get<WorkspaceChoice>(WORKSPACE_CONNECTION),
     userUrl: url?.globalValue,
     suggestion: folderUrl ?? url?.workspaceValue,
     approvedOrigin: context.workspaceState.get<string>(APPROVED_WORKSPACE_ORIGIN),
@@ -1141,7 +1150,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   createBarItem.text = "$(add) New";
   createBarItem.tooltip = "Create new delegator, issue type, or project";
   createBarItem.command = "operator.showCreateMenu";
-  createBarItem.show();
   context.subscriptions.push(createBarItem);
 
   // Build shared command context
@@ -1184,7 +1192,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const transitions = new SerialQueue();
   let initialized = false;
-  let savingChoice = false;
+
   let watcher: vscode.FileSystemWatcher | undefined;
   let sessionWatcher: vscode.FileSystemWatcher | undefined;
 
@@ -1207,11 +1215,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     updateStatusBar(ctx);
   }
 
+  let signingIn: AbortSignal | undefined;
   async function signInToCurrent(): Promise<void> {
     const { origin, signal } = currentConnection();
-    const outcome = await signIn(origin, credentials, tokenStore, signal);
-    if (!signal.aborted && outcome?.status === "approved") {
-      await ctx.reconnect();
+    if (signingIn === signal) {
+      await pendingApproval()?.reopen();
+      return;
+    }
+    signingIn = signal;
+    try {
+      const outcome = await signIn(origin, credentials, tokenStore, signal, () =>
+        statusProvider.redraw(),
+      );
+      if (!signal.aborted && outcome?.status === "approved") {
+        await ctx.reconnect();
+      }
+    } finally {
+      if (signingIn === signal) {
+        signingIn = undefined;
+      }
     }
   }
 
@@ -1257,8 +1279,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
               }
               return undefined;
             });
-        } else if (changed) {
-          void openWalkthrough();
         }
         return;
       }
@@ -1307,7 +1327,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }
       }
 
-      const url = next.origin ?? (await discoverLocalApiUrl(currentTicketsDir));
+      const url =
+        next.kind === "local"
+          ? await discoverLocalApiUrl(currentTicketsDir, next.origin)
+          : next.origin;
       if (signal.aborted) {
         return;
       }
@@ -1380,7 +1403,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (ctx.attachedServer) {
         await resumePendingConnect(connectDeps);
       }
-      if (authRequired) {
+      if (authRequired && next.kind === "hosted") {
         void vscode.window
           .showInformationMessage(`Operator at ${url} requires sign-in.`, "Sign In")
           .then((choice) => (choice && !active.aborted ? signInToCurrent() : undefined));
@@ -1410,50 +1433,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     campaignProvider.setApiClient(client);
   }
 
+  async function saveWorkspaceChoice(choice: WorkspaceChoice): Promise<void> {
+    await context.workspaceState.update(WORKSPACE_CONNECTION, choice);
+    await context.workspaceState.update(APPROVED_WORKSPACE_ORIGIN, undefined);
+    await reconcileConnection(choice.kind === "local");
+  }
+
   async function chooseConnection(
     preferred?: typeof PICK_LOCAL | typeof PICK_REMOTE,
   ): Promise<void> {
     await runConnectionPicker(
       {
         ...readConnectionInputs(context),
-        saveLocal: async () => {
-          savingChoice = true;
-          const config = vscode.workspace.getConfiguration("operator");
-          try {
-            await context.workspaceState.update(APPROVED_WORKSPACE_ORIGIN, undefined);
-            const userUrl = readConnectionInputs(context).userUrl;
-            if (userUrl && resolveConnection({ userUrl }).kind !== "local") {
-              await config.update("apiUrl", undefined, vscode.ConfigurationTarget.Global);
-            }
-            await config.update(
-              "connectionMode",
-              CONNECTION_MODE_LOCAL,
-              vscode.ConfigurationTarget.Global,
-            );
-          } finally {
-            savingChoice = false;
+        saveOff: () => saveWorkspaceChoice({ kind: "off" }),
+        saveLocal: () => saveWorkspaceChoice({ kind: "local" }),
+        saveRemote: async (origin, suggested) => {
+          if (suggested) {
+            await context.workspaceState.update(APPROVED_WORKSPACE_ORIGIN, origin);
+            await context.workspaceState.update(WORKSPACE_CONNECTION, undefined);
+            await reconcileConnection(false);
+          } else {
+            await saveWorkspaceChoice({ kind: "hosted", origin });
           }
-          await reconcileConnection(true);
-        },
-        saveRemote: async (origin, workspace) => {
-          savingChoice = true;
-          try {
-            if (workspace) {
-              await context.workspaceState.update(APPROVED_WORKSPACE_ORIGIN, origin);
-            } else {
-              const config = vscode.workspace.getConfiguration("operator");
-              await context.workspaceState.update(APPROVED_WORKSPACE_ORIGIN, undefined);
-              await config.update("apiUrl", origin, vscode.ConfigurationTarget.Global);
-              await config.update(
-                "connectionMode",
-                CONNECTION_MODE_REMOTE,
-                vscode.ConfigurationTarget.Global,
-              );
-            }
-          } finally {
-            savingChoice = false;
-          }
-          await reconcileConnection(false);
         },
       },
       preferred,
@@ -1584,27 +1585,59 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         void openCreateDelegator(ctx, tool, model);
       },
     ),
-    vscode.commands.registerCommand("operator.detectLlmTools", async () => {
-      if (!(await guardRemoteCommand("operator.detectLlmTools", currentTicketsDir))) {
-        await detectLlmTools(ctx.extensionContext, getOperatorPath);
-      }
-    }),
+    vscode.commands.registerCommand("operator.detectLlmTools", () =>
+      detectLlmTools(ctx.extensionContext),
+    ),
     vscode.commands.registerCommand(
       "operator.setDefaultLlm",
       async (tool?: string, model?: string) => {
-        if (!tool || !model) {
+        if (!tool) {
           return;
         }
+        const { origin, assessment, selection, signal } = currentConnection();
+        if (!assessment?.connected) {
+          const canStart = selection.kind === "local" && !!assessment && !assessment.reachable;
+          const action = canStart ? "Start Operator Server" : "Review Connection";
+          const choice = await vscode.window.showWarningMessage(
+            "Connect to the Operator configuration before setting its preferred tool.",
+            action,
+          );
+          if (choice && !signal.aborted) {
+            await vscode.commands.executeCommand(
+              canStart ? "operator.startOperatorServer" : CHOOSE_CONNECTION_COMMAND,
+            );
+          }
+          return;
+        }
+        const client = new OperatorApiClient(origin);
         try {
-          const apiUrl = await discoverApiUrl(ctx.getCurrentTicketsDir());
-          await new OperatorApiClient(apiUrl).setDefaultLlm({ tool, model });
-          void vscode.window.showInformationMessage(`Default LLM set to ${tool}:${model}`);
-          void ctx.refreshAllProviders();
+          if (model || (await client.getDefaultLlm()).tool !== tool) {
+            await client.setDefaultLlm({ tool, model: model ?? "" });
+          }
+          if (!signal.aborted) {
+            void vscode.window.showInformationMessage(
+              `Default LLM set to ${model ? `${tool}:${model}` : tool}`,
+            );
+            await ctx.refreshAllProviders();
+          }
         } catch (err) {
-          const msg = err instanceof Error ? err.message : "Operator API not available";
-          void vscode.window.showErrorMessage(`Failed to set default LLM: ${msg}`);
+          if (!signal.aborted) {
+            const msg = err instanceof Error ? err.message : "Operator API not available";
+            void vscode.window.showErrorMessage(`Failed to set default LLM: ${msg}`);
+          }
         }
       },
+    ),
+    vscode.commands.registerCommand("operator.copyApprovalCode", () => {
+      const approval = pendingApproval();
+      if (approval) {
+        return vscode.env.clipboard.writeText(approval.code);
+      }
+      return undefined;
+    }),
+    vscode.commands.registerCommand("operator.cancelApproval", () => pendingApproval()?.cancel()),
+    vscode.commands.registerCommand("operator.disconnectWorkspace", () =>
+      saveWorkspaceChoice({ kind: "off" }),
     ),
     vscode.commands.registerCommand("operator.signIn", signInToCurrent),
     vscode.commands.registerCommand("operator.signOut", async () => {
@@ -1689,13 +1722,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   stopTerminalListener = () => ctx.listenerQueue.run(() => webhookServer.stop());
 
   context.subscriptions.push(
+    vscode.workspace.onDidGrantWorkspaceTrust(() => {
+      void reconcileConnection(true).catch(warn);
+    }),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      void reconcileConnection(true).catch(warn);
+    }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (
-        !savingChoice &&
-        (event.affectsConfiguration("operator.apiUrl") ||
-          event.affectsConfiguration("operator.connectionMode") ||
-          event.affectsConfiguration("operator.workingDirectory") ||
-          event.affectsConfiguration("operator.ticketsDir"))
+        event.affectsConfiguration("operator.apiUrl") ||
+        event.affectsConfiguration("operator.connectionMode") ||
+        event.affectsConfiguration("operator.workingDirectory") ||
+        event.affectsConfiguration("operator.ticketsDir")
       ) {
         void reconcileConnection(true).catch(warn);
       }
@@ -1709,12 +1747,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
   );
   try {
-    const configWorkingDir = vscode.workspace
-      .getConfiguration("operator")
-      .get<string>("workingDirectory");
-    if (configWorkingDir && !context.globalState.get("operator.workingDirectory")) {
-      await context.globalState.update("operator.workingDirectory", configWorkingDir);
-    }
     await reconcileConnection(true);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

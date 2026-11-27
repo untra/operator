@@ -23,6 +23,10 @@ pub const ISSUANCE_WINDOW_SECONDS: u32 = 3600;
 const MAX_ISSUED_PER_WINDOW: u32 = 20;
 
 #[derive(Debug, thiserror::Error)]
+#[error("account requires administrator approval")]
+pub struct AccountApprovalRequired;
+
+#[derive(Debug, thiserror::Error)]
 #[error("key issuance limit reached")]
 pub struct IssuanceLimited;
 
@@ -476,7 +480,7 @@ impl AuthStore {
         let expires = now + chrono::Duration::hours(12);
         self.with_conn(|conn| {
             let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-            ensure!(authority(&tx, user_id, Uuid::nil())?.is_some(), "account requires administrator approval");
+            authority(&tx, user_id, Uuid::nil())?.ok_or(AccountApprovalRequired)?;
             tx.execute("INSERT INTO session (id, token_hash, csrf_hash, created_at, expires_at, user_id, authenticated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![Uuid::new_v4().to_string(), hash_secret(&token), hash_secret(&csrf), now.to_rfc3339(), expires.to_rfc3339(), user_id, authenticated_at])?;
             record_audit(&tx, user_id, AuditAction::OidcLogin, user_id)?;
             tx.commit()?;

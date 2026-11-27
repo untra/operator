@@ -5,12 +5,18 @@ import * as path from "node:path";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
 import { clearCredentialProvider, setCredentialProvider } from "../../src/auth/credentials";
+import { discoverLocalApiUrl } from "../../src/api-client";
+import * as mcpConnect from "../../src/mcp-connect";
 import * as operatorBinary from "../../src/operator-binary";
 import { ConnectionsSection } from "../../src/sections/connections-section";
 import type { SectionContext } from "../../src/sections/types";
 import { fakeCredentials } from "./helpers/credentials";
 
-import { resetConnection, setConnectionOrigin } from "../../src/connection";
+import {
+  resetConnection,
+  setConnectionAssessment,
+  setConnectionOrigin,
+} from "../../src/connection";
 
 function operatorConfig(values: Record<string, string>): vscode.WorkspaceConfiguration {
   return {
@@ -54,6 +60,92 @@ suite("ConnectionsSection", () => {
     sinon.restore();
     clearCredentialProvider();
     await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  test("a failed MCP probe clears the previous registration", async () => {
+    const origin = "https://operator.example.com";
+    resetConnection({ kind: "hosted", origin });
+    setConnectionOrigin(origin);
+    setConnectionAssessment({ connected: true, url: origin });
+    sinon.stub(mcpConnect, "detectHostApp").returns("vscode");
+    sinon.stub(mcpConnect, "fetchMcpDescriptor").resolves({
+      server_name: "operator",
+      server_id: "operator",
+      version: "1",
+      label: "Operator",
+      transport_url: origin,
+      openapi_url: null,
+    });
+    const registration = sinon.stub(mcpConnect, "inspectMcpRegistration");
+    registration.onFirstCall().resolves({
+      vscodeWorkspace: true,
+      workspacePortable: false,
+      copilotGlobal: false,
+      cursor: false,
+    });
+    registration.onSecondCall().rejects(new Error("registration unavailable"));
+
+    const section = new ConnectionsSection();
+    const ctx = context(undefined, true);
+    await section.check(ctx);
+    assert.strictEqual(
+      section.getChildren(ctx).find((item) => item.label === "MCP")?.command?.title,
+      "Reconnect MCP Server",
+    );
+    await section.check(ctx);
+    const rows = section.getChildren(ctx);
+    const mcp = rows.find((item) => item.label === "MCP");
+    assert.strictEqual(mcp?.command?.title, "Connect MCP Server");
+    assert.strictEqual((mcp.iconPath as vscode.ThemeIcon).id, "plug");
+    assert.strictEqual(rows.find((item) => item.label === "API")?.description, origin);
+  });
+
+  test("renders the checked selection until the next check completes", async () => {
+    const origin = "https://operator.example.com";
+    resetConnection({ kind: "hosted", origin });
+    setConnectionOrigin(origin);
+    setConnectionAssessment({ connected: true, url: origin });
+    sinon.stub(mcpConnect, "fetchMcpDescriptor").rejects(new Error("descriptor unavailable"));
+    const ctx = context(undefined, true);
+    const section = new ConnectionsSection();
+    await section.check(ctx);
+    resetConnection({ kind: "undecided" });
+    assert.strictEqual(
+      section.getChildren(ctx).find((item) => item.label === "API")?.description,
+      origin,
+    );
+    assert.strictEqual(section.health(), "Green");
+    await section.check(ctx);
+    assert.deepStrictEqual(
+      section.getChildren(ctx).map((item) => item.label),
+      ["Connect Operator to This Workspace"],
+    );
+    assert.strictEqual(section.health(), "Gray");
+  });
+
+  test("checks the selected configuration on a server hosting multiple profiles", async () => {
+    const dir = path.join(tempDir, "Documents", ".tickets");
+    const url = "http://127.0.0.1:17008";
+    await fs.mkdir(path.join(dir, "operator"), { recursive: true });
+    await fs.writeFile(
+      path.join(dir, "operator", "api-session.json"),
+      JSON.stringify({ origin: url, port: 17008, profile_id: "documents" }),
+    );
+    resetConnection({ kind: "local" });
+    setConnectionOrigin(await discoverLocalApiUrl(dir));
+    fetchStub.callsFake((input: string) =>
+      Promise.resolve(
+        Response.json({
+          version: "0.2.16",
+          directory_name: input.endsWith("/profiles/documents/status") ? "Documents" : "iac",
+        }),
+      ),
+    );
+    const ctx = context(dir, true);
+    const section = new ConnectionsSection();
+    await section.check(ctx);
+    assert.equal(section.isApiConnected, true);
+    assert.ok(fetchStub.calledWith(`${url}/api/v1/profiles/documents/status`));
   });
 
   test("local mode still refuses a different binary version and offers download", async () => {
@@ -173,6 +265,30 @@ suite("ConnectionsSection", () => {
     assert.ok(fetchStub.calledWith(`${origin}/api/v1/auth/session`));
   });
 
+  test("a rejected local registration offers configuration recovery", async () => {
+    const url = "http://localhost:7008";
+    resetConnection({ kind: "local" });
+    setConnectionOrigin(url);
+    setConnectionAssessment({
+      connected: false,
+      url,
+      mismatch: { kind: "auth", detail: "requires sign-in" },
+    });
+    const section = new ConnectionsSection();
+    const ctx = context(tempDir, true);
+    await section.check(ctx);
+    const items = section.getChildren(ctx);
+    assert.equal(
+      items.find((item) => item.label === "API")?.command?.command,
+      "operator.retryConnection",
+    );
+    assert.equal(
+      items.find((item) => item.label === "Choose Configuration")?.command?.command,
+      "operator.selectWorkingDirectory",
+    );
+    assert.ok(items.every((item) => item.command?.command !== "operator.signIn"));
+  });
+
   test("remote mode keeps the saved URL when the server requires sign-in", async () => {
     const origin = "https://operator.kube.untra.casa";
     resetConnection({ kind: "hosted", origin });
@@ -194,7 +310,7 @@ suite("ConnectionsSection", () => {
     await section.check(context(undefined, false));
     const children = section.getChildren(context(undefined, false));
     const api = children.find((item) => item.label === "API");
-    assert.strictEqual(api?.description, "Sign-in required");
+    assert.strictEqual(api?.description, `Sign in to ${origin}`);
     assert.strictEqual(api?.command?.command, "operator.signIn");
     assert.ok(children.every((item) => item.command?.command !== "operator.downloadOperator"));
     assert.ok(children.every((item) => item.command?.command !== "operator.startOperatorServer"));

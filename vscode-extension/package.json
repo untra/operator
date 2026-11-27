@@ -121,7 +121,7 @@
             "remote"
           ],
           "default": "",
-          "description": "Choose how to connect on first use. Local runs on this machine. Remote uses the approved HTTPS origin.",
+          "description": "Preferred option in the workspace connection picker.",
           "scope": "application"
         },
         "operator.apiUrl": {
@@ -154,6 +154,18 @@
       {
         "command": "operator.signIn",
         "title": "Operator: Sign In"
+      },
+      {
+        "command": "operator.cancelApproval",
+        "title": "Operator: Cancel Sign-in"
+      },
+      {
+        "command": "operator.copyApprovalCode",
+        "title": "Operator: Copy Approval Code"
+      },
+      {
+        "command": "operator.disconnectWorkspace",
+        "title": "Operator: Disconnect This Workspace"
       },
       {
         "command": "operator.signOut",

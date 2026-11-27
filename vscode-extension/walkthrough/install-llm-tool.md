@@ -36,6 +36,4 @@ npm install -g @google/generative-ai-cli
 
 ## Detection & Configuration
 
-Click **Detect Tools** above to scan your PATH for installed tools. If tools are found, you can configure each one individually. Configuration delegates to `operator setup --llm-tool <tool>` which writes version detection, model aliases, and command templates to your config.
-
-Operator will use whichever tool is available in your PATH.
+Select **Detect Tools** to scan your PATH and choose the preferred tool for the connected Operator configuration. The running server saves the preference. To select a particular model, expand the tool in **LLM Tools** and select a model.

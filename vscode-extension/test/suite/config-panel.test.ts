@@ -56,12 +56,12 @@ suite("Config Panel Navigation", () => {
   test("posts only the latest destination after the initial config read", async () => {
     const sandbox = sinon.createSandbox();
     const received = new vscode.EventEmitter<{ type: string }>();
-    const readStarted = sinon.promise<void>();
+    const readStarted = sinon.promise<undefined>();
     const config = sinon.promise<string>();
-    const navigationPosted = sinon.promise<void>();
+    const navigationPosted = sinon.promise<undefined>();
     const postMessage = sandbox.stub().callsFake((message: { type: string }) => {
-      if (message.type === "navigateTo" && config.status === "resolved") {
-        navigationPosted.resolve(undefined);
+      if (message.type === "navigateTo" && navigationPosted.status === "pending") {
+        void navigationPosted.resolve(undefined);
       }
       return Promise.resolve(true);
     });
@@ -84,7 +84,7 @@ suite("Config Panel Navigation", () => {
         .callThrough()
         .withArgs(configPath, "utf-8")
         .callsFake(() => {
-          readStarted.resolve(undefined);
+          void readStarted.resolve(undefined);
           return config;
         });
 
@@ -94,7 +94,7 @@ suite("Config Panel Navigation", () => {
       await readStarted;
       ConfigPanel.navigateTo("git", { provider: "gitlab" });
       const postsWhileReading = postMessage.callCount;
-      config.resolve("");
+      void config.resolve("");
       await navigationPosted;
 
       assert.strictEqual(postsWhileReading, 0);

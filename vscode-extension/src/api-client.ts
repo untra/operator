@@ -28,6 +28,7 @@ import type {
   KanbanBoardResponse,
   LaunchTicketRequest,
   LaunchTicketResponse,
+  StatusResponse,
   HealthResponse,
   IssueTypeSummary,
   IssueTypeResponse,
@@ -199,7 +200,7 @@ export interface ApiSessionInfo {
  * listening there, discovered from the same file the port came from. The
  * credential provider is already keyed the same way.
  */
-const PROFILE_BY_URL = new Map<string, string>();
+let localProfile: { origin: string; id: string } | undefined;
 
 /** Routes a request at the configuration the daemon serves. */
 export function profileApiPath(apiPath: string, profileId: string | undefined): string {
@@ -225,31 +226,34 @@ export function toJson(value: unknown): string {
  * Port advertised by a local daemon in `.tickets/operator/api-session.json`.
  * Remote mode does not consult this file.
  */
-export async function discoverLocalApiUrl(ticketsDir: string | undefined): Promise<string> {
-  PROFILE_BY_URL.delete(DEFAULT_API_URL);
+export async function discoverLocalApiUrl(
+  ticketsDir: string | undefined,
+  configuredOrigin?: string,
+): Promise<string> {
+  const fallback = configuredOrigin ?? DEFAULT_API_URL;
   if (ticketsDir) {
     const sessionFile = path.join(ticketsDir, "operator", "api-session.json");
     try {
       const content = await fs.readFile(sessionFile, "utf-8");
       const session = JSON.parse(content) as ApiSessionInfo;
-      if (!Number.isInteger(session.port) || session.port < 1 || session.port > 65_535) {
-        return DEFAULT_API_URL;
-      }
       const url = session.origin ?? `http://localhost:${session.port}`;
-      if (!isLoopbackUrl(url) || new URL(url).origin !== url) {
-        return DEFAULT_API_URL;
+      if (
+        Number.isInteger(session.port) &&
+        session.port > 0 &&
+        session.port <= 65_535 &&
+        (!configuredOrigin || url === configuredOrigin) &&
+        isLoopbackUrl(url) &&
+        new URL(url).origin === url
+      ) {
+        localProfile = session.profile_id ? { origin: url, id: session.profile_id } : undefined;
+        return url;
       }
-      if (session.profile_id) {
-        PROFILE_BY_URL.set(url, session.profile_id);
-      } else {
-        PROFILE_BY_URL.delete(url);
-      }
-      return url;
     } catch {
       // Session file doesn't exist or is invalid, fall through
     }
   }
-  return DEFAULT_API_URL;
+  localProfile = undefined;
+  return fallback;
 }
 
 // Keep existing callers asynchronous while routing all requests through the selected origin.
@@ -305,7 +309,7 @@ export class OperatorApiClient {
     }
     this.signal?.throwIfAborted();
     const provider = credentialProvider();
-    const url = `${this.baseUrl}${profileApiPath(apiPath, PROFILE_BY_URL.get(this.baseUrl))}`;
+    const url = `${this.baseUrl}${profileApiPath(apiPath, localProfile?.origin === this.baseUrl ? localProfile.id : undefined)}`;
 
     const token = await provider.bearer(this.baseUrl);
     const request = { ...init, signal: this.signal, redirect: "error" } as const;
@@ -372,6 +376,12 @@ export class OperatorApiClient {
       }
       throw err;
     }
+  }
+
+  localConfigurationHealth(): Promise<HealthResponse> {
+    return localProfile?.origin === this.baseUrl
+      ? this.request<StatusResponse>("/api/v1/status")
+      : this.health();
   }
 
   /** The identity the daemon sees for the extension's current credential. */

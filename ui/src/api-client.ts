@@ -240,6 +240,11 @@ function isMutation(method: string | undefined): boolean {
   return m !== "GET" && m !== "HEAD" && m !== "OPTIONS";
 }
 
+export function deviceApprovalQuery(params: URLSearchParams): string {
+  const code = params.get("user_code");
+  return code ? `?${new URLSearchParams({ user_code: code })}` : "";
+}
+
 /** Send the user somewhere they can actually authenticate. */
 async function redirectToAuth(base: string): Promise<void> {
   let target = "#/login";
@@ -255,9 +260,8 @@ async function redirectToAuth(base: string): Promise<void> {
     // Unreachable server: login is still the right place to land.
   }
   const [route, query] = window.location.hash.split("?");
-  const userCode = new URLSearchParams(query).get("user_code");
-  if (target === "#/login" && (route === "#/device" || route === "#/login") && userCode) {
-    target += `?${new URLSearchParams({ user_code: userCode }).toString()}`;
+  if (["#/device", "#/login", "#/setup"].includes(route ?? "")) {
+    target += deviceApprovalQuery(new URLSearchParams(query));
   }
   if (window.location.hash !== target) {
     window.location.hash = target;

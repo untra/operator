@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as v8 from "node:v8";
 import * as vscode from "vscode";
 import { currentConnection } from "../../../src/connection";
+import { configureEditor } from "../oidc";
 import { requiredEnv } from "../daemon";
 
 interface ScriptCoverage {
@@ -13,6 +14,8 @@ interface ScriptCoverage {
 
 export async function run() {
   await vscode.extensions.getExtension("untra.operator-terminals")!.activate();
+  assert.equal(currentConnection().selection.kind, "undecided");
+  await configureEditor(requiredEnv("OPERATOR_E2E_ORIGIN"));
   assert.equal(currentConnection().selection.kind, "hosted");
   assert.equal(currentConnection().origin, requiredEnv("OPERATOR_E2E_ORIGIN"));
   await vscode.commands.executeCommand("operator.refreshTickets");

@@ -8,11 +8,7 @@
  */
 
 import * as vscode from "vscode";
-import {
-  resolveTicketsDirectory,
-  resolveWorkingDirectory,
-  getResolvedConfigPath,
-} from "./config-paths";
+import { resolveTicketsDirectory, resolveWorkingDirectory } from "./config-paths";
 import { currentConnection } from "./connection";
 import { guardRemoteCommand } from "./command-policy";
 import * as path from "node:path";
@@ -467,12 +463,8 @@ export async function selectWorkingDirectory(
     return;
   }
 
-  // Store in global state
-  await context.globalState.update("operator.workingDirectory", selectedPath);
-
-  // Persist to VS Code user settings for cross-workspace access
   const config = vscode.workspace.getConfiguration("operator");
-  await config.update("workingDirectory", selectedPath, vscode.ConfigurationTarget.Global);
+  await config.update("workingDirectory", selectedPath, vscode.ConfigurationTarget.Workspace);
 
   // Update context
   await updateWalkthroughContext(context);
@@ -524,21 +516,15 @@ export {
   startKanbanOnboarding,
 } from "./kanban-onboarding";
 
-/**
- * Command: Detect LLM tools
- *
- * Scans PATH for installed LLM tools. If found, shows a modal with
- * per-tool "Configure" buttons that run `operator setup --llm-tool <tool>`.
- */
-export async function detectLlmTools(
-  context: vscode.ExtensionContext,
-  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>,
-): Promise<void> {
+export async function detectLlmTools(context: vscode.ExtensionContext): Promise<void> {
   if (await guardRemoteCommand("operator.detectLlmTools", undefined)) {
     return;
   }
-
+  const { signal } = currentConnection();
   const tools = await detectInstalledLlmTools();
+  if (signal.aborted) {
+    return;
+  }
 
   if (tools.length === 0) {
     const choice = await vscode.window.showWarningMessage(
@@ -560,78 +546,20 @@ export async function detectLlmTools(
       );
     }
   } else {
-    // Build per-tool configure buttons
-    const buttons = tools.map((tool) => `Configure ${tool.name}`);
-    const toolList = tools.map((tool) => tool.name).join(", ");
-
-    const choice = await vscode.window.showInformationMessage(
-      `Detected LLM tools: ${toolList}`,
-      { modal: true },
-      ...buttons,
+    const tool = await vscode.window.showQuickPick(
+      tools.map(({ name }) => name),
+      {
+        title: "Choose the preferred LLM tool",
+        placeHolder: "Set the default tool for this Operator configuration",
+      },
     );
-
-    if (choice) {
-      // Extract tool name from "Configure <tool>"
-      const toolName = choice.replace("Configure ", "");
-      await configureLlmTool(context, toolName, getOperatorPathFn);
+    if (tool && !signal.aborted) {
+      await vscode.commands.executeCommand("operator.setDefaultLlm", tool);
     }
   }
 
-  await updateWalkthroughContext(context);
-}
-
-/**
- * Configure a single LLM tool via `operator setup --llm-tool <tool>`
- */
-async function configureLlmTool(
-  context: vscode.ExtensionContext,
-  tool: string,
-  getOperatorPathFn?: (ctx: vscode.ExtensionContext) => Promise<string | undefined>,
-): Promise<void> {
-  const operatorPath = getOperatorPathFn ? await getOperatorPathFn(context) : undefined;
-
-  if (!operatorPath) {
-    void vscode.window.showWarningMessage(
-      `Operator binary not found. Download it first to configure ${tool}.`,
-    );
-    return;
-  }
-
-  const workingDir =
-    vscode.workspace.getConfiguration("operator").get<string>("workingDirectory") ||
-    context.globalState.get<string>("operator.workingDirectory");
-
-  if (!workingDir) {
-    void vscode.window.showWarningMessage(
-      "Working directory not set. Select a working directory first.",
-    );
-    return;
-  }
-
-  // Check if operator config exists before trying to configure LLM tool
-  const configPath = getResolvedConfigPath();
-  try {
-    await fs.access(configPath);
-  } catch {
-    const choice = await vscode.window.showWarningMessage(
-      `Operator not yet configured in ${path.basename(workingDir)}. Run setup first?`,
-      "Run Setup",
-      "Cancel",
-    );
-    if (choice === "Run Setup") {
-      await vscode.commands.executeCommand("operator.runSetup");
-    }
-    return;
-  }
-
-  try {
-    await execAsync(
-      `"${operatorPath}" setup --llm-tool "${tool}" --working-dir "${workingDir}" --skip-llm-detection`,
-    );
-    void vscode.window.showInformationMessage(`Configured ${tool} successfully.`);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    void vscode.window.showErrorMessage(`Failed to configure ${tool}: ${msg}`);
+  if (!signal.aborted) {
+    await updateWalkthroughContext(context);
   }
 }
 

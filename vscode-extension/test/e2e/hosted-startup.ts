@@ -30,11 +30,6 @@ async function main() {
       headers: { authorization: "Bearer test-local-unlock" },
     });
     assert.equal(anonymous.status, 401);
-    await fs.mkdir(path.join(workspace, ".tickets", "operator"), { recursive: true });
-    await fs.writeFile(
-      path.join(workspace, ".tickets", "operator", "config.toml"),
-      "[rest_api]\nenabled = true\n",
-    );
     const sentinel = path.join(root, "local-operator");
     await fs.writeFile(
       sentinel,

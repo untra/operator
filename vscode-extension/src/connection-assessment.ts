@@ -15,15 +15,27 @@ export async function assessConnection(
   if (!(await client.isReachable())) {
     return { connected: false, url };
   }
-  const answered = { url, reachable: true };
+  const answered: ApiStatus = { connected: false, url, reachable: true };
   try {
     if (selection.kind === "hosted") {
-      await client.currentSession();
+      answered.subject = (await client.currentSession()).subject;
     }
     let health;
     try {
-      health = await client.health();
+      health =
+        selection.kind === "local"
+          ? await client.localConfigurationHealth()
+          : await client.health();
     } catch (error) {
+      if (selection.kind === "local" && error instanceof ApiError && error.status === 404) {
+        return {
+          ...answered,
+          mismatch: {
+            kind: "project",
+            detail: "does not serve the selected Operator configuration",
+          },
+        };
+      }
       if (selection.kind === "hosted" && error instanceof ApiError && error.status === 403) {
         return { ...answered, connected: true };
       }
@@ -52,7 +64,13 @@ export async function assessConnection(
     const mismatch =
       error instanceof AuthRequiredError
         ? { kind: "auth" as const, detail: `at ${url} requires sign-in` }
-        : undefined;
+        : error instanceof ApiError && error.status === 403
+          ? {
+              kind: "forbidden" as const,
+              detail:
+                "Your account lacks access to this Operator profile. Contact your administrator.",
+            }
+          : undefined;
     return { ...answered, connected: false, mismatch };
   }
 }

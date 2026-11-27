@@ -42,12 +42,14 @@ Or install directly: [VS Code Marketplace](https://marketplace.visualstudio.com/
 
 ## Choose a connection
 
-Run **Operator: Choose Connection** in the Command Palette.
+Run **Operator: Choose Connection** in the Command Palette. Select **Off** to keep Operator disabled for this workspace.
 
-- **Use Operator on this computer** selects the Free local service. The extension can attach to the local daemon or guide you through downloading and starting one. Local IDE access uses the OS account.
-- **Connect to Operator server** accepts the HTTPS origin supplied by your administrator. Sign in through your organization's identity provider. The extension uses that server for the sidebar, queue and status views.
+- **Local** selects the Free local service. The extension can attach to the local daemon or guide you through downloading and starting one. Local IDE access uses the OS account.
+- **Remote** accepts the HTTPS origin supplied by your administrator. Sign in through your organization's identity provider. The extension uses that server for the sidebar, queue and status views.
 
-Administrators can preconfigure VS Code **User** settings before the first launch. For example, set `"operator.apiUrl": "https://operator.example.com"`. The extension opens in hosted mode and skips local installation. A URL supplied in **Workspace** settings requires the user's confirmation.
+A trusted workspace containing `.tickets/operator/config.toml` connects locally. Other workspaces stay idle until you choose a connection. User settings can suggest a hosted HTTPS origin. A workspace-supplied address requires confirmation. **Operator: Disconnect This Workspace** detaches the workspace and preserves your server session.
+
+During hosted sign-in, compare the editor code with the code on the browser approval page and select **Approve**. Expand **Connections** to reopen the page, copy the code, or cancel. A new hosted account may require administrator approval.
 
 The Premium server requires a provisioned OIDC administrator and the external HTTPS origin in its configuration. [Hosted provisioning](/security/authentication/#provision-a-hosted-server)
 
@@ -59,12 +61,12 @@ Sign in with **Operator: Sign In**. The device-flow refresh token is stored in t
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `operator.connectionMode` | `local` | `local` uses Operator on this machine. `remote` uses the saved `operator.apiUrl` and does not download or start a binary. |
+| `operator.connectionMode` | Unset | Preferred choice in the workspace connection picker. |
 | `operator.webhookPort` | `7009` | Port for the local webhook server. A remote Operator cannot call it. |
 | `operator.autoStart` | `true` | In local mode, start the Operator API when none is reachable. Remote mode never starts a local server. |
 | `operator.terminalPrefix` | `op-` | Prefix for managed terminal names |
 | `operator.ticketsDir` | `.tickets` | Path to tickets directory |
-| `operator.apiUrl` | `http://localhost:7008` | REST API origin. In remote mode, set this in User settings to an `https` origin. In local mode, leave it unset so the extension follows `api-session.json`. |
+| `operator.apiUrl` | Unset | REST API origin. In remote mode, set this in User settings to an `https` origin. In local mode, leave it unset so the extension follows `api-session.json`. |
 
 ## Commands
 

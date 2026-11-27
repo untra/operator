@@ -1,67 +1,59 @@
-/**
- * Dynamic config path resolution for Operator VS Code Extension
- *
- * Config lives at: <workdir>/.tickets/operator/config.toml
- * The working directory is determined from the VS Code setting
- * `operator.workingDirectory`, falling back to the workspace parent.
- */
-
 import * as path from "node:path";
-import * as fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import * as vscode from "vscode";
 
-/** Build the config.toml path from a working directory */
-export function getConfigPath(workingDir: string): string {
-  return path.join(workingDir, ".tickets", "operator", "config.toml");
-}
+const DEFAULT_TICKETS_DIR = ".tickets";
 
-/** Build the config directory (containing config.toml) from a working directory */
-export function getConfigDir(workingDir: string): string {
-  return path.join(workingDir, ".tickets", "operator");
-}
-
-/** Resolve the working directory from settings or workspace */
-export function resolveWorkingDirectory(): string {
-  // Check operator.workingDirectory setting first
-  const configured = vscode.workspace.getConfiguration("operator").get<string>("workingDirectory");
-  if (configured) {
-    return configured;
+export function resolveTicketsDirectory(workingDirectory?: string): string {
+  const config = vscode.workspace.getConfiguration("operator");
+  const directory = workingDirectory ?? config.get<string>("workingDirectory");
+  const tickets = config.get<string>("ticketsDir") || DEFAULT_TICKETS_DIR;
+  if (path.isAbsolute(tickets)) {
+    return tickets;
   }
-
-  // Fall back to parent of the first workspace folder
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  if (workspaceFolder) {
-    return path.dirname(workspaceFolder.uri.fsPath);
+  if (directory) {
+    return path.resolve(directory, tickets);
   }
-
-  return "";
-}
-
-/** Get the resolved config.toml path using current settings */
-export function getResolvedConfigPath(): string {
-  const workDir = resolveWorkingDirectory();
-  if (!workDir) {
+  const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!workspace) {
     return "";
   }
-  return getConfigPath(workDir);
+  if (tickets !== DEFAULT_TICKETS_DIR) {
+    return path.resolve(workspace, tickets);
+  }
+  const parent = path.join(path.dirname(workspace), tickets);
+  if (existsSync(parent)) {
+    return parent;
+  }
+  let current = workspace;
+  while (current !== path.dirname(current)) {
+    const candidate = path.join(current, tickets);
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+    current = path.dirname(current);
+  }
+  return parent;
 }
 
-/** Check whether config.toml exists and is readable */
-export async function configFileExists(ticketsDir?: string): Promise<boolean> {
-  const explicitWorkingDir = vscode.workspace
-    .getConfiguration("operator")
-    .get<string>("workingDirectory");
-  const configPath =
-    ticketsDir && !explicitWorkingDir
-      ? path.join(ticketsDir, "operator", "config.toml")
-      : getResolvedConfigPath();
-  if (!configPath) {
-    return false;
+export function resolveWorkingDirectory(): string {
+  const explicit = vscode.workspace.getConfiguration("operator").get<string>("workingDirectory");
+  if (explicit) {
+    return explicit;
   }
-  try {
-    await fs.access(configPath);
-    return true;
-  } catch {
-    return false;
-  }
+  const tickets = resolveTicketsDirectory();
+  return tickets ? path.dirname(tickets) : "";
+}
+
+export function getResolvedConfigPath(): string {
+  const tickets = resolveTicketsDirectory();
+  return tickets ? path.join(tickets, "operator", "config.toml") : "";
+}
+
+export function configFileExists(ticketsDir?: string): Promise<boolean> {
+  return Promise.resolve(
+    existsSync(
+      ticketsDir ? path.join(ticketsDir, "operator", "config.toml") : getResolvedConfigPath(),
+    ),
+  );
 }

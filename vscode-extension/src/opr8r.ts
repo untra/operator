@@ -16,8 +16,11 @@ export async function getOpr8rPath(context: vscode.ExtensionContext): Promise<st
   // 1. Check user configuration
   const config = vscode.workspace.getConfiguration("operator");
   const configPath = config.get<string>("opr8rPath");
-  if (configPath && (await fileExists(configPath))) {
-    return configPath;
+  if (configPath) {
+    if (await fileExists(configPath)) {
+      return configPath;
+    }
+    throw new Error(`Set operator.opr8rPath to an executable file. Could not use ${configPath}.`);
   }
 
   // 2. Check bundled binary in extension

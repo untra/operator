@@ -39,6 +39,22 @@ async function importSmolToml() {
   return import("smol-toml");
 }
 
+async function readConfigToml(configPath: string): Promise<Record<string, unknown>> {
+  if (!configPath) {
+    return {};
+  }
+  try {
+    const raw = await fs.readFile(configPath, "utf-8");
+    if (!raw.trim()) {
+      return {};
+    }
+    const { parse } = await importSmolToml();
+    return parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 /**
  * TreeDataProvider for hierarchical status information
  */
@@ -47,7 +63,6 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private context: vscode.ExtensionContext;
-  private parsedConfig: Record<string, unknown> | null = null;
   private ticketsDir: string | undefined;
   private webhookServerRef?: { isRunning: () => boolean; getPort: () => number };
 
@@ -94,7 +109,6 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   clearConnection(): void {
     this.revision++;
     this.ticketsDir = undefined;
-    this.parsedConfig = null;
     this.sections = this.createSections();
     this.ctx = this.buildContext();
     this._onDidChangeTreeData.fire(undefined);
@@ -110,7 +124,6 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
   }
 
   async refresh(): Promise<void> {
-    this.parsedConfig = null;
     const ctx = this.buildContext();
 
     const revision = ++this.revision;
@@ -130,40 +143,13 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
     this._onDidChangeTreeData.fire(undefined);
   }
 
-  /**
-   * Read and cache config.toml
-   */
-  private async readConfigToml(): Promise<Record<string, unknown>> {
-    if (this.parsedConfig) {
-      return this.parsedConfig;
-    }
-
-    const configPath = getResolvedConfigPath();
-    if (!configPath) {
-      this.parsedConfig = {};
-      return this.parsedConfig;
-    }
-
-    try {
-      const raw = await fs.readFile(configPath, "utf-8");
-      if (raw.trim()) {
-        const { parse } = await importSmolToml();
-        this.parsedConfig = parse(raw);
-      } else {
-        this.parsedConfig = {};
-      }
-    } catch {
-      this.parsedConfig = {};
-    }
-
-    return this.parsedConfig;
-  }
-
   private buildContext(): SectionContext {
+    const configPath = getResolvedConfigPath();
+    let config: Promise<Record<string, unknown>> | undefined;
     return {
       extensionContext: this.context,
       ticketsDir: this.ticketsDir,
-      readConfigToml: () => this.readConfigToml(),
+      readConfigToml: () => (config ??= readConfigToml(configPath)),
       configReady: false,
       connectionsReady: false,
       kanbanConfigured: false,
@@ -200,6 +186,9 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
       return section.prerequisites.every((prereqId) => {
         // Prerequisite must itself be visible (transitive) and not Red
         const prereqSection = this.sections.byId.get(prereqId);
+        if (prereqId === "connections" && !(this.ctx.configReady && this.ctx.connectionsReady)) {
+          return false;
+        }
         if (!prereqSection) {
           return false;
         }

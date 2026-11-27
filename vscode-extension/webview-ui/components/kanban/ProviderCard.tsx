@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from "react";
+import { onMessage, postMessage } from "../../vscodeApi";
+import React, { useCallback, useState, useEffect } from "react";
 import { Alert, Button, Card, CardContent, Chip, Spinner, TextInput, Toggle } from "../primitives";
 import { ProjectRow } from "./ProjectRow";
 import { useDraftField } from "../../hooks/useDraftField";
@@ -14,30 +15,28 @@ import type {
 } from "../../types/messages";
 
 interface ProviderCardProps {
+  instances: Record<string, JiraConfig | LinearConfig>;
+  apiReachable: boolean;
   type: "jira" | "linear";
   domain: string;
   config: JiraConfig | LinearConfig;
   onUpdate: (section: string, key: string, value: unknown, instanceKey?: string) => void;
-  onValidate: (...args: string[]) => void;
-  validationResult: JiraValidationInfo | LinearValidationInfo | null;
-  validating: boolean;
   collections: CollectionResponse[];
   issueTypes: IssueTypeSummary[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
   kanbanStatuses: Map<string, string[]>;
-  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
+  onGetKanbanStatuses: (provider: string, domain: string, projectKey: string) => void;
   onViewIssueType: () => void;
 }
 
 export function ProviderCard({
+  instances,
+  apiReachable,
   type,
   domain,
   config,
   onUpdate,
-  onValidate,
-  validationResult,
-  validating,
   collections,
   issueTypes,
   externalIssueTypes,
@@ -56,7 +55,6 @@ export function ProviderCard({
   const jiraConfig = isJira ? (config as JiraConfig) : null;
   const providerLabel = isJira ? "Jira Cloud" : "Linear";
 
-  const isConnected = validationResult?.valid === true;
   const projectCount = projectEntries.length;
   const updateProvider = useCallback(
     (key: string, value: unknown) => onUpdate(sectionKey, key, value, domain),
@@ -87,13 +85,46 @@ export function ProviderCard({
     (event: React.ChangeEvent<HTMLInputElement>) => setApiToken(event.target.value),
     [setApiToken],
   );
+  const [validation, setValidation] = useState<{
+    id: string;
+    domain: string;
+    email?: string;
+    token: string;
+    result?: JiraValidationInfo | LinearValidationInfo;
+  }>();
+  const validationMatches =
+    enabled &&
+    validation?.domain === domain &&
+    validation.email === jiraConfig?.email &&
+    validation.token === apiToken;
+  const validationResult = validationMatches ? validation?.result : undefined;
+  const validating = validationMatches && !validationResult;
+  useEffect(
+    () =>
+      onMessage((message) => {
+        if (message.type === "jiraValidationResult" || message.type === "linearValidationResult") {
+          setValidation((current) =>
+            current?.id === message.requestId ? { ...current, result: message.result } : current,
+          );
+        }
+      }),
+    [],
+  );
   const handleValidate = useCallback(() => {
+    const requestId = crypto.randomUUID();
+    setValidation({ id: requestId, domain, email: jiraConfig?.email, token: apiToken });
     if (isJira) {
-      onValidate(domain, jiraConfig?.email ?? "", apiToken);
+      postMessage({
+        type: "validateJira",
+        requestId,
+        domain,
+        email: jiraConfig?.email ?? "",
+        apiToken,
+      });
     } else {
-      onValidate(apiToken);
+      postMessage({ type: "validateLinear", requestId, apiKey: apiToken });
     }
-  }, [apiToken, domain, isJira, jiraConfig?.email, onValidate]);
+  }, [domain, jiraConfig?.email, apiToken, isJira]);
   const handleAddProject = useCallback(
     (key: string) => {
       const projects = addProject(config.projects, key);
@@ -111,15 +142,14 @@ export function ProviderCard({
         <div className="op-row op-space-between op-mb-1">
           <div className="op-row op-gap-1">
             <i
-              className={type === "jira" ? "opi-atlassian" : "opi-linear"}
-              style={{ fontSize: "1.25rem", lineHeight: 1 }}
+              className={
+                type === "jira" ? "opi-atlassian op-provider-icon" : "opi-linear op-provider-icon"
+              }
             />
-            <span className="op-body1" style={{ fontWeight: 600 }}>
-              {providerLabel}
-            </span>
+            <span className="op-body1 op-semibold">{providerLabel}</span>
             <Chip
-              label={isConnected ? "Connected" : "Not validated"}
-              color={isConnected ? "success" : "default"}
+              label={validationResult?.valid ? "Connected" : "Not validated"}
+              color={validationResult?.valid ? "success" : "default"}
               variant="outlined"
             />
             {projectCount > 0 && (
@@ -132,7 +162,7 @@ export function ProviderCard({
           <Toggle checked={enabled} onChange={handleEnabledChange} label="Enabled" />
         </div>
 
-        <div style={{ opacity: enabled ? 1 : 0.5 }}>
+        <div className="op-provider-fields" data-enabled={enabled}>
           {/* Summary line */}
           {!showCredentials && (
             <div className="op-row op-gap-2 op-mb-1">
@@ -180,13 +210,19 @@ export function ProviderCard({
                   onChange={handleApiTokenChange}
                   placeholder={isJira ? "Paste token to validate" : "lin_api_xxxxx"}
                   disabled={!enabled}
-                  style={{ flexGrow: 1 }}
+                  className="op-grow"
                 />
                 <Button
                   variant="contained"
                   onClick={handleValidate}
-                  disabled={!enabled || !apiToken || validating}
-                  style={{ minWidth: "auto", paddingLeft: 16, paddingRight: 16 }}
+                  disabled={
+                    !apiReachable ||
+                    !enabled ||
+                    !apiToken ||
+                    (isJira && !jiraConfig?.email) ||
+                    validating
+                  }
+                  className="op-validate"
                 >
                   {validating ? <Spinner size={20} /> : "Validate"}
                 </Button>
@@ -211,12 +247,19 @@ export function ProviderCard({
           {/* Project list */}
           <div className="op-mt-1">
             {projectEntries.length === 0 ? (
-              <p className="op-body2 op-text-secondary" style={{ padding: "8px 0" }}>
+              <p className="op-body2 op-text-secondary op-project-empty">
                 No projects configured. Add a project key above to start syncing.
               </p>
             ) : (
               projectEntries.map(([key, project]) => (
                 <ProjectRow
+                  lookupEnabled={
+                    enabled &&
+                    apiReachable &&
+                    Object.values(instances).filter(
+                      (entry) => entry.enabled && Object.hasOwn(entry.projects ?? {}, key),
+                    ).length === 1
+                  }
                   key={key}
                   provider={type}
                   domain={domain}
@@ -224,8 +267,8 @@ export function ProviderCard({
                   project={project}
                   collections={collections}
                   issueTypes={issueTypes}
-                  externalTypes={externalIssueTypes.get(`${type}/${key}`)}
-                  statuses={kanbanStatuses.get(`${type}/${key}`)}
+                  externalTypes={externalIssueTypes.get(JSON.stringify([type, domain, key]))}
+                  statuses={kanbanStatuses.get(JSON.stringify([type, domain, key]))}
                   onUpdate={updateProvider}
                   onGetExternalIssueTypes={onGetExternalIssueTypes}
                   onGetKanbanStatuses={onGetKanbanStatuses}
@@ -263,7 +306,7 @@ function AddProjectInput({ disabled, onAdd }: { disabled: boolean; onAdd: (key: 
         onChange={handleValueChange}
         placeholder="PROJ"
         disabled={disabled}
-        style={{ flex: 1 }}
+        className="op-flex-1"
       />
       <Button
         size="small"

@@ -11,10 +11,6 @@ interface MappingRowProps {
   onViewIssueType: () => void;
 }
 
-const DIVIDER_BORDER =
-  "1px solid var(--vscode-sideBar-border, var(--vscode-widget-border, #45454580))";
-const INFO_COLOR = "var(--vscode-textLink-foreground, #3794ff)";
-
 export function MappingRow({
   external,
   operatorTypes,
@@ -31,25 +27,19 @@ export function MappingRow({
   );
 
   return (
-    <div style={{ padding: "8px 0", borderBottom: DIVIDER_BORDER }}>
+    <div className="op-mapping-row">
       <div className="op-row op-gap-2">
         {/* External type */}
-        <div className="op-row op-gap-1" style={{ flex: 1 }}>
-          {external.icon_url && (
-            <img src={external.icon_url} alt="" style={{ width: 16, height: 16 }} />
-          )}
-          <span className="op-body2" style={{ fontWeight: 500 }}>
-            {external.name}
-          </span>
+        <div className="op-row op-gap-1 op-flex-1">
+          {external.icon_url && <img src={external.icon_url} alt="" className="op-issue-icon" />}
+          <span className="op-body2 op-medium">{external.name}</span>
         </div>
 
         {/* Arrow */}
-        <span className="op-text-secondary" style={{ padding: "0 8px" }}>
-          →
-        </span>
+        <span className="op-text-secondary op-mapping-arrow">→</span>
 
         {/* Operator type selector */}
-        <div style={{ flex: 1 }}>
+        <div className="op-flex-1">
           <SelectInput value={effectiveKey ?? ""} onChange={handleSelectionChange}>
             <option value="">Unmapped</option>
             {operatorTypes.map((ot) => (
@@ -59,32 +49,19 @@ export function MappingRow({
             ))}
           </SelectInput>
           {autoMatchedKey && !isOverride && (
-            <span
-              className="op-caption op-text-secondary"
-              style={{ marginTop: 2, display: "block" }}
-            >
-              auto-matched
-            </span>
+            <span className="op-caption op-text-secondary op-mapping-hint">auto-matched</span>
           )}
-          {isOverride && (
-            <span
-              className="op-caption"
-              style={{ marginTop: 2, display: "block", color: INFO_COLOR }}
-            >
-              custom override
-            </span>
-          )}
+          {isOverride && <span className="op-caption op-mapping-override">custom override</span>}
         </div>
       </div>
 
       {/* View the mapped issue type in the hosted Operator UI */}
       {effectiveKey && (
-        <div style={{ marginTop: 4, marginLeft: 32 }}>
+        <div className="op-mapping-link">
           <button
             type="button"
-            className="op-link op-caption"
+            className="op-link op-caption op-text-left"
             onClick={onViewIssueType}
-            style={{ textAlign: "left" }}
           >
             view issue type
           </button>

@@ -47,8 +47,8 @@ jobs:
       - name: Copy generated types
         run: npm run copy-types
 
-      - name: Generate icon font
-        run: mkdir -p images/icons/dist && npm run generate:icons
+      - name: Verify regenerated extension icons
+        run: npm run check:icons
 
       - name: Lint
         run: npm run lint
@@ -202,8 +202,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate icon font
-        run: mkdir -p images/icons/dist && npm run generate:icons
+      - name: Verify regenerated extension icons
+        run: npm run check:icons
 
       - name: Package platform-specific VSIX
         run: npx vsce package --target ${{ matrix.vscode_target }}

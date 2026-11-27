@@ -163,7 +163,7 @@ needs_operator() {
 }
 
 needs_opr8r()      { has_changes '^opr8r/'; }
-needs_vscode()     { has_changes '^(vscode-extension/|icons/|\.oxlintrc\.jsonc$)'; }
+needs_vscode()     { has_changes '^(vscode-extension/|icons/|scripts/cicdprep\.sh$|\.github/workflows/vscode-extension\.yaml$|\.oxlintrc\.jsonc$)'; }
 needs_zed()        { has_changes '^zed-extension/'; }
 needs_relay()      { has_changes '^crates/relay/'; }
 needs_charts()     { has_changes '^(charts/|\.github/workflows/build\.yaml$)'; }
@@ -369,10 +369,14 @@ if needs_vscode; then
   (cd vscode-extension && npm ci) && pass "vscode install" || fail "vscode install"
 
   run_step "vscode copy-types" bash -c "cd vscode-extension && npm run copy-types"
-  run_step "vscode generate:icons" bash -c "cd vscode-extension && mkdir -p images/icons/dist && npm run generate:icons"
-  run_step "vscode lint" bash -c "cd vscode-extension && npm run lint"
-  run_step "vscode compile" bash -c "cd vscode-extension && npm run compile"
-  run_step "vscode compile:webview" bash -c "cd vscode-extension && npm run compile:webview"
+  if (cd vscode-extension && npm run check:icons); then
+    pass "vscode verify regenerated icons"
+    run_step "vscode lint" bash -c "cd vscode-extension && npm run lint"
+    run_step "vscode compile" bash -c "cd vscode-extension && npm run compile"
+    run_step "vscode compile:webview" bash -c "cd vscode-extension && npm run compile:webview"
+  else
+    fail "vscode icon verification (extension build skipped)"
+  fi
 else
   skip "vscode-extension"
 fi

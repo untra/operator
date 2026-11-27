@@ -1,3 +1,4 @@
+import type { ModelServerResponse } from "../../src/generated/ModelServerResponse";
 import type { Config } from "../../src/generated/Config";
 import type { IssueTypeSummary } from "../../src/generated/IssueTypeSummary";
 import type { IssueTypeResponse } from "../../src/generated/IssueTypeResponse";
@@ -73,8 +74,8 @@ export type WebviewToExtensionMessage =
     }
   | { type: "browseFile"; field: string }
   | { type: "browseFolder"; field: string }
-  | { type: "validateJira"; domain: string; email: string; apiToken: string }
-  | { type: "validateLinear"; apiKey: string }
+  | { type: "validateJira"; requestId: string; domain: string; email: string; apiToken: string }
+  | { type: "validateLinear"; requestId: string; apiKey: string }
   | { type: "detectLlmTools" }
   | { type: "openExternal"; url: string }
   | { type: "openFile"; filePath: string }
@@ -87,8 +88,20 @@ export type WebviewToExtensionMessage =
   | { type: "getIssueType"; key: string }
   | { type: "getCollections" }
   | { type: "activateCollection"; name: string }
-  | { type: "getExternalIssueTypes"; provider: string; domain: string; projectKey: string }
-  | { type: "getKanbanStatuses"; provider: string; projectKey: string }
+  | {
+      type: "getExternalIssueTypes";
+      requestId: string;
+      domain: string;
+      provider: string;
+      projectKey: string;
+    }
+  | {
+      type: "getKanbanStatuses";
+      requestId: string;
+      domain: string;
+      provider: string;
+      projectKey: string;
+    }
   | { type: "createIssueType"; request: CreateIssueTypeRequest }
   | { type: "updateIssueType"; key: string; request: UpdateIssueTypeRequest }
   | { type: "deleteIssueType"; key: string }
@@ -104,8 +117,8 @@ export type ExtensionToWebviewMessage =
   | { type: "configUpdated"; config: WebviewConfig; rev: number }
   | { type: "configError"; error: string; rev?: number }
   | { type: "browseResult"; field: string; path: string }
-  | { type: "jiraValidationResult"; result: JiraValidationInfo }
-  | { type: "linearValidationResult"; result: LinearValidationInfo }
+  | { type: "jiraValidationResult"; requestId: string; result: JiraValidationInfo }
+  | { type: "linearValidationResult"; requestId: string; result: LinearValidationInfo }
   | { type: "llmToolsDetected"; config: WebviewConfig; rev: number }
   | { type: "apiHealthResult"; reachable: boolean }
   | { type: "projectsLoaded"; projects: ProjectSummary[] }
@@ -120,17 +133,45 @@ export type ExtensionToWebviewMessage =
   | { type: "collectionsError"; error: string }
   | {
       type: "externalIssueTypesLoaded";
+      requestId: string;
+      domain: string;
       provider: string;
       projectKey: string;
       types: ExternalIssueTypeSummary[];
     }
-  | { type: "externalIssueTypesError"; provider: string; projectKey: string; error: string }
-  | { type: "kanbanStatusesLoaded"; provider: string; projectKey: string; statuses: string[] }
-  | { type: "kanbanStatusesError"; provider: string; projectKey: string; error: string }
+  | {
+      type: "externalIssueTypesError";
+      requestId: string;
+      domain: string;
+      provider: string;
+      projectKey: string;
+      error: string;
+    }
+  | {
+      type: "kanbanStatusesLoaded";
+      requestId: string;
+      domain: string;
+      provider: string;
+      projectKey: string;
+      statuses: string[];
+    }
+  | {
+      type: "kanbanStatusesError";
+      requestId: string;
+      domain: string;
+      provider: string;
+      projectKey: string;
+      error: string;
+    }
   | { type: "issueTypeCreated"; issueType: IssueTypeResponse }
   | { type: "issueTypeUpdated"; issueType: IssueTypeResponse }
   | { type: "issueTypeDeleted"; key: string }
-  | { type: "modelProvidersLoaded"; kinds: ModelServerKindEntry[]; delegators: DelegatorResponse[] }
+  | {
+      type: "modelProvidersLoaded";
+      servers: ModelServerResponse[];
+      kinds: ModelServerKindEntry[];
+      delegators: DelegatorResponse[];
+    }
   | { type: "providerProbed"; slug: string; result: ModelServerModelsResponse }
   | { type: "delegatorCreated"; name: string }
   | { type: "delegatorCreateError"; error: string }

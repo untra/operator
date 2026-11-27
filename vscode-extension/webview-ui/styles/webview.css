@@ -523,3 +523,43 @@ hr,
   opacity: 0.5;
   cursor: default;
 }
+
+/* Settings controls */
+
+.op-alert-close { padding: 0; color: inherit; }
+.op-align-start { align-self: flex-start; }
+.op-block { display: block; }
+.op-brand { color: var(--op-terracotta); font-weight: 700; }
+.op-brand-glyph { font-size: 1rem; line-height: 1; }
+.op-browse-folder { align-self: flex-start; margin-top: 8px; border-color: var(--op-terracotta); color: var(--op-terracotta); }
+.op-collection-picker { min-width: 160px; }
+.op-delegator-form { gap: 12px; max-width: 420px; }
+.op-expander { display: inline-block; transition: transform 0.2s; }
+.op-flex-1 { flex: 1; }
+.op-folder-picker { display: flex; gap: 8px; }
+.op-grow { flex-grow: 1; }
+.op-issue-icon { width: 16px; height: 16px; }
+.op-mapping-arrow { padding: 0 8px; }
+.op-mapping-hint { margin-top: 2px; display: block; }
+.op-mapping-link { margin-top: 4px; margin-left: 32px; }
+.op-mapping-loading { padding: 16px 0; justify-content: center; }
+.op-mapping-override { margin-top: 2px; display: block; color: var(--vscode-textLink-foreground); }
+.op-mapping-row { padding: 8px 0; border-bottom: 1px solid var(--vscode-sideBar-border, var(--vscode-widget-border)); }
+.op-medium { font-weight: 500; }
+.op-ml-1 { margin-left: 8px; }
+.op-mt-3 { margin-top: 24px; }
+.op-project-detail { padding-left: 16px; padding-top: 8px; }
+.op-project-empty { padding: 8px 0; }
+.op-project-key { font-weight: 600; min-width: 80px; }
+.op-provider-group { margin-bottom: 12px; }
+.op-provider-icon { font-size: 1.25rem; line-height: 1; }
+.op-provider-label { font-weight: 600; min-width: 8rem; }
+.op-provider-list { gap: 6px; }
+.op-section-heading { scroll-margin-top: 16px; }
+.op-semibold { font-weight: 600; }
+.op-settings-fields { gap: 20px; }
+.op-status-picker { min-width: 160px; flex: 1; }
+.op-text-left { text-align: left; }
+.op-validate { min-width: auto; padding-inline: 16px; }
+.op-provider-fields[data-enabled="false"] { opacity: 0.5; }
+.op-expander[data-expanded="true"] { transform: rotate(180deg); }

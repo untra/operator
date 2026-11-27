@@ -1,7 +1,6 @@
 import React, { useCallback } from "react";
-import { Button, TextInput, SelectInput } from "../primitives";
+import { Button, TextInput } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
-import { OperatorBrand } from "../OperatorBrand";
 import { useDraftField } from "../../hooks/useDraftField";
 
 interface PrimaryConfigSectionProps {
@@ -26,12 +25,6 @@ export function PrimaryConfigSection({
     () => onBrowseFolder("workingDirectory"),
     [onBrowseFolder],
   );
-  const handleSessionWrapperChange = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) =>
-      onUpdate("sessions", "wrapper", event.target.value),
-    [onUpdate],
-  );
-
   return (
     <div className="op-mb-4">
       <SectionHeader id="section-primary" title="Workspace Configuration" />
@@ -42,48 +35,22 @@ export function PrimaryConfigSection({
       </p>
 
       <div className="op-mb-2">
-        <p className="op-body2 op-text-secondary op-mb-05">
-          <OperatorBrand /> Working Directory
-        </p>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="op-folder-picker">
           <TextInput
-            style={{ flex: 1 }}
+            className="op-flex-1"
+            label="Working directory"
             {...workingDirectoryDraft}
             placeholder="/path/to/your/repos"
             helperText="Parent directory of Operator! managed code repositories containing .tickets/ working directory"
           />
-          <Button
-            variant="outlined"
-            onClick={handleBrowseFolder}
-            style={{
-              alignSelf: "flex-start",
-              marginTop: 8,
-              borderColor: "var(--op-terracotta)",
-              color: "var(--op-terracotta)",
-            }}
-          >
-            change
+          <Button variant="outlined" onClick={handleBrowseFolder} className="op-browse-folder">
+            Browse…
           </Button>
         </div>
       </div>
 
-      <SelectInput
-        label="Session Wrapper"
-        value={sessions_wrapper || "vscode"}
-        onChange={handleSessionWrapperChange}
-        helperText="Only VS Code Terminal is available when running from the extension. Other wrappers require running Operator from the CLI."
-      >
-        <option value="vscode">VS Code Terminal</option>
-        <option value="tmux" disabled>
-          tmux
-        </option>
-        <option value="cmux" disabled>
-          cmux
-        </option>
-        <option value="zellij" disabled>
-          zellij
-        </option>
-      </SelectInput>
+      <p>Extension launches use the VS Code terminal.</p>
+      {sessions_wrapper !== "vscode" && <p>CLI session wrapper: {sessions_wrapper}</p>}
     </div>
   );
 }

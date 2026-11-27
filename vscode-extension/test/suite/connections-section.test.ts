@@ -65,6 +65,9 @@ suite("ConnectionsSection", () => {
       if (url.endsWith("/livez")) {
         return Promise.resolve(new Response("ok", { status: 200 }));
       }
+      if (url.endsWith("/auth/session")) {
+        return Promise.resolve(new Response("{}"));
+      }
       if (url.includes("/api/v1/health")) {
         return Promise.resolve(
           new Response(
@@ -90,7 +93,7 @@ suite("ConnectionsSection", () => {
     const api = children.find((item) => item.label === "API");
     assert.strictEqual(version?.command?.command, "operator.downloadOperator");
     assert.strictEqual(api?.description, "Version mismatch");
-    assert.strictEqual(api?.command?.command, "operator.startOperatorServer");
+    assert.strictEqual(api?.command?.command, "operator.chooseConnection");
   });
 
   test("remote mode adopts a different version and directory and links to that origin", async () => {
@@ -106,6 +109,9 @@ suite("ConnectionsSection", () => {
       const url = String(input);
       if (url.endsWith("/livez")) {
         return Promise.resolve(new Response("ok", { status: 200 }));
+      }
+      if (url.endsWith("/auth/session")) {
+        return Promise.resolve(new Response("{}"));
       }
       if (url.includes("/api/v1/health")) {
         return Promise.resolve(
@@ -147,7 +153,8 @@ suite("ConnectionsSection", () => {
     const tooltip = typeof api?.tooltip === "string" ? api.tooltip : "";
     assert.match(tooltip, /serves 'casa'/);
     const webhook = children.find((item) => item.label === "Webhook");
-    assert.strictEqual(webhook?.description, "Local only");
+    assert.strictEqual(webhook, undefined);
+    assert.strictEqual(section.health(), "Green");
   });
 
   test("a hosted session without health permission remains connected", async () => {

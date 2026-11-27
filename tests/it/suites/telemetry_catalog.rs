@@ -41,6 +41,7 @@ fn test_generate_types_check_rejects_stale_catalog_without_writing() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let paths = [
         "shared/types.ts",
+        "vscode-extension/webview-ui/types/agent-defaults.json",
         "docs/schemas/config.json",
         "docs/schemas/state.json",
         "docs/schemas/jira-api.json",

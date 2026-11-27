@@ -1,15 +1,15 @@
 import * as vscode from "vscode";
-import * as path from "node:path";
-import * as fs from "node:fs/promises";
+import { assessConnection } from "../connection-assessment";
+
 import { StatusItem } from "../status-item";
 import type { SectionContext, StatusSection, WebhookStatus, ApiStatus } from "./types";
 import type { SectionId, SectionHealth } from "../generated";
-import type { SessionInfo } from "../types";
-import { discoverApiUrl, ApiError, AuthRequiredError, OperatorApiClient } from "../api-client";
+
+import { resolveWorkingDirectory } from "../config-paths";
 import { SIGN_IN_COMMAND_TITLE } from "../auth/errors";
 import {
   CHOOSE_CONNECTION_COMMAND,
-  localAdoptMismatch,
+  normalizeFailureMessage,
   currentConnection,
   serverOrigin,
   swaggerUrl,
@@ -21,12 +21,14 @@ import type { McpRegistrationPresence } from "../mcp-connect";
 
 export class ConnectionsSection implements StatusSection {
   readonly sectionId: SectionId = "connections";
-  readonly prerequisites: SectionId[] = ["config"];
+  readonly prerequisites: SectionId[] = [];
 
   private webhookStatus: WebhookStatus = { running: false };
   private apiStatus: ApiStatus = { connected: false };
+  private binaryError: string | undefined;
+  private operatorPath: string | undefined;
   private operatorVersion: string | undefined;
-  private localDirectoryName: string | undefined;
+
   private mcpPresence: McpRegistrationPresence = {
     vscodeWorkspace: false,
     workspacePortable: false,
@@ -49,92 +51,76 @@ export class ConnectionsSection implements StatusSection {
   health(): SectionHealth {
     const api = this.apiStatus.connected;
     const wh = this.webhookStatus.running;
-    if (api && wh) {
+    if (api && (this.remote || wh)) {
       return "Green";
     }
     if (api || wh) {
       return "Yellow";
     }
-    return "Red";
+    return currentConnection().selection.kind === "undecided" ? "Gray" : "Red";
   }
 
   async check(ctx: SectionContext): Promise<void> {
-    // Top-level name of this workspace (parent of the .tickets dir), used to
-    // confirm an already-running API serves THIS project before adopting it.
-    this.localDirectoryName = ctx.ticketsDir
-      ? path.basename(path.dirname(ctx.ticketsDir))
-      : undefined;
     const { selection } = currentConnection();
     this.remote = selection.kind === "hosted";
+    if (selection.kind === "undecided" || selection.kind === "invalid") {
+      return;
+    }
     if (selection.kind === "local") {
-      await this.checkOperatorVersion(ctx);
-      await Promise.allSettled([this.checkWebhookStatus(ctx), this.checkWrapperType(ctx)]);
+      try {
+        await this.checkOperatorVersion(ctx);
+      } catch (error) {
+        this.binaryError = error instanceof Error ? error.message : String(error);
+      }
+      this.checkWebhookStatus(ctx);
+      await this.checkWrapperType(ctx);
     } else {
       this.webhookStatus = { running: false };
     }
     await this.checkApiStatus(ctx);
-    this.mcpPresence = await mcpConnect.inspectMcpRegistration();
+    if (this.apiStatus.connected && this.apiStatus.url) {
+      try {
+        const descriptor = await mcpConnect.fetchMcpDescriptor(this.apiStatus.url);
+        this.mcpPresence = await mcpConnect.inspectMcpRegistration(
+          this.remote ? { ...descriptor, stdio: undefined } : descriptor,
+        );
+      } catch {
+        // MCP is optional.
+      }
+    }
     this.workspaceStdio = mcpConnect.isVscodeWorkspaceStdio();
   }
 
-  private async checkWebhookStatus(ctx: SectionContext): Promise<void> {
-    if (!ctx.ticketsDir) {
-      this.webhookStatus = { running: false };
-      return;
-    }
-
-    const webhookSessionFile =
-      ctx.webhookServer?.getRegistrationPath?.() ??
-      path.join(ctx.ticketsDir, "operator", "vscode-session.json");
-    try {
-      const content = await fs.readFile(webhookSessionFile, "utf-8");
-      const session = JSON.parse(content) as SessionInfo;
-
-      this.webhookStatus = {
-        running: true,
-        version: session.version,
-        port: session.port,
-        workspace: session.workspace,
-        sessionFile: webhookSessionFile,
-      };
-    } catch {
-      this.webhookStatus = { running: false };
-    }
-
-    // Fall back to live server state if file check missed it
-    if (!this.webhookStatus.running && ctx.webhookServer?.isRunning()) {
-      this.webhookStatus = {
-        running: true,
-        port: ctx.webhookServer.getPort(),
-      };
-    }
+  private checkWebhookStatus(ctx: SectionContext): void {
+    this.webhookStatus = ctx.webhookServer?.isRunning()
+      ? { running: true, port: ctx.webhookServer.getPort() }
+      : { running: false };
   }
 
   private async checkApiStatus(ctx: SectionContext): Promise<void> {
-    const apiUrl = await discoverApiUrl(ctx.ticketsDir);
+    const { origin: apiUrl, assessment, selection } = currentConnection();
     if (!apiUrl) {
       this.apiStatus = { connected: false };
       this.webUiAvailable = false;
       return;
     }
-    await this.tryHealthCheck(apiUrl);
+    this.apiStatus =
+      assessment ??
+      (await assessConnection(selection, apiUrl, ctx.ticketsDir, ctx.extensionContext));
+    if (this.apiStatus.connected) {
+      await this.checkWebUi(apiUrl);
+    }
   }
 
   private async checkOperatorVersion(ctx: SectionContext): Promise<void> {
     const operatorPath = await getOperatorPath(ctx.extensionContext);
+    this.operatorPath = operatorPath;
     if (operatorPath) {
       this.operatorVersion = (await getOperatorVersion(operatorPath)) || undefined;
       return;
     }
 
-    try {
-      const response = await fetch("https://operator.untra.io/VERSION");
-      if (response.ok) {
-        this.operatorVersion = (await response.text()).trim() || undefined;
-      }
-    } catch {
-      this.operatorVersion = undefined;
-    }
+    this.operatorVersion = undefined;
   }
 
   private async checkWrapperType(ctx: SectionContext): Promise<void> {
@@ -151,74 +137,9 @@ export class ConnectionsSection implements StatusSection {
     }
   }
 
-  private async tryHealthCheck(apiUrl: string): Promise<boolean> {
-    const client = new OperatorApiClient(apiUrl);
-    const portStr = new URL(apiUrl).port;
-    const port = portStr ? Number.parseInt(portStr, 10) : 7008;
-    try {
-      if (await client.isReachable()) {
-        const health = await client.health();
-        const found = health.version;
-        const mismatch = localAdoptMismatch({
-          remote: this.remote,
-          expectedVersion: this.operatorVersion,
-          foundVersion: found,
-          localDirectoryName: this.localDirectoryName,
-          foundDirectoryName: health.directory_name,
-        });
-        if (mismatch) {
-          this.apiStatus = {
-            connected: false,
-            port,
-            url: apiUrl,
-            mismatch,
-          };
-          this.webUiAvailable = false;
-          return false;
-        }
-
-        this.apiStatus = {
-          connected: true,
-          version: found,
-          port,
-          url: apiUrl,
-          directoryName: health.directory_name,
-        };
-        await this.checkWebUi(apiUrl);
-        return true;
-      }
-    } catch (err) {
-      let needsSignIn = err instanceof AuthRequiredError;
-      if (this.remote && err instanceof ApiError && err.status === 403) {
-        try {
-          await client.currentSession();
-          this.apiStatus = { connected: true, port, url: apiUrl };
-          await this.checkWebUi(apiUrl);
-          return true;
-        } catch (sessionError) {
-          needsSignIn = sessionError instanceof AuthRequiredError;
-        }
-      }
-      if (needsSignIn) {
-        // Something is listening and it is Operator, but it will not talk to us yet.
-        this.apiStatus = {
-          connected: false,
-          port,
-          url: apiUrl,
-          mismatch: { kind: "auth", detail: `at ${apiUrl} requires sign-in` },
-        };
-        this.webUiAvailable = false;
-        return false;
-      }
-    }
-    this.apiStatus = { connected: false, url: apiUrl };
-    this.webUiAvailable = false;
-    return false;
-  }
-
   private async checkWebUi(apiUrl: string): Promise<void> {
     try {
-      const res = await fetch(apiUrl);
+      const res = await fetch(apiUrl, { signal: currentConnection().signal });
       this.webUiAvailable = res.ok && (res.headers.get("content-type") || "").includes("text/html");
     } catch {
       this.webUiAvailable = false;
@@ -232,17 +153,28 @@ export class ConnectionsSection implements StatusSection {
       icon: ctx.configReady ? this.getConnectionsIcon() : "debug-configure",
       collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
       sectionId: this.sectionId,
-      command: ctx.configReady
-        ? undefined
-        : headerCommand(
-            this.remote,
-            !!ctx.extensionContext.globalState.get<string>("operator.workingDirectory"),
-          ),
+      command: ["undecided", "invalid"].includes(currentConnection().selection.kind)
+        ? { command: CHOOSE_CONNECTION_COMMAND, title: "Choose Connection" }
+        : ctx.configReady
+          ? undefined
+          : headerCommand(this.remote, !!resolveWorkingDirectory()),
       health: this.health(),
     });
   }
 
   getChildren(ctx: SectionContext, _element?: StatusItem): StatusItem[] {
+    const { selection } = currentConnection();
+    const choose = new StatusItem({
+      label: "Choose Connection",
+      icon: "plug",
+      description:
+        selection.kind === "invalid" ? normalizeFailureMessage(selection.reason) : undefined,
+      command: { command: CHOOSE_CONNECTION_COMMAND, title: "Choose Connection" },
+      sectionId: this.sectionId,
+    });
+    if (selection.kind === "undecided" || selection.kind === "invalid") {
+      return [choose];
+    }
     const configuredBoth = ctx.configReady;
 
     // 1. Session Wrapper
@@ -250,10 +182,10 @@ export class ConnectionsSection implements StatusSection {
     const wrapperItem = new StatusItem({
       label: "Session Wrapper",
       description: isVscodeWrapper ? "VS Code Terminal" : this.wrapperType,
-      icon: isVscodeWrapper ? "pass" : "warning",
+      icon: isVscodeWrapper ? "pass" : "terminal",
       tooltip: isVscodeWrapper
         ? "Sessions route through the VS Code webhook to managed terminals"
-        : `Sessions use ${this.wrapperType} - VS Code terminal integration unavailable`,
+        : `CLI launches use ${this.wrapperType}. Extension launches use VS Code terminals.`,
       sectionId: this.sectionId,
     });
 
@@ -289,15 +221,27 @@ export class ConnectionsSection implements StatusSection {
     } else {
       versionItem = new StatusItem({
         label: "Operator Version",
-        description: this.operatorVersion ? `Version ${this.operatorVersion}` : "Not installed",
+        description: this.binaryError
+          ? "Check operator.operatorPath"
+          : this.operatorVersion
+            ? `Version ${this.operatorVersion}`
+            : "Not installed",
         icon: "versions",
-        tooltip: this.operatorVersion
-          ? `Installed: ${this.operatorVersion} - click to update`
-          : "Click to download Operator",
-        command: {
-          command: "operator.downloadOperator",
-          title: "Download Operator",
-        },
+        tooltip:
+          this.binaryError ??
+          (this.operatorVersion
+            ? `Installed: ${this.operatorPath} (v${this.operatorVersion}) - click to update`
+            : "Click to download Operator"),
+        command: this.binaryError
+          ? {
+              command: "workbench.action.openSettings",
+              title: "Configure Operator executable",
+              arguments: ["operator.operatorPath"],
+            }
+          : {
+              command: "operator.downloadOperator",
+              title: "Download Operator",
+            },
         sectionId: this.sectionId,
       });
     }
@@ -336,8 +280,8 @@ export class ConnectionsSection implements StatusSection {
           `An Operator API on this port ${mismatch.detail}. ` +
           "Stop the other instance or configure a different port (operator.apiUrl), then start your own server.",
         command: {
-          command: "operator.startOperatorServer",
-          title: "Start Operator Server",
+          command: CHOOSE_CONNECTION_COMMAND,
+          title: "Choose Connection",
         },
         sectionId: this.sectionId,
       });
@@ -349,10 +293,7 @@ export class ConnectionsSection implements StatusSection {
         tooltip: this.apiStatus.url
           ? `Can't reach Operator at ${this.apiStatus.url}.`
           : "Run Operator: Choose Connection and enter the server's https address.",
-        command: {
-          command: CHOOSE_CONNECTION_COMMAND,
-          title: "Choose Connection",
-        },
+        command: { command: "operator.retryConnection", title: "Retry connection" },
         sectionId: this.sectionId,
       });
     } else {
@@ -399,37 +340,29 @@ export class ConnectionsSection implements StatusSection {
           });
 
     // 5. Webhook Connection
-    const webhookItem = this.remote
+    const webhookItem = this.webhookStatus.running
       ? new StatusItem({
           label: "Webhook",
-          description: "Local only",
-          icon: "circle-slash",
-          tooltip: "VS Code terminals need a local Operator.",
+          description: `Running${this.webhookStatus.port ? ` :${this.webhookStatus.port}` : ""}`,
+          icon: "pass",
+          tooltip: `Webhook bridge: Operator API \u2192 VS Code terminals (port ${this.webhookStatus.port})`,
           sectionId: this.sectionId,
         })
-      : this.webhookStatus.running
-        ? new StatusItem({
-            label: "Webhook",
-            description: `Running${this.webhookStatus.port ? ` :${this.webhookStatus.port}` : ""}`,
-            icon: "pass",
-            tooltip: `Webhook bridge: Operator API \u2192 VS Code terminals (port ${this.webhookStatus.port})`,
-            sectionId: this.sectionId,
-          })
-        : new StatusItem({
-            label: "Webhook",
-            description: configuredBoth ? `Stopped` : "Not Ready",
-            icon: "circle-slash",
-            tooltip: configuredBoth
-              ? "Click to start webhook server"
-              : "Complete configuration first",
-            command: configuredBoth
-              ? {
-                  command: "operator.startWebhookServer",
-                  title: "Start Webhook Server",
-                }
-              : undefined,
-            sectionId: this.sectionId,
-          });
+      : new StatusItem({
+          label: "Webhook",
+          description: configuredBoth ? `Stopped` : "Not Ready",
+          icon: "circle-slash",
+          tooltip: configuredBoth
+            ? "Click to start webhook server"
+            : "Complete configuration first",
+          command: configuredBoth
+            ? {
+                command: "operator.startWebhookServer",
+                title: "Start Webhook Server",
+              }
+            : undefined,
+          sectionId: this.sectionId,
+        });
 
     // 5. MCP Connection
     const mcpStatus = mcpConnect.mcpStatusDescription(
@@ -438,13 +371,11 @@ export class ConnectionsSection implements StatusSection {
       this.workspaceStdio,
     );
     let mcpItem: StatusItem;
-    const mcpTooltip = this.remote
-      ? "Remote Operator is connected over SSE. Stdio entries are not written for a remote server."
-      : mcpStatus.tooltip;
+    const mcpTooltip = mcpStatus.tooltip;
     if (mcpStatus.connected) {
       mcpItem = new StatusItem({
         label: "MCP",
-        description: mcpStatus.description,
+        description: `Registered · ${mcpStatus.description}`,
         icon: "pass",
         tooltip: mcpTooltip,
         command: this.apiStatus.connected
@@ -477,11 +408,13 @@ export class ConnectionsSection implements StatusSection {
       });
     }
 
-    return [wrapperItem, versionItem, apiItem, webUiItem, webhookItem, mcpItem];
+    return this.remote
+      ? [choose, versionItem, apiItem, webUiItem, mcpItem]
+      : [choose, wrapperItem, versionItem, apiItem, webUiItem, webhookItem, mcpItem];
   }
 
   private getConnectionsSummary(): string {
-    if (this.apiStatus.connected && this.webhookStatus.running) {
+    if (this.apiStatus.connected && (this.remote || this.webhookStatus.running)) {
       return "All connected";
     }
     if (this.apiStatus.connected || this.webhookStatus.running) {
@@ -491,7 +424,7 @@ export class ConnectionsSection implements StatusSection {
   }
 
   private getConnectionsIcon(): string {
-    if (this.apiStatus.connected && this.webhookStatus.running) {
+    if (this.apiStatus.connected && (this.remote || this.webhookStatus.running)) {
       return "pass";
     }
     if (this.apiStatus.connected || this.webhookStatus.running) {

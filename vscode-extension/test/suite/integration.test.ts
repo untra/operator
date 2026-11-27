@@ -77,16 +77,12 @@ suite("Integration Test Suite", () => {
       "Default tickets dir should be .tickets",
     );
 
-    assert.strictEqual(
-      config.get<string>("apiUrl"),
-      "http://localhost:7008",
-      "Default API URL should be http://localhost:7008",
-    );
+    assert.strictEqual(config.get<string>("apiUrl"), "", "Default API URL uses discovery");
 
     assert.strictEqual(
       config.get<string>("connectionMode"),
-      "local",
-      "Default connection mode should be local",
+      "",
+      "First run should prompt for a connection",
     );
   });
 

@@ -12,7 +12,7 @@ import { guardRemoteCommand } from "./command-policy";
 import * as fs from "node:fs/promises";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { getConfigDir, getResolvedConfigPath, resolveWorkingDirectory } from "./config-paths";
+import { getResolvedConfigPath, resolveWorkingDirectory } from "./config-paths";
 import { openOperatorUi } from "./open-operator-ui";
 import * as path from "node:path";
 import { showEnvVarInstructions } from "./kanban-onboarding";
@@ -56,7 +56,7 @@ async function writeGitConfig(
   providerSection: Record<string, unknown>,
 ): Promise<boolean> {
   try {
-    const configDir = getConfigDir(resolveWorkingDirectory());
+    const configDir = path.dirname(getResolvedConfigPath());
     await fs.mkdir(configDir, { recursive: true });
   } catch {
     // directory may already exist

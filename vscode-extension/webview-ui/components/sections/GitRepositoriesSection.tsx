@@ -11,29 +11,39 @@ interface GitRepositoriesSectionProps {
 
 export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSectionProps) {
   const provider = git.provider;
-  const githubEnabled = git.github.enabled;
-  const githubTokenEnv = git.github.token_env;
+  const forge =
+    provider && provider in git && provider !== "bitbucket" && provider !== "azuredevops"
+      ? git[provider]
+      : undefined;
   const branchFormat = git.branch_format;
   const useWorktrees = git.use_worktrees;
   const handleProviderChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) =>
-      onUpdate("git", "provider", event.target.value),
+      onUpdate("git", "provider", event.target.value || null),
     [onUpdate],
   );
-  const handleGithubEnabledChange = useCallback(
+  const handleEnabledChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
-      onUpdate("git.github", "enabled", event.target.checked),
-    [onUpdate],
+      onUpdate(`git.${provider}`, "enabled", event.target.checked),
+    [onUpdate, provider],
   );
-  const commitGithubToken = useCallback(
-    (next: string) => onUpdate("git.github", "token_env", next),
-    [onUpdate],
+  const commitToken = useCallback(
+    (next: string) => onUpdate(`git.${provider}`, "token_env", next),
+    [onUpdate, provider],
+  );
+  const commitHost = useCallback(
+    (next: string) => onUpdate(`git.${provider}`, "host", next || null),
+    [onUpdate, provider],
+  );
+  const hostDraft = useDraftField(
+    forge && "host" in forge && typeof forge.host === "string" ? forge.host : "",
+    commitHost,
   );
   const commitBranchFormat = useCallback(
     (next: string) => onUpdate("git", "branch_format", next),
     [onUpdate],
   );
-  const githubTokenDraft = useDraftField(githubTokenEnv, commitGithubToken);
+  const tokenDraft = useDraftField(forge?.token_env ?? "", commitToken);
   const branchFormatDraft = useDraftField(branchFormat, commitBranchFormat);
   const handleWorktreesChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -49,32 +59,43 @@ export function GitRepositoriesSection({ git, onUpdate }: GitRepositoriesSection
         <a href="https://operator.untra.io/getting-started/git/">git documentation</a>
       </p>
 
-      <div className="op-col" style={{ gap: 20 }}>
-        <SelectInput
-          label="Git Provider"
-          value={provider || "github"}
-          onChange={handleProviderChange}
-        >
+      <div className="op-col op-settings-fields">
+        <SelectInput label="Git Provider" value={provider ?? ""} onChange={handleProviderChange}>
+          <option value="">Auto-detect from remote</option>
+          <option value="gitea">Gitea</option>
+          <option value="forgejo">Forgejo</option>
           <option value="github">GitHub</option>
           <option value="gitlab">GitLab</option>
-          <option value="bitbucket">Bitbucket</option>
-          <option value="azuredevops">Azure DevOps</option>
+          {provider === "bitbucket" && (
+            <option value="bitbucket" disabled>
+              Bitbucket (detection only)
+            </option>
+          )}
+          {provider === "azuredevops" && (
+            <option value="azuredevops" disabled>
+              Azure DevOps (detection only)
+            </option>
+          )}
         </SelectInput>
 
-        <Toggle
-          checked={githubEnabled}
-          onChange={handleGithubEnabledChange}
-          label="GitHub integration enabled"
-        />
+        {forge && (
+          <>
+            <Toggle
+              checked={forge.enabled}
+              onChange={handleEnabledChange}
+              label={`Enable ${provider} integration`}
+            />
 
-        <TextInput
-          label="GitHub Token Environment Variable"
-          {...githubTokenDraft}
-          placeholder="GITHUB_TOKEN"
-          helperText="Name of the environment variable containing your GitHub personal access token"
-          disabled={!githubEnabled}
-        />
+            <TextInput
+              label="Token environment variable"
+              {...tokenDraft}
+              helperText="Name of the environment variable containing the provider token"
+              disabled={!forge.enabled}
+            />
 
+            {"host" in forge && <TextInput label="Host" {...hostDraft} disabled={!forge.enabled} />}
+          </>
+        )}
         <TextInput
           label="Branch Format"
           {...branchFormatDraft}

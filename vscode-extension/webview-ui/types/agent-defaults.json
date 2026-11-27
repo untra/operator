@@ -1,0 +1,10 @@
+{
+  "max_parallel": 5,
+  "cores_reserved": 1,
+  "max_agents_per_repo": 1,
+  "health_check_interval": 30,
+  "generation_timeout_secs": 300,
+  "sync_interval": 60,
+  "step_timeout": 1800,
+  "silence_threshold": 30
+}

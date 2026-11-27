@@ -52,6 +52,12 @@ function applyKanbanUpdate<W extends KanbanWorkspace>(
   if (!instanceKey) {
     return map;
   }
+  if (key === "addInstance") {
+    if (!Object.hasOwn(map, instanceKey)) {
+      map[instanceKey] = { ...shape.defaultWorkspace, enabled: true };
+    }
+    return map;
+  }
   const hasInstances = Object.keys(map).length > 0;
   if (hasInstances && !Object.hasOwn(map, instanceKey)) {
     return map;
@@ -129,12 +135,17 @@ export function applyUpdate(
       next.config.git = { ...next.config.git, [key]: value };
       break;
 
-    case "git.github":
+    case "git.gitea":
+    case "git.forgejo":
+    case "git.gitlab":
+    case "git.github": {
+      const provider = section.slice(4) as "gitea" | "forgejo" | "gitlab" | "github";
       next.config.git = {
         ...next.config.git,
-        github: { ...next.config.git.github, [key]: value },
+        [provider]: { ...next.config.git[provider], [key]: value },
       };
       break;
+    }
   }
 
   return next;

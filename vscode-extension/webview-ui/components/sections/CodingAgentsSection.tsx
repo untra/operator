@@ -5,7 +5,7 @@ import { useDraftField } from "../../hooks/useDraftField";
 import type { AgentsConfig } from "../../../src/generated/AgentsConfig";
 import type { LlmToolsConfig } from "../../../src/generated/LlmToolsConfig";
 
-const LLM_ICON_NAMES = new Set(["claude", "codex", "gemini"]);
+const LLM_ICON_NAMES = new Set(["claude", "codex", "gemini", "grok"]);
 
 interface NumberFieldProps {
   label: string;
@@ -50,6 +50,7 @@ function NumberField({ label, value, min, max, helperText, onCommit }: NumberFie
 }
 
 interface CodingAgentsSectionProps {
+  worktrees: boolean;
   agents: AgentsConfig;
   llm_tools: LlmToolsConfig;
   onUpdate: (section: string, key: string, value: unknown) => void;
@@ -57,6 +58,7 @@ interface CodingAgentsSectionProps {
 }
 
 export function CodingAgentsSection({
+  worktrees,
   agents,
   llm_tools,
   onUpdate,
@@ -67,6 +69,14 @@ export function CodingAgentsSection({
   const stepTimeout = Number(agents.step_timeout);
   const silenceThreshold = Number(agents.silence_threshold);
   const detected = llm_tools.detected;
+  const commitReserved = useCallback(
+    (n: number) => onUpdate("agents", "cores_reserved", n),
+    [onUpdate],
+  );
+  const commitPerRepo = useCallback(
+    (n: number) => onUpdate("agents", "max_agents_per_repo", n),
+    [onUpdate],
+  );
   const commitMaxParallel = useCallback(
     (n: number) => onUpdate("agents", "max_parallel", n),
     [onUpdate],
@@ -92,7 +102,7 @@ export function CodingAgentsSection({
         <a href="https://operator.untra.io/getting-started/agents/">agents documentation</a>
       </p>
 
-      <div className="op-col" style={{ gap: 20 }}>
+      <div className="op-col op-settings-fields">
         <div>
           <p className="op-body2 op-text-secondary op-mb-05">Detected LLM Tools</p>
           <div className="op-row op-gap-1 op-wrap op-mb-1">
@@ -109,8 +119,7 @@ export function CodingAgentsSection({
                       <>
                         {LLM_ICON_NAMES.has(tool.name) && (
                           <i
-                            className={`opi-${tool.name}`}
-                            style={{ fontSize: "1rem", lineHeight: 1 }}
+                            className={`op-brand-glyph opi-${tool.name === "grok" ? "xai" : tool.name}`}
                           />
                         )}
                         {`${tool.name} ${tool.version}`}
@@ -121,11 +130,13 @@ export function CodingAgentsSection({
                 </span>
               ))
             ) : (
-              <span className="op-body2 op-text-secondary">No tools detected</span>
+              <span className="op-body2 op-text-secondary">
+                {llm_tools.detection_complete ? "No tools detected" : "Detection has not run"}
+              </span>
             )}
           </div>
           <Button variant="outlined" size="small" onClick={onDetectTools}>
-            Detect Tools
+            {llm_tools.detection_complete ? "Scan again" : "Detect tools"}
           </Button>
         </div>
 
@@ -133,16 +144,34 @@ export function CodingAgentsSection({
           label="Max Parallel Agents"
           value={maxParallel}
           min={1}
-          max={16}
+          max={Number.MAX_SAFE_INTEGER}
           onCommit={commitMaxParallel}
           helperText="Maximum number of agents running simultaneously"
         />
 
         <NumberField
+          label="Reserved CPU cores"
+          value={agents.cores_reserved}
+          min={0}
+          max={Number.MAX_SAFE_INTEGER}
+          onCommit={commitReserved}
+          helperText="CPU cores kept free when scheduling agents"
+        />
+        {worktrees && (
+          <NumberField
+            label="Max agents per repository"
+            value={agents.max_agents_per_repo}
+            min={1}
+            max={Number.MAX_SAFE_INTEGER}
+            onCommit={commitPerRepo}
+            helperText="Concurrent worktrees per repository"
+          />
+        )}
+        <NumberField
           label="Generation Timeout (seconds)"
           value={generationTimeout}
-          min={30}
-          max={3600}
+          min={0}
+          max={Number.MAX_SAFE_INTEGER}
           onCommit={commitGenerationTimeout}
           helperText="Timeout for each agent generation step"
         />
@@ -150,17 +179,17 @@ export function CodingAgentsSection({
         <NumberField
           label="Step Timeout (seconds)"
           value={stepTimeout}
-          min={60}
-          max={7200}
+          min={0}
+          max={Number.MAX_SAFE_INTEGER}
           onCommit={commitStepTimeout}
           helperText="Maximum seconds a step can run before timing out"
         />
 
         <NumberField
-          label="Silence Threshold (seconds)"
+          label="tmux Silence Threshold (seconds)"
           value={silenceThreshold}
-          min={5}
-          max={300}
+          min={0}
+          max={Number.MAX_SAFE_INTEGER}
           onCommit={commitSilenceThreshold}
           helperText="Seconds of silence before considering agent awaiting input"
         />

@@ -5,6 +5,7 @@
  * already runs. Remote mode never downloads, updates, or starts a binary.
  */
 
+import type { ApiStatus } from "./sections/types";
 import { isLoopbackUrl } from "./auth/credentials";
 
 export const CONNECTION_MODE_LOCAL = "local";
@@ -79,7 +80,7 @@ export function normalizeFailureMessage(reason: NormalizeReason): string {
     case "path":
       return "Enter only the server origin, for example https://operator.example.com.";
     case "loopback":
-      return "Loopback addresses stay in local mode. Pick Run for this folder, or enter the server's public https address.";
+      return "Loopback addresses stay in local mode. Pick Use Operator on this computer, or enter the server's public https address.";
     default: {
       const exhaustive: never = reason;
       return exhaustive;
@@ -240,6 +241,7 @@ export function resolveConnection(input: {
 
 let selection: ConnectionSelection = { kind: "undecided" };
 let origin = "";
+let assessment: ApiStatus | undefined;
 let controller = new AbortController();
 
 export function resetConnection(next: ConnectionSelection): void {
@@ -247,12 +249,22 @@ export function resetConnection(next: ConnectionSelection): void {
   controller = new AbortController();
   selection = next;
   origin = "";
+  assessment = undefined;
 }
 
 export function setConnectionOrigin(url: string): void {
+  if (url !== origin) {
+    assessment = undefined;
+  }
   origin = url;
 }
 
+export function setConnectionAssessment(status: ApiStatus): void {
+  if (status.url === origin) {
+    assessment = status;
+  }
+}
+
 export function currentConnection() {
-  return { selection, origin, signal: controller.signal };
+  return { selection, origin, assessment, signal: controller.signal };
 }

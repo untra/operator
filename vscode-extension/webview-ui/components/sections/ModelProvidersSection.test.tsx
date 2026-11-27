@@ -3,17 +3,23 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from "../../types/messages";
 
+const DETECTED_TOOLS = ["claude"];
 const posted: WebviewToExtensionMessage[] = [];
-let incoming: ((msg: ExtensionToWebviewMessage) => void) | undefined;
+const listeners = new Set<(msg: ExtensionToWebviewMessage) => void>();
+function incoming(msg: ExtensionToWebviewMessage) {
+  for (const listener of listeners) {
+    listener(msg);
+  }
+}
 
 mock.module("../../vscodeApi", () => ({
   postMessage: (message: WebviewToExtensionMessage) => {
     posted.push(message);
   },
   onMessage: (handler: (message: ExtensionToWebviewMessage) => void) => {
-    incoming = handler;
+    listeners.add(handler);
     return () => {
-      incoming = undefined;
+      listeners.delete(handler);
     };
   },
 }));
@@ -41,12 +47,28 @@ afterEach(() => {
 });
 
 function loadProvider(): void {
-  incoming?.({ type: "modelProvidersLoaded", kinds: [KIND], delegators: [] });
-  incoming?.({
+  incoming({
+    type: "modelProvidersLoaded",
+    kinds: [KIND],
+    servers: [
+      {
+        name: "team-openai",
+        kind: "openai",
+        base_url: null,
+        api_key_env: null,
+        extra_env: {},
+        display_name: null,
+        user_declared: true,
+      },
+    ],
+    delegators: [],
+  });
+  incoming({
     type: "providerProbed",
-    slug: "openai",
+    slug: "team-openai",
     result: {
-      server: "openai",
+      status: "connected",
+      server: "team-openai",
       reachable: true,
       models: [{ id: "gpt-test", display_name: "GPT Test" }],
       error: null,
@@ -67,20 +89,22 @@ function selectByLabel(
 
 describe("CreateDelegatorForm selects", () => {
   test("Provider and Model start on an empty option, and Create is a no-op until both are chosen", () => {
-    const view = render(<ModelProvidersSection detectedTools={["claude"]} apiReachable />);
+    const view = render(<ModelProvidersSection detectedTools={DETECTED_TOOLS} apiReachable />);
     act(() => {
       loadProvider();
     });
 
     const provider = selectByLabel(view.getByLabelText, "Provider");
     expect(provider.value).toBe("");
-    expect([...provider.options].map((option) => option.value)).toEqual(["", "openai"]);
+    expect([...provider.options].map((option) => option.value)).toEqual(["", "team-openai"]);
 
     fireEvent.click(view.getByRole("button", { name: "Create delegator" }));
     expect(posted.filter((message) => message.type === "createDelegator")).toEqual([]);
-    expect(view.getByText("Pick a tool, a provider, and a model.")).toBeTruthy();
+    expect(view.getByRole("button", { name: "Create delegator" }).hasAttribute("disabled")).toBe(
+      true,
+    );
 
-    fireEvent.change(provider, { target: { value: "openai" } });
+    fireEvent.change(provider, { target: { value: "team-openai" } });
     const model = selectByLabel(view.getByLabelText, "Model");
     expect(model.value).toBe("");
     expect([...model.options].map((option) => option.value)).toEqual(["", "gpt-test"]);
@@ -96,7 +120,7 @@ describe("CreateDelegatorForm selects", () => {
           model: "gpt-test",
           display_name: null,
           model_properties: {},
-          model_server: "openai",
+          model_server: "team-openai",
           launch_config: null,
           remote_agent: null,
           governance: null,

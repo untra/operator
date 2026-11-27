@@ -10,8 +10,6 @@ import { KanbanProvidersSection } from "./sections/KanbanProvidersSection";
 import { GitRepositoriesSection } from "./sections/GitRepositoriesSection";
 import type {
   WebviewConfig,
-  JiraValidationInfo,
-  LinearValidationInfo,
   IssueTypeSummary,
   CollectionResponse,
   ExternalIssueTypeSummary,
@@ -24,20 +22,14 @@ interface ConfigPageProps {
   onBrowseFolder: (field: string) => void;
   onOpenFile: (filePath: string) => void;
   onStartSetup: () => void;
-  onValidateJira: (domain: string, email: string, apiToken: string) => void;
-  onValidateLinear: (apiKey: string) => void;
   onDetectTools: () => void;
-  jiraResult: JiraValidationInfo | null;
-  linearResult: LinearValidationInfo | null;
-  validatingJira: boolean;
-  validatingLinear: boolean;
   apiReachable: boolean;
   issueTypes: IssueTypeSummary[];
   collections: CollectionResponse[];
   externalIssueTypes: Map<string, ExternalIssueTypeSummary[]>;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
   kanbanStatuses: Map<string, string[]>;
-  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
+  onGetKanbanStatuses: (provider: string, domain: string, projectKey: string) => void;
   onOpenOperatorUi: (route: "issuetypes" | "projects") => void;
   delegatorPrefill?: NavigationPrefill;
 }
@@ -59,13 +51,7 @@ export function ConfigPage({
   onBrowseFolder,
   onOpenFile,
   onStartSetup,
-  onValidateJira,
-  onValidateLinear,
   onDetectTools,
-  jiraResult,
-  linearResult,
-  validatingJira,
-  validatingLinear,
   apiReachable,
   issueTypes,
   collections,
@@ -76,8 +62,13 @@ export function ConfigPage({
   onOpenOperatorUi,
   delegatorPrefill,
 }: ConfigPageProps) {
+  const healthyTools = useMemo(
+    () =>
+      config.config.llm_tools.detected.filter((tool) => tool.health_ok).map((tool) => tool.name),
+    [config.config.llm_tools.detected],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
-  const hasWorkDir = Boolean(config.working_directory);
+  const hasWorkDir = Boolean(config.working_directory && config.config_exists);
   // When no config file exists yet (or it's empty), nudge the user into the
   // setup walkthrough instead of trying to open a non-existent config.toml.
   const needsSetup = !config.config_exists;
@@ -129,42 +120,44 @@ export function ConfigPage({
           onUpdate={onUpdate}
           onBrowseFolder={onBrowseFolder}
         />
-        <KanbanProvidersSection
-          kanban={config.config.kanban}
-          onUpdate={onUpdate}
-          onValidateJira={onValidateJira}
-          onValidateLinear={onValidateLinear}
-          jiraResult={jiraResult}
-          linearResult={linearResult}
-          validatingJira={validatingJira}
-          validatingLinear={validatingLinear}
-          apiReachable={apiReachable}
-          issueTypes={issueTypes}
-          collections={collections}
-          externalIssueTypes={externalIssueTypes}
-          onGetExternalIssueTypes={onGetExternalIssueTypes}
-          kanbanStatuses={kanbanStatuses}
-          onGetKanbanStatuses={onGetKanbanStatuses}
-          onOpenOperatorUi={onOpenOperatorUi}
-        />
-        <CodingAgentsSection
-          agents={config.config.agents}
-          llm_tools={config.config.llm_tools}
-          onUpdate={onUpdate}
-          onDetectTools={onDetectTools}
-        />
+        {config.config_path && <p>Configuration file: {config.config_path}</p>}
+        {hasWorkDir && (
+          <>
+            <KanbanProvidersSection
+              kanban={config.config.kanban}
+              onUpdate={onUpdate}
+              apiReachable={apiReachable}
+              issueTypes={issueTypes}
+              collections={collections}
+              externalIssueTypes={externalIssueTypes}
+              onGetExternalIssueTypes={onGetExternalIssueTypes}
+              kanbanStatuses={kanbanStatuses}
+              onGetKanbanStatuses={onGetKanbanStatuses}
+              onOpenOperatorUi={onOpenOperatorUi}
+            />
+            <CodingAgentsSection
+              worktrees={config.config.git.use_worktrees}
+              agents={config.config.agents}
+              llm_tools={config.config.llm_tools}
+              onUpdate={onUpdate}
+              onDetectTools={onDetectTools}
+            />
+            <GitRepositoriesSection git={config.config.git} onUpdate={onUpdate} />
+          </>
+        )}
         <ModelProvidersSection
-          detectedTools={config.config.llm_tools.detected.map((t) => t.name)}
+          detectedTools={healthyTools}
           apiReachable={apiReachable}
           delegatorPrefill={delegatorPrefill}
         />
-        <GitRepositoriesSection git={config.config.git} onUpdate={onUpdate} />
-        <LinkOutCard
-          id="section-projects"
-          title="Operator Managed Projects"
-          description="Browse, assess, and open managed projects in the Operator UI."
-          onOpen={handleOpenProjects}
-        />
+        {apiReachable && (
+          <LinkOutCard
+            id="section-projects"
+            title="Operator Managed Projects"
+            description="Browse, assess, and open managed projects in the Operator UI."
+            onOpen={handleOpenProjects}
+          />
+        )}
       </div>
     </div>
   );

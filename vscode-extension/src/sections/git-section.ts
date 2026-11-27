@@ -6,6 +6,8 @@ import type { SectionId, SectionHealth } from "../generated";
 /** Map provider names to branded ThemeIcon IDs */
 const PROVIDER_ICONS: Record<string, string> = {
   github: "operator-github",
+  gitea: "operator-gitea",
+  forgejo: "operator-forgejo",
   gitlab: "operator-gitlab",
   bitbucket: "repo",
   azuredevops: "azure-devops",
@@ -25,7 +27,7 @@ export class GitSection implements StatusSection {
     if (!this.state.configured) {
       return "Red";
     }
-    if (!this.state.tokenSet) {
+    if (this.state.tokenSet === false) {
       return "Yellow";
     }
     return "Green";
@@ -49,14 +51,16 @@ export class GitSection implements StatusSection {
     const useWorktrees = gitSection.use_worktrees as boolean | undefined;
 
     // Determine token status based on active provider
-    let tokenSet: boolean;
-    if (provider === "gitlab" || gitlabEnabled) {
-      const tokenEnv = (gitlab?.token_env as string) || "GITLAB_TOKEN";
-      tokenSet = !!process.env[tokenEnv];
-    } else {
-      const tokenEnv = (github?.token_env as string) || "GITHUB_TOKEN";
-      tokenSet = !!process.env[tokenEnv];
-    }
+    const forge = provider
+      ? (gitSection[provider] as Record<string, unknown> | undefined)
+      : undefined;
+    const tokenEnv =
+      typeof forge?.token_env === "string"
+        ? forge.token_env
+        : provider && ["github", "gitlab", "gitea", "forgejo"].includes(provider)
+          ? `${provider.toUpperCase()}_TOKEN`
+          : undefined;
+    const tokenSet = tokenEnv ? !!process.env[tokenEnv] : undefined;
 
     const configured = !!(provider || githubEnabled || gitlabEnabled);
 
@@ -73,7 +77,7 @@ export class GitSection implements StatusSection {
   getTopLevelItem(_ctx: SectionContext): StatusItem {
     const providerLabel = this.state.provider
       ? this.state.provider.charAt(0).toUpperCase() + this.state.provider.slice(1)
-      : "GitHub";
+      : "Auto-detect";
 
     return new StatusItem({
       label: "Git",
@@ -98,7 +102,7 @@ export class GitSection implements StatusSection {
 
     if (this.state.configured) {
       // Provider with branded icon
-      const providerName = this.state.provider || "github";
+      const providerName = this.state.provider || "auto-detect";
       const providerIcon = PROVIDER_ICONS[providerName] || "source-control";
       const providerLabel = providerName.charAt(0).toUpperCase() + providerName.slice(1);
       items.push(
@@ -111,25 +115,19 @@ export class GitSection implements StatusSection {
       );
 
       // Token status - clickable when not set
-      const tokenLabel = providerName === "gitlab" ? "GitLab Token" : "GitHub Token";
-      items.push(
-        new StatusItem({
-          label: tokenLabel,
-          description: this.state.tokenSet ? "Set" : "Not set",
-          icon: this.state.tokenSet ? "key" : "warning",
-          sectionId: this.sectionId,
-          command: this.state.tokenSet
-            ? undefined
-            : {
-                command:
-                  providerName === "gitlab"
-                    ? "operator.configureGitLab"
-                    : "operator.configureGitHub",
-                title: "Set Token",
-              },
-          health: this.state.tokenSet ? "Green" : "Yellow",
-        }),
-      );
+      if (this.state.tokenSet !== undefined) {
+        items.push(
+          new StatusItem({
+            label: `${providerLabel} token`,
+            description: this.state.tokenSet ? "Set" : "Missing",
+            icon: this.state.tokenSet ? "key" : "warning",
+            command: this.state.tokenSet
+              ? undefined
+              : { command: "operator.openSettings", title: "Configure token" },
+            sectionId: this.sectionId,
+          }),
+        );
+      }
 
       // Branch Format
       if (this.state.branchFormat) {

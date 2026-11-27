@@ -44,8 +44,14 @@ Run **Operator: Choose Connection**. Select **Use Operator on this computer** fo
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `operator.webhookPort` | `7009` | Port for webhook server |
-| `operator.autoStart` | `true` | Start server on VS Code launch |
-| `operator.terminalPrefix` | `op-` | Prefix for managed terminal names |
+| `operator.autoStart` | `true` | Start the local API when none is reachable |
+| `operator.terminalPrefix` | `op-` | Deprecated. Operator assigns terminal names. |
+| `operator.connectionMode` | Unset | Prompt for local or hosted on first use |
+| `operator.apiUrl` | Unset | Discover the local API or use an approved HTTPS origin |
+| `operator.workingDirectory` | Unset | Working directory for the local Operator process |
+| `operator.ticketsDir` | `.tickets` | Local tickets path, absolute or relative to the working directory |
+| `operator.operatorPath` | Unset | Explicit local Operator executable |
+| `operator.opr8rPath` | Unset | Explicit local opr8r executable |
 
 ## Commands
 

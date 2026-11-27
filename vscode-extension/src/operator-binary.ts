@@ -91,8 +91,13 @@ export async function getOperatorPath(
   // 1. Check user configuration
   const config = vscode.workspace.getConfiguration("operator");
   const configPath = config.get<string>("operatorPath");
-  if (configPath && (await fileExists(configPath))) {
-    return configPath;
+  if (configPath) {
+    if (await fileExists(configPath)) {
+      return configPath;
+    }
+    throw new Error(
+      `Set operator.operatorPath to an executable file. Could not use ${configPath}.`,
+    );
   }
 
   // 2. Check downloaded binary in globalStorage

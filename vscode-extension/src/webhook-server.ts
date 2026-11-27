@@ -27,6 +27,8 @@ import type {
   SessionInfo,
 } from "./types";
 
+const DEFAULT_WEBHOOK_PORT = 7009;
+const MAX_TCP_PORT = 65535;
 const TOKEN_BYTES = 32;
 const PRIVATE_DIRECTORY = 0o700;
 const PRIVATE_FILE = 0o600;
@@ -62,7 +64,11 @@ export class WebhookServer {
     private readonly registrations = path.join(os.homedir(), ".operator", "vscode-sessions"),
   ) {
     this.terminalManager = terminalManager;
-    this.configuredPort = vscode.workspace.getConfiguration("operator").get("webhookPort", 7009);
+    const port = vscode.workspace
+      .getConfiguration("operator")
+      .get("webhookPort", DEFAULT_WEBHOOK_PORT);
+    this.configuredPort =
+      Number.isInteger(port) && port > 0 && port <= MAX_TCP_PORT ? port : DEFAULT_WEBHOOK_PORT;
   }
 
   async start(ticketsDir?: string): Promise<void> {

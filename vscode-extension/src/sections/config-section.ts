@@ -52,9 +52,7 @@ export class ConfigSection implements StatusSection {
       this.state.remoteUrl = selection.kind === "hosted" ? selection.origin : undefined;
       return;
     }
-    const workingDir =
-      ctx.extensionContext.globalState.get<string>("operator.workingDirectory") ||
-      resolveWorkingDirectory();
+    const workingDir = resolveWorkingDirectory();
     const workingDirSet = !!workingDir;
     const configExists = await configFileExists();
     const configPath = getResolvedConfigPath();

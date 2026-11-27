@@ -292,7 +292,30 @@ export function isVscodeWorkspaceStdio(): boolean | undefined {
   return undefined;
 }
 
-async function fileHasOperator(configPath: string | undefined): Promise<boolean> {
+function matchesRegistration(entry: unknown, descriptor?: McpDescriptorResponse): boolean {
+  if (!entry || typeof entry !== "object") {
+    return false;
+  }
+  if (!descriptor) {
+    return true;
+  }
+  const value = entry as Record<string, unknown>;
+  if (value.type === "sse") {
+    return value.url === descriptor.transport_url;
+  }
+  return (
+    !!descriptor.stdio &&
+    (!value.type || value.type === "stdio") &&
+    value.command === descriptor.stdio.command &&
+    JSON.stringify(value.args) === JSON.stringify(descriptor.stdio.args) &&
+    value.cwd === descriptor.stdio.cwd
+  );
+}
+
+async function fileHasOperator(
+  configPath: string | undefined,
+  descriptor?: McpDescriptorResponse,
+): Promise<boolean> {
   if (!configPath) {
     return false;
   }
@@ -306,18 +329,26 @@ async function fileHasOperator(configPath: string | undefined): Promise<boolean>
     if (servers === null || typeof servers !== "object") {
       return false;
     }
-    return "operator" in (servers as Record<string, unknown>);
+    return matchesRegistration((servers as Record<string, unknown>).operator, descriptor);
   } catch {
     return false;
   }
 }
 
-export async function inspectMcpRegistration(): Promise<McpRegistrationPresence> {
+export async function inspectMcpRegistration(
+  descriptor?: McpDescriptorResponse,
+): Promise<McpRegistrationPresence> {
   return {
-    vscodeWorkspace: isMcpServerRegistered(),
-    workspacePortable: await fileHasOperator(_testable.workspacePortableMcpPath()),
-    copilotGlobal: await fileHasOperator(_testable.copilotGlobalConfigPath()),
-    cursor: await fileHasOperator(_testable.cursorMcpConfigPath()),
+    vscodeWorkspace: descriptor
+      ? matchesRegistration(
+          vscode.workspace.getConfiguration("mcp").get<Record<string, unknown>>("servers")
+            ?.operator,
+          descriptor,
+        )
+      : isMcpServerRegistered(),
+    workspacePortable: await fileHasOperator(_testable.workspacePortableMcpPath(), descriptor),
+    copilotGlobal: await fileHasOperator(_testable.copilotGlobalConfigPath(), descriptor),
+    cursor: await fileHasOperator(_testable.cursorMcpConfigPath(), descriptor),
   };
 }
 

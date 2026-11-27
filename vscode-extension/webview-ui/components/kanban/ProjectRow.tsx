@@ -17,21 +17,22 @@ interface ProjectRowProps {
   collections: CollectionResponse[];
   issueTypes: IssueTypeSummary[];
   externalTypes: ExternalIssueTypeSummary[] | undefined;
+  lookupEnabled: boolean;
   statuses: string[] | undefined;
   onUpdate: (key: string, value: unknown) => void;
   onGetExternalIssueTypes: (provider: string, domain: string, projectKey: string) => void;
-  onGetKanbanStatuses: (provider: string, projectKey: string) => void;
+  onGetKanbanStatuses: (provider: string, domain: string, projectKey: string) => void;
   onViewIssueType: () => void;
 }
+
+const NO_EXTERNAL_TYPES: ExternalIssueTypeSummary[] = [];
+const NO_TYPE_MAPPINGS = {};
 
 const OPERATOR_STATES = [
   { field: "todo", label: "Todo", helper: "Pulled into the queue; requeue pushes back here" },
   { field: "doing", label: "Doing", helper: "Pushed when a ticket is launched/claimed" },
   { field: "done", label: "Done", helper: "Pushed when a ticket completes" },
 ] as const;
-
-const DIVIDER_BORDER =
-  "1px solid var(--vscode-sideBar-border, var(--vscode-widget-border, #45454580))";
 
 export function ProjectRow({
   provider,
@@ -41,6 +42,7 @@ export function ProjectRow({
   collections,
   issueTypes,
   externalTypes,
+  lookupEnabled,
   statuses,
   onUpdate,
   onGetExternalIssueTypes,
@@ -57,10 +59,10 @@ export function ProjectRow({
 
   // Lazily discover the board's real columns the first time the row expands.
   useEffect(() => {
-    if (expanded && statuses === undefined) {
-      onGetKanbanStatuses(provider, projectKey);
+    if (lookupEnabled && expanded && statuses === undefined) {
+      onGetKanbanStatuses(provider, domain, projectKey);
     }
-  }, [expanded, statuses, provider, projectKey, onGetKanbanStatuses]);
+  }, [lookupEnabled, domain, expanded, statuses, provider, projectKey, onGetKanbanStatuses]);
 
   const handleMappingChange = useCallback(
     (externalName: string, operatorKey: string) => {
@@ -105,13 +107,11 @@ export function ProjectRow({
   );
 
   return (
-    <div style={{ borderBottom: DIVIDER_BORDER, padding: "8px 0" }}>
+    <div className="op-mapping-row">
       <div className="op-row op-gap-2">
-        <span className="op-body2" style={{ fontWeight: 600, minWidth: 80 }}>
-          {projectKey}
-        </span>
+        <span className="op-body2 op-project-key">{projectKey}</span>
 
-        <div style={{ minWidth: 160 }}>
+        <div className="op-collection-picker">
           <SelectInput
             label="Collection"
             value={project.collection_name || ""}
@@ -127,7 +127,7 @@ export function ProjectRow({
           </SelectInput>
         </div>
 
-        <div className="op-row op-gap-05" style={{ flex: 1 }}>
+        <div className="op-row op-gap-05 op-flex-1">
           {OPERATOR_STATES.filter(({ field }) => statusMapping[field]).map(({ field, label }) => (
             <Chip key={field} label={`${label} → ${statusMapping[field]}`} variant="outlined" />
           ))}
@@ -139,22 +139,18 @@ export function ProjectRow({
           aria-label={expanded ? "Collapse project" : "Expand project"}
           onClick={toggleExpanded}
         >
-          <span
-            className="op-body2"
-            style={{
-              display: "inline-block",
-              transform: expanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
-            }}
-          >
+          <span className="op-body2 op-expander" data-expanded={expanded}>
             ▾
           </span>
         </IconButton>
       </div>
 
       {expanded && (
-        <div style={{ paddingLeft: 16, paddingTop: 8 }}>
-          <span className="op-caption op-text-secondary op-mb-05" style={{ display: "block" }}>
+        <div className="op-project-detail">
+          {!lookupEnabled && (
+            <p>Live board lookup requires an API connection and a unique enabled project key.</p>
+          )}
+          <span className="op-caption op-text-secondary op-mb-05 op-block">
             Column Mapping - map operator's todo/doing/done to this board's columns
           </span>
           <div className="op-row op-gap-1 op-mb-1">
@@ -176,9 +172,9 @@ export function ProjectRow({
             domain={domain}
             projectKey={projectKey}
             collectionName={project.collection_name || ""}
-            typeMappings={project.type_mappings ?? {}}
+            typeMappings={project.type_mappings ?? NO_TYPE_MAPPINGS}
             issueTypes={issueTypes}
-            externalTypes={externalTypes}
+            externalTypes={lookupEnabled ? externalTypes : NO_EXTERNAL_TYPES}
             onGetExternalIssueTypes={onGetExternalIssueTypes}
             onMappingChange={handleMappingChange}
             onViewIssueType={onViewIssueType}
@@ -209,7 +205,7 @@ function StatusMappingSelect({
     [field, onChange],
   );
   return (
-    <div title={helper} style={{ minWidth: 160, flex: 1 }}>
+    <div title={helper} className="op-status-picker">
       <SelectInput label={label} value={value ?? ""} onChange={handleChange}>
         <option value="">Unmapped</option>
         {options.map((column) => (

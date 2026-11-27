@@ -225,7 +225,7 @@ suite("Operator Binary Test Suite", () => {
       assert.ok(result === undefined || typeof result === "string");
     });
 
-    test("ignores configured path when file does not exist", async () => {
+    test("reports the invalid configured executable", async () => {
       // Mock config to return a non-existent path
       const configStub = sandbox.stub(vscode.workspace, "getConfiguration");
       configStub.returns({
@@ -241,11 +241,7 @@ suite("Operator Binary Test Suite", () => {
         globalStorageUri: { fsPath: path.join(tempDir, "nonexistent-storage") },
       } as unknown as vscode.ExtensionContext;
 
-      // Will fall through to PATH lookup since config path doesn't exist
-      const result = await getOperatorPath(mockContext);
-
-      // Should not return the non-existent config path
-      assert.notStrictEqual(result, "/nonexistent/path/operator");
+      await assert.rejects(getOperatorPath(mockContext), /Set operator.operatorPath/);
     });
   });
 

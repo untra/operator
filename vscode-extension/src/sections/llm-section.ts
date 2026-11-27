@@ -161,7 +161,12 @@ export class LlmSection implements StatusSection {
           new StatusItem({
             label: tool.name,
             description: tool.version,
-            icon: `operator-${tool.name}`,
+            icon:
+              tool.name === "grok"
+                ? "operator-xai"
+                : ["claude", "codex", "gemini"].includes(tool.name)
+                  ? `operator-${tool.name}`
+                  : "terminal",
             collapsibleState: hasModels
               ? vscode.TreeItemCollapsibleState.Collapsed
               : vscode.TreeItemCollapsibleState.None,

@@ -6,8 +6,6 @@ import { DEFAULT_WEBVIEW_CONFIG } from "./types/defaults";
 import type {
   WebviewConfig,
   ExtensionToWebviewMessage,
-  JiraValidationInfo,
-  LinearValidationInfo,
   IssueTypeSummary,
   CollectionResponse,
   ExternalIssueTypeSummary,
@@ -51,14 +49,6 @@ function detectTools(): void {
   postMessage({ type: "detectLlmTools" });
 }
 
-function getExternalIssueTypes(provider: string, domain: string, projectKey: string): void {
-  postMessage({ type: "getExternalIssueTypes", provider, domain, projectKey });
-}
-
-function getKanbanStatuses(provider: string, projectKey: string): void {
-  postMessage({ type: "getKanbanStatuses", provider, projectKey });
-}
-
 function openOperatorUi(route: "issuetypes" | "projects"): void {
   postMessage({ type: "openOperatorUi", route });
 }
@@ -66,10 +56,30 @@ function openOperatorUi(route: "issuetypes" | "projects"): void {
 export function App() {
   const [config, setConfig] = useState<WebviewConfig | null>(null);
   const [error, setError] = useState<ConfigErrorState | null>(null);
-  const [jiraResult, setJiraResult] = useState<JiraValidationInfo | null>(null);
-  const [linearResult, setLinearResult] = useState<LinearValidationInfo | null>(null);
-  const [validatingJira, setValidatingJira] = useState(false);
-  const [validatingLinear, setValidatingLinear] = useState(false);
+  const latestLookup = useRef(new Map<string, string>());
+  const requestLookup = useCallback(
+    (
+      type: "getExternalIssueTypes" | "getKanbanStatuses",
+      provider: string,
+      domain: string,
+      projectKey: string,
+    ) => {
+      const requestId = crypto.randomUUID();
+      latestLookup.current.set(JSON.stringify([type, provider, domain, projectKey]), requestId);
+      postMessage({ type, provider, domain, projectKey, requestId });
+    },
+    [],
+  );
+  const getExternalIssueTypes = useCallback(
+    (provider: string, domain: string, key: string) =>
+      requestLookup("getExternalIssueTypes", provider, domain, key),
+    [requestLookup],
+  );
+  const getKanbanStatuses = useCallback(
+    (provider: string, domain: string, key: string) =>
+      requestLookup("getKanbanStatuses", provider, domain, key),
+    [requestLookup],
+  );
   const [apiReachable, setApiReachable] = useState(false);
   const [issueTypes, setIssueTypes] = useState<IssueTypeSummary[]>([]);
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
@@ -111,12 +121,7 @@ export function App() {
           });
           break;
         case "jiraValidationResult":
-          setJiraResult(msg.result);
-          setValidatingJira(false);
-          break;
         case "linearValidationResult":
-          setLinearResult(msg.result);
-          setValidatingLinear(false);
           break;
         case "llmToolsDetected":
           if (!isStaleSnapshot(msg.rev, lastSentRev.current)) {
@@ -139,27 +144,47 @@ export function App() {
         case "collectionsLoaded":
           setCollections(msg.collections);
           break;
+        case "externalIssueTypesError":
         case "externalIssueTypesLoaded":
+          if (
+            latestLookup.current.get(
+              JSON.stringify(["getExternalIssueTypes", msg.provider, msg.domain, msg.projectKey]),
+            ) !== msg.requestId
+          ) {
+            break;
+          }
           setExternalIssueTypes((prev) => {
             const next = new Map(prev);
-            next.set(`${msg.provider}/${msg.projectKey}`, msg.types);
+            next.set(
+              JSON.stringify([msg.provider, msg.domain, msg.projectKey]),
+              msg.type === "externalIssueTypesLoaded" ? msg.types : [],
+            );
             return next;
           });
-          break;
-        case "externalIssueTypesError":
-          // External issue type lookup failed; the mapping panel renders an
-          // empty/unmapped state, so no extra handling is required here.
-          break;
-        case "kanbanStatusesLoaded":
-          setKanbanStatuses((prev) => {
-            const next = new Map(prev);
-            next.set(`${msg.provider}/${msg.projectKey}`, msg.statuses);
-            return next;
-          });
+          if (msg.type === "externalIssueTypesError") {
+            setError(configErrorFrom(msg.error, undefined));
+          }
           break;
         case "kanbanStatusesError":
-          // Status discovery failed; the dropdowns fall back to free-form
-          // entry of the current mapping values, so no extra handling here.
+        case "kanbanStatusesLoaded":
+          if (
+            latestLookup.current.get(
+              JSON.stringify(["getKanbanStatuses", msg.provider, msg.domain, msg.projectKey]),
+            ) !== msg.requestId
+          ) {
+            break;
+          }
+          setKanbanStatuses((prev) => {
+            const next = new Map(prev);
+            next.set(
+              JSON.stringify([msg.provider, msg.domain, msg.projectKey]),
+              msg.type === "kanbanStatusesLoaded" ? msg.statuses : [],
+            );
+            return next;
+          });
+          if (msg.type === "kanbanStatusesError") {
+            setError(configErrorFrom(msg.error, undefined));
+          }
           break;
         case "assessTicketCreated":
         case "assessTicketError":
@@ -214,24 +239,6 @@ export function App() {
     [setConfig],
   );
 
-  const handleValidateJira = useCallback(
-    (domain: string, email: string, apiToken: string) => {
-      setValidatingJira(true);
-      setJiraResult(null);
-      postMessage({ type: "validateJira", domain, email, apiToken });
-    },
-    [setJiraResult, setValidatingJira],
-  );
-
-  const handleValidateLinear = useCallback(
-    (apiKey: string) => {
-      setValidatingLinear(true);
-      setLinearResult(null);
-      postMessage({ type: "validateLinear", apiKey });
-    },
-    [setLinearResult, setValidatingLinear],
-  );
-
   return (
     <>
       {error && (
@@ -246,13 +253,7 @@ export function App() {
           onBrowseFolder={browseFolder}
           onOpenFile={openFile}
           onStartSetup={startSetup}
-          onValidateJira={handleValidateJira}
-          onValidateLinear={handleValidateLinear}
           onDetectTools={detectTools}
-          jiraResult={jiraResult}
-          linearResult={linearResult}
-          validatingJira={validatingJira}
-          validatingLinear={validatingLinear}
           apiReachable={apiReachable}
           issueTypes={issueTypes}
           collections={collections}

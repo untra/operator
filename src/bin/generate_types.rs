@@ -76,6 +76,8 @@ const HEADER: &str = r"// ======================================================
 
 ";
 
+const EXTENSION_AGENT_DEFAULTS: &str = "vscode-extension/webview-ui/types/agent-defaults.json";
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let check_mode = args.iter().any(|a| a == "--check");
@@ -350,10 +352,18 @@ fn generate_json_schema<T: schemars::JsonSchema>(name: &str) -> String {
     json
 }
 
+fn extension_agent_defaults() -> String {
+    serde_json::to_string_pretty(&Config::default().agents).expect("serialize agent defaults")
+        + "\n"
+}
+
 fn write_files(ts_content: &str, config_schema: &str, state_schema: &str, jira_api_schema: &str) {
     // Create directories
     fs::create_dir_all("shared").expect("Failed to create shared/ directory");
     fs::create_dir_all("docs/schemas").expect("Failed to create docs/schemas/ directory");
+
+    fs::write(EXTENSION_AGENT_DEFAULTS, extension_agent_defaults())
+        .expect("write extension agent defaults");
 
     // Write TypeScript
     let ts_path = Path::new("shared/types.ts");
@@ -386,6 +396,11 @@ fn write_files(ts_content: &str, config_schema: &str, state_schema: &str, jira_a
 
 fn check_files(ts_content: &str, config_schema: &str, state_schema: &str, jira_api_schema: &str) {
     let mut outdated = Vec::new();
+    if fs::read_to_string(EXTENSION_AGENT_DEFAULTS).unwrap_or_default()
+        != extension_agent_defaults()
+    {
+        outdated.push(EXTENSION_AGENT_DEFAULTS);
+    }
 
     // Check TypeScript
     let ts_path = Path::new("shared/types.ts");

@@ -254,7 +254,10 @@ export async function discoverLocalApiUrl(ticketsDir: string | undefined): Promi
 
 // Keep existing callers asynchronous while routing all requests through the selected origin.
 export function discoverApiUrl(_ticketsDir: string | undefined): Promise<string> {
-  return Promise.resolve(currentConnection().origin);
+  const { assessment, origin } = currentConnection();
+  const blockedOrigin =
+    assessment?.mismatch?.kind === "project" || assessment?.mismatch?.kind === "version";
+  return Promise.resolve(blockedOrigin ? "" : origin);
 }
 
 function withBearer(init: RequestInit, token: string | undefined): RequestInit {

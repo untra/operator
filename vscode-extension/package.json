@@ -91,9 +91,11 @@
       "title": "Operator Terminals",
       "properties": {
         "operator.webhookPort": {
-          "type": "number",
+          "type": "integer",
           "default": 7009,
-          "description": "Preferred port for webhook server (falls back to available port if busy)"
+          "description": "Preferred port for webhook server (falls back to available port if busy)",
+          "minimum": 1,
+          "maximum": 65535
         },
         "operator.autoStart": {
           "type": "boolean",
@@ -103,7 +105,8 @@
         "operator.terminalPrefix": {
           "type": "string",
           "default": "op-",
-          "description": "Prefix for operator-managed terminal names"
+          "description": "Prefix for operator-managed terminal names",
+          "deprecationMessage": "Terminal names are assigned by Operator sessions."
         },
         "operator.ticketsDir": {
           "type": "string",
@@ -113,15 +116,17 @@
         "operator.connectionMode": {
           "type": "string",
           "enum": [
+            "",
             "local",
             "remote"
           ],
-          "default": "local",
-          "description": "local uses Operator on this machine. remote uses the saved operator.apiUrl and does not download or start a binary."
+          "default": "",
+          "description": "Choose how to connect on first use. Local runs on this machine. Remote uses the approved HTTPS origin.",
+          "scope": "application"
         },
         "operator.apiUrl": {
           "type": "string",
-          "default": "http://localhost:7008",
+          "default": "",
           "description": "Operator REST API origin. Use an HTTPS origin in User settings for hosted Operator. A workspace URL suggests a server and requires confirmation. For local discovery, leave this unset."
         },
         "operator.opr8rPath": {
@@ -389,6 +394,11 @@
         "command": "operator.openCampaign",
         "title": "Operator: Open Campaign in Operator UI",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "operator.retryConnection",
+        "title": "Retry Connection",
+        "category": "Operator"
       }
     ],
     "keybindings": [
@@ -589,7 +599,7 @@
         "description": "Atlassian (Jira) provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F117"
+          "fontCharacter": "\\F119"
         }
       },
       "operator-linear": {
@@ -603,35 +613,35 @@
         "description": "Claude LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F116"
+          "fontCharacter": "\\F117"
         }
       },
       "operator-codex": {
         "description": "Codex LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F113"
+          "fontCharacter": "\\F114"
         }
       },
       "operator-gemini": {
         "description": "Gemini LLM tool icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F111"
+          "fontCharacter": "\\F112"
         }
       },
       "operator-google": {
         "description": "Google (Gemini API) model-server icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10D"
+          "fontCharacter": "\\F10E"
         }
       },
       "operator-anthropic": {
         "description": "Anthropic (Claude API) model-server icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F118"
+          "fontCharacter": "\\F11A"
         }
       },
       "operator-ollama": {
@@ -652,14 +662,14 @@
         "description": "GitHub provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10F"
+          "fontCharacter": "\\F110"
         }
       },
       "operator-gitlab": {
         "description": "GitLab provider icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F10E"
+          "fontCharacter": "\\F10F"
         }
       },
       "operator-tmux": {
@@ -673,7 +683,7 @@
         "description": "cmux session wrapper icon",
         "default": {
           "fontPath": "images/icons/dist/operator-icons.woff",
-          "fontCharacter": "\\F115"
+          "fontCharacter": "\\F116"
         }
       },
       "operator-zellij": {
@@ -689,6 +699,27 @@
           "fontPath": "images/icons/dist/operator-icons.woff",
           "fontCharacter": "\\F105"
         }
+      },
+      "operator-xai": {
+        "description": "xai provider icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F103"
+        }
+      },
+      "operator-gitea": {
+        "description": "gitea provider icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F111"
+        }
+      },
+      "operator-forgejo": {
+        "description": "forgejo provider icon",
+        "default": {
+          "fontPath": "images/icons/dist/operator-icons.woff",
+          "fontCharacter": "\\F113"
+        }
       }
     },
     "viewsWelcome": [
@@ -699,7 +730,7 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run generate:icons && npm run compile && npm run compile:webview",
+    "vscode:prepublish": "npm run compile && npm run compile:webview",
     "copy-types": "node scripts/copy-types.js",
     "compile": "npm run copy-types && tsc -p ./",
     "compile:webview": "webpack --config webpack.webview.config.js --mode production",
@@ -715,7 +746,10 @@
     "package": "vsce package",
     "publish": "vsce publish",
     "publish:ovsx": "ovsx publish",
-    "generate:icons": "fantasticon"
+    "generate:icons": "node scripts/icons.js",
+    "check:icons": "node scripts/icons.js --check",
+    "precompile": "npm run check:icons",
+    "precompile:webview": "npm run check:icons"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -750,7 +784,7 @@
     "source-map-support": "^0.5.21",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.6.2",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "webpack": "^5.109.1",
     "webpack-cli": "^7.2.1"
   },

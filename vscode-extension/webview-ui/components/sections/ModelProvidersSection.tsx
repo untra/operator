@@ -1,3 +1,4 @@
+import type { ModelServerResponse } from "../../../src/generated/ModelServerResponse";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Chip, IconButton, SelectInput, TextInput } from "../primitives";
 import { SectionHeader } from "../SectionHeader";
@@ -10,7 +11,7 @@ import type {
   NavigationPrefill,
 } from "../../types/messages";
 
-const BRAND_ICONS = new Set(["anthropic", "google", "ollama", "openrouter"]);
+const BRAND_ICONS = new Set(["anthropic", "google", "ollama", "openrouter", "xai", "lmstudio"]);
 
 interface ModelProvidersSectionProps {
   detectedTools: string[];
@@ -40,7 +41,7 @@ function DismissableAlert({
     <Alert severity={severity} className="op-mt-1 op-mb-1">
       <span className="op-row op-gap-1">
         <span>{children}</span>
-        <IconButton aria-label="Close" onClick={onClose} style={{ padding: 0, color: "inherit" }}>
+        <IconButton aria-label="Close" onClick={onClose} className="op-alert-close">
           ✕
         </IconButton>
       </span>
@@ -54,6 +55,8 @@ export function ModelProvidersSection({
   delegatorPrefill,
 }: ModelProvidersSectionProps) {
   const [kinds, setKinds] = useState<ModelServerKindEntry[]>([]);
+  const [servers, setServers] = useState<ModelServerResponse[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [probes, setProbes] = useState<ProbeMap>({});
   const [delegators, setDelegators] = useState<DelegatorResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -73,8 +76,12 @@ export function ModelProvidersSection({
         case "modelProvidersLoaded":
           setKinds(msg.kinds);
           setDelegators(msg.delegators);
-          for (const k of msg.kinds) {
-            postMessage({ type: "probeProvider", slug: k.slug });
+          setLoaded(true);
+          setError(null);
+          setServers(msg.servers);
+          setProbes({});
+          for (const k of msg.servers) {
+            postMessage({ type: "probeProvider", slug: k.name });
           }
           break;
         case "providerProbed":
@@ -153,32 +160,42 @@ export function ModelProvidersSection({
         </DismissableAlert>
       )}
 
-      <ProviderGroup heading="First-party" kinds={firstParty} probes={probes} />
-      <ProviderGroup heading="Gateways" kinds={gateways} probes={probes} />
+      {apiReachable && (
+        <>
+          {!loaded && !error && <p>Loading model providers…</p>}
+          <ProviderGroup
+            heading="First-party"
+            kinds={firstParty}
+            servers={servers}
+            probes={probes}
+          />
+          <ProviderGroup heading="Gateways" kinds={gateways} servers={servers} probes={probes} />
 
-      <CreateDelegatorForm
-        kinds={kinds}
-        probes={probes}
-        detectedTools={detectedTools}
-        prefill={delegatorPrefill}
-        onInvalid={setError}
-      />
+          <CreateDelegatorForm
+            servers={servers}
+            probes={probes}
+            detectedTools={detectedTools}
+            prefill={delegatorPrefill}
+            onInvalid={setError}
+          />
 
-      <p className="op-body2 op-text-secondary op-mt-2 op-mb-05">Delegators</p>
-      {delegators.length === 0 ? (
-        <p className="op-body2 op-text-secondary">No delegators yet.</p>
-      ) : (
-        <div className="op-col op-gap-05">
-          {delegators.map((d) => (
-            <p key={d.name} className="op-body2">
-              <strong>{d.display_name ?? d.name}</strong>{" "}
-              <span className="op-caption op-text-secondary">
-                {d.llm_tool}:{d.model}
-                {d.model_server ? ` @ ${d.model_server}` : ""}
-              </span>
-            </p>
-          ))}
-        </div>
+          <p className="op-body2 op-text-secondary op-mt-2 op-mb-05">Delegators</p>
+          {loaded && delegators.length === 0 ? (
+            <p className="op-body2 op-text-secondary">No delegators yet.</p>
+          ) : (
+            <div className="op-col op-gap-05">
+              {delegators.map((d) => (
+                <p key={d.name} className="op-body2">
+                  <strong>{d.display_name ?? d.name}</strong>{" "}
+                  <span className="op-caption op-text-secondary">
+                    {d.llm_tool}:{d.model}
+                    {d.model_server ? ` @ ${d.model_server}` : ""}
+                  </span>
+                </p>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -194,15 +211,25 @@ function connection(probe: ModelServerModelsResponse | undefined): {
   if (probe.reachable) {
     return { color: "success", label: `connected · ${probe.models.length}` };
   }
-  return { color: "default", label: "not connected" };
+  return {
+    color: "warning",
+    label:
+      probe.status === "missing_key"
+        ? "API key required"
+        : probe.status === "unauthorized"
+          ? "Authorization failed"
+          : probe.error || "Unreachable",
+  };
 }
 
 function ProviderGroup({
   heading,
+  servers,
   kinds,
   probes,
 }: {
   heading: string;
+  servers: ModelServerResponse[];
   kinds: ModelServerKindEntry[];
   probes: ProbeMap;
 }) {
@@ -210,29 +237,37 @@ function ProviderGroup({
     return null;
   }
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="op-provider-group">
       <p className="op-body2 op-text-secondary op-mb-05">{heading}</p>
-      <div className="op-col" style={{ gap: 6 }}>
+      <div className="op-col op-provider-list">
         {kinds.map((k) => {
-          const probe = probes[k.slug];
-          const conn = connection(probe);
+          const instances = servers.filter((server) => server.kind === k.slug);
           return (
             <div key={k.slug} className="op-row op-gap-1 op-wrap">
               {k.brand_icon && BRAND_ICONS.has(k.brand_icon) && (
-                <i className={`opi-${k.brand_icon}`} style={{ fontSize: "1rem", lineHeight: 1 }} />
+                <i className={`op-brand-glyph opi-${k.brand_icon}`} />
               )}
-              <span className="op-body2" style={{ fontWeight: 600, minWidth: "8rem" }}>
-                {k.display_name}
-              </span>
-              <Chip label={conn.label} color={conn.color} variant="outlined" />
-              {conn.label === "not connected" && k.connectable && !k.is_builtin && (
+              <span className="op-body2 op-provider-label">{k.display_name}</span>
+              {instances.map((instance) => {
+                const state = connection(probes[instance.name]);
+                return (
+                  <Chip
+                    key={instance.name}
+                    label={`${instance.name} · ${state.label}`}
+                    color={state.color}
+                    variant="outlined"
+                  />
+                );
+              })}
+              {instances.length === 0 && k.connectable && !k.is_builtin && (
                 <Button size="small" data-provider-slug={k.slug} onClick={connectProvider}>
                   Connect
                 </Button>
               )}
-              {conn.label === "not connected" && k.default_api_key_env && (
-                <span className="op-caption op-text-secondary">set {k.default_api_key_env}</span>
-              )}
+              {instances.some((server) => probes[server.name]?.status === "missing_key") &&
+                k.default_api_key_env && (
+                  <span className="op-caption op-text-secondary">set {k.default_api_key_env}</span>
+                )}
               {!k.connectable && (
                 <a className="op-caption" href={k.setup_url} target="_blank" rel="noreferrer">
                   needs base_url
@@ -247,13 +282,13 @@ function ProviderGroup({
 }
 
 function CreateDelegatorForm({
-  kinds,
+  servers,
   probes,
   detectedTools,
   prefill,
   onInvalid,
 }: {
-  kinds: ModelServerKindEntry[];
+  servers: ModelServerResponse[];
   probes: ProbeMap;
   detectedTools: string[];
   prefill?: NavigationPrefill;
@@ -263,6 +298,7 @@ function CreateDelegatorForm({
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState(prefill?.model ?? "");
   const [name, setName] = useState("");
+  const [manual, setManual] = useState(false);
   const [pending, setPending] = useState(false);
   const [appliedPrefill, setAppliedPrefill] = useState(prefill);
   if (prefill !== appliedPrefill) {
@@ -273,11 +309,19 @@ function CreateDelegatorForm({
     }
   }
 
-  const selectedTool = tool || detectedTools[0] || "";
+  const selectedTool = detectedTools.includes(tool) ? tool : (detectedTools[0] ?? "");
 
   const probe = provider ? probes[provider] : undefined;
   const liveModels = probe?.reachable ? probe.models : [];
 
+  const manualAvailable =
+    liveModels.length === 0 && (probe?.status === "connected" || probe?.status === "error");
+  const valid = Boolean(
+    selectedTool &&
+    servers.some((server) => server.name === provider) &&
+    model.trim() &&
+    ((manualAvailable && manual) || liveModels.some((entry) => entry.id === model)),
+  );
   useEffect(
     () =>
       onMessage((msg: ExtensionToWebviewMessage) => {
@@ -326,7 +370,7 @@ function CreateDelegatorForm({
   );
 
   const submit = useCallback(() => {
-    if (!selectedTool || !provider || !model) {
+    if (!valid) {
       onInvalid("Pick a tool, a provider, and a model.");
       return;
     }
@@ -348,7 +392,7 @@ function CreateDelegatorForm({
         governance: null,
       },
     });
-  }, [model, name, onInvalid, pending, provider, selectedTool]);
+  }, [model, name, onInvalid, pending, provider, selectedTool, valid]);
   const handleToolChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => setTool(event.target.value),
     [setTool],
@@ -357,6 +401,7 @@ function CreateDelegatorForm({
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       setProvider(event.target.value);
       setModel("");
+      setManual(false);
     },
     [setModel, setProvider],
   );
@@ -375,7 +420,7 @@ function CreateDelegatorForm({
       <p className="op-body2 op-text-secondary op-mb-1">
         Create delegator - pair a tool with a connected provider and a live model.
       </p>
-      <div className="op-col" style={{ gap: 12, maxWidth: 420 }}>
+      <div className="op-col op-delegator-form">
         <SelectInput label="LLM tool" value={selectedTool} onChange={handleToolChange}>
           {detectedTools.length === 0 && <option value="">(none detected)</option>}
           {detectedTools.map((t) => (
@@ -387,13 +432,27 @@ function CreateDelegatorForm({
 
         <SelectInput label="Provider" value={provider} onChange={handleProviderChange}>
           <option value="">Select...</option>
-          {kinds.map((k) => (
-            <option key={k.slug} value={k.slug}>
-              {k.display_name} {probes[k.slug]?.reachable ? "●" : "○"}
+          {servers.map((k) => (
+            <option
+              key={k.name}
+              value={k.name}
+              disabled={!probes[k.name]?.reachable && probes[k.name]?.status !== "error"}
+            >
+              {k.display_name ?? k.name}
             </option>
           ))}
         </SelectInput>
 
+        {manualAvailable && (
+          <label>
+            <input
+              type="checkbox"
+              checked={manual}
+              onChange={(event) => setManual(event.target.checked)}
+            />{" "}
+            Enter model ID manually
+          </label>
+        )}
         {liveModels.length > 0 ? (
           <SelectInput label="Model" value={model} onChange={handleModelChange}>
             <option value="">Select...</option>
@@ -407,7 +466,8 @@ function CreateDelegatorForm({
           <TextInput
             label="Model"
             value={model}
-            placeholder={provider ? "model id (provider not connected)" : "pick a provider first"}
+            disabled={!manualAvailable || !manual}
+            placeholder={provider ? "Model ID" : "Pick a provider first"}
             onChange={handleModelChange}
           />
         )}
@@ -423,8 +483,8 @@ function CreateDelegatorForm({
           variant="outlined"
           size="small"
           onClick={submit}
-          disabled={pending}
-          style={{ alignSelf: "flex-start" }}
+          disabled={pending || !valid}
+          className="op-align-start"
         >
           {pending ? "Creating…" : "Create delegator"}
         </Button>

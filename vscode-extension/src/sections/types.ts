@@ -55,6 +55,7 @@ export interface WebhookStatus {
  * Operator REST API connection status
  */
 export interface ApiStatus {
+  reachable?: boolean;
   connected: boolean;
   version?: string;
   port?: number;

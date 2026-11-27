@@ -8,11 +8,16 @@
  */
 
 import * as vscode from "vscode";
+import {
+  resolveTicketsDirectory,
+  resolveWorkingDirectory,
+  getResolvedConfigPath,
+} from "./config-paths";
 import { currentConnection } from "./connection";
 import { guardRemoteCommand } from "./command-policy";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { exec } from "node:child_process";
+import { exec, execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -318,20 +323,19 @@ export async function validateWorkingDirectory(dirPath: string): Promise<boolean
 export async function initializeTicketsDirectory(
   workingDir: string,
   operatorPath?: string,
+  ticketsDir = path.join(workingDir, ".tickets"),
 ): Promise<boolean> {
-  const ticketsDir = path.join(workingDir, ".tickets");
-
   try {
     // Try using operator CLI if available
-    if (operatorPath) {
+    if (operatorPath && ticketsDir === path.join(workingDir, ".tickets")) {
       try {
-        await execAsync(`"${operatorPath}" setup --working-dir "${workingDir}"`);
+        await promisify(execFile)(operatorPath, ["setup", "--working-dir", workingDir]);
         // Ensure config.toml exists even if CLI didn't create it
         const configPath = path.join(ticketsDir, "operator", "config.toml");
         try {
           await fs.access(configPath);
         } catch {
-          await fs.writeFile(configPath, "", "utf-8");
+          await fs.writeFile(configPath, "[agents]\n", { flag: "wx" });
         }
         return true;
       } catch {
@@ -357,7 +361,7 @@ export async function initializeTicketsDirectory(
     try {
       await fs.access(configPath);
     } catch {
-      await fs.writeFile(configPath, "", "utf-8");
+      await fs.writeFile(configPath, "[agents]\n", { flag: "wx" });
     }
 
     return true;
@@ -376,7 +380,7 @@ export async function updateWalkthroughContext(
   const { selection, signal } = currentConnection();
   const local = selection.kind === "local";
   const workingDirectory = local
-    ? context.globalState.get<string>("operator.workingDirectory")
+    ? resolveWorkingDirectory() || context.globalState.get<string>("operator.workingDirectory")
     : undefined;
   const workingDirectorySet = workingDirectory
     ? await validateWorkingDirectory(workingDirectory)
@@ -453,7 +457,11 @@ export async function selectWorkingDirectory(
   }
 
   // Initialize .tickets structure
-  const initialized = await initializeTicketsDirectory(selectedPath, operatorPath);
+  const initialized = await initializeTicketsDirectory(
+    selectedPath,
+    operatorPath,
+    resolveTicketsDirectory(selectedPath),
+  );
   if (!initialized) {
     void vscode.window.showErrorMessage("Failed to initialize tickets directory structure");
     return;
@@ -465,11 +473,6 @@ export async function selectWorkingDirectory(
   // Persist to VS Code user settings for cross-workspace access
   const config = vscode.workspace.getConfiguration("operator");
   await config.update("workingDirectory", selectedPath, vscode.ConfigurationTarget.Global);
-  await config.update(
-    "ticketsDir",
-    path.join(selectedPath, ".tickets"),
-    vscode.ConfigurationTarget.Global,
-  );
 
   // Update context
   await updateWalkthroughContext(context);
@@ -606,7 +609,7 @@ async function configureLlmTool(
   }
 
   // Check if operator config exists before trying to configure LLM tool
-  const configPath = path.join(workingDir, ".tickets", "operator", "config.toml");
+  const configPath = getResolvedConfigPath();
   try {
     await fs.access(configPath);
   } catch {

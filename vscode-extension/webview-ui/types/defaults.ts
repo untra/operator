@@ -1,3 +1,4 @@
+import agentDefaults from "./agent-defaults.json";
 import type { WebviewConfig } from "./messages";
 import type { Config } from "../../src/generated/Config";
 
@@ -7,14 +8,12 @@ const DEFAULT_CONFIG: Config = {
   profile: { id: "00000000-0000-0000-0000-000000000000", name: "legacy" },
   projects: [],
   agents: {
-    max_parallel: 2,
-    cores_reserved: 1,
-    max_agents_per_repo: 1,
-    health_check_interval: BigInt(30),
-    generation_timeout_secs: BigInt(300),
-    sync_interval: BigInt(60),
-    step_timeout: BigInt(1800),
-    silence_threshold: BigInt(30),
+    ...agentDefaults,
+    health_check_interval: BigInt(agentDefaults.health_check_interval),
+    generation_timeout_secs: BigInt(agentDefaults.generation_timeout_secs),
+    sync_interval: BigInt(agentDefaults.sync_interval),
+    step_timeout: BigInt(agentDefaults.step_timeout),
+    silence_threshold: BigInt(agentDefaults.silence_threshold),
   },
   notifications: {
     enabled: true,
@@ -102,7 +101,7 @@ const DEFAULT_CONFIG: Config = {
     config_generated: false,
   },
   sessions: {
-    wrapper: "vscode",
+    wrapper: "tmux",
     tmux: {
       config_generated: false,
       socket_name: "operator",

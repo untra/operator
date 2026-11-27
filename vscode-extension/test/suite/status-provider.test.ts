@@ -9,7 +9,7 @@
 import * as assert from "node:assert";
 import * as sinon from "sinon";
 import * as vscode from "vscode";
-import * as fs from "node:fs/promises";
+import fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import type { StatusItem } from "../../src/status-provider";
@@ -99,6 +99,53 @@ suite("Status Provider Test Suite", () => {
     }
   });
 
+  test("overlapping refreshes read each config once and publish only the newer tree", async () => {
+    const olderPath = path.join(tempDir, "older.toml");
+    const newerPath = path.join(tempDir, "newer.toml");
+    const configPath = sandbox.stub(configPaths, "getResolvedConfigPath").returns(olderPath);
+    sandbox.stub(configPaths, "configFileExists").resolves(true);
+    sandbox.stub(configPaths, "resolveWorkingDirectory").returns(tempDir);
+
+    const olderRead = sinon.promise<string>();
+    const newerRead = sinon.promise<string>();
+    const readFile = sandbox.stub(fs, "readFile").callThrough();
+    const olderCalls = readFile.withArgs(olderPath, "utf-8").returns(olderRead);
+    const newerCalls = readFile.withArgs(newerPath, "utf-8").returns(newerRead);
+
+    const provider = new StatusTreeProvider(createMockContext(sandbox, tempDir));
+    provider.setWebhookServer({ isRunning: () => true, getPort: () => 7009 });
+    const published = sandbox.spy();
+    provider.onDidChangeTreeData(published);
+
+    const older = provider.setTicketsDir(tempDir);
+    assert.ok(olderCalls.called);
+    configPath.returns(newerPath);
+    const newer = provider.refresh();
+    await newerRead.resolve('[sessions]\nwrapper = "tmux"\n[git]\nprovider = "gitlab"');
+
+    const assertNewerTree = () => {
+      const items = provider.getChildren();
+      assert.strictEqual(findChild(items, "Git")?.description, "Gitlab");
+      const connections = findChild(items, "Connections");
+      assert.ok(connections);
+      assert.strictEqual(
+        findChild(provider.getChildren(connections), "Session Wrapper")?.description,
+        "tmux",
+      );
+      sinon.assert.calledOnce(published);
+    };
+    try {
+      await newer;
+      assertNewerTree();
+    } finally {
+      await olderRead.resolve('[sessions]\nwrapper = "zellij"\n[git]\nprovider = "github"');
+      await older;
+    }
+    assertNewerTree();
+    sinon.assert.calledOnce(olderCalls);
+    sinon.assert.calledOnce(newerCalls);
+  });
+
   suite("webhook status rendering", () => {
     test("shows pass icon and Running description when webhook is running", async () => {
       const mockContext = createMockContext(sandbox, "/fake/working-dir");
@@ -106,22 +153,8 @@ suite("Status Provider Test Suite", () => {
       sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
       sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
-      // Write a real session file in the temp directory
-      const operatorDir = path.join(tempDir, "operator");
-      await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, "vscode-session.json"),
-        JSON.stringify({
-          wrapper: "vscode",
-          port: 7009,
-          pid: 12345,
-          version: "0.1.26",
-          startedAt: "2024-01-01T00:00:00Z",
-          workspace: "/fake/workspace",
-        }),
-      );
-
       const provider = new StatusTreeProvider(mockContext);
+      provider.setWebhookServer({ isRunning: () => true, getPort: () => 7009 });
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
@@ -150,7 +183,11 @@ suite("Status Provider Test Suite", () => {
       sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
       sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
-      // No session file - webhook not running
+      await fs.mkdir(path.join(tempDir, "operator"), { recursive: true });
+      await fs.writeFile(
+        path.join(tempDir, "operator", "vscode-session.json"),
+        JSON.stringify({ port: 7009 }),
+      );
       const provider = new StatusTreeProvider(mockContext);
       await provider.setTicketsDir(tempDir);
 
@@ -238,22 +275,8 @@ suite("Status Provider Test Suite", () => {
       sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
       sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
-      // Write webhook session file so webhook shows as running
-      const operatorDir = path.join(tempDir, "operator");
-      await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, "vscode-session.json"),
-        JSON.stringify({
-          wrapper: "vscode",
-          port: 7009,
-          pid: 12345,
-          version: "0.1.26",
-          startedAt: "2024-01-01T00:00:00Z",
-          workspace: "/fake/workspace",
-        }),
-      );
-
       const provider = new StatusTreeProvider(mockContext);
+      provider.setWebhookServer({ isRunning: () => true, getPort: () => 7009 });
       await provider.setTicketsDir(tempDir);
 
       const sections = provider.getChildren();
@@ -273,7 +296,7 @@ suite("Status Provider Test Suite", () => {
       assert.strictEqual(wrapper.description, "VS Code Terminal");
     });
 
-    test("shows warning icon when wrapper is not vscode", async () => {
+    test("identifies the configured CLI wrapper", async () => {
       const mockContext = createMockContext(sandbox, "/fake/working-dir");
       sandbox.stub(configPaths, "configFileExists").resolves(true);
       sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
@@ -295,13 +318,13 @@ suite("Status Provider Test Suite", () => {
       assert.ok(wrapper, "Should have Session Wrapper item");
 
       const icon = wrapper.iconPath as vscode.ThemeIcon;
-      assert.strictEqual(icon.id, "warning", "Should show warning icon for non-vscode wrapper");
+      assert.strictEqual(icon.id, "terminal", "CLI wrapper should have a terminal icon");
       assert.strictEqual(wrapper.description, "tmux");
     });
   });
 
   suite("MCP status row", () => {
-    test("describes editor registration instead of a boolean Connected", async () => {
+    test("requires API verification before claiming an editor registration", async () => {
       const mockContext = createMockContext(sandbox, "/fake/working-dir");
       sandbox.stub(configPaths, "configFileExists").resolves(true);
       sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
@@ -325,12 +348,12 @@ suite("Status Provider Test Suite", () => {
       const children = provider.getChildren(connections);
       const mcp = findChild(children, "MCP");
       assert.ok(mcp, "Should have MCP item");
-      assert.strictEqual(mcp.description, "editor");
+      assert.strictEqual(mcp.description, "API required");
     });
   });
 
   suite("progressive disclosure", () => {
-    test("tier 0: only Configuration when config not ready", async () => {
+    test("tier 0: connection choice is available before setup", async () => {
       const mockContext = createMockContext(sandbox);
       sandbox.stub(configPaths, "configFileExists").resolves(false);
       sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
@@ -342,6 +365,7 @@ suite("Status Provider Test Suite", () => {
       const labels = getSectionLabels(provider.getChildren());
       assert.deepStrictEqual(labels, [
         "Configuration",
+        "Connections",
         "Workflow exports",
         "Remote Targets",
         "License",
@@ -373,22 +397,8 @@ suite("Status Provider Test Suite", () => {
       sandbox.stub(configPaths, "getResolvedConfigPath").returns("");
       sandbox.stub(configPaths, "resolveWorkingDirectory").returns("/fake/working-dir");
 
-      // Write webhook session file so connections are ready
-      const operatorDir = path.join(tempDir, "operator");
-      await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, "vscode-session.json"),
-        JSON.stringify({
-          wrapper: "vscode",
-          port: 7009,
-          pid: 12345,
-          version: "0.1.26",
-          startedAt: "2024-01-01T00:00:00Z",
-          workspace: "/fake/workspace",
-        }),
-      );
-
       const provider = new StatusTreeProvider(mockContext);
+      provider.setWebhookServer({ isRunning: () => true, getPort: () => 7009 });
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
@@ -417,22 +427,8 @@ suite("Status Provider Test Suite", () => {
       await fs.writeFile(configPath, '[kanban.jira."test.atlassian.net"]\nenabled = true\n');
       sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
-      // Write webhook session so connections are ready
-      const operatorDir = path.join(tempDir, "operator");
-      await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, "vscode-session.json"),
-        JSON.stringify({
-          wrapper: "vscode",
-          port: 7009,
-          pid: 12345,
-          version: "0.1.26",
-          startedAt: "2024-01-01T00:00:00Z",
-          workspace: "/fake/workspace",
-        }),
-      );
-
       const provider = new StatusTreeProvider(mockContext);
+      provider.setWebhookServer({ isRunning: () => true, getPort: () => 7009 });
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
@@ -456,22 +452,8 @@ suite("Status Provider Test Suite", () => {
       await fs.writeFile(configPath, '[git]\nprovider = "github"\n');
       sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
-      // Write webhook session so connections are ready
-      const operatorDir = path.join(tempDir, "operator");
-      await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, "vscode-session.json"),
-        JSON.stringify({
-          wrapper: "vscode",
-          port: 7009,
-          pid: 12345,
-          version: "0.1.26",
-          startedAt: "2024-01-01T00:00:00Z",
-          workspace: "/fake/workspace",
-        }),
-      );
-
       const provider = new StatusTreeProvider(mockContext);
+      provider.setWebhookServer({ isRunning: () => true, getPort: () => 7009 });
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());
@@ -498,22 +480,8 @@ suite("Status Provider Test Suite", () => {
       );
       sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
 
-      // Write webhook session so connections are ready
-      const operatorDir = path.join(tempDir, "operator");
-      await fs.mkdir(operatorDir, { recursive: true });
-      await fs.writeFile(
-        path.join(operatorDir, "vscode-session.json"),
-        JSON.stringify({
-          wrapper: "vscode",
-          port: 7009,
-          pid: 12345,
-          version: "0.1.26",
-          startedAt: "2024-01-01T00:00:00Z",
-          workspace: "/fake/workspace",
-        }),
-      );
-
       const provider = new StatusTreeProvider(mockContext);
+      provider.setWebhookServer({ isRunning: () => true, getPort: () => 7009 });
       await provider.setTicketsDir(tempDir);
 
       const labels = getSectionLabels(provider.getChildren());

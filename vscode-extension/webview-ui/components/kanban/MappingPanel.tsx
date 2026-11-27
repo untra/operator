@@ -63,9 +63,9 @@ export function MappingPanel({
 
   if (!externalTypes) {
     return (
-      <div className="op-row" style={{ padding: "16px 0", justifyContent: "center" }}>
+      <div className="op-row op-mapping-loading">
         <Spinner size={20} />
-        <span className="op-body2 op-text-secondary" style={{ marginLeft: 8 }}>
+        <span className="op-body2 op-text-secondary op-ml-1">
           Loading issue types from {provider}...
         </span>
       </div>
@@ -82,7 +82,7 @@ export function MappingPanel({
 
   return (
     <div className="op-mt-1">
-      <span className="op-caption op-text-secondary op-mb-1" style={{ display: "block" }}>
+      <span className="op-caption op-text-secondary op-mb-1 op-block">
         Issue Type Mappings for {projectKey}
         {collectionName && ` (collection: ${collectionName})`}
       </span>

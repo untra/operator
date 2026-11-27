@@ -1,5 +1,5 @@
 /**
- * Tests for config-panel.ts kanban provider handling.
+ * Tests for config panel navigation and kanban provider handling.
  *
  * The canonical list of kanban providers lives in the Rust
  * `KanbanProviderType::ALL` catalog and is projected into the generated
@@ -12,7 +12,13 @@
 import * as assert from "node:assert";
 import * as path from "node:path";
 import { readFileSync } from "node:fs";
+import fs from "node:fs/promises";
+import * as sinon from "sinon";
+import * as vscode from "vscode";
+import * as configPaths from "../../src/config-paths";
+import { resetConnection } from "../../src/connection";
 import {
+  ConfigPanel,
   KANBAN_PROVIDERS,
   KANBAN_PROVIDER_SLUGS,
   applyKanbanProviderField,
@@ -45,6 +51,71 @@ function generatedProviderSlugs(): string[] {
   }
   return slugs;
 }
+
+suite("Config Panel Navigation", () => {
+  test("posts only the latest destination after the initial config read", async () => {
+    const sandbox = sinon.createSandbox();
+    const received = new vscode.EventEmitter<{ type: string }>();
+    const readStarted = sinon.promise<void>();
+    const config = sinon.promise<string>();
+    const navigationPosted = sinon.promise<void>();
+    const postMessage = sandbox.stub().callsFake((message: { type: string }) => {
+      if (message.type === "navigateTo" && config.status === "resolved") {
+        navigationPosted.resolve(undefined);
+      }
+      return Promise.resolve(true);
+    });
+    const extensionUri = vscode.Uri.file(__dirname);
+    const configPath = path.join(__dirname, "config.toml");
+    try {
+      resetConnection({ kind: "local" });
+      sandbox.stub(ConfigPanel, "currentPanel").value(undefined);
+      sandbox.stub(vscode.window, "createWebviewPanel").returns({
+        webview: {
+          onDidReceiveMessage: received.event,
+          asWebviewUri: (uri: vscode.Uri) => uri,
+          postMessage,
+        },
+        onDidDispose: sandbox.stub(),
+      } as unknown as vscode.WebviewPanel);
+      sandbox.stub(configPaths, "getResolvedConfigPath").returns(configPath);
+      sandbox
+        .stub(fs, "readFile")
+        .callThrough()
+        .withArgs(configPath, "utf-8")
+        .callsFake(() => {
+          readStarted.resolve(undefined);
+          return config;
+        });
+
+      ConfigPanel.createOrShow(extensionUri);
+      ConfigPanel.navigateTo("kanban", { provider: "jira" });
+      received.fire({ type: "ready" });
+      await readStarted;
+      ConfigPanel.navigateTo("git", { provider: "gitlab" });
+      const postsWhileReading = postMessage.callCount;
+      config.resolve("");
+      await navigationPosted;
+
+      assert.strictEqual(postsWhileReading, 0);
+      ConfigPanel.navigateTo("sessions");
+      assert.deepStrictEqual(
+        postMessage.args.map(([message]) => message.type),
+        ["configLoaded", "navigateTo", "navigateTo"],
+      );
+      assert.deepStrictEqual(postMessage.secondCall.firstArg, {
+        type: "navigateTo",
+        section: "git",
+        prefill: { provider: "gitlab" },
+      });
+      assert.strictEqual(postMessage.thirdCall.firstArg.section, "sessions");
+    } finally {
+      sandbox.restore();
+      received.dispose();
+      resetConnection({ kind: "undecided" });
+    }
+  });
+});
 
 suite("Config Panel Kanban Providers", () => {
   // ---------------------------------------------------------------------
@@ -264,5 +335,19 @@ suite("Config Panel Kanban Providers", () => {
       "first.atlassian.net": first,
       "second.atlassian.net": second,
     });
+  });
+});
+
+suite("Named Kanban instances", () => {
+  test("adding a second instance preserves the first and rejects a duplicate", () => {
+    const config = {};
+    applyKanbanProviderField(config, "jira", "first.example", "addInstance", true);
+    applyKanbanProviderField(config, "jira", "first.example", "email", "first@example.com");
+    applyKanbanProviderField(config, "jira", "second.example", "addInstance", true);
+    assert.throws(
+      () => applyKanbanProviderField(config, "jira", "first.example", "addInstance", true),
+      /unique/,
+    );
+    assert.match(JSON.stringify(config), /first@example.com/);
   });
 });

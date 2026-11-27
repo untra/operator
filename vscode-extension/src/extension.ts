@@ -10,7 +10,6 @@
  */
 
 import * as vscode from "vscode";
-import * as path from "node:path";
 import * as os from "node:os";
 import { TerminalManager } from "./terminal-manager";
 import { WebhookServer } from "./webhook-server";
@@ -21,7 +20,7 @@ import { LaunchManager } from "./launch-manager";
 import { IssueTypeService } from "./issuetype-service";
 import type { TicketInfo } from "./types";
 import { OperatorApiClient, discoverApiUrl, discoverLocalApiUrl } from "./api-client";
-import { AuthRequiredError } from "./auth/errors";
+import { assessConnection } from "./connection-assessment";
 import {
   APPROVED_WORKSPACE_ORIGIN,
   CHOOSE_CONNECTION_COMMAND,
@@ -36,6 +35,7 @@ import {
   resetConnection,
   resolveConnection,
   setConnectionOrigin,
+  setConnectionAssessment,
 } from "./connection";
 import { SerialQueue } from "./serial-queue";
 import {
@@ -91,7 +91,12 @@ import {
   type CampaignCommandContext,
 } from "./campaign-commands";
 import { connectMcpServer } from "./mcp-connect";
-import { configFileExists } from "./config-paths";
+import {
+  getResolvedConfigPath,
+  resolveTicketsDirectory,
+  resolveWorkingDirectory,
+  configFileExists,
+} from "./config-paths";
 import { findParentTicketsDir, findTicketsDir, findOperatorServerDir } from "./tickets-dir";
 import { addJiraProject, addLinearTeam } from "./kanban-onboarding";
 
@@ -753,7 +758,7 @@ async function runSetupCommand(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  const workingDir = ctx.extensionContext.globalState.get<string>("operator.workingDirectory");
+  const workingDir = resolveWorkingDirectory();
   if (!workingDir) {
     await vscode.commands.executeCommand("operator.selectWorkingDirectory");
     return;
@@ -770,28 +775,14 @@ async function runSetupCommand(ctx: CommandContext): Promise<void> {
   }
 
   const operatorPath = await getOperatorPath(ctx.extensionContext);
-  const success = await initializeTicketsDirectory(workingDir, operatorPath ?? undefined);
+  const success = await initializeTicketsDirectory(
+    workingDir,
+    operatorPath ?? undefined,
+    resolveTicketsDirectory(),
+  );
 
   if (success) {
-    const ticketsDir = path.join(workingDir, ".tickets");
-    ctx.setCurrentTicketsDir(ticketsDir);
-    await ctx.setTicketsDir(ticketsDir);
-
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(ticketsDir, "**/*.md"),
-    );
-    watcher.onDidChange(() => {
-      void ctx.refreshAllProviders();
-    });
-    watcher.onDidCreate(() => {
-      void ctx.refreshAllProviders();
-    });
-    watcher.onDidDelete(() => {
-      void ctx.refreshAllProviders();
-    });
-    ctx.extensionContext.subscriptions.push(watcher);
-
-    await updateOperatorContext(ctx);
+    await ctx.reconnect();
     void vscode.window.showInformationMessage("Operator setup completed successfully.");
   } else {
     void vscode.window.showErrorMessage("Failed to run operator setup.");
@@ -908,28 +899,22 @@ async function startOperatorServerCommand(ctx: CommandContext, automatic = false
     return;
   }
 
-  const apiClient = new OperatorApiClient(origin);
-  try {
-    const health = await apiClient.health();
-    const localVersion = await getOperatorVersion(operatorPath);
-    if (localVersion && health.version && health.version !== localVersion) {
-      // The port is held by a different operator version - adopting it could
-      // mix incompatible client/server APIs. Warn instead of silently starting.
-      void vscode.window.showWarningMessage(
-        `A different Operator version (v${health.version}) is already running on this port; ` +
-          `this binary is v${localVersion}. Stop the other instance or set a different ` +
-          `port (operator.apiUrl) before starting your own server.`,
-      );
-      return;
-    }
-    void vscode.window.showInformationMessage(
-      health.version
-        ? `Operator is already running (v${health.version})`
-        : "Operator is already running",
-    );
+  const status = await assessConnection(
+    selection,
+    origin,
+    ctx.getCurrentTicketsDir(),
+    ctx.extensionContext,
+  );
+  if (signal.aborted) {
     return;
-  } catch {
-    // Not running, proceed to start
+  }
+  if (status.reachable) {
+    if (status.mismatch) {
+      void vscode.window.showWarningMessage(`Operator ${status.mismatch.detail}.`);
+    } else {
+      void vscode.window.showInformationMessage(`Operator is already running at ${origin}`);
+    }
+    return;
   }
 
   if (signal.aborted) {
@@ -944,12 +929,16 @@ async function startOperatorServerCommand(ctx: CommandContext, automatic = false
     return;
   }
 
-  ctx.terminalManager.create({
-    name: terminalName,
-    workingDir: serverDir,
-  });
-
-  ctx.terminalManager.send(terminalName, `"${operatorPath}" api`);
+  const tickets = resolveTicketsDirectory();
+  const args = ["--config", getResolvedConfigPath(), "api"];
+  const port = selection.origin && new URL(selection.origin).port;
+  if (port) {
+    args.push("--port", port);
+  }
+  ctx.terminalManager.create(
+    { name: terminalName, workingDir: serverDir, env: { OPERATOR_PATHS__TICKETS: tickets } },
+    { shellPath: operatorPath, shellArgs: args },
+  );
   if (!automatic) {
     ctx.terminalManager.focus(terminalName);
   }
@@ -1274,12 +1263,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
       }
 
+      let directoryChanged = false;
       if (next.kind === "local") {
         const dir = await findParentTicketsDir();
         if (signal.aborted) {
           return;
         }
-        if (changed || dir !== currentTicketsDir) {
+        directoryChanged = dir !== currentTicketsDir;
+        if (changed || directoryChanged) {
           watcher?.dispose();
           watcher = undefined;
           sessionWatcher?.dispose();
@@ -1321,7 +1312,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
       }
       const localOriginChanged = !!currentConnection().origin && currentConnection().origin !== url;
-      if (localOriginChanged) {
+      if (localOriginChanged || (!changed && directoryChanged)) {
         resetConnection(next);
         ctx.attachedServer = undefined;
         ticketApiClients(undefined);
@@ -1344,36 +1335,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       setConnectionOrigin(url);
       const active = currentConnection().signal;
       const client = new OperatorApiClient(url);
-      let authRequired = false;
-      let reachable = await client.isReachable();
+      const status = await assessConnection(next, url, currentTicketsDir, context);
       if (active.aborted) {
         return;
       }
-      ctx.attachedServer = undefined;
-      if (reachable) {
-        try {
-          let version: string | undefined;
-          if (next.kind === "hosted") {
-            await client.currentSession();
-          } else {
-            version = (await client.health()).version;
-          }
-          if (active.aborted) {
-            return;
-          }
-          ctx.attachedServer = { url, version };
-        } catch (error) {
-          authRequired = error instanceof AuthRequiredError;
-          reachable = authRequired;
-        }
-      }
-      if (active.aborted) {
-        return;
-      }
+      setConnectionAssessment(status);
+      ConfigPanel.updateReachability(status.connected);
+      const authRequired = status.mismatch?.kind === "auth";
+      const reachable = status.reachable === true;
+      ctx.attachedServer = status.connected ? { url, version: status.version } : undefined;
 
       ticketApiClients(ctx.attachedServer ? client : undefined);
       issueTypeService.setBaseUrl(ctx.attachedServer ? url : "");
-      if (next.kind === "local" && (allowStartup || localOriginChanged)) {
+      if (next.kind === "local" && (allowStartup || localOriginChanged || directoryChanged)) {
         const hasConfig = await configFileExists(ctx.getCurrentTicketsDir());
         if (hasConfig && !active.aborted) {
           await ctx.listenerQueue.run(async () => {
@@ -1504,6 +1478,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("operator.openCampaign", (node?: CampaignNode) =>
       openCampaignCommand(campaignCtx, node),
     ),
+    vscode.commands.registerCommand("operator.retryConnection", () => ctx.reconnect()),
     vscode.commands.registerCommand("operator.showStatus", () => showStatus(ctx)),
     vscode.commands.registerCommand("operator.refreshTickets", () => ctx.reconnect()),
     vscode.commands.registerCommand("operator.focusTicket", (name: string, ticket?: TicketInfo) =>
@@ -1718,7 +1693,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (
         !savingChoice &&
         (event.affectsConfiguration("operator.apiUrl") ||
-          event.affectsConfiguration("operator.connectionMode"))
+          event.affectsConfiguration("operator.connectionMode") ||
+          event.affectsConfiguration("operator.workingDirectory") ||
+          event.affectsConfiguration("operator.ticketsDir"))
       ) {
         void reconcileConnection(true).catch(warn);
       }

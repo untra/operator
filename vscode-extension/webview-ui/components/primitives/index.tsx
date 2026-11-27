@@ -227,8 +227,11 @@ export interface SpinnerProps extends CommonProps {
 }
 
 export function Spinner({ size, className, style }: SpinnerProps) {
-  const dim = size ? { width: size, height: size } : undefined;
-  return <span className={cx("op-spinner", className)} style={{ ...dim, ...style }} />;
+  const dimensions = React.useMemo(
+    () => (size ? { width: size, height: size, ...style } : style),
+    [size, style],
+  );
+  return <span className={cx("op-spinner", className)} style={dimensions} />;
 }
 
 export interface CardProps extends CommonProps {

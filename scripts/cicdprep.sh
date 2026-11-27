@@ -322,7 +322,6 @@ if needs_charts; then
     --set ingress.host=operator.example.com \
     --set ingress.tls.secretName=operator-tls \
     --set networkPolicy.enabled=true \
-    --set bootstrap.existingSecret=operator-bootstrap \
     > /dev/null'
 else
   skip "Helm chart"

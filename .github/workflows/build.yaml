@@ -197,7 +197,6 @@ jobs:
             --set ingress.host=operator.example.com \
             --set ingress.tls.secretName=operator-tls \
             --set networkPolicy.enabled=true \
-            --set bootstrap.existingSecret=operator-bootstrap \
             > operator-chart.yaml
           helm template operator charts/operator \
             --set-json 'extraVolumes=[{"name":"custom-ca","configMap":{"name":"custom-ca"}}]' \
